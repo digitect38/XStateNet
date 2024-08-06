@@ -1,0 +1,13 @@
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.GeneratedMSBuildEditorConfig.editorconfig
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.AssemblyInfoInputs.cache
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.AssemblyInfo.cs
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.csproj.CoreCompileInputs.cache
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.sourcelink.json
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.csproj.AssemblyReference.cache
+/workspaces/XStateNet/src/bin/Debug/net8.0/src.deps.json
+/workspaces/XStateNet/src/bin/Debug/net8.0/src.dll
+/workspaces/XStateNet/src/bin/Debug/net8.0/src.pdb
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.dll
+/workspaces/XStateNet/src/obj/Debug/net8.0/refint/src.dll
+/workspaces/XStateNet/src/obj/Debug/net8.0/src.pdb
+/workspaces/XStateNet/src/obj/Debug/net8.0/ref/src.dll
