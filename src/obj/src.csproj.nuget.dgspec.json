@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {}
+    "d:\\temp\\xsn\\XStateNet\\src\\src.csproj": {}
   },
   "projects": {
-    "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
+    "d:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
+        "projectUniqueName": "d:\\temp\\xsn\\XStateNet\\src\\src.csproj",
         "projectName": "src",
-        "projectPath": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
+        "projectPath": "d:\\temp\\xsn\\XStateNet\\src\\src.csproj",
         "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "D:\\temp\\xsn\\XStateNet\\src\\obj\\",
+        "outputPath": "d:\\temp\\xsn\\XStateNet\\src\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages",

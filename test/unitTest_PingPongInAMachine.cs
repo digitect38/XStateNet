@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using SharpState;
+using SharpState.UnitTest;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -38,14 +39,14 @@ public class IntraMachinePingPongStateMachinesTests
     public async Task TestPingPongStateMachines()
     {
         // Initial states
-        Assert.AreEqual(_pingPongStateMachine.GetCurrentState(), "#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
 
         // Wait for the ping-pong actions to occur
         await Task.Delay(1100);
-        Assert.AreEqual(_pingPongStateMachine.GetCurrentState(), "#pingPongMachine.A.b;#pingPongMachine.B.b");
+        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.b;#pingPongMachine.B.b");
 
         await Task.Delay(1100);
-        Assert.AreEqual(_pingPongStateMachine.GetCurrentState(), "#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
     }
 }
 public static class PingPongMachine
