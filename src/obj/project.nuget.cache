@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "OK1Fct3MzEA=",
+  "dgSpecHash": "2BMO4/JmG8U=",
   "success": true,
-  "projectFilePath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj",
+  "projectFilePath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\digit\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512"
   ],

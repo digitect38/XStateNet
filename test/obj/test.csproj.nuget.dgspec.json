@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\test\\test.csproj": {}
+    "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj": {}
   },
   "projects": {
-    "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj": {
+    "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj",
+        "projectUniqueName": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj",
         "projectName": "src",
-        "projectPath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj",
+        "projectPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj",
         "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\obj\\",
+        "outputPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
@@ -77,14 +77,14 @@
         }
       }
     },
-    "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\test\\test.csproj": {
+    "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\test\\test.csproj",
+        "projectUniqueName": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj",
         "projectName": "test",
-        "projectPath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\test\\test.csproj",
+        "projectPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj",
         "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\test\\obj\\",
+        "outputPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
@@ -108,8 +108,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj": {
-                "projectPath": "c:\\Users\\digit\\source\\repos\\digitect38\\XStateNet\\src\\src.csproj"
+              "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj": {
+                "projectPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj"
               }
             }
           }
