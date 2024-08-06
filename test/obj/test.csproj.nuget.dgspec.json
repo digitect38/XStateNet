@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\temp\\xsn\\XStateNet\\test\\test.csproj": {}
+    "D:\\temp\\xsn\\XStateNet\\test\\test.csproj": {}
   },
   "projects": {
-    "d:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
+    "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\temp\\xsn\\XStateNet\\src\\src.csproj",
+        "projectUniqueName": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
         "projectName": "src",
-        "projectPath": "d:\\temp\\xsn\\XStateNet\\src\\src.csproj",
+        "projectPath": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
         "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "d:\\temp\\xsn\\XStateNet\\src\\obj\\",
+        "outputPath": "D:\\temp\\xsn\\XStateNet\\src\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages",
@@ -73,14 +73,14 @@
         }
       }
     },
-    "d:\\temp\\xsn\\XStateNet\\test\\test.csproj": {
+    "D:\\temp\\xsn\\XStateNet\\test\\test.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\temp\\xsn\\XStateNet\\test\\test.csproj",
+        "projectUniqueName": "D:\\temp\\xsn\\XStateNet\\test\\test.csproj",
         "projectName": "test",
-        "projectPath": "d:\\temp\\xsn\\XStateNet\\test\\test.csproj",
+        "projectPath": "D:\\temp\\xsn\\XStateNet\\test\\test.csproj",
         "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "d:\\temp\\xsn\\XStateNet\\test\\obj\\",
+        "outputPath": "D:\\temp\\xsn\\XStateNet\\test\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages",
@@ -105,8 +105,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "d:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
-                "projectPath": "d:\\temp\\xsn\\XStateNet\\src\\src.csproj"
+              "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
+                "projectPath": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj"
               }
             }
           }
