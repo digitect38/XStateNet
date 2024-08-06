@@ -4,6 +4,7 @@ using SharpState.UnitTest;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace AdvancedFeatures;
 
@@ -140,18 +141,45 @@ public class StateMachineTests
             }
         }";
 
+        void Increment(StateMachine sm)
+        {
+            sm.ContextMap["count"] = (int)sm.ContextMap["count"] + 1;
+        };
+
         var actions = new ConcurrentDictionary<string, List<NamedAction>>
         {
-            ["incrementCount"] = [new("incrementCount", (sm) => _stateMachine.ContextMap["count"] = (int)_stateMachine.ContextMap["count"] + 1)],
-            ["decrementCount"] = [new("decrementCount", (sm) => _stateMachine.ContextMap["count"] = (int)_stateMachine.ContextMap["count"] - 1)],
-            ["resetCount"] = [new("resetCount", (sm) => _stateMachine.ContextMap["count"] = 0)],
+            ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
+            ["decrementCount"] = [new("decrementCount", (sm) => Decrement(sm))],
+            ["resetCount"] = [new("resetCount", (sm) => ResetCount(sm))],
             ["checkCount"] = [new("checkCount", (sm) => { })]
         };
 
+      void ResetCount (StateMachine sm)
+      {
+
+        sm.ContextMap["count"] = 0;
+      }
+
+ 
+
+      bool IsSmallNumber(StateMachine sm)
+      {
+        return (int)sm.ContextMap["count"] <= 3;
+      }
+
+      bool IsBigNumber(StateMachine sm)
+      {
+        return (int)sm.ContextMap["count"] > 3;
+      }
+
+      void Decrement(StateMachine sm)
+      {
+        sm.ContextMap["count"] = (int)sm.ContextMap["count"] - 1;
+      }
         var guards = new ConcurrentDictionary<string, NamedGuard>
         {
-            ["isBigNumber"] = new("isBigNumber", (sm) => (int)_stateMachine.ContextMap["count"] > 3),
-            ["isSmallNumber"] = new("isSmallNumber", (sm) => (int)_stateMachine.ContextMap["count"] <= 3)
+            ["isBigNumber"] = new("isBigNumber", (sm) => IsBigNumber(sm)),
+            ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))
         };
 
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
@@ -165,8 +193,11 @@ public class StateMachineTests
         _stateMachine.Send("INCREMENT");
         _stateMachine.Send("INCREMENT");
         _stateMachine.Send("INCREMENT");
+        //_stateMachine.Send("INCREMENT");
 
         currentState = _stateMachine.GetCurrentState();
+
+        Console.WriteLine(">>>>> _stateMachine.ContextMap[\"count\"] = " + _stateMachine.ContextMap["count"]);
         Assert.AreEqual("#counter.bigNumber", currentState);
 
         _stateMachine.Send("DECREMENT");
