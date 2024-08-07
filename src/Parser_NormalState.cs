@@ -14,14 +14,14 @@ public abstract class Parser_StateBase
 {
     public Parser_StateBase() { }
 
-    public abstract StateBase Parse(string stateName, string parentName, string machineId, JToken stateToken);
+    public abstract StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken);
 }
 
 public class Parser_NormalState
 {
     public Parser_NormalState() { }
         
-    public virtual StateBase Parse(string stateName, string parentName, string machineId, JToken stateToken)
+    public virtual StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
     {
         StateMachine stateMachine = StateMachine.GetInstance(machineId);
 

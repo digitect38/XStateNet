@@ -298,12 +298,12 @@ public partial class StateMachine
         StateMap[state.Name] = state;
     }
 
-    public State GetState(string stateName)
+    public State? GetState(string stateName)
     {
         return StateMap[stateName] as State;
     }
 
-    public HistoryState GetStateAsHistory(string stateName)
+    public HistoryState? GetStateAsHistory(string stateName)
     {
         return StateMap[stateName] as HistoryState;
     }
@@ -354,7 +354,7 @@ public partial class StateMachine
         lock (this)
         {
             var state = StateMap[stateName] as State;
-            return state.Parent != null && state.Parent.InitialStateName == state.Name;
+            return state?.Parent != null && state.Parent.InitialStateName == state.Name;
         }
     }
 
@@ -393,28 +393,7 @@ public partial class StateMachine
         return ActiveStateMap.Values.ToCsvString();
     }
 
-    public ICollection<State> GetSourceSubStateCollection(string statePath = null)
-    {
-        State state = null;
-
-        if (statePath == null)
-        {
-            state = RootState;
-        }
-        else
-        {
-            state = GetState(statePath) as State;
-        }
-
-        ICollection<State> list = new List<State>();
-        state.GetSouceSubStateCollection(list);
-
-        return list;
-    }
-
-    
-
-    public ICollection<State> GetTargetSubStateCollection(string statePath = null)
+    public ICollection<State> GetSourceSubStateCollection(string? statePath = null)
     {
         State? state = null;
 
@@ -428,7 +407,28 @@ public partial class StateMachine
         }
 
         ICollection<State> list = new List<State>();
-        state.GetTargetSubStateCollection(list);
+        state?.GetSouceSubStateCollection(list);
+
+        return list;
+    }
+
+    
+
+    public ICollection<State> GetTargetSubStateCollection(string? statePath = null)
+    {
+        State? state = null;
+
+        if (statePath == null)
+        {
+            state = RootState;
+        }
+        else
+        {
+            state = GetState(statePath) as State;
+        }
+
+        ICollection<State> list = new List<State>();
+        state?.GetTargetSubStateCollection(list);
 
         return list;
     }
@@ -440,7 +440,7 @@ public partial class StateMachine
         state = GetState(statePath) as State;
 
         ICollection<State> list = new List<State>();
-        state.GetSuperStateCollection(list);
+        state?.GetSuperStateCollection(list);
 
         return list;
     }

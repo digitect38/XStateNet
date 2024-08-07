@@ -12,12 +12,12 @@ namespace SharpState;
 public abstract class StateBase
 {    
     public string Name { get; set; }
-    public string ParentName { get; set; }
+    public string? ParentName { get; set; }
     public StateMachine StateMachine => StateMachine.GetInstance(stateMachineId);
 
     public string stateMachineId;
 
-    public StateBase(string name, string parentName, string stateMachineId)
+    public StateBase(string name, string? parentName, string stateMachineId)
     {
         Name = name;
         ParentName = parentName;
@@ -31,7 +31,7 @@ public abstract class StateBase
 public class State : StateBase
 {
 
-    public State(string name, string parentName, string stateMachineId) : base(name, parentName, stateMachineId)    
+    public State(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)    
     {
         
         SubStateNames = new List<string>();
@@ -45,11 +45,11 @@ public class State : StateBase
 
     public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; }
     //public ConcurrentDictionary<string, List<Transition>> AfterTransitionMap { get; set; }
-    public AfterTransition AfterTransition { get; set; } // Added for after transitions
+    public AfterTransition? AfterTransition { get; set; } // Added for after transitions
 
-    public AlwaysTransition AlwaysTransition { get; set; } // Added for always transitions
+    public AlwaysTransition? AlwaysTransition { get; set; } // Added for always transitions
 
-    public State Parent => string.IsNullOrEmpty(ParentName) ? null : StateMachine.GetState(ParentName);
+    public State? Parent => string.IsNullOrEmpty(ParentName) ? null : StateMachine.GetState(ParentName);
 
 
     public List<NamedAction> EntryActions { get; set; }
@@ -60,8 +60,8 @@ public class State : StateBase
     public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
     public bool IsHistory => throw new Exception("Not implemented yet");
     //public HistoryType HistoryType { get; set; }
-    public string LastActiveStateName { get; set; }
-    public string InitialStateName { get; set; }
+    public string? LastActiveStateName { get; set; }
+    public string? InitialStateName { get; set; }
 
     //private System.Timers.Timer transitionTimer;
 
@@ -71,14 +71,14 @@ public class State : StateBase
 
         if (IsParallel)
         {
-            foreach (var subStateName in SubStateNames)
+            foreach (string subStateName in SubStateNames)
             {
-                StateMachine.GetState(subStateName).InitializeCurrentStates();
+                StateMachine.GetState(subStateName)?.InitializeCurrentStates();
             }
         }
         else if (SubStateNames != null && InitialStateName != null)
         {
-            StateMachine.GetState(InitialStateName).InitializeCurrentStates();
+            StateMachine.GetState(InitialStateName)?.InitializeCurrentStates();
         }
 
         // Schedule after transitions for the initial state
@@ -93,7 +93,7 @@ public class State : StateBase
         {
             var tasks = SubStateNames.Select(subStateName => Task.Run(() =>
             {
-                StateMachine.GetState(subStateName).Start();
+                StateMachine.GetState(subStateName)?.Start();
             })).ToArray();
 
             Task.WaitAll(tasks);
@@ -102,7 +102,7 @@ public class State : StateBase
         {
             if (InitialStateName != null)
             {
-                StateMachine.GetState(InitialStateName).Start();
+                StateMachine.GetState(InitialStateName)?.Start();
             }
         }
     }
@@ -134,7 +134,7 @@ public class State : StateBase
                 subStateName =>
                 {
                     var subState = StateMachine.GetState(subStateName);
-                    subState.EntryState();
+                    subState?.EntryState();
                 }
             );
         }
@@ -145,18 +145,18 @@ public class State : StateBase
 
             if (historyType == HistoryType.Deep)
             {
-                lastActivestate.EntryState(historyType);
+                lastActivestate?.EntryState(historyType);
             }
             else
             {
-                lastActivestate.EntryState();
+                lastActivestate?.EntryState();
             }
         }
         else if (InitialStateName != null)
         {
             var subStateName = InitialStateName;
             var subState = StateMachine.GetState(subStateName);
-            subState.EntryState();
+            subState?.EntryState();
         }
 
         ScheduleAfterTransitionTimer();
@@ -210,9 +210,9 @@ public class State : StateBase
             var source = StateMachine.GetState(transition.SourceName);
             var target = StateMachine.GetState(transition.TargetName);
 
-            source.ExitState();
+            source?.ExitState();
             transition.Actions?.ForEach(action => action.Action(StateMachine));
-            target.EntryState();
+            target?.EntryState();
         }
     }
 
@@ -225,7 +225,7 @@ public class State : StateBase
             if (StateMachine.TestActive(subStateName))
             {
                 var subState = StateMachine.GetState(subStateName);
-                subState.ExitState();
+                subState?.ExitState();
             }
         });
 
@@ -249,7 +249,7 @@ public class State : StateBase
         {
             foreach (var currentStateName in SubStateNames)
             {
-                StateMachine.GetState(currentStateName).PrintCurrentStateTree(depth + 1);
+                StateMachine.GetState(currentStateName)?.PrintCurrentStateTree(depth + 1);
             }
         }
         else
@@ -257,7 +257,7 @@ public class State : StateBase
             foreach (var currentStateName in SubStateNames)
             {
                 if (StateMachine.TestActive(currentStateName))
-                    StateMachine.GetState(currentStateName).PrintCurrentStateTree(depth + 1);
+                    StateMachine.GetState(currentStateName)?.PrintCurrentStateTree(depth + 1);
             }
         }
     }
@@ -269,7 +269,7 @@ public class State : StateBase
 
     public List<string> CurrentSubStateNames => GetCurrentSubStateNames(this, new List<string>());
 
-    List<string> GetCurrentSubStateNames(State state, List<string> list)
+    List<string> GetCurrentSubStateNames(State? state, List<string> list)
     {
         if (state.IsParallel)
         {
@@ -297,10 +297,10 @@ public class State : StateBase
     {
         if (IsParallel)
         {
-            foreach (var subState in SubStateNames)
+            foreach (string subState in SubStateNames)
             {
                 collection.Add(StateMachine.GetState(subState));
-                StateMachine.GetState(subState).GetSouceSubStateCollection(collection);
+                StateMachine.GetState(subState)?.GetSouceSubStateCollection(collection);
             }
         }
         else
