@@ -947,7 +947,7 @@
       ]
     },
     "System.Reflection.Metadata/1.6.0": {
-      "sha512": "COC1aiAJjCoA5GBF+QKL2uLqEBew4JsCkQmoHKbN3TlOZKa2fKLz5CpiRQKDz0RsAOEGsVKqOD5bomsXq/4STQ==",
+      "sha512": "3FWGgy8S+NRCIlFVrRlGYE+KBsBDClrLgPxzj8+1ynv2roKUR/UY4T8+IzbWTO2RsDsMcgtIfDV/eA6fPVttAQ==",
       "type": "package",
       "path": "system.reflection.metadata/1.6.0",
       "files": [
@@ -985,42 +985,44 @@
   },
   "packageFolders": {
     "C:\\Users\\digit\\.nuget\\packages\\": {},
+    "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {},
-    "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\": {}
+    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj",
+      "projectUniqueName": "D:\\temp\\xsn\\XStateNet\\test\\test.csproj",
       "projectName": "test",
-      "projectPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\test.csproj",
+      "projectPath": "D:\\temp\\xsn\\XStateNet\\test\\test.csproj",
       "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\test\\obj\\",
+      "outputPath": "D:\\temp\\xsn\\XStateNet\\test\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
+        "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages",
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-        "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\"
+        "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
       ],
       "configFilePaths": [
         "C:\\Users\\digit\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-        "C:\\Program Files\\dotnet\\library-packs": {},
+        "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj": {
-              "projectPath": "C:\\Users\\digit\\Source\\Repos\\digitect38\\XStateNet\\src\\src.csproj"
+            "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
+              "projectPath": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj"
             }
           }
         }
@@ -1029,11 +1031,6 @@
         "warnAsError": [
           "NU1605"
         ]
-      },
-      "restoreAuditProperties": {
-        "enableAudit": "true",
-        "auditLevel": "low",
-        "auditMode": "direct"
       }
     },
     "frameworks": {
@@ -1077,7 +1074,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.303/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.104/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
