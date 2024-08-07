@@ -241,6 +241,8 @@ public partial class StateMachine
         {
             var state = current.Value;
 
+            Console.WriteLine($"transition on event {eventName} in source state {current.Key}");
+
             if (state.OnTransitionMap.ContainsKey(eventName))
             {
                 var onTransitionList = state.OnTransitionMap[eventName];
@@ -287,7 +289,7 @@ public partial class StateMachine
         }
         else
         {
-            Console.WriteLine($"Condition not met for transition on event {eventName} in state {ActiveStateMap.First().Value.Name}");
+            Console.WriteLine($"Condition not met for transition on event {eventName}");
         }
     }   
 
