@@ -237,78 +237,23 @@ public partial class StateMachine
 
     void Transit(string eventName)
     {
-
-        List<State> onTransitionStateList = new List<State>();
-        List<State> alwaysTransitionStateList = new List<State>();
-        List<State> afterTransitionStateList = new List<State>();
-
         foreach (var current in this.ActiveStateMap)
         {
-            // event transition
-            if (current.Value.OnTransitionMap.ContainsKey(eventName))
-            {
-                onTransitionStateList.Add(current.Value);
-            }
-
-            // always transition
-            if (current.Value.AlwaysTransition != null)
-            {
-                alwaysTransitionStateList.Add(current.Value);
-            }
-
-            // after transition
-            if (current.Value.AfterTransition != null)
-            {
-                afterTransitionStateList.Add(current.Value);
-            }
+            OnTransit(current.Value, eventName);
+            AlwaysTransit(current.Value);
+            AfterTransit(current.Value);
         }
+    }
 
-        foreach (var state in onTransitionStateList)
+    void OnTransit(State state, string eventName)
+    {
+        if (!state.OnTransitionMap.ContainsKey(eventName)) return;
+
+        var onTransitionList = state.OnTransitionMap[eventName];
+
+        foreach (var transition in onTransitionList)
         {
-            var onTransitionList = state.OnTransitionMap[eventName];
-
-            foreach (var transition in onTransitionList)
-            {
-                if ((transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
-                {
-                    var exitList = transition.GetExitList();
-                    var (entryList, historyType) = transition.GetEntryList();
-
-                    // Exit
-                    exitList.ForEach(state =>
-                    {
-                        state.ExitState();
-                    });
-
-                    State fromState = transition.Source;
-                    StateBase toState = transition.Target;
-
-                    // Transition
-                    OnTransition?.Invoke(fromState, toState, eventName);
-                    transition.Actions?.ForEach(action => action.Action(this));
-
-                    // Entry
-                    entryList.ForEach(state =>
-                    {
-                        state.EntryState(historyType);
-                    });
-
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine($"Condition not met for transition on event {eventName} in state {ActiveStateMap.First().Value.Name}");
-                }
-            }
-        }
-
-        foreach (var state in alwaysTransitionStateList)
-        {
-
-            var transition = state.AlwaysTransition;
-
-            //var guard = transition.Guard.Func(this);
-            if (transition != null && (transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
+            if ((transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
             {
                 var exitList = transition.GetExitList();
                 var (entryList, historyType) = transition.GetEntryList();
@@ -332,49 +277,85 @@ public partial class StateMachine
                     state.EntryState(historyType);
                 });
 
+                break;
             }
             else
             {
                 Console.WriteLine($"Condition not met for transition on event {eventName} in state {ActiveStateMap.First().Value.Name}");
             }
-
         }
+    }
+    void AlwaysTransit(State state)
+    {
+        var transition = state.AlwaysTransition;
+        if (transition == null) return;
 
-        foreach (var state in afterTransitionStateList)
+        //var guard = transition.Guard.Func(this);
+        if (transition != null && (transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
         {
-            var transition = state.AfterTransition;
+            var exitList = transition.GetExitList();
+            var (entryList, historyType) = transition.GetEntryList();
 
-            if (transition != null && (transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
+            // Exit
+            exitList.ForEach(state =>
             {
-                var exitList = transition.GetExitList();
-                var (entryList, historyType) = transition.GetEntryList();
+                state.ExitState();
+            });
 
-                // Exit
-                exitList.ForEach(state =>
-                {
-                    state.ExitState();
-                });
+            State fromState = transition.Source;
+            StateBase toState = transition.Target;
 
-                State fromState = transition.Source;
-                StateBase toState = transition.Target;
+            // Transition
+            OnTransition?.Invoke(fromState, toState, "always");
+            transition.Actions?.ForEach(action => action.Action(this));
 
-                // Transition
-                OnTransition?.Invoke(fromState, toState, eventName);
-                transition.Actions?.ForEach(action => action.Action(this));
-
-                // Entry
-                entryList.ForEach(state =>
-                {
-                    state.EntryState(historyType);
-                });
-
-            }
-            else
+            // Entry
+            entryList.ForEach(state =>
             {
-                Console.WriteLine($"Condition not met for transition on event {eventName} in state {ActiveStateMap.First().Value.Name}");
-            }
+                state.EntryState(historyType);
+            });
+
+        }
+        else
+        {
+            Console.WriteLine($"Condition not met for transition on event {"always"} in state {ActiveStateMap.First().Value.Name}");
         }
 
+    }
+    void AfterTransit(State state)
+    {
+        var transition = state.AfterTransition;
+        if(transition == null) return;
+
+        if (transition != null && (transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
+        {
+            var exitList = transition.GetExitList();
+            var (entryList, historyType) = transition.GetEntryList();
+
+            // Exit
+            exitList.ForEach(state =>
+            {
+                state.ExitState();
+            });
+
+            State fromState = transition.Source;
+            StateBase toState = transition.Target;
+
+            // Transition
+            OnTransition?.Invoke(fromState, toState, "after");
+            transition.Actions?.ForEach(action => action.Action(this));
+
+            // Entry
+            entryList.ForEach(state =>
+            {
+                state.EntryState(historyType);
+            });
+
+        }
+        else
+        {
+            Console.WriteLine($"Condition not met for transition on event {"after"} in state {ActiveStateMap.First().Value.Name}");
+        }
     }
 
     public void AddState(State state)
