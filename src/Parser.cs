@@ -26,9 +26,9 @@ public partial class StateMachine
 
         _instanceMap[stateMachine.machineId] = stateMachine;
 
-        if (rootToken["context"] != null)
+        if (rootToken.ContainsKey("context") && rootToken["context"] != null)
         {
-            foreach (var contextItem in rootToken["context"])
+            foreach (JToken? contextItem in rootToken["context"])
             {
                 stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
             }
@@ -52,11 +52,11 @@ public partial class StateMachine
         return result;
     }
 
-    public void ParseState(string stateName, JToken stateToken, string parentName)
+    public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        StateBase stateBase = null;
-        State normalState = null;
-        HistoryState histState = null;
+        StateBase? stateBase = null;
+        State? normalState = null;
+        HistoryState? histState = null;
 
         if (stateName.Split('.').Last() == "hist")
         {

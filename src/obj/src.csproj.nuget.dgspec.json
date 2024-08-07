@@ -1,35 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {}
+    "/Users/sj/XStateNet-1/src/src.csproj": {}
   },
   "projects": {
-    "D:\\temp\\xsn\\XStateNet\\src\\src.csproj": {
+    "/Users/sj/XStateNet-1/src/src.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
+        "projectUniqueName": "/Users/sj/XStateNet-1/src/src.csproj",
         "projectName": "src",
-        "projectPath": "D:\\temp\\xsn\\XStateNet\\src\\src.csproj",
-        "packagesPath": "C:\\Users\\digit\\.nuget\\packages\\",
-        "outputPath": "D:\\temp\\xsn\\XStateNet\\src\\obj\\",
+        "projectPath": "/Users/sj/XStateNet-1/src/src.csproj",
+        "packagesPath": "/Users/sj/.nuget/packages/",
+        "outputPath": "/Users/sj/XStateNet-1/src/obj/",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files\\DevExpress 23.1\\Components\\Offline Packages",
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
-        ],
         "configFilePaths": [
-          "C:\\Users\\digit\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 23.1.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/sj/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\DevExpress 23.1\\Components\\System\\Components\\Packages": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -42,6 +32,11 @@
           "warnAsError": [
             "NU1605"
           ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
         }
       },
       "frameworks": {
@@ -69,7 +64,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.104/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.303/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

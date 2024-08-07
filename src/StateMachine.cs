@@ -102,7 +102,7 @@ public partial class StateMachine
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
     }
 
-    public static StateMachine CreateFromScript(string jsonScript, ActionMap actionCallbacks = null, GuardMap guardCallbacks = null)
+    public static StateMachine CreateFromScript(string jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null)
     {
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
     }
@@ -416,7 +416,7 @@ public partial class StateMachine
 
     public ICollection<State> GetTargetSubStateCollection(string statePath = null)
     {
-        State state = null;
+        State? state = null;
 
         if (statePath == null)
         {
@@ -435,7 +435,7 @@ public partial class StateMachine
 
     public ICollection<State> GetSuperStateCollection(string statePath)
     {
-        State state = null;
+        State? state = null;
 
         state = GetState(statePath) as State;
 
