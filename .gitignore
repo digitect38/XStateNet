@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/src/obj/Debug/net8.0/src.assets.cache
+/test/obj/Debug/net8.0/test.assets.cache
+/.gitignore
+/.gitignore
