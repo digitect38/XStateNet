@@ -365,3 +365,7 @@ FodyWeavers.xsd
 /test/obj/Debug/net8.0/test.assets.cache
 /.gitignore
 /.gitignore
+/src/obj/Debug/net8.0/src.csproj.FileListAbsolute.txt
+/.vs/XStateNet/v17/.suo
+/test/bin/Debug/net8.0/nunit_random_seed.tmp
+/test/obj/Debug/net8.0/test.csproj.FileListAbsolute.txt
