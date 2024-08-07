@@ -300,7 +300,9 @@ public partial class StateMachine
 
     public State? GetState(string stateName)
     {
-        return StateMap[stateName] as State;
+        StateBase? state;
+        StateMap.TryGetValue(stateName, out state);
+        return state as State;
     }
 
     public HistoryState? GetStateAsHistory(string stateName)

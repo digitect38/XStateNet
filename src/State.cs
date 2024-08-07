@@ -320,10 +320,10 @@ public class State : StateBase
     {
         if (IsParallel)
         {
-            foreach (var subState in SubStateNames)
+            foreach (string subState in SubStateNames)
             {
                 collection.Add(StateMachine.GetState(subState));
-                StateMachine.GetState(subState).GetTargetSubStateCollection(collection);
+                StateMachine.GetState(subState)?.GetTargetSubStateCollection(collection);
             }
         }
         else
@@ -333,12 +333,12 @@ public class State : StateBase
                 if (hist == HistoryType.Deep || StateMachine.TestHistory(subState))
                 {
                     collection.Add(StateMachine.GetState(subState));
-                    StateMachine.GetState(subState).GetTargetSubStateCollection(collection, hist);
+                    StateMachine.GetState(subState)?.GetTargetSubStateCollection(collection, hist);
                 }
                 else if (StateMachine.TestInitial(subState))
                 {
                     collection.Add(StateMachine.GetState(subState));
-                    StateMachine.GetState(subState).GetTargetSubStateCollection(collection);
+                    StateMachine.GetState(subState)?.GetTargetSubStateCollection(collection);
                 }
             }
         }
@@ -361,9 +361,9 @@ public class State : StateBase
 
 public class HistoryState : StateBase
 {
-    State lastActivState;
+    State? lastActivState ;
     public HistoryType HistoryType { set; get; }
-    public HistoryState(string name, string parentName, string stateMachineId, HistoryType historyType) 
+    public HistoryState(string name, string? parentName, string stateMachineId, HistoryType historyType) 
         : base(name, parentName, stateMachineId)
     {
         HistoryType = historyType;
@@ -377,11 +377,11 @@ public class HistoryState : StateBase
     {
         if (historyType == HistoryType.Deep)
         {
-            lastActivState.EntryState(historyType);
+            lastActivState?.EntryState(historyType);
         }
         else
         {
-            lastActivState.EntryState();
+            lastActivState?.EntryState();
         }
     }
 
