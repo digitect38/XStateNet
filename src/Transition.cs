@@ -15,14 +15,14 @@ public abstract class Transition
 {
     public string stateMachineId;
     public string SourceName { get; set; }
-    public string TargetName { get; set; }
-    public NamedGuard Guard { get; set; }
-    public List<NamedAction> Actions { get; set; }
-    public Func<bool> InCondition { get; set; }
+    public string? TargetName { get; set; }
+    public NamedGuard? Guard { get; set; }
+    public List<NamedAction>? Actions { get; set; }
+    public Func<bool>? InCondition { get; set; }
     public StateMachine StateMachine => StateMachine.GetInstance(stateMachineId);
 
-    public State Source => SourceName != null ? StateMachine.GetState(SourceName) as State : null;   // can not be null any case. Source never be history state
-    public StateBase Target {
+    public State Source => StateMachine.GetState(SourceName) as State;   // can not be null any case. Source never be history state
+    public StateBase? Target {
         get {
             if (TargetName != null)
             {
@@ -36,15 +36,15 @@ public abstract class Transition
             }
         }
     }
-
-
+    /*
     public List<State> GetExitList()
     {
         if (Target != null)
-            return GetExitList(SourceName, TargetName);
+            return GetExitEntryList(SourceName, TargetName);
         else
             return new List<State>();
     }
+    */
 
     (string, HistoryType) ConvertHistoryState(string targetName)
     {
@@ -60,7 +60,7 @@ public abstract class Transition
         }
         return (targetName, historyType);
     }
-
+    /*
     public (List<StateBase> stateList, HistoryType historyType) GetEntryList()
     {
         if (Target != null)
@@ -68,7 +68,7 @@ public abstract class Transition
         else
             return (new List<StateBase>(), HistoryType.None);
     }
-
+    
     List<State> GetExitList(string source, string target)
     {
         (target, HistoryType historyType) = ConvertHistoryState(target);
@@ -90,6 +90,9 @@ public abstract class Transition
 
         return exitList;
     }
+    */
+
+    
 
     void GetHistoryEntryList(List<StateBase> entryList, string stateName, HistoryType historyType = HistoryType.None)
     {
@@ -124,6 +127,7 @@ public abstract class Transition
         }
     }
 
+    /*
     (List<StateBase> stateList, HistoryType historytype) GetEntryList(string source, string target)
     {
         (target, HistoryType historyType) = ConvertHistoryState(target);
@@ -158,6 +162,7 @@ public abstract class Transition
 
         return (entryList, historyType);
     }
+    
 
     private State FindCommonAncestor(State state1, State state2)
     {
@@ -179,7 +184,7 @@ public abstract class Transition
 
         return null; // Shouldn't happen if both states are in the same state machine
     }
-
+    */
     private List<State> GetActiveSubStates(State state, bool includeSelf = true)
     {
         var activeSubStates = new List<State>();

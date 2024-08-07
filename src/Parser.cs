@@ -14,7 +14,7 @@ using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 
 public partial class StateMachine
 {
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string jsonScript, ActionMap actionCallbacks, GuardMap guardCallbacks)
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
@@ -39,7 +39,7 @@ public partial class StateMachine
 
         return stateMachine;
     }
-    public static StateMachine ParseStateMachine(string jsonScript, ActionMap actionCallbacks, GuardMap guardCallbacks)
+    public static StateMachine ParseStateMachine(string jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
     {
         var stateMachine = new StateMachine() { };
         return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks);

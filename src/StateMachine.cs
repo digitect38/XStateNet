@@ -40,6 +40,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -70,8 +71,8 @@ public partial class StateMachine
     private ConcurrentDictionary<string, State> ActiveStateMap { set; get; }
     public ConcurrentDictionary<string, object> ContextMap { get; private set; }
     //public ConcurrentDictionary<string, System.Timers.Timer> TransitionTimers { private set; get; }
-    public ActionMap ActionMap { set; get; }
-    public GuardMap GuardMap { set; get; }
+    public ActionMap? ActionMap { set; get; }
+    public GuardMap? GuardMap { set; get; }
 
     //
     // This state machine map is for interact each other in a process.
@@ -215,7 +216,9 @@ public partial class StateMachine
     public void Send(string eventName)
     {
 
+        Console.WriteLine($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         Console.WriteLine($">>> Send event: {eventName}");
+        Console.WriteLine($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
         if (machineState != MachineState.Running)
         {
@@ -237,61 +240,124 @@ public partial class StateMachine
 
     void Transit(string eventName)
     {
+        var transition_list = new List<(State state, Transition transition, string @event)>();
+
+        //step 1:  build transition list
         foreach (var current in this.ActiveStateMap)
         {
             var state = current.Value;
-
-            Console.WriteLine($"transition on event {eventName} in source state {current.Key}");
+           
 
             if (state.OnTransitionMap.ContainsKey(eventName))
-            {
+            {                                
                 var onTransitionList = state.OnTransitionMap[eventName];
+
                 foreach (var transition in onTransitionList)
                 {
-                    Transit(transition, eventName);
+                    transition_list.Add((state, transition, eventName));
                 }
             }
 
-            Transit(state.AlwaysTransition, "always");
-            Transit(state.AfterTransition, "after");
+            if(state.AlwaysTransition != null)
+                transition_list.Add((state, state.AlwaysTransition, "always"));
+
+            if (state.AfterTransition != null)
+                transition_list.Add((state, state.AfterTransition, "after"));
+        }
+
+        //step 2:  perform transitions
+
+        foreach (var (state, transition, @event) in transition_list)
+        {
+            Transit(state, transition, @event);
         }
     }
 
-    void Transit(Transition transition, string eventName)
+    void Transit(State state,  Transition? transition, string eventName)
     {
         if (transition == null) return;
 
+        Console.WriteLine($">> transition on event {eventName} in state {state.Name}");
 
-        if ((transition.Guard == null || transition.Guard.Func(this)) && (transition.InCondition == null || transition.InCondition()))
+        if ((transition.Guard == null || transition.Guard.Func(this)) 
+            && (transition.InCondition == null || transition.InCondition()))
         {
-            var exitList = transition.GetExitList();
-            var (entryList, historyType) = transition.GetEntryList();
+            //var exitList = transition.GetExitList();
+            //var (entryList, historyType) = transition.GetEntryList();
 
-            // Exit
-            exitList.ForEach(state =>
+            string sourceName = transition.SourceName;
+            string? targetName = transition.TargetName;
+
+            if (targetName != null)
             {
-                state.ExitState();
-            });
+                var (exitList, entryList) = GetExitEntryList(transition.SourceName, targetName);
 
-            State fromState = transition.Source;
-            StateBase toState = transition.Target;
+                // Exit
+                foreach(var state1 in exitList)
+                {
+                    state1.ExitState();
+                }
 
-            // Transition
-            OnTransition?.Invoke(fromState, toState, eventName);
-            transition.Actions?.ForEach(action => action.Action(this));
+                Console.WriteLine($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
 
-            // Entry
-            entryList.ForEach(state =>
+                // Transition
+                State? source = GetState(sourceName) as State;
+                StateBase? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
+
+                OnTransition?.Invoke(source, target, eventName);
+
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        action.Action(this);
+                    }
+                }
+
+                // Entry
+                foreach (var state1 in entryList)
+                {
+                    state1.EntryState();
+                }                
+            }
+            else
             {
-                state.EntryState(historyType);
-            });
+                // action only transition
 
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        action.Action(this);
+                    }
+                }
+            }
         }
         else
         {
             Console.WriteLine($"Condition not met for transition on event {eventName}");
         }
-    }   
+    }
+
+
+    (IEnumerable<State> exits, IEnumerable<State> entrys) GetExitEntryList(string source, string target)
+    {
+        //string source = "#stateMachine.selected";
+        //string target = "#stateMachine.selected.resizing";
+
+        var source_sub = GetSourceSubStateCollection(source).Reverse();
+        var source_sup = GetSuperStateCollection(source);
+        var source_cat = source_sub.Concat(source_sup);
+
+        var target_sub = GetTargetSubStateCollection(target);
+        var target_sup = GetSuperStateCollection(target).Reverse();
+        var target_cat = target_sup.Concat(target_sub);
+
+        var source_exit = source_cat.Except(target_cat);    // exclude common ancestors from source
+        var target_entry = target_cat.Except(source_cat);   // exclude common ancestors from source
+
+        return (source_exit, target_entry);
+    }
 
     public void AddState(State state)
     {

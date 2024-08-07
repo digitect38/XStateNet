@@ -126,8 +126,10 @@ public class State : StateBase
     {
         StateMachine.AddCurrent(this);
 
-        EntryActions?.ForEach(action => action.Action(StateMachine));
+        Console.WriteLine(">>>- EntryState: " + Name);
 
+        EntryActions?.ForEach(action => action.Action(StateMachine));
+        /*
         if (IsParallel)
         {
             SubStateNames.AsParallel().ForAll(
@@ -138,8 +140,7 @@ public class State : StateBase
                 }
             );
         }
-
-        if (historyType != HistoryType.None && LastActiveStateName != null)
+        else if (historyType != HistoryType.None && LastActiveStateName != null)
         {
             var lastActivestate = StateMachine.GetState(LastActiveStateName);
 
@@ -158,7 +159,7 @@ public class State : StateBase
             var subState = StateMachine.GetState(subStateName);
             subState?.EntryState();
         }
-
+        */
         ScheduleAfterTransitionTimer();
     }
 
@@ -200,7 +201,7 @@ public class State : StateBase
         //StateMachine.TransitionTimers[Name] = timer;
 
     }
-
+    
     public void HandleAfterTransition(Transition transition)
     {
         if ((transition.Guard == null || transition.Guard.Func(StateMachine)) &&
@@ -215,13 +216,13 @@ public class State : StateBase
             target?.EntryState();
         }
     }
-
+    
 
     public override void ExitState()
     {
+        /*
         SubStateNames.ForEach(subStateName =>
         {
-
             if (StateMachine.TestActive(subStateName))
             {
                 var subState = StateMachine.GetState(subStateName);
@@ -233,9 +234,10 @@ public class State : StateBase
 
         if (Parent != null && !IsParallel)
         {
-            //Parent.LastActiveStateName = Name;
             Parent.LastActiveStateName = Name;
         }
+        */
+        Console.WriteLine(">>>- ExitState: " + Name); 
 
         StateMachine.RemoveCurrent(Name);
     }
