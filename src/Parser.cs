@@ -6,7 +6,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 //using System.Windows.Forms;
-namespace SharpState;
+namespace XStateNet;
 
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
@@ -54,70 +54,77 @@ public partial class StateMachine
 
     public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        StateBase? stateBase = null;
-        State? normalState = null;
-        HistoryState? histState = null;
+        AbstractState absState = null;
 
-        if (stateName.Split('.').Last() == "hist")
+        var stateTypeStr = stateToken["type"]?.ToString();
+        StateType stateType = stateTypeStr == "parallel" ? StateType.Parallel : stateTypeStr == "history" ? StateType.History : StateType.Normal;
+
+        switch (stateType)
         {
-            var historyType = ParseHistoryType(stateToken);
+            case StateType.History:
+                var historyType = ParseHistoryType(stateToken);
 
-            stateBase = new Parser_HistoryState(historyType).Parse(stateName, parentName, machineId, stateToken);
-            histState = stateBase as HistoryState;
-            RegisterState(histState);
+                var histState = new Parser_HistoryState(historyType).Parse(stateName, parentName, machineId, stateToken) as HistoryState;
+                absState = histState;
+                RegisterState(histState);
+                return; // no more settings
+
+            case StateType.Parallel:
+                var paraState = new Parser_ParallelState().Parse(stateName, parentName, machineId, stateToken) as ParallelState;
+                break;
+
+            default: //   case StateType.Normal:
+                var normalState = new Parser_NormalState().Parse(stateName, parentName, machineId, stateToken) as NormalState;
+                absState = normalState;
+                RegisterState(absState);
+                break;
+        }
+    
+        State state = absState as State;
+
+        if (parentName == null)
+        {
+            RootState = state;
+        }
+
+
+        if (!string.IsNullOrEmpty(parentName))
+        {
+            var parent = StateMap[parentName] as State;
+            parent.SubStateNames.Add(stateName);
         }
         else
         {
-            stateBase = new Parser_NormalState().Parse(stateName, parentName, machineId, stateToken);
-            normalState = stateBase as State;
-            RegisterState(normalState);
 
-            if (parentName == null)
+        }
+
+        if (stateToken["on"] != null)
+        {
+            foreach (var transitionToken in stateToken["on"])
             {
-                RootState = normalState;
-            }
-
-
-            if (!string.IsNullOrEmpty(parentName))
-            {
-                var parent = StateMap[parentName] as State;
-                parent.SubStateNames.Add(stateName);
-            }
-            else
-            {
-
-            }
-
-            normalState.InitialStateName = normalState.InitialStateName != null ? ResolveAbsolutePath(stateName, normalState.InitialStateName) : null;
-
-
-            if (stateToken["on"] != null)
-            {
-                foreach (var transitionToken in stateToken["on"])
-                {
-                    var eventName = transitionToken.Path.Split('.').Last();
-                    ParseTransitions(normalState, TransitionType.On, eventName, transitionToken.First);
-                }
-            }
-            else if (stateToken["after"] != null)
-            {
-                foreach (var afterToken in stateToken["after"])
-                {
-                    var delay = afterToken.Path.Split('.').Last();
-                    ParseTransitions(normalState, TransitionType.After, delay, afterToken.First);
-                }
-            }
-            else if (stateToken["always"] != null)
-            {
-                var alwaysToken = stateToken["always"];
-                ParseTransitions(normalState, TransitionType.Always, null, alwaysToken);
-            }
-
-            if (stateToken["states"] != null)
-            {
-                ParseStates(stateToken["states"], stateName);
+                var eventName = transitionToken.Path.Split('.').Last();
+                ParseTransitions(state, TransitionType.On, eventName, transitionToken.First);
             }
         }
+        else if (stateToken["after"] != null)
+        {
+            foreach (var afterToken in stateToken["after"])
+            {
+                var delay = afterToken.Path.Split('.').Last();
+                ParseTransitions(state, TransitionType.After, delay, afterToken.First);
+            }
+        }
+        else if (stateToken["always"] != null)
+        {
+            var alwaysToken = stateToken["always"];
+            ParseTransitions(state, TransitionType.Always, null, alwaysToken);
+        }
+
+        if (stateToken["states"] != null)
+        {
+            ParseStates(stateToken["states"], stateName);
+        }
+        Parser_Action.ParseActions(state, "exit", ActionMap, stateToken);
     }
 
     private void ParseStates(JToken statesToken, string parentName)
@@ -125,19 +132,25 @@ public partial class StateMachine
         foreach (var subToken in statesToken)
         {
             var stateName = parentName != null ? $"{parentName}.{subToken.Path.Split('.').Last()}" : subToken.Path.Split('.').Last();
-            ParseState(stateName, subToken.First, parentName);
-            //var parent = StateMap[parentName];
+
+            if (subToken.First != null)
+            {
+                ParseState(stateName, subToken.First, parentName);
+            }
         }
     }
 
-    private List<NamedAction> GetActionCallbacks(List<string> actionNames)
+    private List<NamedAction>? GetActionCallbacks(List<string> actionNames)
     {
-        if (actionNames == null)
+        if (actionNames == null) return null;       
+
+        if(ActionMap == null)
         {
-            return null;
+            throw new Exception("ActionMap is null!");
         }
 
         var result = new List<NamedAction>();
+
         foreach (var actionName in actionNames)
         {
             if (ActionMap.ContainsKey(actionName))
@@ -148,14 +161,23 @@ public partial class StateMachine
         return result;
     }
 
-    private NamedGuard GetGuardCallback(string guardName)
+    private NamedGuard? GetGuardCallback(string guardName)
     {
-        if (guardName == null)
+        if (guardName == null) return null;
+
+        if (GuardMap == null)
+        {
+            throw new Exception("ActionMap is null!");
+        }
+
+        if (GuardMap.ContainsKey(guardName))
+        {
+            return GuardMap[guardName];
+        }
+        else
         {
             return null;
         }
-
-        return GuardMap.ContainsKey(guardName) ? GuardMap[guardName] : null;
     }
 
     private List<Transition> ParseTransitions(State state, TransitionType type, string @event, JToken token)

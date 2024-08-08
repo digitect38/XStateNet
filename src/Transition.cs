@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SharpState;
+namespace XStateNet;
 
 public enum TransitionType
 {
@@ -22,7 +22,7 @@ public abstract class Transition
     public StateMachine StateMachine => StateMachine.GetInstance(stateMachineId);
 
     public State Source => StateMachine.GetState(SourceName) as State;   // can not be null any case. Source never be history state
-    public StateBase? Target {
+    public AbstractState? Target {
         get {
             if (TargetName != null)
             {
@@ -92,40 +92,6 @@ public abstract class Transition
     }
     */
 
-    
-
-    void GetHistoryEntryList(List<StateBase> entryList, string stateName, HistoryType historyType = HistoryType.None)
-    {
-        var state = StateMachine.GetState(stateName) as State;
-        entryList.Add(state);
-
-        if (state.IsParallel)
-        {
-            state.SubStateNames.ForEach(
-                subStateName =>
-                {
-                    var subState = StateMachine.GetState(subStateName);
-                    GetHistoryEntryList(entryList, subStateName);
-                }
-            );
-        }
-        if (historyType != HistoryType.None && state.LastActiveStateName != null)
-        {
-            if (historyType == HistoryType.Deep)
-            {
-                GetHistoryEntryList(entryList, state.LastActiveStateName, historyType);
-            }
-            else
-            {
-                GetHistoryEntryList(entryList, state.LastActiveStateName);
-            }
-        }
-        else if (state.InitialStateName != null)
-        {
-            var subStateName = state.InitialStateName;
-            GetHistoryEntryList(entryList, subStateName);
-        }
-    }
 
     /*
     (List<StateBase> stateList, HistoryType historytype) GetEntryList(string source, string target)
@@ -184,71 +150,7 @@ public abstract class Transition
 
         return null; // Shouldn't happen if both states are in the same state machine
     }
-    */
-    private List<State> GetActiveSubStates(State state, bool includeSelf = true)
-    {
-        var activeSubStates = new List<State>();
-
-        if (includeSelf)
-        {
-            activeSubStates.Add(state);
-        }
-        foreach (var subStateName in state.CurrentSubStateNames)
-        {
-            var subState = StateMachine.GetState(subStateName) as State;
-            activeSubStates.Add(subState);
-            activeSubStates.AddRange(GetActiveSubStates(subState, includeSelf: false));
-        }
-        return activeSubStates;
-    }
-
-    private List<State> GetInitialStates(State state)
-    {
-        var initialStates = new List<State>();
-        var initialSubState = StateMachine.GetState(state.InitialStateName) as State;
-        initialStates.Add(initialSubState);
-        initialStates.AddRange(GetInitialStates(initialSubState));
-        return initialStates;
-    }
-
-    private List<State> GetLastActiveStates(State state, HistoryType historyType = HistoryType.None)
-    {
-        var lastActiveStates = new List<State>();
-
-        if (state.IsParallel)
-        {
-            foreach (var subStateName in state.SubStateNames)
-            {
-                var subState = StateMachine.GetState(subStateName);
-                lastActiveStates.Add(subState);
-                lastActiveStates.AddRange(GetLastActiveStates(subState, historyType));
-            }
-        }
-        else
-        {
-            if (historyType == HistoryType.None)
-            {
-                if (state.InitialStateName != null)
-                {
-                    var initialState = StateMachine.GetState(state.InitialStateName);
-                    lastActiveStates.Add(initialState);
-                    lastActiveStates.AddRange(GetLastActiveStates(initialState));
-                }
-            }
-            else
-            {
-                if (state.LastActiveStateName != null)
-                {
-                    var lastActiveState = StateMachine.GetState(state.LastActiveStateName);
-
-                    lastActiveStates.Add(lastActiveState);
-                    lastActiveStates.AddRange(GetLastActiveStates(lastActiveState, historyType));
-                }
-            }
-        }
-        return lastActiveStates;
-    }
-
+    */  
 
 }
 

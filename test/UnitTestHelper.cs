@@ -1,7 +1,7 @@
 ﻿using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
-namespace SharpState.UnitTest;
+namespace XStateNet.UnitTest;
 public static class Helper
 {
     public static void AssertEquivalence(this string asIs, string toBe)

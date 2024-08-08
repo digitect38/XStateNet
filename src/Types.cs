@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharpState;
+namespace XStateNet;
 
 public class NamedAction
 {
@@ -26,6 +26,13 @@ public class NamedGuard
         Name = name;
         Func = func;
     }
+}
+
+public enum StateType
+{
+    Normal,
+    Parallel,
+    History
 }
 
 public enum HistoryType

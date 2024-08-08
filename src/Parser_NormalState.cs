@@ -7,36 +7,47 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharpState;
+namespace XStateNet;
 
 
 public abstract class Parser_StateBase
 {
     public Parser_StateBase() { }
 
-    public abstract StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken);
+    public abstract AbstractState Parse(string stateName, string? parentName, string machineId, JToken stateToken);
 }
 
 public class Parser_NormalState
 {
     public Parser_NormalState() { }
-        
-    public virtual StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+
+    public virtual AbstractState Parse(string stateName, string? parentName, string machineId, JToken stateToken)
     {
         StateMachine stateMachine = StateMachine.GetInstance(machineId);
 
-        var state = new State(stateName, parentName, machineId)
+        var state = new NormalState(stateName, parentName, machineId)
         {
-
-            // Note :
-            // History state is a special case of a state that can be the target of a transition.
-            // History state is kind of a pseudo state that is not a real state but a PLACEHOLER for the last active state.
-            //
-
-            IsParallel = stateToken["type"]?.ToString() == "parallel",
             InitialStateName = (stateToken["initial"] != null) ? stateName + "." + stateToken["initial"].ToString() : null,
-
         };
+
+        state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;
+
+        state.EntryActions = Parser_Action.ParseActions(state, "entry", stateMachine.ActionMap, stateToken);
+        state.ExitActions = Parser_Action.ParseActions(state, "exit", stateMachine.ActionMap, stateToken);
+
+        return state;
+    }
+}
+
+public class Parser_ParallelState
+{
+    public Parser_ParallelState() { }
+
+    public virtual AbstractState Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+    {
+        StateMachine stateMachine = StateMachine.GetInstance(machineId);
+
+        var state = new ParallelState(stateName, parentName, machineId);
 
         state.EntryActions = Parser_Action.ParseActions(state, "entry", stateMachine.ActionMap, stateToken);
         state.ExitActions = Parser_Action.ParseActions(state, "exit", stateMachine.ActionMap, stateToken);
@@ -52,9 +63,8 @@ internal class Parser_HistoryState : Parser_NormalState
     {
         this.historyType = historyType;
     }
-    public override StateBase Parse(string stateName, string parentName, string machineId, JToken stateToken)
+    public override AbstractState Parse(string stateName, string? parentName, string machineId, JToken stateToken)
     {
-        var state = new HistoryState(stateName, parentName, machineId, historyType);
-        return state;
+        return new HistoryState(stateName, parentName, machineId, historyType);
     }
 }

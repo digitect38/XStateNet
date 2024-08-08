@@ -45,7 +45,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace SharpState;
+namespace XStateNet;
 
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
@@ -67,7 +67,7 @@ public partial class StateMachine
 
     public string machineId { set; get; }
     public State RootState { set; get; }
-    private ConcurrentDictionary<string, StateBase> StateMap { set; get; }
+    private ConcurrentDictionary<string, AbstractState> StateMap { set; get; }
     private ConcurrentDictionary<string, State> ActiveStateMap { set; get; }
     public ConcurrentDictionary<string, object> ContextMap { get; private set; }
     //public ConcurrentDictionary<string, System.Timers.Timer> TransitionTimers { private set; get; }
@@ -82,7 +82,7 @@ public partial class StateMachine
     public static Dictionary<string, StateMachine> _instanceMap = new();
 
     // OnTransition delegate definition
-    public delegate void TransitionHandler(State fromState, StateBase toState, string eventName);
+    public delegate void TransitionHandler(State fromState, AbstractState toState, string eventName);
     public TransitionHandler OnTransition;
 
 
@@ -91,7 +91,7 @@ public partial class StateMachine
 
     public StateMachine()
     {
-        StateMap = new ConcurrentDictionary<string, StateBase>();
+        StateMap = new ConcurrentDictionary<string, AbstractState>();
         ActiveStateMap = new ConcurrentDictionary<string, State>();
         ContextMap = new ConcurrentDictionary<string, object>();
         //TransitionTimers = new ConcurrentDictionary<string, System.Timers.Timer>();
@@ -119,7 +119,7 @@ public partial class StateMachine
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
     }
 
-    public void RegisterState(StateBase state) => StateMap[state.Name] = state;
+    public void RegisterState(AbstractState state) => StateMap[state.Name] = state;
 
     public void InitializeCurrentStates()
     {
@@ -138,7 +138,7 @@ public partial class StateMachine
     public void PrintCurrentStateTree()
     {
         Console.WriteLine("=== Current State Tree ===");
-        RootState.PrintCurrentStateTree(0);
+        //RootState.PrintCurrentStateTree(0);
         Console.WriteLine("==========================");
     }
 
@@ -171,35 +171,6 @@ public partial class StateMachine
         }
         RootState.Start();
         machineState = MachineState.Running;
-        return this;
-    }
-
-    public StateMachine Paused()
-    {
-        if (machineState == MachineState.Paused)
-        {
-            Console.WriteLine("State machine is already PAUSED!");
-            return this;
-        }
-
-        if (machineState == MachineState.Running)
-        {
-            machineState = MachineState.Paused;
-            RootState.Pause();
-        }
-
-        return this;
-    }
-
-    public StateMachine Stop()
-    {
-        if (machineState == MachineState.Stopped)
-        {
-            Console.WriteLine("State machine is already STOPPED!");
-            return this;
-        }
-        machineState = MachineState.Stopped;
-        RootState.Stop();
         return this;
     }
 
@@ -302,7 +273,7 @@ public partial class StateMachine
 
                 // Transition
                 State? source = GetState(sourceName) as State;
-                StateBase? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
+                AbstractState? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
 
                 OnTransition?.Invoke(source, target, eventName);
 
@@ -366,7 +337,7 @@ public partial class StateMachine
 
     public State? GetState(string stateName)
     {
-        StateBase? state;
+        AbstractState? state;
         StateMap.TryGetValue(stateName, out state);
         return state as State;
     }

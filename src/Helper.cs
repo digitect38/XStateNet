@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-namespace SharpState;
+namespace XStateNet;
 
 public static class Helper
 {

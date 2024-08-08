@@ -6,22 +6,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharpState;
+namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 internal static class Parser_Action
 {
-    public static List<NamedAction> ParseActions(State state, string key, ActionMap actionMap, JToken token)
+    public static List<NamedAction>? ParseActions(State state, string key, ActionMap actionMap, JToken token)
     {
-        List<NamedAction> actions = null;
+        List<NamedAction>? actions = null;
 
         if (token[key] == null)
         {
-            return actions;
+            return null;
         }
 
-        var jobj = token[key].ToObject<List<string>>();
+        var jobj = token[key]?.ToObject<List<string>>();
 
         if (jobj == null)
         {

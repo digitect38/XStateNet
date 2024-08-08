@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
-using SharpState;
-using SharpState.UnitTest;
+using XStateNet;
+using XStateNet.UnitTest;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
