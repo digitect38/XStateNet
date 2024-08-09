@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using System.Reflection.PortableExecutable;
 namespace XStateNet;
 
 public abstract class StateBase
@@ -23,7 +24,14 @@ public abstract class StateBase
 
 public abstract class Parser_StateBase
 {
-    public Parser_StateBase() { }
+    protected string machineId;
 
-    public abstract StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken);
+    protected StateMachine StateMachine => StateMachine.GetInstance(machineId);
+
+    public Parser_StateBase(string machineId) 
+    {
+        this.machineId = machineId;
+    }
+
+    public abstract StateBase Parse(string stateName, string? parentName, JToken stateToken);
 }

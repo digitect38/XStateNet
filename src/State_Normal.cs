@@ -246,11 +246,10 @@ public class NormalState : RealState
 
 public class Parser_NormalState : Parser_RealState
 {
-    public Parser_NormalState() { }
+    public Parser_NormalState(string machineId) : base(machineId) { }
 
-    public override StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
-        StateMachine stateMachine = StateMachine.GetInstance(machineId);
 
         var state = new NormalState(stateName, parentName, machineId)
         {
@@ -259,8 +258,8 @@ public class Parser_NormalState : Parser_RealState
 
         state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;
 
-        state.EntryActions = Parser_Action.ParseActions(state, "entry", stateMachine.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions(state, "exit", stateMachine.ActionMap, stateToken);
+        state.EntryActions = Parser_Action.ParseActions(state, "entry", StateMachine.ActionMap, stateToken);
+        state.ExitActions = Parser_Action.ParseActions(state, "exit", StateMachine.ActionMap, stateToken);
 
         return state;
     }

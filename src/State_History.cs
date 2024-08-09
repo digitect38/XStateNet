@@ -32,11 +32,13 @@ public class HistoryState : VirtualState
 public class Parser_HistoryState : Parser_StateBase
 {
     HistoryType historyType;
-    public Parser_HistoryState(HistoryType historyType)
+
+    public Parser_HistoryState(string machineId, HistoryType historyType) : base(machineId)
     {
         this.historyType = historyType;
     }
-    public override StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+
+    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
         return new HistoryState(stateName, parentName, machineId, historyType);
     }

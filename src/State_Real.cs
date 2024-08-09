@@ -12,8 +12,8 @@ public abstract class RealState : StateBase
     public AfterTransition? AfterTransition { get; set; } // Added for after transitions
     public AlwaysTransition? AlwaysTransition { get; set; } // Added for always transitions
 
-    public List<NamedAction> EntryActions { get; set; }
-    public List<NamedAction> ExitActions { get; set; }
+    public List<NamedAction>? EntryActions { get; set; }
+    public List<NamedAction>? ExitActions { get; set; }
     public List<string> SubStateNames { get; set; } // state 의 current sub state 들..
 
     public string? LastActiveStateName { get; set; }
@@ -144,6 +144,6 @@ public abstract class RealState : StateBase
 
 public abstract class Parser_RealState : Parser_StateBase
 {
-    public Parser_RealState() { }
+    public Parser_RealState(string machineId) : base(machineId)  { }
 
 }

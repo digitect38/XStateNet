@@ -17,17 +17,24 @@ public class DiagrammingFrameworkTests
     {
 
         // 액션 추가
-        actionMap["setLButtonDown"] = new List<NamedAction> { new NamedAction("setLButtonDown", SetLButtonDown) };
-        actionMap["startSelection"] = new List<NamedAction> { new NamedAction("startSelection", StartSelection) };
-        actionMap["updateSelection"] = new List<NamedAction> { new NamedAction("updateSelection", UpdateSelection) };
-        actionMap["endSelection"] = new List<NamedAction> { new NamedAction("endSelection", EndSelection) };
-        actionMap["startMoving"] = new List<NamedAction> { new NamedAction("startMoving", StartMoving) };
-        actionMap["endMoving"] = new List<NamedAction> { new NamedAction("endMoving", EndMoving) };
-        actionMap["updateMoving"] = new List<NamedAction> { new NamedAction("updateMoving", UpdateMoving) };
+        actionMap["setLButtonDown"]     = [new ("setLButtonDown",   SetLButtonDown  )];
+        actionMap["startSelection"]     = [new ("startSelection",   StartSelection  )];
+        actionMap["updateSelection"]    = [new ("updateSelection",  UpdateSelection )];
+        actionMap["endSelection"]       = [ new ("endSelection",    EndSelection    )];
+
+        actionMap["startMoving"]        = [new ("startMoving",      StartMoving     )];
+        actionMap["endMoving"]          = [new ("endMoving",        EndMoving       )];
+        actionMap["updateMoving"]       = [new ("updateMoving",     UpdateMoving    )];
+
+        actionMap["startConnecting"]    = [new ("startConnecting",  StartConnecting )];
+        actionMap["endConnecting"]      = [new ("endConnecting",    EndConnecting   )];
+
+        actionMap["startResizing"]      = [new("startResizing",     StartResizing   )];
+        actionMap["endResizing"]        = [new("endResizing",       EndResizing     )];
 
         // 가드 추가
-        guardMap["onShapeBody"] = new NamedGuard("onShapeBody", OnShapeBody);
-        guardMap["onCanvas"] = new NamedGuard("onCanvas", OnCanvas);
+        guardMap["onShapeBody"]         = new NamedGuard("onShapeBody", OnShapeBody);
+        guardMap["onCanvas"]            = new NamedGuard("onCanvas", OnCanvas);
 
         guardMap["onResizePadWithoutButton"] = new NamedGuard("onResizePadWithoutButton", onResizePadWithoutButton);
         guardMap["onConnectionPinWithoutButton"] = new NamedGuard("onConnectionPinWithoutButton", onConnectionPinWithoutButton);
@@ -185,6 +192,26 @@ public class DiagrammingFrameworkTests
     private void UpdateMoving(StateMachine sm)
     {
         // 이동 업데이트 로직 추가
+    }
+
+    private void StartConnecting(StateMachine sm)
+    {
+        
+    }
+
+    private void EndConnecting(StateMachine sm)
+    {
+        
+    }
+
+    private void StartResizing(StateMachine sm)
+    {
+
+    }
+
+    private void EndResizing(StateMachine sm)
+    {
+
     }
 
     // 가드 메서드

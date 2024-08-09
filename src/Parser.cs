@@ -50,7 +50,7 @@ public partial class StateMachine
 
     public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        StateBase absState = null;
+        StateBase stateBase = null;
 
         var stateTypeStr = stateToken["type"]?.ToString();
         StateType stateType = stateTypeStr == "parallel" ? StateType.Parallel : stateTypeStr == "history" ? StateType.History : StateType.Normal;
@@ -60,23 +60,22 @@ public partial class StateMachine
             case StateType.History:
                 var historyType = ParseHistoryType(stateToken);
 
-                var histState = new Parser_HistoryState(historyType).Parse(stateName, parentName, machineId, stateToken) as HistoryState;
+                var histState = new Parser_HistoryState(machineId, historyType).Parse(stateName, parentName, stateToken) as HistoryState;
                 RegisterState(histState);
                 return; // no more settings
 
             case StateType.Parallel:
-                var paraState = new Parser_ParallelState().Parse(stateName, parentName, machineId, stateToken) as ParallelState;
-                RegisterState(paraState);
+                stateBase = new Parser_ParallelState(machineId).Parse(stateName, parentName, stateToken) as ParallelState;
+                RegisterState(stateBase);
                 break;
 
             default:
-                var normalState = new Parser_NormalState().Parse(stateName, parentName, machineId, stateToken) as NormalState;
-                absState = normalState;
-                RegisterState(absState);
+                stateBase = new Parser_NormalState(machineId).Parse(stateName, parentName, stateToken) as NormalState;
+                RegisterState(stateBase);
                 break;
         }
     
-        RealState state = absState as RealState;
+        RealState state = stateBase as RealState;
 
         if (parentName == null)
         {

@@ -12,7 +12,7 @@ using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 internal static class Parser_Action
 {
-    public static List<NamedAction>? ParseActions(RealState state, string key, ActionMap actionMap, JToken token)
+    public static List<NamedAction>? ParseActions(RealState state, string key, ActionMap? actionMap, JToken token)
     {
         List<NamedAction>? actions = null;
 
@@ -28,13 +28,22 @@ internal static class Parser_Action
             return actions;
         }
 
+        if (actionMap == null)
+        {
+            return null;
+        }
+
         actions = new List<NamedAction>();
 
         foreach (var actionName in jobj)
         {
-            if (actionMap.ContainsKey(actionName))
+            if (actionMap.TryGetValue(actionName, out var actionList))
             {
-                actions.AddRange(actionMap[actionName]);
+                actions.AddRange(actionList);
+            }
+            else
+            {
+                throw new Exception($"Action {actionName} not found in the action map.");
             }
         }
 

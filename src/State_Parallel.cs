@@ -146,11 +146,18 @@ public class ParallelState : RealState
 
 public class Parser_ParallelState : Parser_RealState
 {
-    public Parser_ParallelState() { }
+    public Parser_ParallelState(string machineId) : base(machineId) { }
 
-    public override StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
-        throw new NotImplementedException();
+        var state = new ParallelState(stateName, parentName, machineId)
+        {
+        };
+        
+        state.EntryActions = Parser_Action.ParseActions(state, "entry", StateMachine.ActionMap, stateToken);
+        state.ExitActions = Parser_Action.ParseActions(state, "exit", StateMachine.ActionMap, stateToken);
+        
+        return state;
     }
 }
 
