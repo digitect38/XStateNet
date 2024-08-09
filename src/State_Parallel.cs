@@ -1,12 +1,8 @@
-﻿using XStateNet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Newtonsoft.Json.Linq;
+namespace XStateNet;
 
 
-public class ParallelState : State
+public class ParallelState : RealState
 {
     public ParallelState(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)
     {
@@ -18,7 +14,7 @@ public class ParallelState : State
 
         var tasks = SubStateNames.Select(subStateName => Task.Run(() =>
         {
-            StateMachine.GetState(subStateName)?.Start();
+            GetState(subStateName)?.Start();
         })).ToArray();
 
         Task.WaitAll(tasks);
@@ -31,7 +27,7 @@ public class ParallelState : State
 
         foreach (string subStateName in SubStateNames)
         {
-            StateMachine.GetState(subStateName)?.InitializeCurrentStates();
+            GetState(subStateName)?.InitializeCurrentStates();
         }
 
         // Schedule after transitions for the initial state
@@ -42,7 +38,7 @@ public class ParallelState : State
     {
         foreach (string subStateName in SubStateNames)
         {
-            StateMachine.GetState(subStateName)?.EntryState(historyType);
+            GetState(subStateName)?.EntryState(historyType);
         }
     }
     public override void ExitState()
@@ -50,65 +46,67 @@ public class ParallelState : State
 
         foreach (string subStateName in SubStateNames)
         {
-            StateMachine.GetState(subStateName)?.ExitState();
+            GetState(subStateName)?.ExitState();
         }
     }
-    public override void GetHistoryEntryList(List<AbstractState> entryList, string stateName, HistoryType historyType = HistoryType.None)
+    public override void GetHistoryEntryList(List<StateBase> entryList, string stateName, HistoryType historyType = HistoryType.None)
     {
-        var state = StateMachine.GetState(stateName) as State;
+        var state = GetState(stateName) as RealState;
         entryList.Add(state);
 
         state.SubStateNames.ForEach(
             subStateName =>
             {
-                var subState = StateMachine.GetState(subStateName);
+                var subState = GetState(subStateName);
                 GetHistoryEntryList(entryList, subStateName);
             }
         );
     }
 
-    public override List<string> GetCurrentSubStateNames(List<string> list)
+    public override List<string> GetActiveSubStateNames(List<string> list)
     {
         foreach (var subStateName in SubStateNames)
         {
             list.Add(subStateName);
 
-            var subState = StateMachine.GetState(subStateName);
+            var subState =  GetState(subStateName);
 
             if (subState != null)
-                subState.GetCurrentSubStateNames(list);
+            {
+                subState.GetActiveSubStateNames(list);
+            }
         }
 
         return list;
     }
 
-    public override void GetSouceSubStateCollection(ICollection<State> collection)
+    public override void GetSouceSubStateCollection(ICollection<RealState> collection)
     {
         foreach (string subState in SubStateNames)
         {
-            collection.Add(StateMachine.GetState(subState));
-            StateMachine.GetState(subState)?.GetSouceSubStateCollection(collection);
+            collection.Add(GetState(subState));
+            GetState(subState)?.GetSouceSubStateCollection(collection);
         }
     }
 
-    public override void GetTargetSubStateCollection(ICollection<State> collection, HistoryType hist = HistoryType.None)
+    public override void GetTargetSubStateCollection(ICollection<RealState> collection, HistoryType hist = HistoryType.None)
     {
         foreach (string subState in SubStateNames)
         {
-            var state = StateMachine.GetState(subState);
+            var state = GetState(subState);
             if (state != null)
             {
                 collection.Add(state);
-                StateMachine.GetState(subState)?.GetTargetSubStateCollection(collection);
+                GetState(subState)?.GetTargetSubStateCollection(collection);
             }
         }
     }
-    private List<State> GetInitialStates(State state)
+    private List<RealState> GetInitialStates(RealState state)
     {
-        var initialStates = new List<State>();
+        var initialStates = new List<RealState>();
         if (state.InitialStateName != null)
         {
-            var initialSubState = StateMachine.GetState(state.InitialStateName) as State;
+            var initialSubState = GetState(state.InitialStateName) as RealState;
             if (initialSubState != null)
             {
                 initialStates.Add(initialSubState);
@@ -118,13 +116,13 @@ public class ParallelState : State
         return initialStates;
     }
 
-    public override List<State> GetLastActiveStates(HistoryType historyType = HistoryType.None)
+    public override List<RealState> GetLastActiveStates(HistoryType historyType = HistoryType.None)
     {
-        var lastActiveStates = new List<State>();
+        var lastActiveStates = new List<RealState>();
 
         foreach (var subStateName in SubStateNames)
         {
-            var subState = StateMachine.GetState(subStateName);
+            var subState = GetState(subStateName);
             if (subState != null)
             {
                 lastActiveStates.Add(subState);
@@ -141,7 +139,19 @@ public class ParallelState : State
 
         foreach (var currentStateName in SubStateNames)
         {
-            StateMachine.GetState(currentStateName)?.PrintCurrentStateTree(depth + 1);
+            GetState(currentStateName)?.PrintCurrentStateTree(depth + 1);
         }
     }
 }
+
+public class Parser_ParallelState : Parser_RealState
+{
+    public Parser_ParallelState() { }
+
+    public override StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+

@@ -66,9 +66,9 @@ public partial class StateMachine
     }
 
     public string machineId { set; get; }
-    public State RootState { set; get; }
-    private ConcurrentDictionary<string, AbstractState> StateMap { set; get; }
-    private ConcurrentDictionary<string, State> ActiveStateMap { set; get; }
+    public RealState RootState { set; get; }
+    private ConcurrentDictionary<string, StateBase> StateMap { set; get; }
+    private ConcurrentDictionary<string, RealState> ActiveStateMap { set; get; }
     public ConcurrentDictionary<string, object> ContextMap { get; private set; }
     //public ConcurrentDictionary<string, System.Timers.Timer> TransitionTimers { private set; get; }
     public ActionMap? ActionMap { set; get; }
@@ -82,7 +82,7 @@ public partial class StateMachine
     public static Dictionary<string, StateMachine> _instanceMap = new();
 
     // OnTransition delegate definition
-    public delegate void TransitionHandler(State fromState, AbstractState toState, string eventName);
+    public delegate void TransitionHandler(RealState fromState, StateBase toState, string eventName);
     public TransitionHandler OnTransition;
 
 
@@ -91,8 +91,8 @@ public partial class StateMachine
 
     public StateMachine()
     {
-        StateMap = new ConcurrentDictionary<string, AbstractState>();
-        ActiveStateMap = new ConcurrentDictionary<string, State>();
+        StateMap = new ConcurrentDictionary<string, StateBase>();
+        ActiveStateMap = new ConcurrentDictionary<string, RealState>();
         ContextMap = new ConcurrentDictionary<string, object>();
         //TransitionTimers = new ConcurrentDictionary<string, System.Timers.Timer>();
     }
@@ -119,7 +119,7 @@ public partial class StateMachine
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
     }
 
-    public void RegisterState(AbstractState state) => StateMap[state.Name] = state;
+    public void RegisterState(StateBase state) => StateMap[state.Name] = state;
 
     public void InitializeCurrentStates()
     {
@@ -211,7 +211,7 @@ public partial class StateMachine
 
     void Transit(string eventName)
     {
-        var transition_list = new List<(State state, Transition transition, string @event)>();
+        var transition_list = new List<(RealState state, Transition transition, string @event)>();
 
         //step 1:  build transition list
         foreach (var current in this.ActiveStateMap)
@@ -244,7 +244,7 @@ public partial class StateMachine
         }
     }
 
-    void Transit(State state,  Transition? transition, string eventName)
+    void Transit(RealState state,  Transition? transition, string eventName)
     {
         if (transition == null) return;
 
@@ -272,8 +272,8 @@ public partial class StateMachine
                 Console.WriteLine($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
 
                 // Transition
-                State? source = GetState(sourceName) as State;
-                AbstractState? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
+                RealState? source = GetState(sourceName) as RealState;
+                StateBase? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
 
                 OnTransition?.Invoke(source, target, eventName);
 
@@ -311,7 +311,7 @@ public partial class StateMachine
     }
 
 
-    (IEnumerable<State> exits, IEnumerable<State> entrys) GetExitEntryList(string source, string target)
+    (IEnumerable<RealState> exits, IEnumerable<RealState> entrys) GetExitEntryList(string source, string target)
     {
         //string source = "#stateMachine.selected";
         //string target = "#stateMachine.selected.resizing";
@@ -330,16 +330,16 @@ public partial class StateMachine
         return (source_exit, target_entry);
     }
 
-    public void AddState(State state)
+    public void AddState(RealState state)
     {
         StateMap[state.Name] = state;
     }
 
-    public State? GetState(string stateName)
+    public StateBase? GetState(string stateName)
     {
-        AbstractState? state;
+        StateBase? state;
         StateMap.TryGetValue(stateName, out state);
-        return state as State;
+        return state;
     }
 
     public HistoryState? GetStateAsHistory(string stateName)
@@ -348,7 +348,7 @@ public partial class StateMachine
     }
 
 
-    public void AddCurrent(State state)
+    public void AddCurrent(RealState state)
     {
         lock (this)
         {
@@ -356,7 +356,7 @@ public partial class StateMachine
         }
     }
 
-    public void RemoveCurrent(State state)
+    public void RemoveCurrent(RealState state)
     {
         lock (this)
         {
@@ -372,7 +372,7 @@ public partial class StateMachine
         }
     }
 
-    public bool TestCurrent(State state)
+    public bool TestCurrent(RealState state)
     {
         lock (this)
         {
@@ -392,7 +392,7 @@ public partial class StateMachine
     {
         lock (this)
         {
-            var state = StateMap[stateName] as State;
+            var state = StateMap[stateName] as RealState;
             return state?.Parent != null && state.Parent.InitialStateName == state.Name;
         }
     }
@@ -432,9 +432,9 @@ public partial class StateMachine
         return ActiveStateMap.Values.ToCsvString();
     }
 
-    public ICollection<State> GetSourceSubStateCollection(string? statePath = null)
+    public ICollection<RealState> GetSourceSubStateCollection(string? statePath = null)
     {
-        State? state = null;
+        RealState? state = null;
 
         if (statePath == null)
         {
@@ -442,10 +442,10 @@ public partial class StateMachine
         }
         else
         {
-            state = GetState(statePath) as State;
+            state = GetState(statePath) as RealState;
         }
 
-        ICollection<State> list = new List<State>();
+        ICollection<RealState> list = new List<RealState>();
         state?.GetSouceSubStateCollection(list);
 
         return list;
@@ -453,9 +453,9 @@ public partial class StateMachine
 
     
 
-    public ICollection<State> GetTargetSubStateCollection(string? statePath = null)
+    public ICollection<RealState> GetTargetSubStateCollection(string? statePath = null)
     {
-        State? state = null;
+        RealState? state = null;
 
         if (statePath == null)
         {
@@ -463,22 +463,22 @@ public partial class StateMachine
         }
         else
         {
-            state = GetState(statePath) as State;
+            state = GetState(statePath) as RealState;
         }
 
-        ICollection<State> list = new List<State>();
+        ICollection<RealState> list = new List<RealState>();
         state?.GetTargetSubStateCollection(list);
 
         return list;
     }
 
-    public ICollection<State> GetSuperStateCollection(string statePath)
+    public ICollection<RealState> GetSuperStateCollection(string statePath)
     {
-        State? state = null;
+        RealState? state = null;
 
-        state = GetState(statePath) as State;
+        state = GetState(statePath) as RealState;
 
-        ICollection<State> list = new List<State>();
+        ICollection<RealState> list = new List<RealState>();
         state?.GetSuperStateCollection(list);
 
         return list;

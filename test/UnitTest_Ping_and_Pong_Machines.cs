@@ -77,7 +77,7 @@ namespace AdvancedFeatures
             _pongStateMachine.OnTransition -= LogTransition;
         }
 
-        private void LogTransition(State fromState, AbstractState toState, string eventName)
+        private void LogTransition(StateBase fromState, StateBase toState, string eventName)
         {
             _transitionLog.Add($"Transitioned from {fromState.Name} to {toState.Name} on event {eventName}");
         }

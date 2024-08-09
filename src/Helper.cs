@@ -19,7 +19,7 @@ public static class Helper
     /// </summary>
     /// <param name="collection"></param>
     /// <returns></returns>
-    public static string ToCsvString(this IEnumerable<State> collection, bool leafOnly = true, string separator = ";")
+    public static string ToCsvString(this IEnumerable<RealState> collection, bool leafOnly = true, string separator = ";")
     {
         if (leafOnly)
             return string.Join(separator, collection.Where(state => state.SubStateNames.Count == 0).Select(state => state.Name));

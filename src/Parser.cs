@@ -1,16 +1,12 @@
 ﻿using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
-//using System.Windows.Forms;
-namespace XStateNet;
 
+namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
+
 
 public partial class StateMachine
 {
@@ -54,7 +50,7 @@ public partial class StateMachine
 
     public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        AbstractState absState = null;
+        StateBase absState = null;
 
         var stateTypeStr = stateToken["type"]?.ToString();
         StateType stateType = stateTypeStr == "parallel" ? StateType.Parallel : stateTypeStr == "history" ? StateType.History : StateType.Normal;
@@ -65,22 +61,22 @@ public partial class StateMachine
                 var historyType = ParseHistoryType(stateToken);
 
                 var histState = new Parser_HistoryState(historyType).Parse(stateName, parentName, machineId, stateToken) as HistoryState;
-                absState = histState;
                 RegisterState(histState);
                 return; // no more settings
 
             case StateType.Parallel:
                 var paraState = new Parser_ParallelState().Parse(stateName, parentName, machineId, stateToken) as ParallelState;
+                RegisterState(paraState);
                 break;
 
-            default: //   case StateType.Normal:
+            default:
                 var normalState = new Parser_NormalState().Parse(stateName, parentName, machineId, stateToken) as NormalState;
                 absState = normalState;
                 RegisterState(absState);
                 break;
         }
     
-        State state = absState as State;
+        RealState state = absState as RealState;
 
         if (parentName == null)
         {
@@ -90,7 +86,7 @@ public partial class StateMachine
 
         if (!string.IsNullOrEmpty(parentName))
         {
-            var parent = StateMap[parentName] as State;
+            var parent = StateMap[parentName] as RealState;
             parent.SubStateNames.Add(stateName);
         }
         else
@@ -180,10 +176,10 @@ public partial class StateMachine
         }
     }
 
-    private List<Transition> ParseTransitions(State state, TransitionType type, string @event, JToken token)
+    private List<Transition> ParseTransitions(RealState state, TransitionType type, string @event, JToken token)
     {
         List<Transition> transitions = new List<Transition>();
-#if true
+
         if (token.Type == JTokenType.Array)
         {
             foreach (var trToken in token)
@@ -204,13 +200,10 @@ public partial class StateMachine
             throw new Exception($"Unexpected token type: {token.Type}!");
         }
 
-#else
-        transitions.Add(ParseTransition(state, type, @event, token));
-#endif
         return transitions;
     }
 
-    private Transition ParseTransition(State source, TransitionType type, string @event, JToken token)
+    private Transition ParseTransition(RealState source, TransitionType type, string @event, JToken token)
     {
 
         List<string> actionNames = null;

@@ -1,9 +1,9 @@
-﻿
+﻿using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
-public class HistoryState : AbstractState
+public class HistoryState : VirtualState
 {
-    State? lastActivState;
+    RealState? lastActivState;
     public HistoryType HistoryType { set; get; }
     public HistoryState(string name, string? parentName, string stateMachineId, HistoryType historyType)
         : base(name, parentName, stateMachineId)
@@ -11,11 +11,11 @@ public class HistoryState : AbstractState
         HistoryType = historyType;
     }
 
-    void RememberLastActiveState(State state)
+    void RememberLastActiveState(RealState state)
     {
         lastActivState = state;
     }
-    public override void EntryState(HistoryType historyType = HistoryType.None)
+    public void EntryState(HistoryType historyType = HistoryType.None)
     {
         if (historyType == HistoryType.Deep)
         {
@@ -26,8 +26,18 @@ public class HistoryState : AbstractState
             lastActivState?.EntryState();
         }
     }
+}
 
-    public override void ExitState()
+
+public class Parser_HistoryState : Parser_StateBase
+{
+    HistoryType historyType;
+    public Parser_HistoryState(HistoryType historyType)
     {
+        this.historyType = historyType;
+    }
+    public override StateBase Parse(string stateName, string? parentName, string machineId, JToken stateToken)
+    {
+        return new HistoryState(stateName, parentName, machineId, historyType);
     }
 }

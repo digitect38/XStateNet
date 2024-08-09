@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
+
+// AbstractState <- RealState <- NormalState
+// AbstractState <- RealState <- ParallelState
+// AbstractState <- HistoryState
 
 namespace XStateNet;
 
@@ -12,7 +12,7 @@ using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 internal static class Parser_Action
 {
-    public static List<NamedAction>? ParseActions(State state, string key, ActionMap actionMap, JToken token)
+    public static List<NamedAction>? ParseActions(RealState state, string key, ActionMap actionMap, JToken token)
     {
         List<NamedAction>? actions = null;
 

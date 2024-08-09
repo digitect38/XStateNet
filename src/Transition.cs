@@ -21,8 +21,8 @@ public abstract class Transition
     public Func<bool>? InCondition { get; set; }
     public StateMachine StateMachine => StateMachine.GetInstance(stateMachineId);
 
-    public State Source => StateMachine.GetState(SourceName) as State;   // can not be null any case. Source never be history state
-    public AbstractState? Target {
+    public RealState Source => StateMachine.GetState(SourceName) as RealState;   // can not be null any case. Source never be history state
+    public StateBase? Target {
         get {
             if (TargetName != null)
             {
@@ -161,7 +161,7 @@ public class OnTransition : Transition
 
 public class AfterTransition : Transition
 {
-    public int Delay;
+    public int Delay { get; set; }
 }
 public class AlwaysTransition : Transition
 {

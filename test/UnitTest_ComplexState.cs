@@ -14,7 +14,8 @@ namespace AdvancedFeatures
         {
             stateMachine = StateMachine.CreateFromScript(script2,
                 new System.Collections.Concurrent.ConcurrentDictionary<string, List<NamedAction>>(),
-                new System.Collections.Concurrent.ConcurrentDictionary<string, NamedGuard>()).Start();
+                new System.Collections.Concurrent.ConcurrentDictionary<string, NamedGuard>());
+            stateMachine.Start();
         }
 
         [Test]

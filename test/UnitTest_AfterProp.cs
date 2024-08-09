@@ -20,10 +20,14 @@ public class AfterTests
     {
         actions = new ActionMap
         {
-            ["logEntryRed"] = [new("logEntryRed", (sm) => sm.ContextMap["log"] += "Entering red; ")],
-            ["logExitRed"] = [new("logExitRed", (sm) => sm.ContextMap["log"] += "Exiting red; ")],
-            ["logTransitionAfterRedToGreen"] = [new("logTransitionAfterRedToGreen", (sm) => sm.ContextMap["log"] += "After transition to green; ")],
-            ["logEntryGreen"] = [new("logEntryGreen", (sm) => sm.ContextMap["log"] += "Entering green; ")],
+            ["logEntryRed"] = [new("logEntryRed", 
+                (sm) => { sm.ContextMap["log"] += "Entering red; "; Console.WriteLine("Entering Red; "); })],
+            ["logExitRed"] = [new("logExitRed", 
+                (sm) => { sm.ContextMap["log"] += "Exiting red; "; Console.WriteLine("Exiting Red; "); })],
+            ["logTransitionAfterRedToGreen"] = [new("logTransitionAfterRedToGreen", 
+                (sm) => { sm.ContextMap["log"] += "After transition to green; "; ; Console.WriteLine("After transition to green; ");  })],
+            ["logEntryGreen"] = [new("logEntryGreen", 
+                (sm) => { sm.ContextMap["log"] += "Entering green; "; ; Console.WriteLine("Entering Green; "); })],
         };
 
         guards = new GuardMap
@@ -42,8 +46,8 @@ public class AfterTests
             'context': { 'isReady': true, 'log': '' },
             'states': {
                 'red': {
-                    'entry': [ 'logEntryRed' ],
-                    'exit': [ 'logExitRed' ],
+                    'entry': ['logEntryRed'],
+                    'exit': ['logExitRed'],
                     'after': {
                         '500': { 'target': 'green', 'actions': [ 'logTransitionAfterRedToGreen' ] }
                     }
@@ -56,7 +60,8 @@ public class AfterTests
             'initial': 'red'
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
+        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards);
+        _stateMachine.Start();
 
 
         // Initial state should be 'red'
