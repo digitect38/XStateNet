@@ -11,19 +11,20 @@ public static class Helper
         {
             Console.Write("  ");
         }
-        Console.WriteLine(msg);
+        StateMachine.Log(msg);
     }
 
-    /// <summary>
-    /// String of leaf active states
-    /// </summary>
-    /// <param name="collection"></param>
-    /// <returns></returns>
-    public static string ToCsvString(this IEnumerable<RealState> collection, bool leafOnly = true, string separator = ";")
+    public static string ToCsvString(this IEnumerable<StateBase> collection, string separator = ";")
+    {
+        return string.Join(separator, collection.Select(state => state.Name));
+    }
+
+    public static string ToCsvString(this IEnumerable<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")
     {
         if (leafOnly)
-            return string.Join(separator, collection.Where(state => state.SubStateNames.Count == 0).Select(state => state.Name));
+            return string.Join(separator, collection.Where(state => 
+                ((RealState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
         else
-            return string.Join(separator, collection.Select(state => state.Name));
+            return string.Join(separator, collection.Select(state => state));
     }
 }

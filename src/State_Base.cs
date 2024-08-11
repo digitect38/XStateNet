@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json.Linq;
-using System.Reflection.PortableExecutable;
 namespace XStateNet;
 
 public abstract class StateBase
@@ -17,8 +16,7 @@ public abstract class StateBase
         Name = name;
         ParentName = parentName;
         this.stateMachineId = stateMachineId;
-    }
-  
+    }    
 }
 
 

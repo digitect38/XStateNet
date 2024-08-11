@@ -19,13 +19,13 @@ public class IntraMachinePingPongStateMachinesTests
     [SetUp]
     public void Setup()
     {
-        _actions = new ConcurrentDictionary<string, List<NamedAction>>
+        _actions = new ()
         {
             ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", (sm) => send_to_b(sm)) },
             ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", (sm) => _pingPongStateMachine.Send("to_a")) }
         };
 
-        _guards = new ConcurrentDictionary<string, NamedGuard>();
+        _guards = new ();
 
         var stateMachineJson = PingPongMachine.PingPongStateMachineScript;
 
@@ -39,14 +39,14 @@ public class IntraMachinePingPongStateMachinesTests
     public async Task TestPingPongStateMachines()
     {
         // Initial states
-        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
 
         // Wait for the ping-pong actions to occur
         await Task.Delay(1100);
-        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.b;#pingPongMachine.B.b");
+        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.b;#pingPongMachine.B.b");
 
         await Task.Delay(1100);
-        _pingPongStateMachine.GetCurrentState().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
     }
 }
 public static class PingPongMachine

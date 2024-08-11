@@ -9,7 +9,7 @@ using System.Collections.Concurrent;
 namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using GuardMap = ConcurrentDictionary<string, NamedGuard>;
+
 internal static class Parser_Action
 {
     public static List<NamedAction>? ParseActions(RealState state, string key, ActionMap? actionMap, JToken token)

@@ -20,11 +20,12 @@ public class NamedAction
 public class NamedGuard
 {
     public string Name { get; set; }
-    public Func<StateMachine, bool> Func { get; set; }
-    public NamedGuard(string name, Func<StateMachine, bool> func)
+    public Func<StateMachine, bool> Predicate { get; set; }
+
+    public NamedGuard(string name, Func<StateMachine, bool> predicate)
     {
         Name = name;
-        Func = func;
+        Predicate = predicate;
     }
 }
 

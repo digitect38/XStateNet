@@ -21,13 +21,13 @@ public class AfterTests
         actions = new ActionMap
         {
             ["logEntryRed"] = [new("logEntryRed", 
-                (sm) => { sm.ContextMap["log"] += "Entering red; "; Console.WriteLine("Entering Red; "); })],
+                (sm) => { sm.ContextMap["log"] += "Entering red; "; StateMachine.Log("Entering Red; "); })],
             ["logExitRed"] = [new("logExitRed", 
-                (sm) => { sm.ContextMap["log"] += "Exiting red; "; Console.WriteLine("Exiting Red; "); })],
+                (sm) => { sm.ContextMap["log"] += "Exiting red; "; StateMachine.Log("Exiting Red; "); })],
             ["logTransitionAfterRedToGreen"] = [new("logTransitionAfterRedToGreen", 
-                (sm) => { sm.ContextMap["log"] += "After transition to green; "; ; Console.WriteLine("After transition to green; ");  })],
+                (sm) => { sm.ContextMap["log"] += "After transition to green; "; ; StateMachine.Log("After transition to green; ");  })],
             ["logEntryGreen"] = [new("logEntryGreen", 
-                (sm) => { sm.ContextMap["log"] += "Entering green; "; ; Console.WriteLine("Entering Green; "); })],
+                (sm) => { sm.ContextMap["log"] += "Entering green; "; ; StateMachine.Log("Entering Green; "); })],
         };
 
         guards = new GuardMap
@@ -82,7 +82,7 @@ public class AfterTests
 
         // State should now be 'green'
         _stateMachine.PrintCurrentStatesString();
-        var currentStates = _stateMachine.GetCurrentState();
+        var currentStates = _stateMachine.GetActiveStateString();
 
         cxtlog = _stateMachine.ContextMap["log"].ToString();
         // Assert
@@ -125,7 +125,7 @@ public class AfterTests
 
         _stateMachine.PrintCurrentStatesString(); // State should still be 'red'
 
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         // Assert
         string log = _stateMachine.ContextMap["log"].ToString();
         currentState.AssertEquivalence("#trafficLight.red");

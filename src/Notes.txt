@@ -1,0 +1,6 @@
+
+Active state map 의 구조
+
+이것는 event evaluation 입장에서 중요하다.
+Map에 등록된 state 들의 순서에 따라 event 가 evaluation 순서가 정해지기 때문에 condition 및 guard 선/후 관계 평가에 영향을 준다.
+제대로 된 map은 state tree 의 depth 순서대로 등록되어야 한다.

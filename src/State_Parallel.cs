@@ -20,26 +20,29 @@ public class ParallelState : RealState
         Task.WaitAll(tasks);
     }
 
-
-    public override void InitializeCurrentStates()
+    public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
     {
-        base.InitializeCurrentStates();
+        // children first
 
         foreach (string subStateName in SubStateNames)
         {
-            GetState(subStateName)?.InitializeCurrentStates();
+            GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
 
-        // Schedule after transitions for the initial state
-        ScheduleAfterTransitionTimer();
+        base.BuildTransitionList(eventName, transitionList);
     }
 
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
-        foreach (string subStateName in SubStateNames)
-        {
-            GetState(subStateName)?.EntryState(historyType);
-        }
+        base.EntryState();
+
+        SubStateNames.AsParallel().ForAll(
+            subStateName =>
+            {
+                var subState = StateMachine.GetState(subStateName) as RealState;
+                subState?.EntryState(historyType);
+            }
+        );
     }
     public override void ExitState()
     {
@@ -49,21 +52,8 @@ public class ParallelState : RealState
             GetState(subStateName)?.ExitState();
         }
     }
-    public override void GetHistoryEntryList(List<StateBase> entryList, string stateName, HistoryType historyType = HistoryType.None)
-    {
-        var state = GetState(stateName) as RealState;
-        entryList.Add(state);
 
-        state.SubStateNames.ForEach(
-            subStateName =>
-            {
-                var subState = GetState(subStateName);
-                GetHistoryEntryList(entryList, subStateName);
-            }
-        );
-    }
-
-    public override List<string> GetActiveSubStateNames(List<string> list)
+    public override void GetActiveSubStateNames(List<string> list)
     {
         foreach (var subStateName in SubStateNames)
         {
@@ -76,28 +66,26 @@ public class ParallelState : RealState
                 subState.GetActiveSubStateNames(list);
             }
         }
-
-        return list;
     }
 
-    public override void GetSouceSubStateCollection(ICollection<RealState> collection)
+    public override void GetSouceSubStateCollection(ICollection<string> collection)
     {
         foreach (string subState in SubStateNames)
         {
-            collection.Add(GetState(subState));
+            collection.Add(subState);
             GetState(subState)?.GetSouceSubStateCollection(collection);
         }
     }
 
-    public override void GetTargetSubStateCollection(ICollection<RealState> collection, HistoryType hist = HistoryType.None)
+    public override void GetTargetSubStateCollection(ICollection<string> collection, HistoryType hist = HistoryType.None)
     {
-        foreach (string subState in SubStateNames)
+        foreach (string subStateName in SubStateNames)
         {
-            var state = GetState(subState);
+            var state = GetState(subStateName);
             if (state != null)
             {
-                collection.Add(state);
-                GetState(subState)?.GetTargetSubStateCollection(collection);
+                collection.Add(subStateName);
+                GetState(subStateName)?.GetTargetSubStateCollection(collection);
             }
         }
     }
@@ -115,31 +103,14 @@ public class ParallelState : RealState
         }
         return initialStates;
     }
-
-    public override List<RealState> GetLastActiveStates(HistoryType historyType = HistoryType.None)
-    {
-        var lastActiveStates = new List<RealState>();
-
-        foreach (var subStateName in SubStateNames)
-        {
-            var subState = GetState(subStateName);
-            if (subState != null)
-            {
-                lastActiveStates.Add(subState);
-                lastActiveStates.AddRange(subState.GetLastActiveStates(historyType));
-            }
-        }
-
-        return lastActiveStates;
-    }
-
-    public override void PrintCurrentStateTree(int depth)
+    
+    public override void PrintActiveStateTree(int depth)
     {
         Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
 
         foreach (var currentStateName in SubStateNames)
         {
-            GetState(currentStateName)?.PrintCurrentStateTree(depth + 1);
+            GetState(currentStateName)?.PrintActiveStateTree(depth + 1);
         }
     }
 }

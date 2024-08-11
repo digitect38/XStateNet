@@ -3,29 +3,28 @@ namespace XStateNet;
 
 public class HistoryState : VirtualState
 {
-    RealState? lastActivState;
     public HistoryType HistoryType { set; get; }
     public HistoryState(string name, string? parentName, string stateMachineId, HistoryType historyType)
         : base(name, parentName, stateMachineId)
     {
         HistoryType = historyType;
-    }
 
-    void RememberLastActiveState(RealState state)
-    {
-        lastActivState = state;
-    }
-    public void EntryState(HistoryType historyType = HistoryType.None)
-    {
-        if (historyType == HistoryType.Deep)
+        if (Parent == null)
         {
-            lastActivState?.EntryState(historyType);
+            throw new Exception("History state should have parent");
+        }
+
+        if (Parent is NormalState)
+        {
+            ((NormalState)Parent).HistorySubState = this;
         }
         else
         {
-            lastActivState?.EntryState();
+            throw new Exception("History state should be child of Normal state");
         }
     }
+
+    // Note:  history stateonly used to buildtransition list. So not used in transition.
 }
 
 
@@ -41,5 +40,5 @@ public class Parser_HistoryState : Parser_StateBase
     public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
         return new HistoryState(stateName, parentName, machineId, historyType);
-    }
+    }    
 }

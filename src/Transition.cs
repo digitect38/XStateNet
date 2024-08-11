@@ -21,7 +21,7 @@ public abstract class Transition
     public Func<bool>? InCondition { get; set; }
     public StateMachine StateMachine => StateMachine.GetInstance(stateMachineId);
 
-    public RealState Source => StateMachine.GetState(SourceName) as RealState;   // can not be null any case. Source never be history state
+    public RealState Source => (RealState)StateMachine.GetState(SourceName);   // can not be null any case. Source never be history state
     public StateBase? Target {
         get {
             if (TargetName != null)
@@ -36,122 +36,31 @@ public abstract class Transition
             }
         }
     }
-    /*
-    public List<State> GetExitList()
-    {
-        if (Target != null)
-            return GetExitEntryList(SourceName, TargetName);
-        else
-            return new List<State>();
-    }
-    */
 
-    (string, HistoryType) ConvertHistoryState(string targetName)
+    (string?, HistoryType) ConvertHistoryToNormalState(string targetName)
     {
         var historyType = HistoryType.None;
+
         if (targetName != null)
         {
             if (targetName?.Split('.').Last() == "hist")
             {
                 var historyState = StateMachine.GetStateAsHistory(targetName);
+                
+                if (historyState == null) throw new Exception($"History state {targetName} not found");
                 historyType = historyState.HistoryType;
+
+                if(historyState.ParentName == null) throw new Exception($"History state {targetName} has no parent");
                 targetName = historyState.ParentName;
             }
+            return new NewStruct(targetName, historyType);
         }
-        return (targetName, historyType);
-    }
-    /*
-    public (List<StateBase> stateList, HistoryType historyType) GetEntryList()
-    {
-        if (Target != null)
-            return GetEntryList(SourceName, TargetName);
         else
-            return (new List<StateBase>(), HistoryType.None);
+        {
+            throw new Exception("TargetName is null");
+        }
     }
     
-    List<State> GetExitList(string source, string target)
-    {
-        (target, HistoryType historyType) = ConvertHistoryState(target);
-        var exitList = new List<State>();
-        if (source == target) return exitList;
-
-        var sourceState = StateMachine.GetState(source) as State;
-        var targetState = StateMachine.GetState(target) as State;
-        var commonAncestor = FindCommonAncestor(sourceState, targetState);
-
-        // Traverse from source to common ancestor, including current child states
-        var currentState = sourceState;
-        while (currentState != null && currentState != commonAncestor)
-        {
-            exitList.Add(currentState);
-            exitList.AddRange(GetActiveSubStates(currentState, includeSelf: false));
-            currentState = currentState.Parent;
-        }
-
-        return exitList;
-    }
-    */
-
-
-    /*
-    (List<StateBase> stateList, HistoryType historytype) GetEntryList(string source, string target)
-    {
-        (target, HistoryType historyType) = ConvertHistoryState(target);
-
-        var entryList = new List<StateBase>();
-        if (source == target) return (entryList, historyType);
-
-        var sourceState = StateMachine.GetState(source) as State;
-        var targetState = StateMachine.GetState(target) as State;
-        var commonAncestor = FindCommonAncestor(sourceState, targetState);
-
-        // Traverse from common ancestor to target, including child states
-        var targetPath = new Stack<State>();
-        var currentState = targetState;
-        while (currentState != null && currentState != commonAncestor)
-        {
-            targetPath.Push(currentState);
-            currentState = currentState.Parent;
-        }
-
-        while (targetPath.Count > 0)
-        {
-            currentState = targetPath.Pop();
-
-
-            entryList.Add(currentState);
-            if (targetPath.Count == 0)
-            {
-                entryList.AddRange(GetLastActiveStates(currentState, historyType));
-            }
-        }
-
-        return (entryList, historyType);
-    }
-    
-
-    private State FindCommonAncestor(State state1, State state2)
-    {
-        var ancestors1 = new HashSet<State>();
-
-        while (state1 != null)
-        {
-            ancestors1.Add(state1);
-            if (state1.Parent == null) break;
-            if (state1.Parent.IsParallel) break;
-            state1 = state1.Parent;
-        }
-
-        while (state2 != null)
-        {
-            if (ancestors1.Contains(state2)) return state2;
-            state2 = state2.Parent;
-        }
-
-        return null; // Shouldn't happen if both states are in the same state machine
-    }
-    */  
-
 }
 
 public class OnTransition : Transition
@@ -167,3 +76,16 @@ public class AlwaysTransition : Transition
 {
 }
 
+// Need to understand this code
+internal record struct NewStruct(string? targetName, HistoryType historyType)
+{
+    public static implicit operator (string? targetName, HistoryType historyType)(NewStruct value)
+    {
+        return (value.targetName, value.historyType);
+    }
+
+    public static implicit operator NewStruct((string? targetName, HistoryType historyType) value)
+    {
+        return new NewStruct(value.targetName, value.historyType);
+    }
+}

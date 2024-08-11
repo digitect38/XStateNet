@@ -67,7 +67,7 @@ public class MutualExclusionTests
     [Test]
     public void TestInitialState()
     {
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class MutualExclusionTests
         _stateMachine.Send("OPEN");
         _stateMachine.Send("SHOOT");
 
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
     [Test]
@@ -84,7 +84,7 @@ public class MutualExclusionTests
     {
         _stateMachine.Send("SHOOT");
 
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
 
@@ -96,7 +96,7 @@ public class MutualExclusionTests
         _stateMachine.Send("SHOOT");
         _stateMachine.Send("CLOSE");
 
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class MutualExclusionTests
         _stateMachine.Send("DONE");
         _stateMachine.Send("CLOSE");
 
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
     [Test]
@@ -118,7 +118,7 @@ public class MutualExclusionTests
         _stateMachine.Send("SHOOT");
         _stateMachine.Send("DONE");
 
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
     }
 
     [Test]
@@ -126,7 +126,7 @@ public class MutualExclusionTests
     {
         _stateMachine.Send("OPEN");
         _stateMachine.Send("CLOSE");
-        var stateString = _stateMachine.GetCurrentState();
-        _stateMachine.GetCurrentState().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        var stateString = _stateMachine.GetActiveStateString();
+        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 }

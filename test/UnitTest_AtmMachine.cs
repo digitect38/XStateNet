@@ -17,13 +17,13 @@ public class AtmStateMachineTests
     public void Setup()
     {
         // Define actions
-        _actions = new ConcurrentDictionary<string, List<NamedAction>>
+        _actions = new ()
         {
-            ["logTransition"] = [new NamedAction("logTransition", (sm) => Console.WriteLine("Transitioning..."))]
+            ["logTransition"] = [new NamedAction("logTransition", (sm) => StateMachine.Log("Transitioning..."))]
         };
 
         // Define guards (if any, for example purposes we keep it simple)
-        _guards = new ConcurrentDictionary<string, NamedGuard>();
+        _guards = new ();
 
         // Load state machine from JSON
         var json = Script;
@@ -33,7 +33,7 @@ public class AtmStateMachineTests
     [Test]
     public void TestInitialState()
     {
-        var initialState = _stateMachine.GetCurrentState();
+        var initialState = _stateMachine.GetActiveStateString();
         "#atm.idle".AssertEquivalence(initialState);
     }
 
@@ -41,7 +41,7 @@ public class AtmStateMachineTests
     public void TestCardInserted()
     {
         _stateMachine.Send("CARD_INSERTED");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         "#atm.authenticating.enteringPin".AssertEquivalence(currentState);
     }
 
@@ -51,7 +51,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_CORRECT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         "#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt".AssertEquivalence(currentState);
     }
 
@@ -61,7 +61,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_INCORRECT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         "#atm.authenticating.enteringPin".AssertEquivalence(currentState);
     }
 
@@ -74,7 +74,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("SUCCESS");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         Assert.AreEqual("#atm.idle", currentState);
     }
 
@@ -87,7 +87,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("DEPOSIT");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("FAILURE");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
     }
 
@@ -99,7 +99,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("CANCEL");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -110,7 +110,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("REQUEST_RECEIPT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.printingReceipt");
     }
 
@@ -122,7 +122,7 @@ public class AtmStateMachineTests
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("REQUEST_RECEIPT");
         _stateMachine.Send("RECEIPT_PRINTED");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -225,14 +225,14 @@ public class AtmStateMachineTests2
     public void Setup()
     {
         // Define actions
-        _actions = new ConcurrentDictionary<string, List<NamedAction>>
+        _actions = new ()
         {
-            ["logEntry"] = [new NamedAction("logEntry", (sm) => Console.WriteLine("Entering state"))],
-            ["logExit"] = [new NamedAction("logExit", (sm) => Console.WriteLine("Exiting state"))]
+            ["logEntry"] = [new NamedAction("logEntry", (sm) => StateMachine.Log("Entering state"))],
+            ["logExit"] = [new NamedAction("logExit", (sm) => StateMachine.Log("Exiting state"))]
         };
 
         // Define guards
-        _guards = new ConcurrentDictionary<string, NamedGuard>();
+        _guards = new ();
 
         // Load state machine from JSON
         _stateMachine = StateMachine.CreateFromScript(json, _actions, _guards).Start();
@@ -241,7 +241,7 @@ public class AtmStateMachineTests2
     [Test]
     public void TestInitialState()
     {
-        var initialState = _stateMachine.GetCurrentState();
+        var initialState = _stateMachine.GetActiveStateString();
         initialState.AssertEquivalence("#atm.idle");
     }
 
@@ -249,7 +249,7 @@ public class AtmStateMachineTests2
     public void TestCardInserted()
     {
         _stateMachine.Send("CARD_INSERTED");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.authenticating.enteringPin");
     }
 
@@ -259,7 +259,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_CORRECT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -269,7 +269,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_INCORRECT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.authenticating.enteringPin");
     }
 
@@ -282,7 +282,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("SUCCESS");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.idle");
     }
 
@@ -295,7 +295,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("DEPOSIT");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("FAILURE");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
     }
 
@@ -307,7 +307,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("CANCEL");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -318,7 +318,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("PIN_ENTERED");
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("REQUEST_RECEIPT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.printingReceipt");
     }
 
@@ -330,7 +330,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("REQUEST_RECEIPT");
         _stateMachine.Send("RECEIPT_PRINTED");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -342,7 +342,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("BALANCE");
         _stateMachine.Send("BALANCE_SHOWN");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -354,7 +354,7 @@ public class AtmStateMachineTests2
         _stateMachine.Send("PIN_CORRECT");
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("CANCEL");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
@@ -363,7 +363,7 @@ public class AtmStateMachineTests2
     {
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("INVALID_EVENT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.authenticating.enteringPin"); // Should remain in the same state
     }
 
@@ -372,7 +372,7 @@ public class AtmStateMachineTests2
     {
         _stateMachine.Send("CARD_INSERTED");
         _stateMachine.Send("CANCEL");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.idle");
     }
 
@@ -385,12 +385,12 @@ public class AtmStateMachineTests2
         _stateMachine.Send("WITHDRAW");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("FAILURE");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.withdrawing;#atm.operational.receipt.noReceipt");
 
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("SUCCESS");
-        currentState = _stateMachine.GetCurrentState();
+        currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.idle");
     }
 
@@ -403,12 +403,12 @@ public class AtmStateMachineTests2
         _stateMachine.Send("DEPOSIT");
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("FAILURE");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
 
         _stateMachine.Send("AMOUNT_ENTERED");
         _stateMachine.Send("SUCCESS");
-        currentState = _stateMachine.GetCurrentState();
+        currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#atm.idle");
     }
 

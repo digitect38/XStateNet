@@ -21,7 +21,7 @@ namespace AdvancedFeatures
         [Test]
         public void GetCurrentSubStatesTest1()
         {
-            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString();
+            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString(stateMachine, true);
             Assert.AreEqual("#fsm.A.A1.A1a;#fsm.A.A2", currentState);
         }
 
@@ -30,7 +30,7 @@ namespace AdvancedFeatures
         {
             stateMachine.Send("TO_A1b");
 
-            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString();
+            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
             Assert.AreEqual("#fsm.A.A1.A1b;#fsm.A.A2", currentState);
         }
 
@@ -39,7 +39,7 @@ namespace AdvancedFeatures
         {
             stateMachine.Send("TO_B");
 
-            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString();
+            var currentState = stateMachine.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
             Assert.AreEqual("#fsm.B.B1", currentState);
         }
 
@@ -49,10 +49,11 @@ namespace AdvancedFeatures
 			'initial': 'A',
 			states : {         
 				A :{
-					type : 'parallel',
+					type : 'parallel',  // parallel state
 					on : { 
 						'TO_B' : 'B'
 					},
+
 					states : 
 					{
 						A1 : {
@@ -71,9 +72,9 @@ namespace AdvancedFeatures
 						},
 						A2 : {}
 					},
-				}
-				,
-				B :{
+
+				},
+                B :{
 					on : { 'TO_A' : 'A' },
 					initial : 'B1',
 					states : {

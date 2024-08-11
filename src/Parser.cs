@@ -30,8 +30,7 @@ public partial class StateMachine
             }
         }
         stateMachine.ParseState($"{stateMachine.machineId}", rootToken, null);
-        stateMachine.InitializeCurrentStates();
-        stateMachine.RootState.PrintCurrentStateTree(0);
+        //stateMachine.InitializeActiveStates();        
 
         return stateMachine;
     }
@@ -278,17 +277,15 @@ public partial class StateMachine
         transition.Guard = GetGuardCallback(guard);
         transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : null;
 
-        var key = StateMachine.GenerateKey(source.Name, @event);
-
         switch (type)
         {
             case TransitionType.On:
                 {
-                    if (!source.OnTransitionMap.ContainsKey(key))
+                    if (!source.OnTransitionMap.ContainsKey(@event))
                     {
-                        source.OnTransitionMap[key] = new List<Transition>();
+                        source.OnTransitionMap[@event] = new List<Transition>();
                     }
-                    source.OnTransitionMap[key].Add(transition);
+                    source.OnTransitionMap[@event].Add(transition);
                 }
                 break;
             case TransitionType.After:
@@ -301,6 +298,7 @@ public partial class StateMachine
                     source.AlwaysTransition = transition as AlwaysTransition;
                 }
                 break;
+
             default:
                 throw new Exception("Invalid transition type!");
         }

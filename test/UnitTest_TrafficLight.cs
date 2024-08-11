@@ -5,55 +5,152 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using System.Transactions;
 
-namespace AdvancedFeatures;
+namespace BigStateMachine;
 
 [TestFixture]
-public class StateMachineTests
+public class TrafficMachine
 {
     private StateMachine _stateMachine;
 
+    List<string> entryActions = new();
+    List<string> tranActions = new();
+    List<string> exitActions = new();
+    List<string> noTargetActions = new();
+    ConcurrentDictionary<string, List<NamedAction>> _actions1;
+    ConcurrentDictionary<string, List<NamedAction>> _actions2;
+    ConcurrentDictionary<string, NamedGuard> _guards;
 
     [SetUp]
     public void Setup()
     {
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
+        _actions1 = new ()
         {
-            ["logEntryRed"] = [new("logEntryRed", (sm) => Console.WriteLine("...Entering red"))],
-            ["logExitRed"] = [new("logExitRed", (sm) => Console.WriteLine("...Exiting red"))],
-            ["logTransitionRedToGreen"] = [new("logTransitionRedToGreen", (sm) => Console.WriteLine("TransitionAction: red --> green"))]
+            ["logEntryRed"] = [new("logEntryRed", (sm) => StateMachine.Log("...Entering red"))],
+            ["logExitRed"] = [new("logExitRed", (sm) => StateMachine.Log("...Exiting red"))],
+            ["logTransitionRedToGreen"] = [new("logTransitionRedToGreen", (sm) => StateMachine.Log("TransitionAction: red --> green"))],
+            ["logEntryLight"] = [new("logEntryLight", (sm) => StateMachine.Log("Entering light"))],
+            ["logExitLight"] = [new("logExitLight", (sm) => StateMachine.Log("Exiting light"))],
+            ["logEntryPedestrian"] = [new("logEntryPedestrian", (sm) => StateMachine.Log("Entering pedestrian"))],
+            ["logExitPedestrian"] = [new("logExitPedestrian", (sm) => StateMachine.Log("Exiting pedestrian"))],
+            ["logEntryCanWalk"] = [new("logEntryCanWalk", (sm) => StateMachine.Log("Entering canWalk"))],
+            ["logExitCanWalk"] = [new("logExitCanWalk", (sm) => StateMachine.Log("Exiting canWalk"))],
+            ["logEntryCannotWalk"] = [new("logEntryCannotWalk", (sm) => StateMachine.Log("Entering cannotWalk"))],
+            ["logExitCannotWalk"] = [new("logExitCannotWalk", (sm) => StateMachine.Log("Exiting cannotWalk"))],
+            ["logTransitionCanWalkToCannotWalk"] = [new("logTransitionCanWalkToCannotWalk", (sm) => StateMachine.Log("TransitionAction: canWalk --> cannotWalk"))],
+            ["logTransitionRedToGreen2"] = [new("logTransitionRedToGreen2", (sm) => StateMachine.Log("TransitionAction: red --> green2"))],
+            ["logTransitionYellowToRed"] = [new("logTransitionYellowToRed", (sm) => StateMachine.Log("TransitionAction: yellow --> red"))],
+            ["logEntryYellow"] = [new("logEntryYellow", (sm) => StateMachine.Log("Entering yellow"))],
+            ["logExitYellow"] = [new("logExitYellow", (sm) => StateMachine.Log("Exiting yellow"))],
+            ["logEntryGreen"] = [new("logEntryGreen", (sm) => StateMachine.Log("Entering green"))],
+            ["logExitGreen"] = [new("logExitGreen", (sm) => StateMachine.Log("Exiting green"))],
+            ["logEntryBrightRed"] = [new("logEntryBrightRed", (sm) => StateMachine.Log("Entering red.bright"))],
+            ["logExitBrightRed"] = [new("logExitBrightRed", (sm) => StateMachine.Log("Exiting red.bright"))],
+            ["logEntryDarkRed"] = [new("logEntryDarkRed", (sm) => StateMachine.Log("Entering red.dark"))],
+            ["logExitDarkRed"] = [new("logExitDarkRed", (sm) => StateMachine.Log("Exiting red.dark"))],
+            ["logTransitionBrightRedToDark"] = [new("logTransitionBrightRedToDark", (sm) => StateMachine.Log("TransitionAction: bright --> dark"))],
+            ["logTransitionDarkRedToBright"] = [new("logTransitionDarkRedToBright", (sm) => StateMachine.Log("TransitionAction: dark --> bright"))],
+            ["logEntryBrightGreen"] = [new("logEntryBrightGreen", (sm) => StateMachine.Log("Entering green.bright"))],
+            ["logExitBrightGreen"] = [new("logExitBrightGreen", (sm) => StateMachine.Log("Exiting green.bright"))],
+            ["logEntryDarkGreen"] = [new("logEntryDarkGreen", (sm) => StateMachine.Log("Entering green.dark"))],
+            ["logExitDarkGreen"] = [new("logExitDarkGreen", (sm) => StateMachine.Log("Exiting green.dark"))],
+            ["logTransitionBrightGreenToDark"] = [new("logTransitionBrightGreenToDark", (sm) => StateMachine.Log("TransitionAction: bright --> dark"))],
+            ["logTransitionDarkGreenToBright"] = [new("logTransitionDarkGreenToBright", (sm) => StateMachine.Log("TransitionAction: dark --> bright"))],
+            ["logNoTargetAction"] = [new("logNoTargetAction", (sm) => StateMachine.Log("No target action executed"))]
         };
 
-        var guards = new ConcurrentDictionary<string, NamedGuard>
+        entryActions = new List<string>();
+        tranActions = new List<string>();
+        exitActions = new List<string>();
+
+        _actions2 = new ()
         {
-            ["isReady"] = new NamedGuard("isReady", (sm) => (bool)_stateMachine.ContextMap["isReady"])
+            ["logEntryRed"] = [new("logEntryRed", (sm) => entryActions.Add("Entering red"))],
+            ["logExitRed"] = [new("logExitRed", (sm) => exitActions.Add("Exiting red"))],
+            ["logTransitionRedToGreen"] = [new("logTransitionRedToGreen", (sm) => tranActions.Add("TransitionAction: red --> green"))],
+            ["logEntryLight"] = [new("logEntryLight", (sm) => entryActions.Add("Entering light"))],
+            ["logExitLight"] = [new("logExitLight", (sm) => exitActions.Add("Exiting light"))],
+            ["logEntryPedestrian"] = [new("logEntryPedestrian", (sm) => entryActions.Add("Entering pedestrian"))],
+            ["logExitPedestrian"] = [new("logExitPedestrian", (sm) => exitActions.Add("Exiting pedestrian"))],
+            ["logEntryCanWalk"] = [new("logEntryCanWalk", (sm) => entryActions.Add("Entering canWalk"))],
+            ["logExitCanWalk"] = [new("logExitCanWalk", (sm) => exitActions.Add("Exiting canWalk"))],
+            ["logEntryCannotWalk"] = [new("logEntryCannotWalk", (sm) => entryActions.Add("Entering cannotWalk"))],
+            ["logExitCannotWalk"] = [new("logExitCannotWalk", (sm) => exitActions.Add("Exiting cannotWalk"))],
+            ["logTransitionCanWalkToCannotWalk"] = [new("logTransitionCanWalkToCannotWalk", (sm) => tranActions.Add("TransitionAction: canWalk --> cannotWalk"))],
+            ["logTransitionRedToGreen2"] = [new("logTransitionRedToGreen2", (sm) => tranActions.Add("TransitionAction2: red --> green"))],
+            ["logTransitionYellowToRed"] = [new("logTransitionYellowToRed", (sm) => tranActions.Add("TransitionAction: yellow --> red"))],
+            ["logEntryYellow"] = [new("logEntryYellow", (sm) => entryActions.Add("Entering yellow"))],
+            ["logExitYellow"] = [new("logExitYellow", (sm) => exitActions.Add("Exiting yellow"))],
+            ["logEntryGreen"] = [new("logEntryGreen", (sm) => entryActions.Add("Entering green"))],
+            ["logExitGreen"] = [new("logExitGreen", (sm) => exitActions.Add("Exiting green"))],
+            ["logEntryBrightRed"] = [new("logEntryBrightRed", (sm) => entryActions.Add("Entering red.bright"))],
+            ["logExitBrightRed"] = [new("logExitBrightRed", (sm) => exitActions.Add("Exiting red.bright"))],
+            ["logEntryDarkRed"] = [new("logEntryDarkRed", (sm) => entryActions.Add("Entering red.dark"))],
+            ["logExitDarkRed"] = [new("logExitDarkRed", (sm) => exitActions.Add("Exiting red.dark"))],
+            ["logTransitionBrightRedToDark"] = [new("logTransitionBrightRedToDark", (sm) => tranActions.Add("TransitionAction: bright --> dark"))],
+            ["logTransitionDarkRedToBright"] = [new("logTransitionDarkRedToBright", (sm) => tranActions.Add("TransitionAction: dark --> bright"))],
+            ["logEntryBrightGreen"] = [new("logEntryBrightGreen", (sm) => entryActions.Add("Entering green.bright"))],
+            ["logExitBrightGreen"] = [new("logExitBrightGreen", (sm) => exitActions.Add("Exiting green.bright"))],
+            ["logEntryDarkGreen"] = [new("logEntryDarkGreen", (sm) => entryActions.Add("Entering green.dark"))],
+            ["logExitDarkGreen"] = [new("logExitDarkGreen", (sm) => exitActions.Add("Exiting green.dark"))],
+            ["logTransitionBrightGreenToDark"] = [new("logTransitionBrightGreenToDark", (sm) => tranActions.Add("TransitionAction: bright --> dark"))],
+            ["logTransitionDarkGreenToBright"] = [new("logTransitionDarkGreenToBright", (sm) => tranActions.Add("TransitionAction: dark --> bright"))],
+            ["logNoTargetAction"] = [new("logNoTargetAction", (sm) => noTargetActions.Add("No target action executed"))] // No target action is a tansition action
         };
 
-        _stateMachine = StateMachine.CreateFromScript(json, actions, guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        _guards = new ConcurrentDictionary<string, NamedGuard>
+        {
+            ["isReady"] = new ("isReady", IsReady)
+        };
+
     }
+
+    Func<StateMachine, bool> IsReady = (sm) => 
+    {
+        object? res;
+        if (sm.ContextMap.TryGetValue("isReady", out res))
+        {
+            return (bool)res;
+        }
+        else
+        {
+            throw new Exception("isReady not found in context");
+        }
+    };
+    /*
+    bool IsReady(StateMachine sm)
+    {
+        return (bool)sm.ContextMap["isReady"];
+    }
+    */
 
     [Test]
     public void TestInitialState()
     {
-        var currentState = _stateMachine.GetCurrentState();
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        _stateMachine.ContextMap["isReady"] = true;
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
     [Test]
     public void TestTransitionRedToGreen()
     {
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        _stateMachine.ContextMap["isReady"] = true;
         _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.green.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
     [Test]
     public void TestGuardCondition()
     {
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine.ContextMap["isReady"] = false;
         _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         // Should remain in last state as guard condition fails
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
@@ -61,31 +158,11 @@ public class StateMachineTests
     [Test]
     public void TestEntryAndExitActions()
     {
-        var entryActions = new List<string>();
-        var tranActions = new List<string>();
-        var exitActions = new List<string>();
-
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
-        {
-            ["logEntryRed"] = [new("logEntryRed", (sm) => entryActions.Add("Entering red"))],
-            ["logEntryBrightRed"] = [new("logEntryBrightRed", (sm) => entryActions.Add("Entering red.bright"))],
-            ["logExitBrightRed"] = [new("logExitBrightRed", (sm) => exitActions.Add("Exiting red.bright"))],
-            ["logExitRed"] = [new("logExitRed", (sm) => exitActions.Add("Exiting red"))],
-            ["logTransitionRedToGreen"] = [new("logTransitionRedToGreen", (sm) => tranActions.Add("TransitionAction: red --> green"))],
-            ["logEntryGreen"] = [new("logEntryGreen", (sm) => entryActions.Add("Entering green"))],
-            ["logEntryBrightGreen"] = [new("logEntryBrightGreen", (sm) => entryActions.Add("Entering green.bright"))],
-        };
-
-        var guards = new ConcurrentDictionary<string, NamedGuard>
-        {
-            ["isReady"] = new NamedGuard("isReady", (sm) => (bool)_stateMachine.ContextMap["isReady"])
-        };
-
-        _stateMachine = StateMachine.CreateFromScript(json, actions, guards).Start();
+        _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
         _stateMachine.ContextMap["isReady"] = true;
-
+        
         _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
 
         Assert.IsTrue(exitActions.Contains("Exiting red.bright"));
         Assert.IsTrue(exitActions.Contains("Exiting red"));
@@ -97,8 +174,9 @@ public class StateMachineTests
     [Test]
     public void TestParallelStates()
     {
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine.Send("PUSH_BUTTON");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         Assert.IsTrue(currentState.Contains("canWalk"));
         Assert.IsTrue(currentState.Contains("red"));
     }
@@ -106,128 +184,27 @@ public class StateMachineTests
     [Test]
     public void TestNestedStates()
     {
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        _stateMachine.ContextMap["isReady"] = true;
         _stateMachine.Send("TIMER");
         //_stateMachine.Send("DARKER");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         //currentState.AssertEquivalence("#trafficLight.light.green.dark;#trafficLight.pedestrian.cannotWalk");
     }
 
     [Test]
     public void TestInvalidTransition()
     {
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine.Send("INVALID_EVENT");
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
-    }
-    [Test]
-    public void TestAlwaysTransition()
-    {
-        var stateMachineJson = @"{
-            'id': 'counter',
-            'initial': 'smallNumber',
-            'context': { 'count': 0 },
-            'states': {
-                'smallNumber': {
-                    'always': { 'target': 'bigNumber', 'guard': 'isBigNumber' }
-                },
-                'bigNumber': {
-                    'always': { 'target': 'smallNumber', 'guard': 'isSmallNumber' }
-                }
-            },
-            'on': {
-                'INCREMENT': { 'actions': ['incrementCount', 'checkCount'] },
-                'DECREMENT': { 'actions': ['decrementCount', 'checkCount'] },
-                'RESET': { 'actions': ['resetCount', 'checkCount'] }
-            }
-        }";
-
-        void Increment(StateMachine sm)
-        {
-            sm.ContextMap["count"] = (int)sm.ContextMap["count"] + 1;
-        };
-
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
-        {
-            ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
-            ["decrementCount"] = [new("decrementCount", (sm) => Decrement(sm))],
-            ["resetCount"] = [new("resetCount", (sm) => ResetCount(sm))],
-            ["checkCount"] = [new("checkCount", (sm) => { })]
-        };
-
-      void ResetCount (StateMachine sm)
-      {
-
-        sm.ContextMap["count"] = 0;
-      }
-
- 
-
-      bool IsSmallNumber(StateMachine sm)
-      {
-        return (int)sm.ContextMap["count"] <= 3;
-      }
-
-      bool IsBigNumber(StateMachine sm)
-      {
-        return (int)sm.ContextMap["count"] > 3;
-      }
-
-      void Decrement(StateMachine sm)
-      {
-        sm.ContextMap["count"] = (int)sm.ContextMap["count"] - 1;
-      }
-        var guards = new ConcurrentDictionary<string, NamedGuard>
-        {
-            ["isBigNumber"] = new("isBigNumber", (sm) => IsBigNumber(sm)),
-            ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))
-        };
-
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
-        _stateMachine.ContextMap["count"] = 0;
-
-        var currentState = _stateMachine.GetCurrentState();
-        Assert.AreEqual("#counter.smallNumber", currentState);
-
-        // Test incrementing to trigger always transition
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
-        //_stateMachine.Send("INCREMENT");
-
-        currentState = _stateMachine.GetCurrentState();
-
-        Console.WriteLine(">>>>> _stateMachine.ContextMap[\"count\"] = " + _stateMachine.ContextMap["count"]);
-        Assert.AreEqual("#counter.bigNumber", currentState);
-
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
-
-        currentState = _stateMachine.GetCurrentState();
-        currentState.AssertEquivalence("#counter.smallNumber");
     }
 
     [Test]
     public void TestNoTargetEvent()
     {
-        var noTargetActions = new List<string>();
-
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
-        {
-            ["logEntryRed"] = [new("logEntryRed", (sm) => Console.WriteLine("...Entering red"))],
-            ["logExitRed"] = [new("logExitRed", (sm) => Console.WriteLine("...Exiting red"))],
-            ["logTransitionRedToGreen"] = [new("logTransitionRedToGreen", (sm) => Console.WriteLine("...TransitionAction: red --> green"))],
-            ["logNoTargetAction"] = [new("logNoTargetAction", (sm) => noTargetActions.Add("...No target action executed"))]
-        };
-
-        var guards = new ConcurrentDictionary<string, NamedGuard>
-        {
-            ["isReady"] = new NamedGuard("isReady", (sm) => (bool)_stateMachine.ContextMap["isReady"])
-        };
-
-        _stateMachine = StateMachine.CreateFromScript(json, actions, guards).Start();
+        _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
         _stateMachine.ContextMap["isReady"] = true;
 
         _stateMachine.Send("NO_TARGET");
@@ -238,123 +215,16 @@ public class StateMachineTests
     [Test]
     public void TestImplicitTargetTransition()
     {
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
-        {
-            ["logEntryRed"] = [new("logEntryRed", (sm) => Console.WriteLine("...Entering red"))],
-            ["logExitRed"] = [new("logExitRed", (sm) => Console.WriteLine("...Exiting red"))],
-            ["logEntryYellow"] = [new("logEntryYellow", (sm) => Console.WriteLine("...Entering yellow"))],
-            ["logExitYellow"] = [new("logExitYellow", (sm) => Console.WriteLine("...Exiting yellow"))]
-        };
-
-        var guards = new ConcurrentDictionary<string, NamedGuard>
-        {
-            ["isReady"] = new NamedGuard("isReady", (sm) => (bool)_stateMachine.ContextMap["isReady"])
-        };
-
-        _stateMachine = StateMachine.CreateFromScript(json, actions, guards).Start();
+        _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine.ContextMap["isReady"] = true;
 
         // Send event to trigger the implicit target transition
         _stateMachine.Send("IMPLICIT_TARGET");
 
-        var currentState = _stateMachine.GetCurrentState();
+        var currentState = _stateMachine.GetActiveStateString();
         Assert.IsTrue(currentState.Contains("yellow"), "Current state should contain 'yellow'");
     }
-    [Test]
-    public void TestShallowHistory()
-    {
-        var stateMachineJson = @"{
-            'id': 'testMachine',
-            'initial': 'A',
-            'states': {
-                'A': {
-                    'initial': 'A1',
-                    'states': {
-                        'A1': {
-                            'on': { 'TO_A2': 'A2' }
-                        },
-                        'A2': {
-                            'on': { 'TO_A1': 'A1' }
-                        },
-                        'hist': { 
-                            type : 'history',
-                            'history':'shallow'
-                        }
-                    },
-                    'on': { 'TO_B': 'B' }
-                },
-                'B': {
-                    'on': { 'TO_A': 'A.hist' }
-                }
-            }
-        }";
-
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
-            new ConcurrentDictionary<string, List<NamedAction>>(),
-            new ConcurrentDictionary<string, NamedGuard>()).Start();
-
-        _stateMachine.Send("TO_A2");
-        _stateMachine.Send("TO_B");
-
-        var currentState = _stateMachine.GetCurrentState();
-        Assert.AreEqual("#testMachine.B", currentState);
-
-        _stateMachine.Send("TO_A");
-
-        currentState = _stateMachine.GetCurrentState();
-        Assert.AreEqual("#testMachine.A.A2", currentState);
-    }
-
-    [Test]
-    public void TestDeepHistory()
-    {
-        var stateMachineJson = @" {
-            'id': 'testMachine',
-            'initial': 'A',
-              states : {         
-                  'A': {
-                      'initial': 'A1',              
-                      'states': {
-                          'hist' : {
-                            type : 'history',
-                            'history':'deep'
-                          },   
-                          'A1': {
-                              'initial': 'A1a',
-                              'states': {
-                                  'A1a': {
-                                      'on': { 'TO_A1b': 'A1b' }
-                                  },
-                                  'A1b': {}
-                              }
-                          },
-                          'A2': {}
-                      },
-                      on: {
-                         'TO_B': 'B'
-                      }
-                  },
-                  'B': {
-                      'on': { 'TO_A': 'A.hist' }
-                  }
-              }
-          }";
-
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
-            new ConcurrentDictionary<string, List<NamedAction>>(),
-            new ConcurrentDictionary<string, NamedGuard>()).Start();
-        
-        var currentState = _stateMachine.GetCurrentState();
-        _stateMachine.Send("TO_A1b");
-        currentState = _stateMachine.GetCurrentState();
-        _stateMachine.Send("TO_B");        
-        currentState = _stateMachine.GetCurrentState();
-        Assert.AreEqual("#testMachine.B", currentState);
-        _stateMachine.Send("TO_A");
-        currentState = _stateMachine.GetCurrentState();
-
-        currentState.AssertEquivalence("#testMachine.A.A1.A1b");
-    }
+    
 
     const string json = @"{
       id: 'trafficLight',

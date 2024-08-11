@@ -4,8 +4,17 @@ using System.Diagnostics;
 
 namespace XStateNet;
 
+/// <summary>
+/// Notes : 
+/// Normal and Parallel states can be active or not. 
+/// Normal state can have an initial state.
+/// Parallel state can not have initial state. But have all as active states
+/// Parallel state is defined here, as the state has multiple parallel sub states.
+/// </summary>
 public abstract class RealState : StateBase
 {
+    public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
+    public bool IsActive { set; get; }
 
     public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; }
 
@@ -16,8 +25,10 @@ public abstract class RealState : StateBase
     public List<NamedAction>? ExitActions { get; set; }
     public List<string> SubStateNames { get; set; } // state 의 current sub state 들..
 
-    public string? LastActiveStateName { get; set; }
     public string? InitialStateName { get; set; }
+    
+    public string? ActiveStateName { get; set; }
+    public RealState? ActiveState => ActiveStateName != null ? GetState(ActiveStateName!) : null;
 
     public bool IsParallel => typeof(ParallelState) == this.GetType();
 
@@ -36,26 +47,34 @@ public abstract class RealState : StateBase
         AlwaysTransition = null;
     }
 
+    /*
     public virtual void InitializeCurrentStates()
     {
-        StateMachine.AddCurrent(this);
+        if (Parent != null)
+        {
+            Parent.LastActiveStateName = Name;
+        }
+
+        if(InitialStateName != null)
+        {
+            
+        }
     }
+    */
 
     public virtual void Start()
     {
-        EntryActions?.ForEach(action => action.Action(StateMachine));     
-    }
-    public void Reset()
-    {
-        StateMachine.Send("RESET");
+        EntryState();
     }
 
-    public abstract List<string> GetActiveSubStateNames(List<string> list);
+    public abstract void GetActiveSubStateNames(List<string> list);
 
-    public void GetSuperStateCollection(ICollection<RealState> collection)
+    public void GetSuperStateCollection(ICollection<string> collection)
     {
-        collection.Add(this);
+        collection.Add(Name);
+        
         var super = Parent;
+
         if (super != null && super.GetType() != typeof(ParallelState))
         {
             super.GetSuperStateCollection(collection);
@@ -68,24 +87,16 @@ public abstract class RealState : StateBase
 
         if (transition == null) return;
 
-        /*
-        if (StateMachine.TransitionTimers.ContainsKey(Name))
-        {
-            StateMachine.TransitionTimers[Name].Stop();
-            StateMachine.TransitionTimers[Name].Dispose();
-        }
-          */
-
         var timer = new System.Timers.Timer();
         timer.Interval = transition.Delay;
         var now = DateTime.Now;
 
         timer.Elapsed += (sender, e) =>
         {
-            Console.WriteLine("");
-            Console.WriteLine($">>> Scheduled time has come {Name} in {transition.Delay} ms");
-            Console.WriteLine($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
-            Console.WriteLine("");
+            StateMachine.Log("");
+            StateMachine.Log($">>> Scheduled time has come {Name} in {transition.Delay} ms");
+            StateMachine.Log($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
+            StateMachine.Log("");
             timer.Stop();
             timer.Dispose();
             HandleAfterTransition(transition);
@@ -95,21 +106,18 @@ public abstract class RealState : StateBase
         timer.AutoReset = false;
         timer.Start();
 
-        Console.WriteLine("");
-        Console.WriteLine($">>> Scheduled after transition {Name} in {transition.Delay} ms");
-        Console.WriteLine("");
-
-        //StateMachine.TransitionTimers[Name] = timer;
-
+        StateMachine.Log("");
+        StateMachine.Log($">>> Scheduled after transition {Name} in {transition.Delay} ms");
+        StateMachine.Log("");
     }
 
     public void HandleAfterTransition(Transition transition)
     {
-        if ((transition.Guard == null || transition.Guard.Func(StateMachine)) &&
+        if ((transition.Guard == null || transition.Guard.Predicate(StateMachine)) &&
             (transition.InCondition == null || transition.InCondition()))
         {
             var source = GetState(transition.SourceName);
-            var target = GetState(transition.TargetName);
+            var target = transition.TargetName != null ? GetState(transition.TargetName) : null;
 
             source?.ExitState();
             transition.Actions?.ForEach(action => action.Action(StateMachine));
@@ -117,33 +125,88 @@ public abstract class RealState : StateBase
         }
     }
 
-    private List<RealState> GetInitialStates(RealState state)
+    // check if the state is self or ancestor of the this state
+    public bool IsAncestorOf(StateBase state)
     {
-        var initialStates = new List<RealState>();
+        StateMachine.Log($"IsAncestorOf: {Name} -> {state.Name}");
 
-        if (state.InitialStateName == null) return initialStates;
+        if (this == state) return true;
 
-        var initialSubState = StateMachine.GetState(state.InitialStateName) as RealState;
+        if (this is RealState realState)
+        {
+            if(state.Parent != null)
+                return realState.IsAncestorOf(state.Parent);
+            else
+                throw new Exception("Parent is null");
+        }
 
-        if (initialSubState == null) return initialStates;
-
-        initialStates.Add(initialSubState);
-        initialStates.AddRange(GetInitialStates(initialSubState));
-
-        return initialStates;
+        return false;
     }
 
-    public abstract void EntryState(HistoryType historyType = HistoryType.None);
-    public abstract void ExitState();
-    public abstract void GetHistoryEntryList(List<StateBase> entryList, string stateName, HistoryType historyType = HistoryType.None);
-    public abstract void GetSouceSubStateCollection(ICollection<RealState> collection);
-    public abstract void GetTargetSubStateCollection(ICollection<RealState> collection, HistoryType hist = HistoryType.None);
-    public abstract List<RealState> GetLastActiveStates(HistoryType historyType = HistoryType.None);
-    public abstract void PrintCurrentStateTree(int depth);  
+
+    public virtual void EntryState(HistoryType historyType = HistoryType.None)
+    {
+        StateMachine.Log(">>>- State_Real.EntryState: " + Name);
+
+        EntryActions?.ForEach(action => action.Action(StateMachine));
+        
+        // Let define active state as all the entry actions performed successfuly.
+
+        IsActive = true;
+
+        if(Parent != null)
+        {
+            Parent.ActiveStateName = Name;
+        }
+
+        ScheduleAfterTransitionTimer();
+    }
+
+    public virtual void ExitState()
+    {
+        StateMachine.Log(">>>- State_Real.ExitState: " + Name);
+
+        IsActive = false;
+
+        if (Parent != null)
+        {
+            Parent.ActiveStateName = null;
+        }        
+
+        ExitActions?.ForEach(action => action.Action(StateMachine));
+    }
+
+
+    public virtual void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
+    {
+        //StateMachine.Log(">>>- State.Real.BuildTransitionList: " + Name);
+        // self second
+        OnTransitionMap.TryGetValue(eventName, out var transitions);
+
+        if (transitions != null)
+        {
+            foreach (var transition in transitions)
+            {
+                if (transition.Guard == null || transition.Guard != null && transition.Guard.Predicate(StateMachine))
+                {
+                    transitionList.Add((this, transition, eventName));
+                }
+            }
+        }
+
+        if (AlwaysTransition != null)
+            transitionList.Add((this, AlwaysTransition, "always"));
+
+        if (AfterTransition != null)
+            transitionList.Add((this, AfterTransition, "after"));
+    }
+
+    public abstract void GetTargetSubStateCollection(ICollection<string> collection, HistoryType hist = HistoryType.None);
+    public abstract void GetSouceSubStateCollection(ICollection<string> collection);
+    public abstract void PrintActiveStateTree(int depth);  
 }
 
 public abstract class Parser_RealState : Parser_StateBase
 {
     public Parser_RealState(string machineId) : base(machineId)  { }
-
 }

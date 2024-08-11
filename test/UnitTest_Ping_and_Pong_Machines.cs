@@ -86,23 +86,23 @@ namespace AdvancedFeatures
         public async Task TestPingPongStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.AreEqual(_pingStateMachine.GetCurrentState(), "#ping.a");
-            Assert.AreEqual(_pongStateMachine.GetCurrentState(), "#pong.a");
+            Assert.AreEqual(_pingStateMachine.GetActiveStateString(), "#ping.a");
+            Assert.AreEqual(_pongStateMachine.GetActiveStateString(), "#pong.a");
 
             // Wait for the ping to send the 'to_b' event to pong
             await Task.Delay(1500);
-            Assert.AreEqual(_pingStateMachine.GetCurrentState(), "#ping.b");
-            Assert.AreEqual(_pongStateMachine.GetCurrentState(), "#pong.b");
+            Assert.AreEqual(_pingStateMachine.GetActiveStateString(), "#ping.b");
+            Assert.AreEqual(_pongStateMachine.GetActiveStateString(), "#pong.b");
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1500);
-            Assert.AreEqual(_pingStateMachine.GetCurrentState(), "#ping.a");
-            Assert.AreEqual(_pongStateMachine.GetCurrentState(), "#pong.a");
+            Assert.AreEqual(_pingStateMachine.GetActiveStateString(), "#ping.a");
+            Assert.AreEqual(_pongStateMachine.GetActiveStateString(), "#pong.a");
 
             // Check transition log
             foreach (var log in _transitionLog)
             {
-                Console.WriteLine(log);
+                StateMachine.Log(log);
             }
 
             Assert.AreEqual(4, _transitionLog.Count);

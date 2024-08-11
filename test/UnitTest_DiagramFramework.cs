@@ -61,7 +61,7 @@ public class DiagrammingFrameworkTests
     [Test]
     public void TestInitialState()
     {
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.idle");
     }
 
@@ -71,7 +71,7 @@ public class DiagrammingFrameworkTests
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
         _stateMachine.Send("L_BUTTON_DOWN");
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.selected.moving.idle");
     }
 
@@ -81,7 +81,7 @@ public class DiagrammingFrameworkTests
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
         _stateMachine.Send("L_BUTTON_DOWN");
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.selecting");
     }
 
@@ -94,7 +94,7 @@ public class DiagrammingFrameworkTests
         _stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 0;
         _stateMachine.Send("L_BUTTON_UP");
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.idle");
     }
 
@@ -107,7 +107,7 @@ public class DiagrammingFrameworkTests
         _stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 1;
         _stateMachine.Send("L_BUTTON_UP");
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selecting");
     }
 
@@ -118,17 +118,17 @@ public class DiagrammingFrameworkTests
         _context["onCanvas"] = false;
         _stateMachine.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
         _context["onResize"] = false;
 
         _stateMachine.Send("MOUSE_MOVE");
-        states = _stateMachine.GetCurrentState();
+        states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
         _stateMachine.Send("L_BUTTON_UP");
-        states = _stateMachine.GetCurrentState();
+        states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
     }
 
@@ -139,7 +139,7 @@ public class DiagrammingFrameworkTests
         _context["onCanvas"] = false;
         _stateMachine.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine.GetCurrentState();
+        var states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
 
@@ -149,11 +149,11 @@ public class DiagrammingFrameworkTests
 
         _stateMachine.Send("MOUSE_MOVE");
 
-        states = _stateMachine.GetCurrentState();
+        states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.resizing.idle");
 
         _stateMachine.Send("L_BUTTON_UP");
-        states = _stateMachine.GetCurrentState();
+        states = _stateMachine.GetActiveStateString();
         states.Equals("#stateMachine.selected.resizing.idle");
     }
 

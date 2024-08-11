@@ -22,8 +22,8 @@ namespace AdvancedFeatures
         public void Setup()
         {
             // Follower actions
-            _followerActions = new ConcurrentDictionary<string, List<NamedAction>>();
-            _followerGuards = new ConcurrentDictionary<string, NamedGuard>();
+            _followerActions = new ();
+            _followerGuards = new ();
 
             // Leader actions
             _leaderActions = new ConcurrentDictionary<string, List<NamedAction>>
@@ -31,7 +31,7 @@ namespace AdvancedFeatures
                 ["sendToFollowerToB"] = new List<NamedAction> { new NamedAction("sendToFollowerToB", (sm) => _followerStateMachine.Send("to_b")) },
                 ["sendToFollowerToA"] = new List<NamedAction> { new NamedAction("sendToFollowerToA", (sm) => _followerStateMachine.Send("to_a")) }
             };
-            _leaderGuards = new ConcurrentDictionary<string, NamedGuard>();
+            _leaderGuards = new ();
 
             // Load state machines from JSON
             var followerJson = LeaderFollowerStateMachine.FollowerStateMachineScript;
@@ -45,18 +45,18 @@ namespace AdvancedFeatures
         public async Task TestLeaderFollowerStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.AreEqual(_followerStateMachine.GetCurrentState(), "#follower.a");
-            Assert.AreEqual(_leaderStateMachine.GetCurrentState(), "#leader.a");
+            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.a");
+            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.a");
 
             // Wait for the leader to send the 'to_b' event to the follower
             await Task.Delay(1100);
-            Assert.AreEqual(_followerStateMachine.GetCurrentState(), "#follower.b");
-            Assert.AreEqual(_leaderStateMachine.GetCurrentState(), "#leader.b");
+            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.b");
+            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.b");
 
             // Wait for the leader to send the 'to_a' event to the follower
             await Task.Delay(1100);
-            Assert.AreEqual(_followerStateMachine.GetCurrentState(), "#follower.a");
-            Assert.AreEqual(_leaderStateMachine.GetCurrentState(), "#leader.a");
+            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.a");
+            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.a");
         }
         public static class LeaderFollowerStateMachine
         {

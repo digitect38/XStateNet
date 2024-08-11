@@ -38,6 +38,7 @@
 // [ ] Implement and prove by unittest self transition 
 /////////////////////////////////////////////////////////////////////////
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -47,7 +48,6 @@ using System.Xml.Linq;
 
 namespace XStateNet;
 
-//using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 
@@ -68,9 +68,7 @@ public partial class StateMachine
     public string machineId { set; get; }
     public RealState RootState { set; get; }
     private ConcurrentDictionary<string, StateBase> StateMap { set; get; }
-    private ConcurrentDictionary<string, RealState> ActiveStateMap { set; get; }
-    public ConcurrentDictionary<string, object> ContextMap { get; private set; }
-    //public ConcurrentDictionary<string, System.Timers.Timer> TransitionTimers { private set; get; }
+    public ConcurrentDictionary<string, object> ContextMap { get; private set; } // use object because context can have various types of data
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
 
@@ -92,7 +90,7 @@ public partial class StateMachine
     public StateMachine()
     {
         StateMap = new ConcurrentDictionary<string, StateBase>();
-        ActiveStateMap = new ConcurrentDictionary<string, RealState>();
+        //ActiveStateMap = new ConcurrentDictionary<string, RealState>();
         ContextMap = new ConcurrentDictionary<string, object>();
         //TransitionTimers = new ConcurrentDictionary<string, System.Timers.Timer>();
     }
@@ -121,28 +119,30 @@ public partial class StateMachine
 
     public void RegisterState(StateBase state) => StateMap[state.Name] = state;
 
-    public void InitializeCurrentStates()
+    /*
+    public void InitializeActiveStates()
     {
-        Console.WriteLine(">>> Initialize ...");
+        StateMachine.Log(">>> Initialize ...");
         ActiveStateMap.Clear();
         RootState.InitializeCurrentStates();
     }
+    */
 
     public void PrintCurrentStatesString()
     {
-        Console.WriteLine("=== Current States ===");
-        Console.WriteLine(GetCurrentState());
-        Console.WriteLine("=======================");
+        StateMachine.Log("=== Current States ===");
+        StateMachine.Log(GetActiveStateString());
+        StateMachine.Log("=======================");
     }
 
     public void PrintCurrentStateTree()
     {
-        Console.WriteLine("=== Current State Tree ===");
-        //RootState.PrintCurrentStateTree(0);
-        Console.WriteLine("==========================");
+        StateMachine.Log("=== Current State Tree ===");
+        RootState.PrintActiveStateTree(0);
+        StateMachine.Log("==========================");
     }
 
-    public static string GenerateKey(string stateName, string eventName) => eventName;// + "1234567"; // stateName + '_' + eventName;
+    //public static string GenerateKey(string stateName, string eventName) => eventName;// + "1234567"; // stateName + '_' + eventName;
 
     /*
     void BuildTransitionTable(string eventName, Dictionary<string, List<Transition>> transitionsToProcess)
@@ -164,19 +164,17 @@ public partial class StateMachine
 
     public StateMachine Start()
     {
+        StateMachine.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        StateMachine.Log(">>> Start state machine");
+        StateMachine.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+
         if (machineState == MachineState.Running)
         {
-            Console.WriteLine("State machine is already RUNNING!");
+            StateMachine.Log("State machine is already RUNNING!");
             return this;
         }
         RootState.Start();
         machineState = MachineState.Running;
-        return this;
-    }
-
-    public StateMachine Reset()
-    {
-        InitializeCurrentStates();
         return this;
     }
 
@@ -187,19 +185,13 @@ public partial class StateMachine
     public void Send(string eventName)
     {
 
-        Console.WriteLine($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        Console.WriteLine($">>> Send event: {eventName}");
-        Console.WriteLine($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        StateMachine.Log($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        StateMachine.Log($">>> Send event: {eventName}");
+        StateMachine.Log($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
         if (machineState != MachineState.Running)
         {
-            Console.WriteLine($"State machine is not RUNNING!");
-            return;
-        }
-
-        if (eventName == "RESET")
-        {
-            Reset();
+            StateMachine.Log($"State machine is not RUNNING!");
             return;
         }
 
@@ -209,6 +201,36 @@ public partial class StateMachine
         PrintCurrentStatesString();
     }
 
+#if true
+    void Transit(string eventName)
+    {
+        var transitionList = new List<(RealState state, Transition transition, string @event)>();
+
+        RootState.BuildTransitionList(eventName, transitionList);
+
+
+        //step 1:  build transition list
+
+
+        StateMachine.Log("***** Transition list *****");
+        foreach (var t in transitionList)
+        {
+            StateMachine.Log($"Transition : (source = {t.transition?.SourceName}, target =  {t.transition?.TargetName}, event =  {t.@event}");
+        }
+        StateMachine.Log("***************************");
+
+
+        //var slist = transition_list.Select(t => t.state).ToList();
+        //StateMachine.Log($"Transition state path: {slist.ToCsvString(this)}");
+
+        //step 2:  perform transitions
+
+        foreach (var (state, transition, @event) in transitionList)
+        {
+            Transit(state, transition, @event);
+        }
+    }
+#else
     void Transit(string eventName)
     {
         var transition_list = new List<(RealState state, Transition transition, string @event)>();
@@ -236,6 +258,17 @@ public partial class StateMachine
                 transition_list.Add((state, state.AfterTransition, "after"));
         }
 
+        StateMachine.Log("***** Transition list *****");
+        foreach (var t in transition_list)
+        {
+            StateMachine.Log($"Transition : (source = {t.transition?.SourceName}, target =  {t.transition?.TargetName}, event =  {t.@event}");
+        }
+        StateMachine.Log("***************************");
+
+
+        //var slist = transition_list.Select(t => t.state).ToList();
+        //StateMachine.Log($"Transition state path: {slist.ToCsvString(this)}");
+
         //step 2:  perform transitions
 
         foreach (var (state, transition, @event) in transition_list)
@@ -243,14 +276,15 @@ public partial class StateMachine
             Transit(state, transition, @event);
         }
     }
+#endif
 
-    void Transit(RealState state,  Transition? transition, string eventName)
+    void Transit(RealState state, Transition? transition, string eventName)
     {
         if (transition == null) return;
 
-        Console.WriteLine($">> transition on event {eventName} in state {state.Name}");
+        StateMachine.Log($">> transition on event {eventName} in state {state.Name}");
 
-        if ((transition.Guard == null || transition.Guard.Func(this)) 
+        if ((transition.Guard == null || transition.Guard.Predicate(this))
             && (transition.InCondition == null || transition.InCondition()))
         {
             //var exitList = transition.GetExitList();
@@ -264,16 +298,24 @@ public partial class StateMachine
                 var (exitList, entryList) = GetExitEntryList(transition.SourceName, targetName);
 
                 // Exit
-                foreach(var state1 in exitList)
+                foreach (var stateName in exitList)
                 {
-                    state1.ExitState();
+                    ((RealState)GetState(stateName)).ExitState();
                 }
 
-                Console.WriteLine($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
+                StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
 
                 // Transition
                 RealState? source = GetState(sourceName) as RealState;
-                StateBase? target = targetName.Contains(".hist") ? GetStateAsHistory(targetName) : GetState(targetName);
+                StateBase? target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
+
+                //HistoryType historyType = HistoryType.None;
+
+                if (GetState(targetName) is HistoryState)
+                {
+                    target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
+                    //historyType = ((HistoryState)target).HistoryType;
+                }
 
                 OnTransition?.Invoke(source, target, eventName);
 
@@ -286,10 +328,10 @@ public partial class StateMachine
                 }
 
                 // Entry
-                foreach (var state1 in entryList)
+                foreach (var stateName in entryList)
                 {
-                    state1.EntryState();
-                }                
+                    ((RealState)GetState(stateName)).EntryState();
+                }
             }
             else
             {
@@ -306,28 +348,55 @@ public partial class StateMachine
         }
         else
         {
-            Console.WriteLine($"Condition not met for transition on event {eventName}");
+            StateMachine.Log($"Condition not met for transition on event {eventName}");
         }
     }
 
-
-    (IEnumerable<RealState> exits, IEnumerable<RealState> entrys) GetExitEntryList(string source, string target)
+    // check if the state is targe or ancestor of the this state
+    bool IsAncestorOf(StateBase self, StateBase state)
     {
-        //string source = "#stateMachine.selected";
-        //string target = "#stateMachine.selected.resizing";
+        if (self == state) return true;
+
+        if (self is RealState realState)
+        {
+            return realState.IsAncestorOf(state);
+        }
+
+        return false;
+    }
+
+
+    (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
+    {
+        StateMachine.Log(">>> - GetExitEntryList");
 
         var source_sub = GetSourceSubStateCollection(source).Reverse();
+        StateMachine.Log($">>> -- source_sub: {source_sub.ToCsvString(this, false, "->")}");
+
         var source_sup = GetSuperStateCollection(source);
+        StateMachine.Log($">>> -- source_sup: {source_sup.ToCsvString(this, false, "->")}");
+
         var source_cat = source_sub.Concat(source_sup);
+        StateMachine.Log($">>> -- source_cat: {source_cat.ToCsvString(this, false, "->")}");
+
+
 
         var target_sub = GetTargetSubStateCollection(target);
+        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, "->")}");
+
         var target_sup = GetSuperStateCollection(target).Reverse();
+        StateMachine.Log($">>> -- target_sup: {target_sup.ToCsvString(this, false, "->")}");
+
         var target_cat = target_sup.Concat(target_sub);
+        StateMachine.Log($">>> -- target_cat: {target_cat.ToCsvString(this, false, "->")}");
 
         var source_exit = source_cat.Except(target_cat);    // exclude common ancestors from source
         var target_entry = target_cat.Except(source_cat);   // exclude common ancestors from source
 
-        return (source_exit, target_entry);
+        StateMachine.Log($">>> -- source_exit: {source_exit.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- target_entry: {target_entry.ToCsvString(this, false, "->")}");
+
+        return (source_exit.ToList(), target_entry.ToList());
     }
 
     public void AddState(RealState state)
@@ -335,10 +404,17 @@ public partial class StateMachine
         StateMap[state.Name] = state;
     }
 
-    public StateBase? GetState(string stateName)
+    public StateBase GetState(string stateName)
     {
         StateBase? state;
+
         StateMap.TryGetValue(stateName, out state);
+
+        if (state == null)
+        {
+            throw new Exception($"State name {stateName} is not found in the StateMap");
+        }
+
         return state;
     }
 
@@ -346,48 +422,7 @@ public partial class StateMachine
     {
         return StateMap[stateName] as HistoryState;
     }
-
-
-    public void AddCurrent(RealState state)
-    {
-        lock (this)
-        {
-            ActiveStateMap[state.Name] = state;
-        }
-    }
-
-    public void RemoveCurrent(RealState state)
-    {
-        lock (this)
-        {
-            ActiveStateMap.TryRemove(state.Name, out _);
-        }
-    }
-
-    public void RemoveCurrent(string stateName)
-    {
-        lock (this)
-        {
-            ActiveStateMap.TryRemove(stateName, out _);
-        }
-    }
-
-    public bool TestCurrent(RealState state)
-    {
-        lock (this)
-        {
-            return ActiveStateMap.ContainsKey(state.Name);
-        }
-    }
-
-    public bool TestActive(string stateName)
-    {
-        lock (this)
-        {
-            return ActiveStateMap.ContainsKey(stateName);
-        }
-    }
-
+    
     public bool TestInitial(string stateName)
     {
         lock (this)
@@ -405,7 +440,6 @@ public partial class StateMachine
         }
     }
 
-    //private Func<StateMachine, bool> GetInCondition(string stateName)
     private Func<bool> GetInConditionCallback(string inConditionString)
     {
         string stateMachineId = inConditionString.Split('.')[0];
@@ -421,18 +455,26 @@ public partial class StateMachine
         }
     }
 
-    public static bool IsInState(StateMachine sm, string stateName)
+    public bool IsInState(StateMachine sm, string stateName)
     {
-        return sm.ActiveStateMap.ContainsKey(stateName);
+        var state = (GetState(stateName) as RealState);
+        return state.IsActive;
     }
 
-    public string GetCurrentState()
+    /// <summary>
+    /// GetActiveStateString
+    /// </summary>
+    /// <param name="leafOnly">true: leaf level state name only, false: full level state names</param>
+    /// <param name="separator"></param>
+    /// <returns></returns>
+    public string GetActiveStateString(bool leafOnly = true, string separator = ";")
     {
-        // select only  the states have no children
-        return ActiveStateMap.Values.ToCsvString();
+        List<string> strings = new();
+        RootState.GetActiveSubStateNames(strings);
+        return strings.ToCsvString(this, leafOnly, separator);
     }
 
-    public ICollection<RealState> GetSourceSubStateCollection(string? statePath = null)
+    public ICollection<string> GetSourceSubStateCollection(string? statePath = null)
     {
         RealState? state = null;
 
@@ -445,17 +487,17 @@ public partial class StateMachine
             state = GetState(statePath) as RealState;
         }
 
-        ICollection<RealState> list = new List<RealState>();
+        ICollection<string> list = new List<string>();
         state?.GetSouceSubStateCollection(list);
 
         return list;
     }
 
-    
-
-    public ICollection<RealState> GetTargetSubStateCollection(string? statePath = null)
+    public ICollection<string> GetTargetSubStateCollection(string? statePath = null)
     {
         RealState? state = null;
+
+        ICollection<string> list = new List<string>();
 
         if (statePath == null)
         {
@@ -463,218 +505,83 @@ public partial class StateMachine
         }
         else
         {
-            state = GetState(statePath) as RealState;
-        }
+            if (GetState(statePath) is RealState realState)
+            {
+                state = realState;
 
-        ICollection<RealState> list = new List<RealState>();
-        state?.GetTargetSubStateCollection(list);
+                state?.GetTargetSubStateCollection(list);
+            }
+            else if (GetState(statePath) is HistoryState historyState)
+            {
+                if (historyState.Parent is NormalState)
+                {
+                    state = ((NormalState)historyState.Parent).LastActiveState;
+
+                    state?.GetTargetSubStateCollection(list, historyState.HistoryType);
+                }
+                else
+                {
+                    throw new Exception("History state should be child of Normal state");
+                }
+            }
+            else
+            {
+                throw new Exception("State should be RealState or HistoryState type");
+            }
+        }
 
         return list;
     }
 
-    public ICollection<RealState> GetSuperStateCollection(string statePath)
+    /// <summary>
+    /// GetSuperStateCollection:
+    /// Common to source and target.
+    /// Absoultely source can not be history state. But for reuse purpose, it is implemented.
+    /// </summary>
+    /// <param name="statePath"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public ICollection<string> GetSuperStateCollection(string statePath)
     {
         RealState? state = null;
 
         state = GetState(statePath) as RealState;
 
-        ICollection<RealState> list = new List<RealState>();
+        if (statePath == null)
+        {
+            state = RootState;
+        }
+        else
+        {
+            if (GetState(statePath) is RealState realState)
+            {
+                state = realState;
+            }
+            else if (GetState(statePath) is HistoryState historyState)
+            {
+                if (historyState.Parent is NormalState)
+                {
+                    state = ((NormalState)historyState.Parent).LastActiveState;
+                }
+                else
+                {
+                    throw new Exception("History state should be child of Normal state");
+                }
+            }
+            else
+            {
+                throw new Exception("State should be RealState or HistoryState type");
+            }
+        }
+
+        ICollection<string> list = new List<string>();
         state?.GetSuperStateCollection(list);
 
         return list;
     }
 
-    /*
-    public JObject StateTreeToJson()
+    public static void Log(string message)
     {
-        var json = StateToJson(RootState, Id, isRoot: true);
-        if (ContextMap != null && ContextMap.Count > 0)
-        {
-            var contextJson = new JObject();
-            foreach (var kvp in ContextMap)
-            {
-                contextJson[kvp.Key] = JToken.FromObject(kvp.Value);
-            }
-            json["context"] = contextJson;
-        }
-        return json;
+        Console.WriteLine(message);
     }
-    
-    private JObject StateToJson(State state, string id = null, bool isRoot = false)
-    {
-        var stateJson = new JObject();
-
-        if (isRoot && id != null)
-        {
-            stateJson["id"] = id;
-        }
-
-        if (state.IsParallel)
-        {
-            stateJson["type"] = "parallel";
-        }
-
-        if (state.HistoryType == HistoryType.Shallow)
-        {
-            stateJson["history"] = "shallow";
-        }
-        else if (state.HistoryType == HistoryType.Deep)
-        {
-            stateJson["history"] = "deep";
-        }
-
-        if (!string.IsNullOrEmpty(state.InitialStateName))
-        {
-            stateJson["initial"] = state.InitialStateName;
-        }
-
-        if (state.EntryActions != null && state.EntryActions.Any())
-        {
-            stateJson["entry"] = new JArray(state.EntryActions.Select(a => a.Name));
-        }
-
-        if (state.ExitActions != null && state.ExitActions.Any())
-        {
-            stateJson["exit"] = new JArray(state.ExitActions.Select(a => a.Name));
-        }
-
-        if (state.OnTransitionMap != null && state.OnTransitionMap.Any())
-        {
-            var transitions = new JObject();
-            foreach (var transitionList in state.OnTransitionMap)
-            {
-                var transitionJson = new JObject
-                {
-                    ["target"] = transitionList.Value.TargetName
-                };
-
-                if (transitionList.Value.Actions != null && transitionList.Value.Actions.Any())
-                {
-                    transitionJson["actions"] = new JArray(transitionList.Value.Actions.Select(a => a.Name));
-                }
-
-                if (!string.IsNullOrEmpty(transitionList.Value.Guard?.Name))
-                {
-                    transitionJson["guard"] = transitionList.Value.Guard.Name;
-                }
-
-                if (transitionList.Value.InCondition != null)
-                {
-                    transitionJson["in"] = transitionList.Value.InCondition.Method.Name;
-                }
-
-                transitions[transitionList.Key] = transitionJson;
-            }
-            stateJson["on"] = transitions;
-        }
-
-        if (state.AlwaysTransition != null)
-        {
-            var alwaysJson = new JObject
-            {
-                ["target"] = state.AlwaysTransition.TargetName
-            };
-
-            if (state.AlwaysTransition.Guard != null)
-            {
-                alwaysJson["guard"] = state.AlwaysTransition.Guard.Name;
-            }
-
-            stateJson["always"] = alwaysJson;
-        }
-
-        if (state.SubStateNames != null && state.SubStateNames.Any())
-        {
-            var subStatesJson = new JObject();
-            foreach (var subStateName in state.SubStateNames)
-            {
-                var subState = StateMap[subStateName];
-                subStatesJson[subStateName] = StateToJson(subState);
-            }
-            stateJson["states"] = subStatesJson;
-        }
-
-        // Remove null properties
-        foreach (var property in stateJson.Properties().ToList())
-        {
-            if (property.Value.Type == JTokenType.Null)
-            {
-                property.Remove();
-            }
-        }
-
-        return stateJson;
-    }
-
-    public bool ValidateStateMachineJson(JObject originalJson, out string errorMsg)
-    {
-        var reconstructedJson = StateTreeToJson();
-        return CompareTokens(originalJson, reconstructedJson, out errorMsg);
-    }
-
-    private bool CompareTokens(JToken original, JToken reconstructed, out string errorMsg)
-    {
-        errorMsg = null;
-
-        if (original.Type != reconstructed.Type)
-        {
-            errorMsg = $"Type mismatch: Original({original.Type}) vs Reconstructed({reconstructed.Type}) at Path {original.Path}";
-            return false;
-        }
-
-        if (original is JObject originalObj && reconstructed is JObject reconstructedObj)
-        {
-            foreach (var property in originalObj.Properties())
-            {
-                if (!reconstructedObj.TryGetValue(property.Name, out var reconstructedValue))
-                {
-                    errorMsg = $"Property {property.Name} missing in reconstructed JSON at Path {original.Path}";
-                    return false;
-                }
-                if (!CompareTokens(property.Value, reconstructedValue, out errorMsg))
-                {
-                    return false;
-                }
-            }
-
-            foreach (var property in reconstructedObj.Properties())
-            {
-                if (!originalObj.TryGetValue(property.Name, out _))
-                {
-                    errorMsg = $"Property {property.Name} present in reconstructed JSON but missing in original JSON at Path {reconstructed.Path}";
-                    return false;
-                }
-            }
-        }
-        else if (original is JArray originalArray && reconstructed is JArray reconstructedArray)
-        {
-            if (originalArray.Count != reconstructedArray.Count)
-            {
-                errorMsg = $"Array length mismatch: Original({originalArray.Count}) vs Reconstructed({reconstructedArray.Count}) at Path {original.Path}";
-                return false;
-            }
-
-            for (int i = 0; i < originalArray.Count; i++)
-            {
-                if (!CompareTokens(originalArray[i], reconstructedArray[i], out errorMsg))
-                {
-                    return false;
-                }
-            }
-        }
-        else if (!JToken.DeepEquals(original, reconstructed))
-        {
-            errorMsg = $"Value mismatch: Original({original}) vs Reconstructed({reconstructed}) at Path {original.Path}";
-            return false;
-        }
-
-        return true;
-    }
-
-    public void PrintReconstructedJson()
-    {
-        var reconstructedJson = StateTreeToJson();
-        Console.WriteLine(reconstructedJson.ToString(Newtonsoft.Json.Formatting.Indented));
-    }
-    */
 }
