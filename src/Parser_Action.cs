@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 
 
-// AbstractState <- RealState <- NormalState
-// AbstractState <- RealState <- ParallelState
-// AbstractState <- HistoryState
+// StateBase <- RealState <- NormalState
+// StateBase <- RealState <- ParallelState
+// StateBase <- VirtualState <- HistoryState
 
 namespace XStateNet;
 
