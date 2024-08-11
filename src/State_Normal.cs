@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 namespace XStateNet;
 
+/// <summary>
+/// 
+/// </summary>
 public class NormalState : RealState
 {
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
@@ -12,10 +15,19 @@ public class NormalState : RealState
 
     public HistoryState HistorySubState { set; get; }   // The parent of history state is always normal state
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="parentName"></param>
+    /// <param name="stateMachineId"></param>
     public NormalState(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)
     {
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public override void Start()
     {
         base.Start();
@@ -26,6 +38,11 @@ public class NormalState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="eventName"></param>
+    /// <param name="transitionList"></param>
     public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
     {
         // Evaluation should be top-down direction
@@ -40,11 +57,18 @@ public class NormalState : RealState
         }
     }
         
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="historyType"></param>
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
         base.EntryState(historyType);                
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public override void ExitState()
     {
         StateMachine.Log(">>>- State_Normal.ExitState: " + Name);
@@ -57,6 +81,10 @@ public class NormalState : RealState
         base.ExitState();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="depth"></param>
     public override void PrintActiveStateTree(int depth)
     {
         Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
@@ -72,6 +100,10 @@ public class NormalState : RealState
             subState.PrintActiveStateTree(depth + 1);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="list"></param>
     public override void GetActiveSubStateNames(List<string> list)
     {
         Debug.Assert(IsActive);
@@ -86,6 +118,10 @@ public class NormalState : RealState
             subState.GetActiveSubStateNames(list);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="collection"></param>
     public override void GetSouceSubStateCollection(ICollection<string> collection)
     {
         if (ActiveStateName != null)
@@ -95,6 +131,11 @@ public class NormalState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="collection"></param>
+    /// <param name="historyType"></param>
     public override void GetTargetSubStateCollection(ICollection<string> collection, HistoryType historyType = HistoryType.None)
     {
 
@@ -126,11 +167,20 @@ public class NormalState : RealState
     }
 }
 
-
+/// <summary>
+/// 
+/// </summary>
 public class Parser_NormalState : Parser_RealState
 {
     public Parser_NormalState(string machineId) : base(machineId) { }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateName"></param>
+    /// <param name="parentName"></param>
+    /// <param name="stateToken"></param>
+    /// <returns></returns>
     public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
 

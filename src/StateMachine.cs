@@ -65,10 +65,10 @@ public partial class StateMachine
         return _instanceMap.TryGetValue(Id, out _) ? _instanceMap[Id] : null;
     }
 
-    public string machineId { set; get; }
-    public RealState RootState { set; get; }
-    private ConcurrentDictionary<string, StateBase> StateMap { set; get; }
-    public ConcurrentDictionary<string, object> ContextMap { get; private set; } // use object because context can have various types of data
+    public string? machineId { set; get; }
+    public RealState? RootState { set; get; }
+    private ConcurrentDictionary<string, StateBase>? StateMap { set; get; }
+    public ConcurrentDictionary<string, object>? ContextMap { get; private set; } // use object because context can have various types of data
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
 
@@ -81,56 +81,90 @@ public partial class StateMachine
 
     // OnTransition delegate definition
     public delegate void TransitionHandler(RealState fromState, StateBase toState, string eventName);
-    public TransitionHandler OnTransition;
-
-
-
+    public TransitionHandler? OnTransition;
     private MachineState machineState = MachineState.Stopped;
 
+    /// <summary>
+    /// 
+    /// </summary>
     public StateMachine()
     {
         StateMap = new ConcurrentDictionary<string, StateBase>();
         ContextMap = new ConcurrentDictionary<string, object>();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="jsonFilePath"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
     public static StateMachine CreateFromFile(string jsonFilePath, ActionMap actionCallbacks, GuardMap guardCallbacks)
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="jsonScript"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
     public static StateMachine CreateFromScript(string jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null)
     {
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sm"></param>
+    /// <param name="jsonFilePath"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
     public static StateMachine CreateFromFile(StateMachine sm, string jsonFilePath, ActionMap actionCallbacks, GuardMap guardCallbacks)
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sm"></param>
+    /// <param name="jsonScript"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
     public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, ActionMap actionCallbacks, GuardMap guardCallbacks)
     {
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
     }
 
-    public void RegisterState(StateBase state) => StateMap[state.Name] = state;
-        
-    public void PrintCurrentStatesString()
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    public void RegisterState(StateBase state)
     {
-        StateMachine.Log("=== Current States ===");
-        StateMachine.Log(GetActiveStateString());
-        StateMachine.Log("=======================");
+        if (StateMap != null)
+        {
+            StateMap[state.Name] = state;
+        }
+        else
+        {
+            throw new Exception("StateMap is not initialized");
+        }
     }
 
-    public void PrintCurrentStateTree()
-    {
-        StateMachine.Log("=== Current State Tree ===");
-        RootState.PrintActiveStateTree(0);
-        StateMachine.Log("==========================");
-    }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
     public StateMachine Start()
     {
         StateMachine.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -142,11 +176,15 @@ public partial class StateMachine
             StateMachine.Log("State machine is already RUNNING!");
             return this;
         }
-        RootState.Start();
+        RootState?.Start();
         machineState = MachineState.Running;
         return this;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="eventName"></param>
     public void Send(string eventName)
     {
 
@@ -166,15 +204,18 @@ public partial class StateMachine
         PrintCurrentStatesString();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="eventName"></param>
     void Transit(string eventName)
     {
         var transitionList = new List<(RealState state, Transition transition, string @event)>();
 
-        RootState.BuildTransitionList(eventName, transitionList);
+        RootState?.BuildTransitionList(eventName, transitionList);
 
 
         //step 1:  build transition list
-
 
         StateMachine.Log("***** Transition list *****");
         foreach (var t in transitionList)
@@ -187,80 +228,16 @@ public partial class StateMachine
 
         foreach (var (state, transition, @event) in transitionList)
         {
-            Transit(state, transition, @event);
+            state.Transit(transition, @event);
         }
     }
-
-    void Transit(RealState state, Transition? transition, string eventName)
-    {
-        if (transition == null) return;
-
-        StateMachine.Log($">> transition on event {eventName} in state {state.Name}");
-
-        if ((transition.Guard == null || transition.Guard.Predicate(this))
-            && (transition.InCondition == null || transition.InCondition()))
-        {
-
-            string sourceName = transition.SourceName;
-            string? targetName = transition.TargetName;
-
-            if (targetName != null)
-            {
-                var (exitList, entryList) = GetExitEntryList(transition.SourceName, targetName);
-
-                // Exit
-                foreach (var stateName in exitList)
-                {
-                    ((RealState)GetState(stateName)).ExitState();
-                }
-
-                StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
-
-                // Transition
-                RealState? source = GetState(sourceName) as RealState;
-                StateBase? target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
-
-
-                if (GetState(targetName) is HistoryState)
-                {
-                    target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
-                }
-
-                OnTransition?.Invoke(source, target, eventName);
-
-                if (transition.Actions != null)
-                {
-                    foreach (var action in transition.Actions)
-                    {
-                        action.Action(this);
-                    }
-                }
-
-                // Entry
-                foreach (var stateName in entryList)
-                {
-                    ((RealState)GetState(stateName)).EntryState();
-                }
-            }
-            else
-            {
-                // action only transition
-
-                if (transition.Actions != null)
-                {
-                    foreach (var action in transition.Actions)
-                    {
-                        action.Action(this);
-                    }
-                }
-            }
-        }
-        else
-        {
-            StateMachine.Log($"Condition not met for transition on event {eventName}");
-        }
-    }
-
+       
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="state"></param>
+    /// <returns></returns>
     // check if the state is targe or ancestor of the this state
     bool IsAncestorOf(StateBase self, StateBase state)
     {
@@ -274,8 +251,13 @@ public partial class StateMachine
         return false;
     }
 
-
-    (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
     {
         StateMachine.Log(">>> - GetExitEntryList");
 
@@ -287,8 +269,6 @@ public partial class StateMachine
 
         var source_cat = source_sub.Concat(source_sup);
         StateMachine.Log($">>> -- source_cat: {source_cat.ToCsvString(this, false, " -> ")}");
-
-
 
         var target_sub = GetTargetSubStateCollection(target);
         StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
@@ -308,16 +288,17 @@ public partial class StateMachine
         return (source_exit.ToList(), target_entry.ToList());
     }
 
-    public void AddState(RealState state)
-    {
-        StateMap[state.Name] = state;
-    }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateName"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     public StateBase GetState(string stateName)
     {
-        StateBase? state;
+        StateBase? state = null;
 
-        StateMap.TryGetValue(stateName, out state);
+        StateMap?.TryGetValue(stateName, out state);
 
         if (state == null)
         {
@@ -327,35 +308,31 @@ public partial class StateMachine
         return state;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateName"></param>
+    /// <returns></returns>
     public HistoryState? GetStateAsHistory(string stateName)
     {
         return StateMap[stateName] as HistoryState;
     }
-    
-    public bool TestInitial(string stateName)
-    {
-        lock (this)
-        {
-            var state = StateMap[stateName] as RealState;
-            return state?.Parent != null && state.Parent.InitialStateName == state.Name;
-        }
-    }
 
-    public bool TestHistory(string stateName)
-    {
-        lock (this)
-        {
-            return StateMap[stateName].GetType() == typeof(HistoryState);
-        }
-    }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="inConditionString"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private Func<bool> GetInConditionCallback(string inConditionString)
     {
         string stateMachineId = inConditionString.Split('.')[0];
         if (stateMachineId != machineId)
         {
 
-            StateMachine sm = StateMachine.GetInstance(stateMachineId);
+            StateMachine? sm = GetInstance(stateMachineId);
+            if (sm == null) throw new Exception($"State machine is not found with id, {stateMachineId}");
+
             return () => IsInState(sm, inConditionString);
         }
         else
@@ -363,10 +340,18 @@ public partial class StateMachine
             return () => IsInState(this, inConditionString);
         }
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sm"></param>
+    /// <param name="stateName"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     public bool IsInState(StateMachine sm, string stateName)
     {
         var state = (GetState(stateName) as RealState);
+        if(state == null) throw new Exception($"State is not found with name, {stateName}");
+
         return state.IsActive;
     }
 
@@ -379,7 +364,7 @@ public partial class StateMachine
     public string GetActiveStateString(bool leafOnly = true, string separator = ";")
     {
         List<string> strings = new();
-        RootState.GetActiveSubStateNames(strings);
+        RootState?.GetActiveSubStateNames(strings);
         return strings.ToCsvString(this, leafOnly, separator);
     }
 
@@ -489,8 +474,32 @@ public partial class StateMachine
         return list;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="message"></param>
     public static void Log(string message)
     {
         Console.WriteLine(message);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void PrintCurrentStatesString()
+    {
+        StateMachine.Log("=== Current States ===");
+        StateMachine.Log(GetActiveStateString());
+        StateMachine.Log("=======================");
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public void PrintCurrentStateTree()
+    {
+        StateMachine.Log("=== Current State Tree ===");
+        RootState?.PrintActiveStateTree(0);
+        StateMachine.Log("==========================");
     }
 }

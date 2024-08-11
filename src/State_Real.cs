@@ -69,6 +69,10 @@ public abstract class RealState : StateBase
 
     public abstract void GetActiveSubStateNames(List<string> list);
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="collection"></param>
     public void GetSuperStateCollection(ICollection<string> collection)
     {
         collection.Add(Name);
@@ -80,6 +84,45 @@ public abstract class RealState : StateBase
             super.GetSuperStateCollection(collection);
         }
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public virtual void ExitState()
+    {
+        StateMachine.Log(">>>- State_Real.ExitState: " + Name);
+
+        IsActive = false;
+
+        if (Parent != null)
+        {
+            Parent.ActiveStateName = null;
+        }
+
+        ExitActions?.ForEach(action => action.Action(StateMachine));
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="historyType"></param>
+    public virtual void EntryState(HistoryType historyType = HistoryType.None)
+    {
+        StateMachine.Log(">>>- State_Real.EntryState: " + Name);
+
+        EntryActions?.ForEach(action => action.Action(StateMachine));
+
+        // Let define active state as all the entry actions performed successfuly.
+
+        IsActive = true;
+
+        if (Parent != null)
+        {
+            Parent.ActiveStateName = Name;
+        }
+
+        ScheduleAfterTransitionTimer();
+    }
+
 
     public void ScheduleAfterTransitionTimer()
     {
@@ -99,7 +142,8 @@ public abstract class RealState : StateBase
             StateMachine.Log("");
             timer.Stop();
             timer.Dispose();
-            HandleAfterTransition(transition);
+            //HandleAfterTransition(transition);
+            Transit(transition, $"after: {transition.Delay}");
             //after.Value?.Transit();
         };
         
@@ -110,18 +154,80 @@ public abstract class RealState : StateBase
         StateMachine.Log($">>> Scheduled after transition {Name} in {transition.Delay} ms");
         StateMachine.Log("");
     }
-
-    public void HandleAfterTransition(Transition transition)
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    /// <param name="transition"></param>
+    /// <param name="eventName"></param>
+    public void Transit(Transition? transition, string eventName)
     {
-        if ((transition.Guard == null || transition.Guard.Predicate(StateMachine)) &&
-            (transition.InCondition == null || transition.InCondition()))
-        {
-            var source = GetState(transition.SourceName);
-            var target = transition.TargetName != null ? GetState(transition.TargetName) : null;
+        if (transition == null) return;
 
-            source?.ExitState();
-            transition.Actions?.ForEach(action => action.Action(StateMachine));
-            target?.EntryState();
+        StateMachine.Log($">> transition on event {eventName} in state {Name}");
+
+        if ((transition.Guard == null || transition.Guard.Predicate(StateMachine))
+            && (transition.InCondition == null || transition.InCondition()))
+        {
+
+            string sourceName = transition.SourceName;
+            string? targetName = transition.TargetName;
+
+            if (targetName != null)
+            {
+                var (exitList, entryList) = StateMachine.GetExitEntryList(transition.SourceName, targetName);
+
+                // Exit
+                foreach (var stateName in exitList)
+                {
+                    ((RealState)GetState(stateName)).ExitState();
+                }
+
+                StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
+
+                // Transition
+                RealState? source = GetState(sourceName) as RealState;
+                StateBase? target = GetState(targetName) is HistoryState ? StateMachine.GetStateAsHistory(targetName) : GetState(targetName);
+
+
+                if (GetState(targetName) is HistoryState)
+                {
+                    target = GetState(targetName) is HistoryState ? StateMachine.GetStateAsHistory(targetName) : GetState(targetName);
+                }
+
+                StateMachine.OnTransition?.Invoke(source, target, eventName);
+
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        action.Action(StateMachine);
+                    }
+                }
+
+                // Entry
+                foreach (var stateName in entryList)
+                {
+                    ((RealState)GetState(stateName)).EntryState();
+                }
+            }
+            else
+            {
+                // action only transition
+
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        action.Action(StateMachine);
+                    }
+                }
+            }
+        }
+        else
+        {
+            StateMachine.Log($"Condition not met for transition on event {eventName}");
         }
     }
 
@@ -142,40 +248,6 @@ public abstract class RealState : StateBase
 
         return false;
     }
-
-
-    public virtual void EntryState(HistoryType historyType = HistoryType.None)
-    {
-        StateMachine.Log(">>>- State_Real.EntryState: " + Name);
-
-        EntryActions?.ForEach(action => action.Action(StateMachine));
-        
-        // Let define active state as all the entry actions performed successfuly.
-
-        IsActive = true;
-
-        if(Parent != null)
-        {
-            Parent.ActiveStateName = Name;
-        }
-
-        ScheduleAfterTransitionTimer();
-    }
-
-    public virtual void ExitState()
-    {
-        StateMachine.Log(">>>- State_Real.ExitState: " + Name);
-
-        IsActive = false;
-
-        if (Parent != null)
-        {
-            Parent.ActiveStateName = null;
-        }        
-
-        ExitActions?.ForEach(action => action.Action(StateMachine));
-    }
-
 
     public virtual void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
     {
