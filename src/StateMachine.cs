@@ -27,12 +27,12 @@
 // [v] implement OnTransition event
 // [ ] implement RESET default event processor
 // [v] implement parsing .child state as a target
-// [ ] Bug fix for MOUSE_MOVE event handling of original Diagramming Framework script (to be resizing state)
+// [v] Bug fix for MOUSE_MOVE event handling of original Diagramming Framework script (to be resizing state)
 // [ ] Precise analysis of transition path including complex (parallel, history) states
 //     [v] Simple case analysis (No history, No Parallel)
-//     [ ] Simple case implementation (No history, No Parallel)
-//     [ ] History case analysis (Shallow, Deep)
-//     [ ] History case implementation (Shallow, Deep)
+//     [v] Simple case implementation (No history, No Parallel)
+//     [v] History case analysis (Shallow, Deep)
+//     [v] History case implementation (Shallow, Deep)
 //     [ ] Parallel case analysis
 //     [ ] Parallel case implementation
 // [ ] Implement and prove by unittest self transition 
@@ -60,7 +60,7 @@ enum MachineState
 
 public partial class StateMachine
 {
-    public static StateMachine GetInstance(string Id)
+    public static StateMachine? GetInstance(string Id)
     {
         return _instanceMap.TryGetValue(Id, out _) ? _instanceMap[Id] : null;
     }
@@ -90,9 +90,7 @@ public partial class StateMachine
     public StateMachine()
     {
         StateMap = new ConcurrentDictionary<string, StateBase>();
-        //ActiveStateMap = new ConcurrentDictionary<string, RealState>();
         ContextMap = new ConcurrentDictionary<string, object>();
-        //TransitionTimers = new ConcurrentDictionary<string, System.Timers.Timer>();
     }
 
     public static StateMachine CreateFromFile(string jsonFilePath, ActionMap actionCallbacks, GuardMap guardCallbacks)
@@ -118,16 +116,7 @@ public partial class StateMachine
     }
 
     public void RegisterState(StateBase state) => StateMap[state.Name] = state;
-
-    /*
-    public void InitializeActiveStates()
-    {
-        StateMachine.Log(">>> Initialize ...");
-        ActiveStateMap.Clear();
-        RootState.InitializeCurrentStates();
-    }
-    */
-
+        
     public void PrintCurrentStatesString()
     {
         StateMachine.Log("=== Current States ===");
@@ -141,26 +130,6 @@ public partial class StateMachine
         RootState.PrintActiveStateTree(0);
         StateMachine.Log("==========================");
     }
-
-    //public static string GenerateKey(string stateName, string eventName) => eventName;// + "1234567"; // stateName + '_' + eventName;
-
-    /*
-    void BuildTransitionTable(string eventName, Dictionary<string, List<Transition>> transitionsToProcess)
-    {
-        foreach (var current in CurrentStateMap.Keys)
-        {
-            var state = StateMap[current];
-
-            var key = GenerateKay(current, eventName);
-
-            foreach (var item in state.TransitionMap)
-            {
-                transitionsToProcess.Add(item); // always transition!
-            }
-            
-        }
-    }
-    */
 
     public StateMachine Start()
     {
@@ -178,10 +147,6 @@ public partial class StateMachine
         return this;
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="eventName"></param>
     public void Send(string eventName)
     {
 
@@ -201,7 +166,6 @@ public partial class StateMachine
         PrintCurrentStatesString();
     }
 
-#if true
     void Transit(string eventName)
     {
         var transitionList = new List<(RealState state, Transition transition, string @event)>();
@@ -219,10 +183,6 @@ public partial class StateMachine
         }
         StateMachine.Log("***************************");
 
-
-        //var slist = transition_list.Select(t => t.state).ToList();
-        //StateMachine.Log($"Transition state path: {slist.ToCsvString(this)}");
-
         //step 2:  perform transitions
 
         foreach (var (state, transition, @event) in transitionList)
@@ -230,53 +190,6 @@ public partial class StateMachine
             Transit(state, transition, @event);
         }
     }
-#else
-    void Transit(string eventName)
-    {
-        var transition_list = new List<(RealState state, Transition transition, string @event)>();
-
-        //step 1:  build transition list
-        foreach (var current in this.ActiveStateMap)
-        {
-            var state = current.Value;
-           
-
-            if (state.OnTransitionMap.ContainsKey(eventName))
-            {                                
-                var onTransitionList = state.OnTransitionMap[eventName];
-
-                foreach (var transition in onTransitionList)
-                {
-                    transition_list.Add((state, transition, eventName));
-                }
-            }
-
-            if(state.AlwaysTransition != null)
-                transition_list.Add((state, state.AlwaysTransition, "always"));
-
-            if (state.AfterTransition != null)
-                transition_list.Add((state, state.AfterTransition, "after"));
-        }
-
-        StateMachine.Log("***** Transition list *****");
-        foreach (var t in transition_list)
-        {
-            StateMachine.Log($"Transition : (source = {t.transition?.SourceName}, target =  {t.transition?.TargetName}, event =  {t.@event}");
-        }
-        StateMachine.Log("***************************");
-
-
-        //var slist = transition_list.Select(t => t.state).ToList();
-        //StateMachine.Log($"Transition state path: {slist.ToCsvString(this)}");
-
-        //step 2:  perform transitions
-
-        foreach (var (state, transition, @event) in transition_list)
-        {
-            Transit(state, transition, @event);
-        }
-    }
-#endif
 
     void Transit(RealState state, Transition? transition, string eventName)
     {
@@ -287,8 +200,6 @@ public partial class StateMachine
         if ((transition.Guard == null || transition.Guard.Predicate(this))
             && (transition.InCondition == null || transition.InCondition()))
         {
-            //var exitList = transition.GetExitList();
-            //var (entryList, historyType) = transition.GetEntryList();
 
             string sourceName = transition.SourceName;
             string? targetName = transition.TargetName;
@@ -309,12 +220,10 @@ public partial class StateMachine
                 RealState? source = GetState(sourceName) as RealState;
                 StateBase? target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
 
-                //HistoryType historyType = HistoryType.None;
 
                 if (GetState(targetName) is HistoryState)
                 {
                     target = GetState(targetName) is HistoryState ? GetStateAsHistory(targetName) : GetState(targetName);
-                    //historyType = ((HistoryState)target).HistoryType;
                 }
 
                 OnTransition?.Invoke(source, target, eventName);
@@ -371,30 +280,30 @@ public partial class StateMachine
         StateMachine.Log(">>> - GetExitEntryList");
 
         var source_sub = GetSourceSubStateCollection(source).Reverse();
-        StateMachine.Log($">>> -- source_sub: {source_sub.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- source_sub: {source_sub.ToCsvString(this, false, " -> ")}");
 
         var source_sup = GetSuperStateCollection(source);
-        StateMachine.Log($">>> -- source_sup: {source_sup.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- source_sup: {source_sup.ToCsvString(this, false, " -> ")}");
 
         var source_cat = source_sub.Concat(source_sup);
-        StateMachine.Log($">>> -- source_cat: {source_cat.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- source_cat: {source_cat.ToCsvString(this, false, " -> ")}");
 
 
 
         var target_sub = GetTargetSubStateCollection(target);
-        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
 
         var target_sup = GetSuperStateCollection(target).Reverse();
-        StateMachine.Log($">>> -- target_sup: {target_sup.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- target_sup: {target_sup.ToCsvString(this, false, " -> ")}");
 
         var target_cat = target_sup.Concat(target_sub);
-        StateMachine.Log($">>> -- target_cat: {target_cat.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- target_cat: {target_cat.ToCsvString(this, false, " -> ")}");
 
         var source_exit = source_cat.Except(target_cat);    // exclude common ancestors from source
         var target_entry = target_cat.Except(source_cat);   // exclude common ancestors from source
 
-        StateMachine.Log($">>> -- source_exit: {source_exit.ToCsvString(this, false, "->")}");
-        StateMachine.Log($">>> -- target_entry: {target_entry.ToCsvString(this, false, "->")}");
+        StateMachine.Log($">>> -- source_exit: {source_exit.ToCsvString(this, false, " -> ")}");
+        StateMachine.Log($">>> -- target_entry: {target_entry.ToCsvString(this, false, " -> ")}");
 
         return (source_exit.ToList(), target_entry.ToList());
     }

@@ -1,7 +1,16 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\digit\\source\\repos\\XStateNet2\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\parser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\parser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,8 +18,21 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Parser.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Parser.cs",
+              "RelativeDocumentMoniker": "src\\Parser.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Parser.cs",
+              "RelativeToolTip": "src\\Parser.cs",
+              "ViewState": "AQIAAB0BAAAAAAAAAAAjwCUBAAAxAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-11T09:23:55.626Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:130:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
@@ -66,6 +88,23 @@
             {
               "$type": "Bookmark",
               "Name": "ST:142:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "StateMachine.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
+              "RelativeDocumentMoniker": "src\\StateMachine.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
+              "RelativeToolTip": "src\\StateMachine.cs",
+              "ViewState": "AQIAADsAAAAAAAAAAAAIwEQAAAAsAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-11T09:16:44.863Z",
+              "EditorCaption": ""
             }
           ]
         }

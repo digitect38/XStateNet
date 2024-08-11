@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace XStateNet;
 
@@ -15,6 +16,11 @@ public partial class StateMachine
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
 
+        if (rootToken == null)
+        {
+            throw new Exception("Invalid JSON script!");
+        }
+
         stateMachine.machineId = $"#{rootToken["id"]}";
         stateMachine.ActionMap = actionCallbacks;
         stateMachine.GuardMap = guardCallbacks;
@@ -24,13 +30,23 @@ public partial class StateMachine
 
         if (rootToken.ContainsKey("context") && rootToken["context"] != null)
         {
-            foreach (JToken? contextItem in rootToken["context"])
+            var tokenList = rootToken["context"];
+
+            if (tokenList == null)
             {
-                stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
+                throw new Exception("Invalid context object!");
+            }
+
+            foreach (JToken contextItem in tokenList)
+            {
+                if (contextItem != null && contextItem.First != null)
+                {
+                    stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
+                }
             }
         }
+
         stateMachine.ParseState($"{stateMachine.machineId}", rootToken, null);
-        //stateMachine.InitializeActiveStates();        
 
         return stateMachine;
     }
@@ -49,7 +65,7 @@ public partial class StateMachine
 
     public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        StateBase stateBase = null;
+        StateBase? stateBase;
 
         var stateTypeStr = stateToken["type"]?.ToString();
         StateType stateType = stateTypeStr == "parallel" ? StateType.Parallel : stateTypeStr == "history" ? StateType.History : StateType.Normal;
@@ -59,22 +75,48 @@ public partial class StateMachine
             case StateType.History:
                 var historyType = ParseHistoryType(stateToken);
 
-                var histState = new Parser_HistoryState(machineId, historyType).Parse(stateName, parentName, stateToken) as HistoryState;
-                RegisterState(histState);
-                return; // no more settings
+                stateBase = new Parser_HistoryState(machineId, historyType).Parse(stateName, parentName, stateToken) as HistoryState;
+
+                if (stateBase == null)
+                {
+                    throw new Exception("HistoryState is null!");
+                }
+
+                RegisterState(stateBase);
+
+                return; // no more settings needed!
 
             case StateType.Parallel:
+
                 stateBase = new Parser_ParallelState(machineId).Parse(stateName, parentName, stateToken) as ParallelState;
+
+                if (stateBase == null)
+                {
+                    throw new Exception("ParallelState is null!");
+                }
+
                 RegisterState(stateBase);
                 break;
 
             default:
                 stateBase = new Parser_NormalState(machineId).Parse(stateName, parentName, stateToken) as NormalState;
+
+                if (stateBase == null)
+                {
+                    throw new Exception("NormalState is null!");
+                }
+
                 RegisterState(stateBase);
+
                 break;
         }
-    
-        RealState state = stateBase as RealState;
+
+        RealState state = (RealState)stateBase;
+
+        if (state == null)
+        {
+            throw new Exception("RealState is null!");
+        }
 
         if (parentName == null)
         {
@@ -84,40 +126,57 @@ public partial class StateMachine
 
         if (!string.IsNullOrEmpty(parentName))
         {
-            var parent = StateMap[parentName] as RealState;
+            var parent = (RealState)StateMap[parentName];
             parent.SubStateNames.Add(stateName);
         }
-        else
-        {
 
-        }
+        var onTransitionTokens = stateToken["on"];
 
-        if (stateToken["on"] != null)
+        if (onTransitionTokens != null)
         {
-            foreach (var transitionToken in stateToken["on"])
+            foreach (var token in onTransitionTokens)
             {
-                var eventName = transitionToken.Path.Split('.').Last();
-                ParseTransitions(state, TransitionType.On, eventName, transitionToken.First);
+                var eventName = token.Path.Split('.').Last();
+                if (token.First != null)
+                {
+                    ParseTransitions(state, TransitionType.On, eventName, token.First);
+                }
             }
         }
-        else if (stateToken["after"] != null)
+
+        var afterTokens = stateToken["after"];
+
+        if (afterTokens != null)
         {
-            foreach (var afterToken in stateToken["after"])
+            foreach (var token in afterTokens)
             {
-                var delay = afterToken.Path.Split('.').Last();
-                ParseTransitions(state, TransitionType.After, delay, afterToken.First);
+                var delay = token.Path.Split('.').Last();
+                if (token.First != null)
+                {
+                    ParseTransitions(state, TransitionType.After, delay, token.First);
+                }
             }
         }
-        else if (stateToken["always"] != null)
-        {
-            var alwaysToken = stateToken["always"];
-            ParseTransitions(state, TransitionType.Always, null, alwaysToken);
+
+        var alwaysToken = stateToken["always"];
+
+        if (alwaysToken != null)
+        {            
+            if(alwaysToken == null)
+            {
+                throw new Exception("Always token is null!");
+            }
+
+            ParseTransitions(state, TransitionType.Always, "always", alwaysToken);
         }
 
-        if (stateToken["states"] != null)
+        var states = stateToken["states"];
+
+        if (states != null)
         {
-            ParseStates(stateToken["states"], stateName);
+            ParseStates(states, stateName);
         }
+
         Parser_Action.ParseActions(state, "exit", ActionMap, stateToken);
     }
 
@@ -204,10 +263,12 @@ public partial class StateMachine
     private Transition ParseTransition(RealState source, TransitionType type, string @event, JToken token)
     {
 
-        List<string> actionNames = null;
-        string targetName = "";
-        string guard = null;
-        string inCondition = null;
+        List<string>? actionNames = null;
+        string? targetName = null;
+        string? guard = null;
+        string? inCondition = null;
+
+        if (token == null) throw new Exception("Token is null!");
 
         if (token.Type == JTokenType.String)
         {
@@ -216,19 +277,26 @@ public partial class StateMachine
         }
         else if (token.Type == JTokenType.Object)
         {
-            // explicit target or no target case...
-            //    1) "on": { "TIMER": { target: "yellow" } }
-            //    2) "on": { "TIMER": { actions: [ "incrementCount", "checkCount" ] } }
-
             try
             {
                 targetName = token["target"]?.ToString();
                 actionNames = token["actions"]?.ToObject<List<string>>();
-                guard = token["guard"] != null ? token["guard"].ToString() : token["cond"] != null ? token["cond"].ToString() : null;
-                //guard = token["guard"]?.ToString();
+
+                var guardTokeen = token["guard"];
+                var condToken = token["cond"];
+                
+                if(guardTokeen != null)
+                {
+                    guard = guardTokeen.ToString();
+                }
+                else if(condToken != null)
+                {
+                    guard = condToken.ToString();
+                }
+
                 inCondition = token["in"]?.ToString();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw new Exception("Invalid transition object!");
             }
