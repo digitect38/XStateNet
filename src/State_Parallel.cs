@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
 
@@ -22,14 +22,16 @@ public class ParallelState : RealState
 
     public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
     {
-        // children first
-
+        // parent first evaluation (is not the order exit/entry sequence)
+        base.BuildTransitionList(eventName, transitionList);
+    
+        // children next evaluation
         foreach (string subStateName in SubStateNames)
         {
             GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
 
-        base.BuildTransitionList(eventName, transitionList);
+        // base.BuildTransitionList(eventName, transitionList);
     }
 
     public override void EntryState(HistoryType historyType = HistoryType.None)
