@@ -10,10 +10,21 @@ public class NormalState : RealState
 {
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
 
-    public string LastActiveStateName { set; get; }
-    public NormalState LastActiveState => GetState(LastActiveStateName) as NormalState;
+    public string? LastActiveStateName { set; get; }
+    
+    public NormalState? LastActiveState
+    {
+        get
+        {
+            if (LastActiveStateName != null)
+            {
+                return GetState(LastActiveStateName) as NormalState;
+            }
+            return null;
+        }
+    }
 
-    public HistoryState HistorySubState { set; get; }   // The parent of history state is always normal state
+    public HistoryState? HistorySubState { set; get; }   // The parent of history state is always normal state
 
     /// <summary>
     /// 
@@ -139,7 +150,7 @@ public class NormalState : RealState
     public override void GetTargetSubStateCollection(ICollection<string> collection, HistoryType historyType = HistoryType.None)
     {
 
-        string targetStateName = null;
+        string? targetStateName = null;
 
         if (historyType == HistoryType.None)
         {
@@ -183,10 +194,11 @@ public class Parser_NormalState : Parser_RealState
     /// <returns></returns>
     public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {
+        var initial = stateToken["initial"];
 
         var state = new NormalState(stateName, parentName, machineId)
-        {
-            InitialStateName = (stateToken["initial"] != null) ? stateName + "." + stateToken["initial"].ToString() : null,
+        {            
+            InitialStateName = (initial != null) ? stateName + "." + initial.ToString() : null,
         };
 
         state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;

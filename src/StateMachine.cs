@@ -80,7 +80,7 @@ public partial class StateMachine
     public static Dictionary<string, StateMachine> _instanceMap = new();
 
     // OnTransition delegate definition
-    public delegate void TransitionHandler(RealState fromState, StateBase toState, string eventName);
+    public delegate void TransitionHandler(RealState? fromState, StateBase? toState, string eventName);
     public TransitionHandler? OnTransition;
     private MachineState machineState = MachineState.Stopped;
 
@@ -490,7 +490,7 @@ public partial class StateMachine
     {
         StateMachine.Log("=== Current States ===");
         StateMachine.Log(GetActiveStateString());
-        StateMachine.Log("=======================");
+        StateMachine.Log("======================");
     }
 
     /// <summary>

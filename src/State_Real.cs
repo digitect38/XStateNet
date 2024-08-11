@@ -153,8 +153,7 @@ public abstract class RealState : StateBase
         StateMachine.Log("");
         StateMachine.Log($">>> Scheduled after transition {Name} in {transition.Delay} ms");
         StateMachine.Log("");
-    }
-    
+    }    
     /// <summary>
     /// 
     /// </summary>
@@ -188,12 +187,11 @@ public abstract class RealState : StateBase
 
                 // Transition
                 RealState? source = GetState(sourceName) as RealState;
-                StateBase? target = GetState(targetName) is HistoryState ? StateMachine.GetStateAsHistory(targetName) : GetState(targetName);
+                StateBase? target = GetState(targetName);
 
-
-                if (GetState(targetName) is HistoryState)
+                if (target is HistoryState)
                 {
-                    target = GetState(targetName) is HistoryState ? StateMachine.GetStateAsHistory(targetName) : GetState(targetName);
+                    target = StateMachine.GetStateAsHistory(targetName);
                 }
 
                 StateMachine.OnTransition?.Invoke(source, target, eventName);
@@ -209,7 +207,12 @@ public abstract class RealState : StateBase
                 // Entry
                 foreach (var stateName in entryList)
                 {
-                    ((RealState)GetState(stateName)).EntryState();
+                    var state = GetState(stateName);
+                    
+                    if (state != null)
+                    {
+                        state.EntryState();
+                    }
                 }
             }
             else
