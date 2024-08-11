@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 namespace XStateNet;
@@ -28,11 +28,12 @@ public class NormalState : RealState
 
     public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
     {
-        // Evaluation should be to-down direction
+        // Evaluation should be top-down direction
+
         // parent first
         base.BuildTransitionList(eventName, transitionList);    
 
-        // then sub state
+        // children next
         if (ActiveStateName != null)
         {
             GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
