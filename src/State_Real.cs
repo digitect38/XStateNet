@@ -47,21 +47,6 @@ public abstract class RealState : StateBase
         AlwaysTransition = null;
     }
 
-    /*
-    public virtual void InitializeCurrentStates()
-    {
-        if (Parent != null)
-        {
-            Parent.LastActiveStateName = Name;
-        }
-
-        if(InitialStateName != null)
-        {
-            
-        }
-    }
-    */
-
     public virtual void Start()
     {
         EntryState();
