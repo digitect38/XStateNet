@@ -177,7 +177,7 @@ public partial class StateMachine
             ParseStates(states, stateName);
         }
 
-        Parser_Action.ParseActions(state, "exit", ActionMap, stateToken);
+        Parser_Action.ParseActions("exit", ActionMap, stateToken);
     }
 
     private void ParseStates(JToken statesToken, string parentName)
@@ -311,25 +311,25 @@ public partial class StateMachine
             targetName = ResolveAbsolutePath(source.Name, targetName);
         }
 
-        Transition transition = null;
+        Transition? transition = null;
 
         if (type == TransitionType.On)
         {
-            transition = new OnTransition()
+            transition = new OnTransition(machineId)
             {
                 Event = @event,
             };
         }
         else if (type == TransitionType.After)
         {
-            transition = new AfterTransition()
+            transition = new AfterTransition(machineId)
             {
                 Delay = int.Parse(@event),
             };
         }
         else if (type == TransitionType.Always)
         {
-            transition = new AlwaysTransition()
+            transition = new AlwaysTransition(machineId)
             {
             };
         }
@@ -338,7 +338,6 @@ public partial class StateMachine
             throw new Exception("Invalid transition type!");
         }
 
-        transition.stateMachineId = machineId;
         transition.SourceName = source.Name;
         transition.TargetName = targetName;
         transition.Actions = GetActionCallbacks(actionNames);
@@ -405,7 +404,7 @@ public partial class StateMachine
         return actions;
     }
     
-    public static string ResolveAbsolutePath(string currentPath, string target)
+    public static string? ResolveAbsolutePath(string? currentPath, string target)
     {
         if (target.StartsWith("#"))
         {
@@ -417,13 +416,20 @@ public partial class StateMachine
             return currentPath + target;
         }
 
-        var currentPathArray = currentPath.Split('.').ToList();
-        var pathArray = new List<string>(currentPathArray);
+        var currentPathArray = currentPath?.Split('.').ToList();
+        if(currentPathArray != null)
+        {
+            var pathArray = new List<string>(currentPathArray);
 
-        pathArray.RemoveAt(pathArray.Count - 1);
-        pathArray.Add(target);
+            pathArray.RemoveAt(pathArray.Count - 1);
+            pathArray.Add(target);
 
-        return string.Join(".", pathArray);
+            return string.Join(".", pathArray);
+        }
+        else
+        {
+            return null;
+        }
     }
 
     HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;

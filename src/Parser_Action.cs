@@ -10,9 +10,9 @@ namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 
-internal static class Parser_Action
+internal  class Parser_Action
 {
-    public static List<NamedAction>? ParseActions(RealState state, string key, ActionMap? actionMap, JToken token)
+    public static List<NamedAction>? ParseActions(string key, ActionMap? actionMap, JToken token) 
     {
         List<NamedAction>? actions = null;
 

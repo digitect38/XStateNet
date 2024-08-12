@@ -37,7 +37,7 @@ public abstract class RealState : StateBase
         return StateMachine.GetState(stateName) as RealState;
     }
 
-    public RealState(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)
+    public RealState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
         SubStateNames = new List<string>();
         EntryActions = new List<NamedAction>();

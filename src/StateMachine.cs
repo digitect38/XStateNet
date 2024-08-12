@@ -231,26 +231,7 @@ public partial class StateMachine
             state.Transit(transition, @event);
         }
     }
-       
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="self"></param>
-    /// <param name="state"></param>
-    /// <returns></returns>
-    // check if the state is targe or ancestor of the this state
-    bool IsAncestorOf(StateBase self, StateBase state)
-    {
-        if (self == state) return true;
-
-        if (self is RealState realState)
-        {
-            return realState.IsAncestorOf(state);
-        }
-
-        return false;
-    }
-
+   
     /// <summary>
     /// 
     /// </summary>
@@ -294,10 +275,11 @@ public partial class StateMachine
     /// <param name="stateName"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public StateBase GetState(string stateName)
+    public StateBase GetState(string? stateName)
     {
         StateBase? state = null;
 
+        if(stateName == null) throw new Exception("State name is null!");
         StateMap?.TryGetValue(stateName, out state);
 
         if (state == null)
@@ -315,6 +297,7 @@ public partial class StateMachine
     /// <returns></returns>
     public HistoryState? GetStateAsHistory(string stateName)
     {
+        if (StateMap == null) throw new Exception("StateMap is not initialized");
         return StateMap[stateName] as HistoryState;
     }
 

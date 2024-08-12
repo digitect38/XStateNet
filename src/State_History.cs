@@ -4,8 +4,8 @@ namespace XStateNet;
 public class HistoryState : VirtualState
 {
     public HistoryType HistoryType { set; get; }
-    public HistoryState(string name, string? parentName, string stateMachineId, HistoryType historyType)
-        : base(name, parentName, stateMachineId)
+    public HistoryState(string? stateName, string? parentName, string? stateMachineId, HistoryType historyType)
+        : base(stateName, parentName, stateMachineId)
     {
         HistoryType = historyType;
 
@@ -32,7 +32,7 @@ public class Parser_HistoryState : Parser_StateBase
 {
     HistoryType historyType;
 
-    public Parser_HistoryState(string machineId, HistoryType historyType) : base(machineId)
+    public Parser_HistoryState(string? machineId, HistoryType historyType) : base(machineId)
     {
         this.historyType = historyType;
     }

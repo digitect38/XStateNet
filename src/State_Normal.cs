@@ -32,7 +32,7 @@ public class NormalState : RealState
     /// <param name="name"></param>
     /// <param name="parentName"></param>
     /// <param name="stateMachineId"></param>
-    public NormalState(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)
+    public NormalState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
     }
     
@@ -203,8 +203,8 @@ public class Parser_NormalState : Parser_RealState
 
         state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;
 
-        state.EntryActions = Parser_Action.ParseActions(state, "entry", StateMachine.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions(state, "exit", StateMachine.ActionMap, stateToken);
+        state.EntryActions = Parser_Action.ParseActions("entry", StateMachine?.ActionMap, stateToken);
+        state.ExitActions = Parser_Action.ParseActions("exit", StateMachine?.ActionMap, stateToken);
 
         return state;
     }

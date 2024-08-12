@@ -45,18 +45,18 @@ namespace AdvancedFeatures
         public async Task TestLeaderFollowerStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.a");
-            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.a");
+            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.a");
+            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.a");
 
             // Wait for the leader to send the 'to_b' event to the follower
             await Task.Delay(1100);
-            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.b");
-            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.b");
+            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.b");
+            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.b");
 
             // Wait for the leader to send the 'to_a' event to the follower
             await Task.Delay(1100);
-            Assert.AreEqual(_followerStateMachine.GetActiveStateString(), "#follower.a");
-            Assert.AreEqual(_leaderStateMachine.GetActiveStateString(), "#leader.a");
+            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.a");
+            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.a");
         }
         public static class LeaderFollowerStateMachine
         {

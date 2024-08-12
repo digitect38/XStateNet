@@ -4,7 +4,7 @@ namespace XStateNet;
 
 public class ParallelState : RealState
 {
-    public ParallelState(string name, string? parentName, string stateMachineId) : base(name, parentName, stateMachineId)
+    public ParallelState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
     }
 
@@ -41,6 +41,7 @@ public class ParallelState : RealState
         SubStateNames.AsParallel().ForAll(
             subStateName =>
             {
+                if(StateMachine == null) throw new Exception("StateMachine is null");
                 var subState = StateMachine.GetState(subStateName) as RealState;
                 subState?.EntryState(historyType);
             }
@@ -127,8 +128,9 @@ public class Parser_ParallelState : Parser_RealState
         {
         };
         
-        state.EntryActions = Parser_Action.ParseActions(state, "entry", StateMachine.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions(state, "exit", StateMachine.ActionMap, stateToken);
+        if(StateMachine == null) throw new Exception("StateMachine is null");
+        state.EntryActions = Parser_Action.ParseActions("entry", StateMachine.ActionMap, stateToken);
+        state.ExitActions = Parser_Action.ParseActions("exit", StateMachine.ActionMap, stateToken);
         
         return state;
     }
