@@ -67,7 +67,13 @@ public class NormalState : RealState
             GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
         }
     }
-        
+
+    public override void OnDone()
+    {
+        IsDone = true;
+        Parent?.OnDone();
+    }
+
     /// <summary>
     /// 
     /// </summary>
@@ -100,7 +106,7 @@ public class NormalState : RealState
     {
         Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
 
-        Debug.Assert(IsActive);
+        //Debug.Assert(IsActive);
 
         if (ActiveStateName == null) return;
         
@@ -117,7 +123,7 @@ public class NormalState : RealState
     /// <param name="list"></param>
     public override void GetActiveSubStateNames(List<string> list)
     {
-        Debug.Assert(IsActive);
+       // Debug.Assert(IsActive);
 
         if (ActiveStateName == null) return;
 
@@ -152,10 +158,13 @@ public class NormalState : RealState
 
         string? targetStateName = null;
 
+        //History type designation is triggered to a non-history state only when the target state is a history state.During entry propagation,
+        //if the history state is shallow, it transitions to a normal state, and if the history state is deep, it continues to propagate as a history state.
+
         if (historyType == HistoryType.None)
         {
             if (InitialStateName == null) return;
-            targetStateName =  InitialStateName;
+            targetStateName = InitialStateName;
         }
         else
         {
@@ -163,7 +172,7 @@ public class NormalState : RealState
             targetStateName = LastActiveStateName;
         }
 
-        var state = GetState(targetStateName) as NormalState;
+        var state = GetState(targetStateName);
 
         collection.Add(targetStateName);
 
@@ -175,6 +184,7 @@ public class NormalState : RealState
         {
             state?.GetTargetSubStateCollection(collection, HistoryType.None);
         }
+
     }
 }
 

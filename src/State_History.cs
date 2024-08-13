@@ -4,6 +4,7 @@ namespace XStateNet;
 public class HistoryState : VirtualState
 {
     public HistoryType HistoryType { set; get; }
+
     public HistoryState(string? stateName, string? parentName, string? stateMachineId, HistoryType historyType)
         : base(stateName, parentName, stateMachineId)
     {

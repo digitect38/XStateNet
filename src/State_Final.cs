@@ -2,7 +2,7 @@ using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
 
-public class FinalState : StateBase
+public class FinalState : NormalState
 {
     public FinalState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
@@ -22,9 +22,12 @@ public class FinalState : StateBase
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
         base.EntryState();
+        Parent?.OnDone();
     }
+
     public override void ExitState()
     {
+        base.ExitState();
     }
 
     public override void GetActiveSubStateNames(List<string> list)

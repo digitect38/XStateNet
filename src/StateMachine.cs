@@ -178,7 +178,21 @@ public partial class StateMachine
             StateMachine.Log("State machine is already RUNNING!");
             return this;
         }
+#if false
         RootState?.Start();
+#else
+        var list = GetEntryList(machineId);
+        string entry = list.ToCsvString(this, false, " -> ");
+        
+        Log($">>> Start entry: {entry}");
+
+        foreach (var stateName in list)
+        {            
+            var state = GetState(stateName) as RealState;
+            state.EntryState();
+        }      
+#endif   
+
         machineState = MachineState.Running;
         return this;
     }
@@ -233,14 +247,25 @@ public partial class StateMachine
             state.Transit(transition, @event);
         }
     }
-   
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="source"></param>
-    /// <param name="target"></param>
-    /// <returns></returns>
-    public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
+
+    public List<string> GetEntryList(string target) // for Start
+    {
+        StateMachine.Log(">>> - GetEntryList");
+
+
+        var target_sub = GetTargetSubStateCollection(target);
+        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
+                
+        return target_sub.ToList();
+    }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
     {
         StateMachine.Log(">>> - GetExitEntryList");
 
@@ -372,41 +397,43 @@ public partial class StateMachine
         return list;
     }
 
-    public ICollection<string> GetTargetSubStateCollection(string? statePath = null)
+    /// <summary>
+    /// GetTargetSubStateCollection
+    /// 
+    /// Note: The reason for handling the history state only here is that the history state 
+    /// can only be activated when it is explicitly specified.
+    /// </summary>
+    /// <param name="statePath"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public ICollection<string> GetTargetSubStateCollection(string? statePath)
     {
         RealState? state = null;
 
         ICollection<string> list = new List<string>();
 
-        if (statePath == null)
+        if (GetState(statePath) is RealState realState)
         {
-            state = RootState;
+            state = realState;
+
+            state?.GetTargetSubStateCollection(list);
         }
-        else
+        else if (GetState(statePath) is HistoryState historyState) 
         {
-            if (GetState(statePath) is RealState realState)
+            if (historyState.Parent is NormalState)
             {
-                state = realState;
+                state = ((NormalState)historyState.Parent).LastActiveState;
 
-                state?.GetTargetSubStateCollection(list);
-            }
-            else if (GetState(statePath) is HistoryState historyState)
-            {
-                if (historyState.Parent is NormalState)
-                {
-                    state = ((NormalState)historyState.Parent).LastActiveState;
-
-                    state?.GetTargetSubStateCollection(list, historyState.HistoryType);
-                }
-                else
-                {
-                    throw new Exception("History state should be child of Normal state");
-                }
+                state?.GetTargetSubStateCollection(list, historyState.HistoryType);
             }
             else
             {
-                throw new Exception("State should be RealState or HistoryState type");
+                throw new Exception("History state should be child of Normal state");
             }
+        }
+        else
+        {
+            throw new Exception("State should be RealState or HistoryState type");
         }
 
         return list;

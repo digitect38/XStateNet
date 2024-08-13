@@ -24,14 +24,35 @@ public class ParallelState : RealState
     {
         // parent first evaluation (is not the order exit/entry sequence)
         base.BuildTransitionList(eventName, transitionList);
-    
+
         // children next evaluation
-        foreach (string subStateName in SubStateNames)
-        {
+
+#if true // serial way
+        foreach (string subStateName in SubStateNames) {
             GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
+#else   // parallel way
+        SubStateNames.AsParallel().ForAll(
+            subStateName => {
+                GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
+            }
+        );
+#endif
 
-        // base.BuildTransitionList(eventName, transitionList);
+    }
+
+    public override void OnDone()
+    {
+        bool done = true;
+
+        foreach(string subStateName in SubStateNames)
+        {
+            done = done && GetState(subStateName).IsDone;
+        }
+
+        if(done) IsDone = true;
+
+        StateMachine.Send("onDone");
     }
 
     public override void EntryState(HistoryType historyType = HistoryType.None)
@@ -92,6 +113,7 @@ public class ParallelState : RealState
             }
         }
     }
+
     private List<RealState> GetInitialStates(RealState state)
     {
         var initialStates = new List<RealState>();

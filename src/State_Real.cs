@@ -29,7 +29,7 @@ public abstract class RealState : StateBase
     public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
     public string? InitialStateName { get; set; }
-    
+
     public string? ActiveStateName { get; set; }
     public RealState? ActiveState => ActiveStateName != null ? GetState(ActiveStateName!) : null;
 
@@ -56,6 +56,10 @@ public abstract class RealState : StateBase
         EntryState();
     }
 
+    public bool IsDone {set; get; }= false;             // If the state is done, it will not be active anymore.
+
+    public abstract void OnDone();  // for final state
+    
     public abstract void GetActiveSubStateNames(List<string> list);
 
     /// <summary>
@@ -97,6 +101,8 @@ public abstract class RealState : StateBase
     public virtual void EntryState(HistoryType historyType = HistoryType.None)
     {
         StateMachine.Log(">>>- State_Real.EntryState: " + Name);
+
+        IsDone = false;
 
         EntryActions?.ForEach(action => action.Action(StateMachine));
 

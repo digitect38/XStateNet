@@ -430,7 +430,5 @@ namespace SuperComplexStateMachineTests
                 'shutdownComplete': { 'type': 'final' }
             }
         }";
-
-
     }
 }
