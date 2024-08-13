@@ -13,17 +13,20 @@ namespace XStateNet;
 /// </summary>
 public abstract class RealState : StateBase
 {
+    bool onDone = false;
     public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
     public bool IsActive { set; get; }
 
     public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; }
 
-    public AfterTransition? AfterTransition { get; set; } // Added for after transitions
+    public AfterTransition? AfterTransition { get; set; }   // Added for after transitions
     public AlwaysTransition? AlwaysTransition { get; set; } // Added for always transitions
+    public OnDoneTransition? OnDoneTransition { get; set; } // Added for onDone transitions
 
     public List<NamedAction>? EntryActions { get; set; }
     public List<NamedAction>? ExitActions { get; set; }
-    public List<string> SubStateNames { get; set; } // state 의 current sub state 들..
+
+    public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
     public string? InitialStateName { get; set; }
     
@@ -45,6 +48,7 @@ public abstract class RealState : StateBase
         OnTransitionMap = new ConcurrentDictionary<string, List<Transition>>();
         AfterTransition = null;
         AlwaysTransition = null;
+        OnDoneTransition = null;
     }
 
     public virtual void Start()
@@ -259,6 +263,9 @@ public abstract class RealState : StateBase
 
         if (AfterTransition != null)
             transitionList.Add((this, AfterTransition, "after"));
+
+        if (OnDoneTransition != null)
+            transitionList.Add((this, OnDoneTransition, "onDone"));
     }
 
     public abstract void GetTargetSubStateCollection(ICollection<string> collection, HistoryType hist = HistoryType.None);

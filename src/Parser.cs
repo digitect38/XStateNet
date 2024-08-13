@@ -98,6 +98,18 @@ public partial class StateMachine
                 RegisterState(stateBase);
                 break;
 
+            case StateType.Final:
+
+                stateBase = new Parser_FinalState(machineId).Parse(stateName, parentName, stateToken) as FinalState;
+
+                if (stateBase == null)
+                {
+                    throw new Exception("ParallelState is null!");
+                }
+
+                RegisterState(stateBase);
+                break;
+
             default:
                 stateBase = new Parser_NormalState(machineId).Parse(stateName, parentName, stateToken) as NormalState;
 
@@ -434,15 +446,6 @@ public partial class StateMachine
 
     HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;
    
-
-    /*
-    public (List<State> existList, List<State> entryList) GetExitPath(State source, State target)
-    {
-        Stack<State> exitStack = new Stack<State>();
-        StateMachine.
-    }
-    */
-
 }
 
 

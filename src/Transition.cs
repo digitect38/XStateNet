@@ -88,6 +88,10 @@ public class AlwaysTransition : Transition
 {
     public AlwaysTransition(string? machineId) : base(machineId){}
 }
+public class OnDoneTransition : Transition
+{
+    public OnDoneTransition(string? machineId) : base(machineId){}
+}
 
 // Need to understand this code
 internal record struct NewStruct(string? targetName, HistoryType historyType)

@@ -33,7 +33,8 @@ public enum StateType
 {
     Normal,
     Parallel,
-    History
+    History,
+    Final   
 }
 
 public enum HistoryType
