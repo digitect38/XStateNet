@@ -21,7 +21,7 @@ public class FinalState : NormalState
 
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
-        base.EntryState();
+        base.EntryState(historyType);
         Parent?.OnDone();
     }
 

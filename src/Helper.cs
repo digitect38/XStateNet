@@ -18,7 +18,7 @@ public static class Helper
     {
         return string.Join(separator, collection.Select(state => state.Name));
     }
-
+    
     public static string ToCsvString(this IEnumerable<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")
     {
         if (leafOnly)
@@ -26,5 +26,19 @@ public static class Helper
                 ((RealState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
         else
             return string.Join(separator, collection.Select(state => state));
+    }
+    
+    public static string ToCsvString(this ICollection<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")
+    {
+        if (leafOnly)
+            return string.Join(separator, collection.Where(state =>
+                ((RealState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
+        else
+            return string.Join(separator, collection.Select(state => state));
+    }
+
+    public static StateBase ToState(this string stateName, StateMachine stateMachine)
+    {
+        return stateMachine.GetState(stateName);
     }
 }

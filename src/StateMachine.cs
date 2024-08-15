@@ -38,6 +38,8 @@
 // [ ] Implement and prove by unittest self transition 
 // [ ] Implement 'final' keyword processing code
 // [ ] Implement 'onDone' transition
+// [ ] State branch block transition (Parallel by parallel)
+// [ ] Implement single action expression (not an array, embraced using square bracket) for entry, exit, transition
 /////////////////////////////////////////////////////////////////////////
 using System;
 using System.Collections;
@@ -115,7 +117,7 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(string jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null)
+    public static StateMachine CreateFromScript(string? jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null)
     {
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
     }
@@ -189,7 +191,7 @@ public partial class StateMachine
         foreach (var stateName in list)
         {            
             var state = GetState(stateName) as RealState;
-            state.EntryState();
+            state.EntryState(HistoryType.None);
         }      
 #endif   
 
@@ -259,13 +261,13 @@ public partial class StateMachine
         return target_sub.ToList();
     }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="target"></param>
-        /// <returns></returns>
-        public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
     {
         StateMachine.Log(">>> - GetExitEntryList");
 
@@ -295,6 +297,33 @@ public partial class StateMachine
 
         return (source_exit.ToList(), target_entry.ToList());
     }
+    /*
+    public (List<string> exits, List<string> entrys) GetParallelList(string source, string target)
+    {
+
+        var (exits, entrys) = GetExitEntryList(source, target);
+
+        foreach (var exit in exits)
+        {   
+            var exitState = GetState(exit);
+            if (exitState is ParallelState parallelState)
+            {
+                var parExitState = (ParallelState)exitState;
+
+                foreach(var s in parExitState.SubStateNames)
+                {
+                    var source_sub_coll = GetSourceSubStateCollection(exit).Reverse();
+                    
+                    foreach(var s1 in source_sub_coll)
+                    {
+                        var s1s = GetState(s1) as RealState;
+                        s1s?.ExitState();
+                    }
+                }
+            }
+        }
+    }
+    */
 
     /// <summary>
     /// 
@@ -378,23 +407,86 @@ public partial class StateMachine
         return strings.ToCsvString(this, leafOnly, separator);
     }
 
-    public ICollection<string> GetSourceSubStateCollection(string? statePath = null)
+    public ICollection<string> GetSourceSubStateCollection(string? stateName = null, bool singleBranchPath = false)
     {
         RealState? state = null;
 
-        if (statePath == null)
+        if (stateName == null)
         {
             state = RootState;
         }
         else
         {
-            state = GetState(statePath) as RealState;
+            state = GetState(stateName) as RealState;
         }
 
         ICollection<string> list = new List<string>();
-        state?.GetSouceSubStateCollection(list);
+        state?.GetSouceSubStateCollection(list, singleBranchPath);
 
         return list;
+    }
+    //
+    // Transition algorithm
+    //
+    // 1. Find the full exit path to the root state = fullExitPath
+    // 1.1 Find the single path from source to the the leaf level subtate = subExitPath
+    // 1.1.1 If thers are parallel forks select first indexed path. 
+    // 1.2 Find a single path to root state = supExitPath
+    // 1.3 Reverse the super path sequence and then concaternate sub path to it = fullExitPath (topdown)
+    // 2. Find the full entry path from the root path = fullEntryPath
+    // 2.1 Find the single path to the root state from the target path = supEntryPath
+    // 2.2 Find the single path to the leaf level state  = subEntryPath
+    // 2.2.1 If thers are parallel forks select first indexed path. 
+    // 2.3 Reverse super entry path and concaternate subEntryPath as reversed =  fullEntryPath
+    // 3. Find the actual exit path by exclude operation (fullExitPath except fullEntryPath) = actualExitPath
+    // 3.1 Revisit exit path along actualExitPath here if meet parallel fork,
+    // 
+
+    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionPath(string? srcStateName, string tgtStateName)
+    {
+        StateMachine.Log(">>> - GetFullTransitionPath");
+                
+        //1.
+        var subExitPath = GetSourceSubStateCollection(srcStateName, true);
+        StateMachine.Log($">>> -- subExitPath: {subExitPath.ToCsvString(this, false, " -> ")}");
+
+        var supExitPath = GetSuperStateCollection(srcStateName);
+        StateMachine.Log($">>> -- supExitPath: {supExitPath.ToCsvString(this, false, " -> ")}");
+
+        var fullExitPath = supExitPath.Reverse().Concat(subExitPath);
+        StateMachine.Log($">>> -- fullExitPath: {fullExitPath.ToCsvString(this, false, " -> ")}");
+
+        //2.
+        var supEntryPath = GetSuperStateCollection(tgtStateName);
+        StateMachine.Log($">>> -- supEntryPath: {supEntryPath.ToCsvString(this, false, " -> ")}");
+        
+        var subEntryPath = GetTargetSubStateCollection(tgtStateName, true);
+        StateMachine.Log($">>> -- subEntryPath: {subEntryPath.ToCsvString(this, false, " -> ")}");
+
+        var fullEntryPath = supEntryPath.Reverse().Concat(subEntryPath);
+        StateMachine.Log($">>> -- fullEntryPath: {fullEntryPath.ToCsvString(this, false, " -> ")}");
+
+
+        // 3.
+        var actualExitPath = fullExitPath.Except(fullEntryPath);    // top down
+        StateMachine.Log($">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
+
+        var actualEntryPath = fullEntryPath.Except(fullExitPath);   // top down
+        StateMachine.Log($">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
+
+        return (actualExitPath.ToList(), actualEntryPath.ToList());
+    }
+
+    public void TransitUp(RealState? topExitState)
+    {
+        if(topExitState != null)
+            topExitState.ExitState(postAction: true, recursive: true);
+    }
+
+    public void TransitDown(RealState? topEntryState)
+    {
+        if (topEntryState != null)
+            topEntryState.EntryState(postAction: false, recursive: true);
     }
 
     /// <summary>
@@ -406,7 +498,7 @@ public partial class StateMachine
     /// <param name="statePath"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public ICollection<string> GetTargetSubStateCollection(string? statePath)
+    public ICollection<string> GetTargetSubStateCollection(string? statePath, bool singleBranchPath = false)
     {
         RealState? state = null;
 
@@ -416,7 +508,7 @@ public partial class StateMachine
         {
             state = realState;
 
-            state?.GetTargetSubStateCollection(list);
+            state?.GetTargetSubStateCollection(list, singleBranchPath);
         }
         else if (GetState(statePath) is HistoryState historyState) 
         {
@@ -424,7 +516,7 @@ public partial class StateMachine
             {
                 state = ((NormalState)historyState.Parent).LastActiveState;
 
-                state?.GetTargetSubStateCollection(list, historyState.HistoryType);
+                state?.GetTargetSubStateCollection(list, singleBranchPath, historyState.HistoryType);
             }
             else
             {
@@ -447,7 +539,7 @@ public partial class StateMachine
     /// <param name="statePath"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public ICollection<string> GetSuperStateCollection(string statePath)
+    public ICollection<string> GetSuperStateCollection(string? statePath)
     {
         RealState? state = null;
 

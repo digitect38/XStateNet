@@ -11,7 +11,7 @@ public class NormalState : RealState
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
 
     public string? LastActiveStateName { set; get; }
-    
+
     public NormalState? LastActiveState
     {
         get
@@ -35,7 +35,7 @@ public class NormalState : RealState
     public NormalState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -59,7 +59,7 @@ public class NormalState : RealState
         // Evaluation should be top-down direction
 
         // parent first
-        base.BuildTransitionList(eventName, transitionList);    
+        base.BuildTransitionList(eventName, transitionList);
 
         // children next
         if (ActiveStateName != null)
@@ -74,13 +74,14 @@ public class NormalState : RealState
         Parent?.OnDone();
     }
 
+    #region regacy transition
     /// <summary>
     /// 
     /// </summary>
     /// <param name="historyType"></param>
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
-        base.EntryState(historyType);                
+        base.EntryState(historyType);
     }
 
     /// <summary>
@@ -89,7 +90,7 @@ public class NormalState : RealState
     public override void ExitState()
     {
         StateMachine.Log(">>>- State_Normal.ExitState: " + Name);
-        
+
         if (Parent is NormalState)
         {
             ((NormalState)Parent).LastActiveStateName = Name;   // Record always for deep history case
@@ -97,6 +98,76 @@ public class NormalState : RealState
 
         base.ExitState();
     }
+    #endregion
+
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="postAction"></param>
+    /// <param name="recursive"></param>
+    /// <param name="historyType"></param>
+    /// <returns></returns>
+    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None)
+    {
+        if (postAction)
+        {
+            if (recursive && InitialStateName != null)
+            {
+                GetState(InitialStateName)?.EntryState(postAction, recursive, historyType);
+            }
+            base.EntryState(postAction, recursive);
+        }
+        else // pre action
+        {
+            base.EntryState(postAction, recursive);
+
+            if (recursive && InitialStateName != null)
+            {
+                GetState(InitialStateName)?.EntryState(postAction, recursive, historyType);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="postAction">action while return the method</param>
+    /// <param name="recursive">recursion to sub states</param>
+
+    public override Task ExitState(bool postAction = true, bool recursive = false)
+    {
+        //StateMachine.Log($">>>- {Name}.OnExit()");
+
+        if (Parent is NormalState)
+        {
+            ((NormalState)Parent).LastActiveStateName = Name;   // Record always for deep history case
+        }
+
+        if (postAction)
+        {
+            if (recursive && ActiveStateName != null)
+            {
+                GetState(ActiveStateName)?.ExitState(postAction, recursive);
+            }
+            base.ExitState(postAction, recursive);
+        }
+        else // pre action
+        {
+            base.ExitState(postAction, recursive);
+
+            if (recursive && ActiveStateName != null)
+            {
+                GetState(ActiveStateName)?.ExitState(postAction, recursive);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+
 
     /// <summary>
     /// 
@@ -109,8 +180,8 @@ public class NormalState : RealState
         //Debug.Assert(IsActive);
 
         if (ActiveStateName == null) return;
-        
-        
+
+
         var subState = GetState(ActiveStateName);
 
         if (subState != null)
@@ -123,7 +194,7 @@ public class NormalState : RealState
     /// <param name="list"></param>
     public override void GetActiveSubStateNames(List<string> list)
     {
-       // Debug.Assert(IsActive);
+        // Debug.Assert(IsActive);
 
         if (ActiveStateName == null) return;
 
@@ -139,12 +210,12 @@ public class NormalState : RealState
     /// 
     /// </summary>
     /// <param name="collection"></param>
-    public override void GetSouceSubStateCollection(ICollection<string> collection)
+    public override void GetSouceSubStateCollection(ICollection<string> collection, bool singleBrancePath = false)
     {
         if (ActiveStateName != null)
         {
             collection.Add(ActiveStateName);
-            ActiveState?.GetSouceSubStateCollection(collection);
+            ActiveState?.GetSouceSubStateCollection(collection, singleBrancePath);
         }
     }
 
@@ -153,7 +224,7 @@ public class NormalState : RealState
     /// </summary>
     /// <param name="collection"></param>
     /// <param name="historyType"></param>
-    public override void GetTargetSubStateCollection(ICollection<string> collection, HistoryType historyType = HistoryType.None)
+    public override void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType historyType = HistoryType.None)
     {
 
         string? targetStateName = null;
@@ -178,16 +249,16 @@ public class NormalState : RealState
 
         if (historyType == HistoryType.Deep)
         {
-            state?.GetTargetSubStateCollection(collection, historyType);
+            state?.GetTargetSubStateCollection(collection, singleBranchPath, historyType);
         }
         else
         {
-            state?.GetTargetSubStateCollection(collection, HistoryType.None);
+            state?.GetTargetSubStateCollection(collection, singleBranchPath, HistoryType.None);
         }
 
     }
 }
-
+ 
 /// <summary>
 /// 
 /// </summary>

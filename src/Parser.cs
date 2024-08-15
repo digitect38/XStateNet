@@ -11,7 +11,7 @@ using GuardMap = ConcurrentDictionary<string, NamedGuard>;
 
 public partial class StateMachine
 {
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
@@ -50,15 +50,16 @@ public partial class StateMachine
 
         return stateMachine;
     }
-    public static StateMachine ParseStateMachine(string jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
+    public static StateMachine ParseStateMachine(string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
     {
         var stateMachine = new StateMachine() { };
         return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks);
     }
 
-    private static string ConvertToQuotedKeys(string json)
+    private static string ConvertToQuotedKeys(string? json)
     {
         var regex = new Regex(@"(?<!\\)(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*:");
+        if (json == null) throw new Exception("Invalid JSON script!");
         var result = regex.Replace(json, "\"$1\":");
         return result;
     }

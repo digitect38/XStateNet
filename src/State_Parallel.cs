@@ -1,4 +1,6 @@
 using Newtonsoft.Json.Linq;
+using System.Collections.Concurrent;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace XStateNet;
 
 
@@ -57,7 +59,9 @@ public class ParallelState : RealState
 
     public override void EntryState(HistoryType historyType = HistoryType.None)
     {
-        base.EntryState();
+        StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
+
+        base.EntryState(historyType);
 
         SubStateNames.AsParallel().ForAll(
             subStateName =>
@@ -68,12 +72,115 @@ public class ParallelState : RealState
             }
         );
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+
     public override void ExitState()
     {
+
+        StateMachine.Log(">>>- State_Parallel.ExitState: " + Name);
 
         foreach (string subStateName in SubStateNames)
         {
             GetState(subStateName)?.ExitState();
+        }
+    }
+
+    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None)
+    {
+        //StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
+
+        if (postAction)
+        {
+            if (recursive && SubStateNames != null)
+            {
+                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                Parallel.ForEach(SubStateNames, subStateName =>
+                {
+                    if (StateMachine == null) throw new Exception("StateMachine is null");
+                    var subState = StateMachine.GetState(subStateName) as RealState;
+                    var task = subState?.EntryState(postAction, recursive, historyType);
+                    if (task != null)
+                    {
+                        tasks.Add(task);
+                    }
+                });
+                await Task.WhenAll(tasks);
+            }
+
+            await base.EntryState(postAction, recursive, historyType);
+        }
+        else
+        {
+            await base.EntryState(postAction, recursive, historyType);
+
+            if (recursive && SubStateNames != null)
+            {
+                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                Parallel.ForEach(SubStateNames, subStateName =>
+                {
+                    if (StateMachine == null) throw new Exception("StateMachine is null");
+                    var subState = StateMachine.GetState(subStateName) as RealState;
+                    var task = subState?.EntryState(postAction, recursive, historyType);
+                    if (task != null)
+                    {
+                        tasks.Add(task);
+                    }
+                });
+                await Task.WhenAll(tasks);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="postAction">action while return the method</param>
+    /// <param name="recursive">recursion to sub states</param>
+
+    public override async Task ExitState(bool postAction = true, bool recursive = false)
+    {
+        if (postAction)
+        {
+            if (recursive && SubStateNames != null)
+            {
+
+                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                Parallel.ForEach(SubStateNames, subStateName =>
+                {
+                    var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                    if (task != null)
+                    {
+                        tasks.Add(task);
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            }
+
+            await base.ExitState(postAction, recursive);
+        }
+        else // pre action
+        {
+            await base.ExitState(postAction, recursive);
+
+            if (recursive && SubStateNames != null)
+            {
+
+                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                Parallel.ForEach(SubStateNames, subStateName =>
+                {
+                    var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                    if (task != null)
+                    {
+                        tasks.Add(task);
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            }
         }
     }
 
@@ -92,26 +199,51 @@ public class ParallelState : RealState
         }
     }
 
-    public override void GetSouceSubStateCollection(ICollection<string> collection)
+    public override void GetSouceSubStateCollection(ICollection<string> collection, bool singleBrancePath = false)
     {
-        foreach (string subState in SubStateNames)
+        if (singleBrancePath) 
         {
+            string subState = SubStateNames[0];
             collection.Add(subState);
-            GetState(subState)?.GetSouceSubStateCollection(collection);
+            GetState(subState)?.GetSouceSubStateCollection(collection, singleBrancePath);
+        }
+        else
+        {
+            foreach (string subState in SubStateNames)
+            {
+                collection.Add(subState);
+                GetState(subState)?.GetSouceSubStateCollection(collection, singleBrancePath);
+            }
         }
     }
 
-    public override void GetTargetSubStateCollection(ICollection<string> collection, HistoryType hist = HistoryType.None)
+    public override void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType hist = HistoryType.None)
     {
+        if(singleBranchPath && SubStateNames.Count > 0)
+        {
+            string subState = SubStateNames[0];
+            collection.Add(subState);
+            GetState(subState)?.GetTargetSubStateCollection(collection, singleBranchPath);
+        }
+        else
+        {
+            foreach (string subState in SubStateNames)
+            {
+                collection.Add(subState);
+                GetState(subState)?.GetTargetSubStateCollection(collection, singleBranchPath);
+            }
+        }
+        /*
         foreach (string subStateName in SubStateNames)
         {
             var state = GetState(subStateName);
             if (state != null)
             {
                 collection.Add(subStateName);
-                GetState(subStateName)?.GetTargetSubStateCollection(collection);
+                GetState(subStateName)?.GetTargetSubStateCollection(collection, singleBranchPath);
             }
         }
+        */
     }
 
     private List<RealState> GetInitialStates(RealState state)
