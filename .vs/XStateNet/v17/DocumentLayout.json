@@ -3,12 +3,8 @@
   "WorkspaceRootPath": "C:\\Users\\digit\\source\\repos\\XStateNet2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_final.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_final.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_parallel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -23,12 +19,16 @@
       "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_normal.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|solutionrelative:app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_final.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_final.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|solutionrelative:app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\types.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -65,7 +65,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 27,
+          "SelectedChildIndex": 19,
           "Children": [
             {
               "$type": "Bookmark",
@@ -125,32 +125,6 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "Types.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Types.cs",
-              "RelativeDocumentMoniker": "src\\Types.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Types.cs",
-              "RelativeToolTip": "src\\Types.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAcAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-15T11:46:49.434Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "Helper.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Helper.cs",
-              "RelativeDocumentMoniker": "src\\Helper.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Helper.cs",
-              "RelativeToolTip": "src\\Helper.cs",
-              "ViewState": "AQIAABIAAAAAAAAAAADgvycAAAAcAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-15T02:49:50.096Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 10,
               "Title": "JsonSerializerInternalReader.cs",
               "DocumentMoniker": "C:\\Users\\digit\\AppData\\Local\\SourceServer\\e184d7dbf5e7334a5ec3309975e1cabd867aaa6494b3e60328eb474fc8d9775f\\Src\\Newtonsoft.Json\\Serialization\\JsonSerializerInternalReader.cs",
@@ -177,13 +151,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "Program.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\app\\ForestOfParallel\\Program.cs",
               "RelativeDocumentMoniker": "app\\ForestOfParallel\\Program.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\app\\ForestOfParallel\\Program.cs",
               "RelativeToolTip": "app\\ForestOfParallel\\Program.cs",
-              "ViewState": "AQIAAAYAAAAAAAAAAAAAACEAAAAeAAAA",
+              "ViewState": "AQIAACkCAAAAAAAAAAAAAFQCAABFAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-15T01:34:52.235Z",
               "EditorCaption": ""
@@ -203,39 +177,39 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 5,
               "Title": "State_History.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_History.cs",
               "RelativeDocumentMoniker": "src\\State_History.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_History.cs",
               "RelativeToolTip": "src\\State_History.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAMAAAAVAAAA",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABMAAAAtAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-13T15:20:18.287Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 0,
               "Title": "State_Final.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Final.cs",
               "RelativeDocumentMoniker": "src\\State_Final.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Final.cs",
               "RelativeToolTip": "src\\State_Final.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAQwBcAAAANAAAA",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-13T13:54:45.414Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "State_Parallel.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Parallel.cs",
               "RelativeDocumentMoniker": "src\\State_Parallel.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Parallel.cs",
               "RelativeToolTip": "src\\State_Parallel.cs",
-              "ViewState": "AQIAAF8AAAAAAAAAAAApwG8AAAAAAAAA",
+              "ViewState": "AQIAAC8AAAAAAAAAAAApwDoAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-13T13:51:05.083Z",
               "EditorCaption": ""
@@ -254,26 +228,26 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 2,
               "Title": "State_Real.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Real.cs",
               "RelativeDocumentMoniker": "src\\State_Real.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Real.cs",
               "RelativeToolTip": "src\\State_Real.cs",
-              "ViewState": "AQIAAGoAAAAAAAAAAAApwIEAAAAYAAAA",
+              "ViewState": "AQIAAE4AAAAAAAAAAAAAAFAAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-11T14:55:38.29Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 3,
               "Title": "State_Normal.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Normal.cs",
               "RelativeDocumentMoniker": "src\\State_Normal.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Normal.cs",
               "RelativeToolTip": "src\\State_Normal.cs",
-              "ViewState": "AQIAAHQAAAAAAAAAAAApwIQAAAAAAAAA",
+              "ViewState": "AQIAADgAAAAAAAAAAAAAAEsAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-11T14:55:22.606Z",
               "EditorCaption": ""
@@ -293,15 +267,41 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 4,
               "Title": "StateMachine.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
               "RelativeDocumentMoniker": "src\\StateMachine.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
               "RelativeToolTip": "src\\StateMachine.cs",
-              "ViewState": "AQIAAOoBAAAAAAAAAAAIwP4BAABHAAAA",
+              "ViewState": "AQIAAKgAAAAAAAAAAAApwL8AAAAVAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-11T09:16:44.863Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Helper.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Helper.cs",
+              "RelativeDocumentMoniker": "src\\Helper.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Helper.cs",
+              "RelativeToolTip": "src\\Helper.cs",
+              "ViewState": "AQIAABIAAAAAAAAAAADgvycAAAAcAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-15T02:49:50.096Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Types.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Types.cs",
+              "RelativeDocumentMoniker": "src\\Types.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\Types.cs",
+              "RelativeToolTip": "src\\Types.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAcAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-15T11:46:49.434Z",
               "EditorCaption": ""
             }
           ]

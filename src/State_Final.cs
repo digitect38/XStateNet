@@ -19,15 +19,19 @@ public class FinalState : NormalState
         base.BuildTransitionList(eventName, transitionList);
     }
 
-    public override void EntryState(HistoryType historyType = HistoryType.None)
+    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
-        base.EntryState(historyType);
+        base.EntryState(postAction, recursive, historyType, targetHistoryState);  
         Parent?.OnDone();
+        
+        return Task.CompletedTask;
     }
 
-    public override void ExitState()
+    public virtual Task ExitState(bool postAction = true, bool recursive = false)
     {
-        base.ExitState();
+        base.ExitState(postAction, recursive);
+
+        return Task.CompletedTask;
     }
 
     public override void GetActiveSubStateNames(List<string> list)

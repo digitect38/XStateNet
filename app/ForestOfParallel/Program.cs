@@ -11,11 +11,11 @@ class Program
         var stateMachine = StateMachine.CreateFromScript(jsonScript, _actions).Start();
         Log("==========================================================================");
 
-        var path1 = stateMachine.GetFullTransitionPath("#S.S1", "#S.S2");
+        var path1 = stateMachine.GetFullTransitionSinglePath("#S.S1", "#S.S2");
         var exitPathCsv1 = path1.exitSinglePath.ToCsvString(stateMachine);
         var entryPathCsv1 = path1.entrySinglePath.ToCsvString(stateMachine);
 
-        var path2 = stateMachine.GetFullTransitionPath("#S.S1.S11.S111.S1111", "#S.S2.S21.S211.S2111");
+        var path2 = stateMachine.GetFullTransitionSinglePath("#S.S1.S11.S111.S1111", "#S.S2.S21.S211.S2111");
         var exitPathCsv2 = path2.exitSinglePath.ToCsvString(stateMachine);
         var entryPathCsv2 = path2.entrySinglePath.ToCsvString(stateMachine);
 
@@ -44,191 +44,191 @@ class Program
 
     static ConcurrentDictionary<string, List<NamedAction>>? _actions = new()
     {
-        ["EnterS1"] = new List<NamedAction> { new NamedAction("EnterS1", (sm) => Log("Entering S1")) },
-        ["ExitS1"] = new List<NamedAction> { new NamedAction("ExitS1", (sm) => Log("Exiting S1")) },
+        ["EnterS1"] = new List<NamedAction> { new NamedAction("EnterS1", (sm) => Log("ENT S1")) },
+        ["ExitS1"] = new List<NamedAction> { new NamedAction("ExitS1", (sm) => Log("EXT S1")) },
 
-            ["EnterS11"] = new List<NamedAction> { new NamedAction("EnterS11", (sm) => Log("Entering S11")) },
-            ["ExitS11"] = new List<NamedAction> { new NamedAction("ExitS11", (sm) => Log("Exiting S11")) },
+            ["EnterS11"] = new List<NamedAction> { new NamedAction("EnterS11", (sm) => Log("ENT S11")) },
+            ["ExitS11"] = new List<NamedAction> { new NamedAction("ExitS11", (sm) => Log("EXT S11")) },
 
-                ["EnterS111"] = new List<NamedAction> { new NamedAction("EnterS111", (sm) => Log("Entering S111")) },
-                ["ExitS111"] = new List<NamedAction> { new NamedAction("ExitS111", (sm) => Log("Exiting S111")) },
+                ["EnterS111"] = new List<NamedAction> { new NamedAction("EnterS111", (sm) => Log("ENT S111")) },
+                ["ExitS111"] = new List<NamedAction> { new NamedAction("ExitS111", (sm) => Log("EXT S111")) },
 
-                    ["EnterS1111"] = new List<NamedAction> { new NamedAction("EnterS1111", (sm) => Log("Entering S1111")) },
-                    ["ExitS1111"] = new List<NamedAction> { new NamedAction("ExitS1111", (sm) => Log("Exiting S1111")) },
+                    ["EnterS1111"] = new List<NamedAction> { new NamedAction("EnterS1111", (sm) => Log("ENT S1111")) },
+                    ["ExitS1111"] = new List<NamedAction> { new NamedAction("ExitS1111", (sm) => Log("EXT S1111")) },
 
-                        ["EnterS11111"] = new List<NamedAction> { new NamedAction("EnterS11111", (sm) => Log("Entering S11111")) },
-                        ["ExitS11111"] = new List<NamedAction> { new NamedAction("ExitS11111", (sm) => Log("Exiting S11111")) },
+                        ["EnterS11111"] = new List<NamedAction> { new NamedAction("EnterS11111", (sm) => Log("ENT S11111")) },
+                        ["ExitS11111"] = new List<NamedAction> { new NamedAction("ExitS11111", (sm) => Log("EXT S11111")) },
 
-                        ["EnterS11112"] = new List<NamedAction> { new NamedAction("EnterS11112", (sm) => Log("Entering S11112")) },
-                        ["ExitS11112"] = new List<NamedAction> { new NamedAction("ExitS11112", (sm) => Log("Exiting S11112")) },
+                        ["EnterS11112"] = new List<NamedAction> { new NamedAction("EnterS11112", (sm) => Log("ENT S11112")) },
+                        ["ExitS11112"] = new List<NamedAction> { new NamedAction("ExitS11112", (sm) => Log("EXT S11112")) },
 
-                    ["EnterS1112"] = new List<NamedAction> { new NamedAction("EnterS1112", (sm) => Log("Entering S1112")) },
-                    ["ExitS1112"] = new List<NamedAction> { new NamedAction("ExitS1112", (sm) => Log("Exiting S1112")) },
+                    ["EnterS1112"] = new List<NamedAction> { new NamedAction("EnterS1112", (sm) => Log("ENT S1112")) },
+                    ["ExitS1112"] = new List<NamedAction> { new NamedAction("ExitS1112", (sm) => Log("EXT S1112")) },
 
-                        ["EnterS11121"] = new List<NamedAction> { new NamedAction("EnterS11121", (sm) => Log("Entering S11121")) },
-                        ["ExitS11121"] = new List<NamedAction> { new NamedAction("ExitS11121", (sm) => Log("Exiting S11121")) },
+                        ["EnterS11121"] = new List<NamedAction> { new NamedAction("EnterS11121", (sm) => Log("ENT S11121")) },
+                        ["ExitS11121"] = new List<NamedAction> { new NamedAction("ExitS11121", (sm) => Log("EXT S11121")) },
 
-                        ["EnterS11122"] = new List<NamedAction> { new NamedAction("EnterS11122", (sm) => Log("Entering S11122")) },
-                        ["ExitS11122"] = new List<NamedAction> { new NamedAction("ExitS11122", (sm) => Log("Exiting S11122")) },
+                        ["EnterS11122"] = new List<NamedAction> { new NamedAction("EnterS11122", (sm) => Log("ENT S11122")) },
+                        ["ExitS11122"] = new List<NamedAction> { new NamedAction("ExitS11122", (sm) => Log("EXT S11122")) },
 
-                ["EnterS112"] = new List<NamedAction> { new NamedAction("EnterS112", (sm) => Log("Entering S112")) },
-                ["ExitS112"] = new List<NamedAction> { new NamedAction("ExitS112", (sm) => Log("Exiting S112")) },
+                ["EnterS112"] = new List<NamedAction> { new NamedAction("EnterS112", (sm) => Log("ENT S112")) },
+                ["ExitS112"] = new List<NamedAction> { new NamedAction("ExitS112", (sm) => Log("EXT S112")) },
 
-                    ["EnterS1121"] = new List<NamedAction> { new NamedAction("EnterS1121", (sm) => Log("Entering S1121")) },
-                    ["ExitS1121"] = new List<NamedAction> { new NamedAction("ExitS1121", (sm) => Log("Exiting S1121")) },
+                    ["EnterS1121"] = new List<NamedAction> { new NamedAction("EnterS1121", (sm) => Log("ENT S1121")) },
+                    ["ExitS1121"] = new List<NamedAction> { new NamedAction("ExitS1121", (sm) => Log("EXT S1121")) },
 
-                        ["EnterS11211"] = new List<NamedAction> { new NamedAction("EnterS11211", (sm) => Log("Entering S11211")) },
-                        ["ExitS11211"] = new List<NamedAction> { new NamedAction("ExitS11211", (sm) => Log("Exiting S11211")) },
+                        ["EnterS11211"] = new List<NamedAction> { new NamedAction("EnterS11211", (sm) => Log("ENT S11211")) },
+                        ["ExitS11211"] = new List<NamedAction> { new NamedAction("ExitS11211", (sm) => Log("EXT S11211")) },
 
-                        ["EnterS11212"] = new List<NamedAction> { new NamedAction("EnterS11212", (sm) => Log("Entering S11212")) },
-                        ["ExitS11212"] = new List<NamedAction> { new NamedAction("ExitS11212", (sm) => Log("Exiting S11212")) },
+                        ["EnterS11212"] = new List<NamedAction> { new NamedAction("EnterS11212", (sm) => Log("ENT S11212")) },
+                        ["ExitS11212"] = new List<NamedAction> { new NamedAction("ExitS11212", (sm) => Log("EXT S11212")) },
 
-                    ["EnterS1122"] = new List<NamedAction> { new NamedAction("EnterS1122", (sm) => Log("Entering S1122")) },
-                    ["ExitS1122"] = new List<NamedAction> { new NamedAction("ExitS1122", (sm) => Log("Exiting S1122")) },
+                    ["EnterS1122"] = new List<NamedAction> { new NamedAction("EnterS1122", (sm) => Log("ENT S1122")) },
+                    ["ExitS1122"] = new List<NamedAction> { new NamedAction("ExitS1122", (sm) => Log("EXT S1122")) },
 
-                        ["EnterS11221"] = new List<NamedAction> { new NamedAction("EnterS11221", (sm) => Log("Entering S11221")) },
-                        ["ExitS11221"] = new List<NamedAction> { new NamedAction("ExitS11221", (sm) => Log("Exiting S11221")) },
+                        ["EnterS11221"] = new List<NamedAction> { new NamedAction("EnterS11221", (sm) => Log("ENT S11221")) },
+                        ["ExitS11221"] = new List<NamedAction> { new NamedAction("ExitS11221", (sm) => Log("EXT S11221")) },
 
-                        ["EnterS11222"] = new List<NamedAction> { new NamedAction("EnterS11222", (sm) => Log("Entering S11222")) },
-                        ["ExitS11222"] = new List<NamedAction> { new NamedAction("ExitS11222", (sm) => Log("Exiting S11222")) },
+                        ["EnterS11222"] = new List<NamedAction> { new NamedAction("EnterS11222", (sm) => Log("ENT S11222")) },
+                        ["ExitS11222"] = new List<NamedAction> { new NamedAction("ExitS11222", (sm) => Log("EXT S11222")) },
 
-            ["EnterS12"] = new List<NamedAction> { new NamedAction("EnterS12", (sm) => Log("Entering S12")) },
-            ["ExitS12"] = new List<NamedAction> { new NamedAction("ExitS12", (sm) => Log("Exiting S12")) },
+            ["EnterS12"] = new List<NamedAction> { new NamedAction("EnterS12", (sm) => Log("ENT S12")) },
+            ["ExitS12"] = new List<NamedAction> { new NamedAction("ExitS12", (sm) => Log("EXT S12")) },
 
-                ["EnterS121"] = new List<NamedAction> { new NamedAction("EnterS121", (sm) => Log("Entering S121")) },
-                ["ExitS121"] = new List<NamedAction> { new NamedAction("ExitS121", (sm) => Log("Exiting S121")) },
+                ["EnterS121"] = new List<NamedAction> { new NamedAction("EnterS121", (sm) => Log("ENT S121")) },
+                ["ExitS121"] = new List<NamedAction> { new NamedAction("ExitS121", (sm) => Log("EXT S121")) },
 
-                    ["EnterS1211"] = new List<NamedAction> { new NamedAction("EnterS1211", (sm) => Log("Entering S1211")) },
-                    ["ExitS1211"] = new List<NamedAction> { new NamedAction("ExitS1211", (sm) => Log("Exiting S1211")) },
+                    ["EnterS1211"] = new List<NamedAction> { new NamedAction("EnterS1211", (sm) => Log("ENT S1211")) },
+                    ["ExitS1211"] = new List<NamedAction> { new NamedAction("ExitS1211", (sm) => Log("EXT S1211")) },
 
-                        ["EnterS12111"] = new List<NamedAction> { new NamedAction("EnterS12111", (sm) => Log("Entering S12111")) },
-                        ["ExitS12111"] = new List<NamedAction> { new NamedAction("ExitS12111", (sm) => Log("Exiting S12111")) },
+                        ["EnterS12111"] = new List<NamedAction> { new NamedAction("EnterS12111", (sm) => Log("ENT S12111")) },
+                        ["ExitS12111"] = new List<NamedAction> { new NamedAction("ExitS12111", (sm) => Log("EXT S12111")) },
 
-                        ["EnterS12112"] = new List<NamedAction> { new NamedAction("EnterS12112", (sm) => Log("Entering S12112")) },
-                        ["ExitS12112"] = new List<NamedAction> { new NamedAction("ExitS12112", (sm) => Log("Exiting S12112")) },
+                        ["EnterS12112"] = new List<NamedAction> { new NamedAction("EnterS12112", (sm) => Log("ENT S12112")) },
+                        ["ExitS12112"] = new List<NamedAction> { new NamedAction("ExitS12112", (sm) => Log("EXT S12112")) },
 
-                    ["EnterS1212"] = new List<NamedAction> { new NamedAction("EnterS1212", (sm) => Log("Entering S1212")) },
-                    ["ExitS1212"] = new List<NamedAction> { new NamedAction("ExitS1212", (sm) => Log("Exiting S1212")) },
+                    ["EnterS1212"] = new List<NamedAction> { new NamedAction("EnterS1212", (sm) => Log("ENT S1212")) },
+                    ["ExitS1212"] = new List<NamedAction> { new NamedAction("ExitS1212", (sm) => Log("EXT S1212")) },
 
-                        ["EnterS12121"] = new List<NamedAction> { new NamedAction("EnterS12121", (sm) => Log("Entering S12121")) },
-                        ["ExitS12121"] = new List<NamedAction> { new NamedAction("ExitS12121", (sm) => Log("Exiting S12121")) },
+                        ["EnterS12121"] = new List<NamedAction> { new NamedAction("EnterS12121", (sm) => Log("ENT S12121")) },
+                        ["ExitS12121"] = new List<NamedAction> { new NamedAction("ExitS12121", (sm) => Log("EXT S12121")) },
 
-                        ["EnterS12122"] = new List<NamedAction> { new NamedAction("EnterS12122", (sm) => Log("Entering S12122")) },
-                        ["ExitS12122"] = new List<NamedAction> { new NamedAction("ExitS12122", (sm) => Log("Exiting S12122")) },
+                        ["EnterS12122"] = new List<NamedAction> { new NamedAction("EnterS12122", (sm) => Log("ENT S12122")) },
+                        ["ExitS12122"] = new List<NamedAction> { new NamedAction("ExitS12122", (sm) => Log("EXT S12122")) },
 
-                ["EnterS122"] = new List<NamedAction> { new NamedAction("EnterS122", (sm) => Log("Entering S122")) },
-                ["ExitS122"] = new List<NamedAction> { new NamedAction("ExitS122", (sm) => Log("Exiting S122")) },
+                ["EnterS122"] = new List<NamedAction> { new NamedAction("EnterS122", (sm) => Log("ENT S122")) },
+                ["ExitS122"] = new List<NamedAction> { new NamedAction("ExitS122", (sm) => Log("EXT S122")) },
 
-                    ["EnterS1221"] = new List<NamedAction> { new NamedAction("EnterS1221", (sm) => Log("Entering S1221")) },
-                    ["ExitS1221"] = new List<NamedAction> { new NamedAction("ExitS1221", (sm) => Log("Exiting S1221")) },
+                    ["EnterS1221"] = new List<NamedAction> { new NamedAction("EnterS1221", (sm) => Log("ENT S1221")) },
+                    ["ExitS1221"] = new List<NamedAction> { new NamedAction("ExitS1221", (sm) => Log("EXT S1221")) },
 
-                        ["EnterS12211"] = new List<NamedAction> { new NamedAction("EnterS12211", (sm) => Log("Entering S12211")) },
-                        ["ExitS12211"] = new List<NamedAction> { new NamedAction("ExitS12211", (sm) => Log("Exiting S12211")) },
+                        ["EnterS12211"] = new List<NamedAction> { new NamedAction("EnterS12211", (sm) => Log("ENT S12211")) },
+                        ["ExitS12211"] = new List<NamedAction> { new NamedAction("ExitS12211", (sm) => Log("EXT S12211")) },
 
-                        ["EnterS12212"] = new List<NamedAction> { new NamedAction("EnterS12212", (sm) => Log("Entering S12212")) },
-                        ["ExitS12212"] = new List<NamedAction> { new NamedAction("ExitS12212", (sm) => Log("Exiting S12212")) },
+                        ["EnterS12212"] = new List<NamedAction> { new NamedAction("EnterS12212", (sm) => Log("ENT S12212")) },
+                        ["ExitS12212"] = new List<NamedAction> { new NamedAction("ExitS12212", (sm) => Log("EXT S12212")) },
 
-                    ["EnterS1222"] = new List<NamedAction> { new NamedAction("EnterS1222", (sm) => Log("Entering S1222")) },
-                    ["ExitS1222"] = new List<NamedAction> { new NamedAction("ExitS1222", (sm) => Log("Exiting S1222")) },
+                    ["EnterS1222"] = new List<NamedAction> { new NamedAction("EnterS1222", (sm) => Log("ENT S1222")) },
+                    ["ExitS1222"] = new List<NamedAction> { new NamedAction("ExitS1222", (sm) => Log("EXT S1222")) },
 
-                        ["EnterS12221"] = new List<NamedAction> { new NamedAction("EnterS12221", (sm) => Log("Entering S12221")) },
-                        ["ExitS12221"] = new List<NamedAction> { new NamedAction("ExitS12221", (sm) => Log("Exiting S12221")) },
+                        ["EnterS12221"] = new List<NamedAction> { new NamedAction("EnterS12221", (sm) => Log("ENT S12221")) },
+                        ["ExitS12221"] = new List<NamedAction> { new NamedAction("ExitS12221", (sm) => Log("EXT S12221")) },
 
-                        ["EnterS12222"] = new List<NamedAction> { new NamedAction("EnterS12222", (sm) => Log("Entering S12222")) },
-                        ["ExitS12222"] = new List<NamedAction> { new NamedAction("ExitS12222", (sm) => Log("Exiting S12222")) },
+                        ["EnterS12222"] = new List<NamedAction> { new NamedAction("EnterS12222", (sm) => Log("ENT S12222")) },
+                        ["ExitS12222"] = new List<NamedAction> { new NamedAction("ExitS12222", (sm) => Log("EXT S12222")) },
 
-        ["EnterS2"] = new List<NamedAction> { new NamedAction("EnterS2", (sm) => Log("Entering S2")) },
-        ["ExitS2"] = new List<NamedAction> { new NamedAction("ExitS2", (sm) => Log("Exiting S2")) },
+        ["EnterS2"] = new List<NamedAction> { new NamedAction("EnterS2", (sm) => Log("ENT S2")) },
+        ["ExitS2"] = new List<NamedAction> { new NamedAction("ExitS2", (sm) => Log("EXT S2")) },
 
-            ["EnterS21"] = new List<NamedAction> { new NamedAction("EnterS21", (sm) => Log("Entering S21")) },
-            ["ExitS21"] = new List<NamedAction> { new NamedAction("ExitS21", (sm) => Log("Exiting S21")) },
+            ["EnterS21"] = new List<NamedAction> { new NamedAction("EnterS21", (sm) => Log("ENT S21")) },
+            ["ExitS21"] = new List<NamedAction> { new NamedAction("ExitS21", (sm) => Log("EXT S21")) },
 
-                ["EnterS211"] = new List<NamedAction> { new NamedAction("EnterS211", (sm) => Log("Entering S211")) },
-                ["ExitS211"] = new List<NamedAction> { new NamedAction("ExitS211", (sm) => Log("Exiting S211")) },
+                ["EnterS211"] = new List<NamedAction> { new NamedAction("EnterS211", (sm) => Log("ENT S211")) },
+                ["ExitS211"] = new List<NamedAction> { new NamedAction("ExitS211", (sm) => Log("EXT S211")) },
 
-                    ["EnterS2111"] = new List<NamedAction> { new NamedAction("EnterS2111", (sm) => Log("Entering S2111")) },
-                    ["ExitS2111"] = new List<NamedAction> { new NamedAction("ExitS2111", (sm) => Log("Exiting S2111")) },
+                    ["EnterS2111"] = new List<NamedAction> { new NamedAction("EnterS2111", (sm) => Log("ENT S2111")) },
+                    ["ExitS2111"] = new List<NamedAction> { new NamedAction("ExitS2111", (sm) => Log("EXT S2111")) },
 
-                        ["EnterS21111"] = new List<NamedAction> { new NamedAction("EnterS21111", (sm) => Log("Entering S21111")) },
-                        ["ExitS21111"] = new List<NamedAction> { new NamedAction("ExitS21111", (sm) => Log("Exiting S21111")) },
+                        ["EnterS21111"] = new List<NamedAction> { new NamedAction("EnterS21111", (sm) => Log("ENT S21111")) },
+                        ["ExitS21111"] = new List<NamedAction> { new NamedAction("ExitS21111", (sm) => Log("EXT S21111")) },
 
-                        ["EnterS21112"] = new List<NamedAction> { new NamedAction("EnterS21112", (sm) => Log("Entering S21112")) },
-                        ["ExitS21112"] = new List<NamedAction> { new NamedAction("ExitS21112", (sm) => Log("Exiting S21112")) },
+                        ["EnterS21112"] = new List<NamedAction> { new NamedAction("EnterS21112", (sm) => Log("ENT S21112")) },
+                        ["ExitS21112"] = new List<NamedAction> { new NamedAction("ExitS21112", (sm) => Log("EXT S21112")) },
 
-                    ["EnterS2112"] = new List<NamedAction> { new NamedAction("EnterS2112", (sm) => Log("Entering S2112")) },
-                    ["ExitS2112"] = new List<NamedAction> { new NamedAction("ExitS2112", (sm) => Log("Exiting S2112")) },
+                    ["EnterS2112"] = new List<NamedAction> { new NamedAction("EnterS2112", (sm) => Log("ENT S2112")) },
+                    ["ExitS2112"] = new List<NamedAction> { new NamedAction("ExitS2112", (sm) => Log("EXT S2112")) },
 
-                        ["EnterS21121"] = new List<NamedAction> { new NamedAction("EnterS21121", (sm) => Log("Entering S21121")) },
-                        ["ExitS21121"] = new List<NamedAction> { new NamedAction("ExitS21121", (sm) => Log("Exiting S21121")) },
+                        ["EnterS21121"] = new List<NamedAction> { new NamedAction("EnterS21121", (sm) => Log("ENT S21121")) },
+                        ["ExitS21121"] = new List<NamedAction> { new NamedAction("ExitS21121", (sm) => Log("EXT S21121")) },
 
-                        ["EnterS21122"] = new List<NamedAction> { new NamedAction("EnterS21122", (sm) => Log("Entering S21122")) },
-                        ["ExitS21122"] = new List<NamedAction> { new NamedAction("ExitS21122", (sm) => Log("Exiting S21122")) },
+                        ["EnterS21122"] = new List<NamedAction> { new NamedAction("EnterS21122", (sm) => Log("ENT S21122")) },
+                        ["ExitS21122"] = new List<NamedAction> { new NamedAction("ExitS21122", (sm) => Log("EXT S21122")) },
 
-                ["EnterS212"] = new List<NamedAction> { new NamedAction("EnterS212", (sm) => Log("Entering S212")) },
-                ["ExitS212"] = new List<NamedAction> { new NamedAction("ExitS212", (sm) => Log("Exiting S212")) },
+                ["EnterS212"] = new List<NamedAction> { new NamedAction("EnterS212", (sm) => Log("ENT S212")) },
+                ["ExitS212"] = new List<NamedAction> { new NamedAction("ExitS212", (sm) => Log("EXT S212")) },
 
-                    ["EnterS2121"] = new List<NamedAction> { new NamedAction("EnterS2121", (sm) => Log("Entering S2121")) },
-                    ["ExitS2121"] = new List<NamedAction> { new NamedAction("ExitS2121", (sm) => Log("Exiting S2121")) },
+                    ["EnterS2121"] = new List<NamedAction> { new NamedAction("EnterS2121", (sm) => Log("ENT S2121")) },
+                    ["ExitS2121"] = new List<NamedAction> { new NamedAction("ExitS2121", (sm) => Log("EXT S2121")) },
 
-                        ["EnterS21211"] = new List<NamedAction> { new NamedAction("EnterS21211", (sm) => Log("Entering S21211")) },
-                        ["ExitS21211"] = new List<NamedAction> { new NamedAction("ExitS21211", (sm) => Log("Exiting S21211")) },
+                        ["EnterS21211"] = new List<NamedAction> { new NamedAction("EnterS21211", (sm) => Log("ENT S21211")) },
+                        ["ExitS21211"] = new List<NamedAction> { new NamedAction("ExitS21211", (sm) => Log("EXT S21211")) },
 
-                        ["EnterS21212"] = new List<NamedAction> { new NamedAction("EnterS21212", (sm) => Log("Entering S21212")) },
-                        ["ExitS21212"] = new List<NamedAction> { new NamedAction("ExitS21212", (sm) => Log("Exiting S21212")) },
+                        ["EnterS21212"] = new List<NamedAction> { new NamedAction("EnterS21212", (sm) => Log("ENT S21212")) },
+                        ["ExitS21212"] = new List<NamedAction> { new NamedAction("ExitS21212", (sm) => Log("EXT S21212")) },
 
-                    ["EnterS2122"] = new List<NamedAction> { new NamedAction("EnterS2122", (sm) => Log("Entering S2122")) },
-                    ["ExitS2122"] = new List<NamedAction> { new NamedAction("ExitS2122", (sm) => Log("Exiting S2122")) },
+                    ["EnterS2122"] = new List<NamedAction> { new NamedAction("EnterS2122", (sm) => Log("ENT S2122")) },
+                    ["ExitS2122"] = new List<NamedAction> { new NamedAction("ExitS2122", (sm) => Log("EXT S2122")) },
 
-                        ["EnterS21221"] = new List<NamedAction> { new NamedAction("EnterS21221", (sm) => Log("Entering S21221")) },
-                        ["ExitS21221"] = new List<NamedAction> { new NamedAction("ExitS21221", (sm) => Log("Exiting S21221")) },
+                        ["EnterS21221"] = new List<NamedAction> { new NamedAction("EnterS21221", (sm) => Log("ENT S21221")) },
+                        ["ExitS21221"] = new List<NamedAction> { new NamedAction("ExitS21221", (sm) => Log("EXT S21221")) },
 
-                        ["EnterS21222"] = new List<NamedAction> { new NamedAction("EnterS21222", (sm) => Log("Entering S21222")) },
-                        ["ExitS21222"] = new List<NamedAction> { new NamedAction("ExitS21222", (sm) => Log("Exiting S21222")) },
+                        ["EnterS21222"] = new List<NamedAction> { new NamedAction("EnterS21222", (sm) => Log("ENT S21222")) },
+                        ["ExitS21222"] = new List<NamedAction> { new NamedAction("ExitS21222", (sm) => Log("EXT S21222")) },
 
-            ["EnterS22"] = new List<NamedAction> { new NamedAction("EnterS22", (sm) => Log("Entering S22")) },
-            ["ExitS22"] = new List<NamedAction> { new NamedAction("ExitS22", (sm) => Log("Exiting S22")) },
+            ["EnterS22"] = new List<NamedAction> { new NamedAction("EnterS22", (sm) => Log("ENT S22")) },
+            ["ExitS22"] = new List<NamedAction> { new NamedAction("ExitS22", (sm) => Log("EXT S22")) },
 
-                ["EnterS221"] = new List<NamedAction> { new NamedAction("EnterS221", (sm) => Log("Entering S221")) },
-                ["ExitS221"] = new List<NamedAction> { new NamedAction("ExitS221", (sm) => Log("Exiting S221")) },
+                ["EnterS221"] = new List<NamedAction> { new NamedAction("EnterS221", (sm) => Log("ENT S221")) },
+                ["ExitS221"] = new List<NamedAction> { new NamedAction("ExitS221", (sm) => Log("EXT S221")) },
 
-                    ["EnterS2211"] = new List<NamedAction> { new NamedAction("EnterS2211", (sm) => Log("Entering S2211")) },
-                    ["ExitS2211"] = new List<NamedAction> { new NamedAction("ExitS2211", (sm) => Log("Exiting S2211")) },
+                    ["EnterS2211"] = new List<NamedAction> { new NamedAction("EnterS2211", (sm) => Log("ENT S2211")) },
+                    ["ExitS2211"] = new List<NamedAction> { new NamedAction("ExitS2211", (sm) => Log("EXT S2211")) },
 
-                        ["EnterS22111"] = new List<NamedAction> { new NamedAction("EnterS22111", (sm) => Log("Entering S22111")) },
-                        ["ExitS22111"] = new List<NamedAction> { new NamedAction("ExitS22111", (sm) => Log("Exiting S22111")) },
+                        ["EnterS22111"] = new List<NamedAction> { new NamedAction("EnterS22111", (sm) => Log("ENT S22111")) },
+                        ["ExitS22111"] = new List<NamedAction> { new NamedAction("ExitS22111", (sm) => Log("EXT S22111")) },
 
-                        ["EnterS22112"] = new List<NamedAction> { new NamedAction("EnterS22112", (sm) => Log("Entering S22112")) },
-                        ["ExitS22112"] = new List<NamedAction> { new NamedAction("ExitS22112", (sm) => Log("Exiting S22112")) },
+                        ["EnterS22112"] = new List<NamedAction> { new NamedAction("EnterS22112", (sm) => Log("ENT S22112")) },
+                        ["ExitS22112"] = new List<NamedAction> { new NamedAction("ExitS22112", (sm) => Log("EXT S22112")) },
 
-                    ["EnterS2212"] = new List<NamedAction> { new NamedAction("EnterS2212", (sm) => Log("Entering S2212")) },
-                    ["ExitS2212"] = new List<NamedAction> { new NamedAction("ExitS2212", (sm) => Log("Exiting S2212")) },
+                    ["EnterS2212"] = new List<NamedAction> { new NamedAction("EnterS2212", (sm) => Log("ENT S2212")) },
+                    ["ExitS2212"] = new List<NamedAction> { new NamedAction("ExitS2212", (sm) => Log("EXT S2212")) },
 
-                        ["EnterS22121"] = new List<NamedAction> { new NamedAction("EnterS22121", (sm) => Log("Entering S22121")) },
-                        ["ExitS22121"] = new List<NamedAction> { new NamedAction("ExitS22121", (sm) => Log("Exiting S22121")) },
+                        ["EnterS22121"] = new List<NamedAction> { new NamedAction("EnterS22121", (sm) => Log("ENT S22121")) },
+                        ["ExitS22121"] = new List<NamedAction> { new NamedAction("ExitS22121", (sm) => Log("EXT S22121")) },
 
-                        ["EnterS22122"] = new List<NamedAction> { new NamedAction("EnterS22122", (sm) => Log("Entering S22122")) },
-                        ["ExitS22122"] = new List<NamedAction> { new NamedAction("ExitS22122", (sm) => Log("Exiting S22122")) },
+                        ["EnterS22122"] = new List<NamedAction> { new NamedAction("EnterS22122", (sm) => Log("ENT S22122")) },
+                        ["ExitS22122"] = new List<NamedAction> { new NamedAction("ExitS22122", (sm) => Log("EXT S22122")) },
 
-                ["EnterS222"] = new List<NamedAction> { new NamedAction("EnterS222", (sm) => Log("Entering S222")) },
-                ["ExitS222"] = new List<NamedAction> { new NamedAction("ExitS222", (sm) => Log("Exiting S222")) },
+                ["EnterS222"] = new List<NamedAction> { new NamedAction("EnterS222", (sm) => Log("ENT S222")) },
+                ["ExitS222"] = new List<NamedAction> { new NamedAction("ExitS222", (sm) => Log("EXT S222")) },
 
-                    ["EnterS2221"] = new List<NamedAction> { new NamedAction("EnterS2221", (sm) => Log("Entering S2221")) },
-                    ["ExitS2221"] = new List<NamedAction> { new NamedAction("ExitS2221", (sm) => Log("Exiting S2221")) },
+                    ["EnterS2221"] = new List<NamedAction> { new NamedAction("EnterS2221", (sm) => Log("ENT S2221")) },
+                    ["ExitS2221"] = new List<NamedAction> { new NamedAction("ExitS2221", (sm) => Log("EXT S2221")) },
 
-                        ["EnterS22211"] = new List<NamedAction> { new NamedAction("EnterS22211", (sm) => Log("Entering S22211")) },
-                        ["ExitS22211"] = new List<NamedAction> { new NamedAction("ExitS22211", (sm) => Log("Exiting S22211")) },
+                        ["EnterS22211"] = new List<NamedAction> { new NamedAction("EnterS22211", (sm) => Log("ENT S22211")) },
+                        ["ExitS22211"] = new List<NamedAction> { new NamedAction("ExitS22211", (sm) => Log("EXT S22211")) },
 
-                        ["EnterS22212"] = new List<NamedAction> { new NamedAction("EnterS22212", (sm) => Log("Entering S22212")) },
-                        ["ExitS22212"] = new List<NamedAction> { new NamedAction("ExitS22212", (sm) => Log("Exiting S22212")) },
+                        ["EnterS22212"] = new List<NamedAction> { new NamedAction("EnterS22212", (sm) => Log("ENT S22212")) },
+                        ["ExitS22212"] = new List<NamedAction> { new NamedAction("ExitS22212", (sm) => Log("EXT S22212")) },
 
-                    ["EnterS2222"] = new List<NamedAction> { new NamedAction("EnterS2222", (sm) => Log("Entering S2222")) },
-                    ["ExitS2222"] = new List<NamedAction> { new NamedAction("ExitS2222", (sm) => Log("Exiting S2222")) },
+                    ["EnterS2222"] = new List<NamedAction> { new NamedAction("EnterS2222", (sm) => Log("ENT S2222")) },
+                    ["ExitS2222"] = new List<NamedAction> { new NamedAction("ExitS2222", (sm) => Log("EXT S2222")) },
 
-                        ["EnterS22221"] = new List<NamedAction> { new NamedAction("EnterS22221", (sm) => Log("Entering S22221")) },
-                        ["ExitS22221"] = new List<NamedAction> { new NamedAction("ExitS22221", (sm) => Log("Exiting S22221")) },
+                        ["EnterS22221"] = new List<NamedAction> { new NamedAction("EnterS22221", (sm) => Log("ENT S22221")) },
+                        ["ExitS22221"] = new List<NamedAction> { new NamedAction("ExitS22221", (sm) => Log("EXT S22221")) },
 
-                        ["EnterS22222"] = new List<NamedAction> { new NamedAction("EnterS22222", (sm) => Log("Entering S22222")) },
-                        ["ExitS22222"] = new List<NamedAction> { new NamedAction("ExitS22222", (sm) => Log("Exiting S22222")) },
+                        ["EnterS22222"] = new List<NamedAction> { new NamedAction("EnterS22222", (sm) => Log("ENT S22222")) },
+                        ["ExitS22222"] = new List<NamedAction> { new NamedAction("ExitS22222", (sm) => Log("EXT S22222")) },
     };
 
     static string jsonScript =
@@ -247,6 +247,7 @@ class Program
                     entry: ['EnterS11'],
                     exit: ['ExitS11'],
                     states: {
+                        hist : { type: 'history', history: 'deep' },
                         S111: {
                             type: 'parallel',            
                             on: { 'S112': 'S112'},
@@ -338,6 +339,7 @@ class Program
                     entry: ['EnterS12'],
                     exit: ['ExitS12'],
                     states: {
+                        hist : { type: 'history', history: 'deep' },
                         S121: {
                             type: 'parallel',            
                             on: { 'S122': 'S122'},
@@ -438,6 +440,7 @@ class Program
                     entry: ['EnterS21'],
                     exit: ['ExitS21'],
                     states: {
+                        hist : { type: 'history', history: 'deep' },
                         S211: {
                             type: 'parallel',
                             on: { 'S212': 'S212'},
@@ -529,6 +532,7 @@ class Program
                     entry: ['EnterS22'],
                     exit: ['ExitS22'],
                     states: {
+                        hist : { type: 'history', history: 'deep' },
                         S221: {
                             type: 'parallel',
                             on: { 'S222': 'S222'},

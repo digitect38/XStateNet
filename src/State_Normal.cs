@@ -74,32 +74,16 @@ public class NormalState : RealState
         Parent?.OnDone();
     }
 
-    #region regacy transition
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="historyType"></param>
-    public override void EntryState(HistoryType historyType = HistoryType.None)
+    public bool CompareHistoryStateIfExist(HistoryState? historyState)
     {
-        base.EntryState(historyType);
+        if (StateMachine == null) throw new Exception("StateMachine is null");
+        if (historyState == null) throw new Exception("History state is null");
+
+        if (HistorySubState?.Name == historyState.Name)
+            return true;
+
+        return false;
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    public override void ExitState()
-    {
-        StateMachine.Log(">>>- State_Normal.ExitState: " + Name);
-
-        if (Parent is NormalState)
-        {
-            ((NormalState)Parent).LastActiveStateName = Name;   // Record always for deep history case
-        }
-
-        base.ExitState();
-    }
-    #endregion
-
 
     /// <summary>
     /// 
@@ -108,23 +92,47 @@ public class NormalState : RealState
     /// <param name="recursive"></param>
     /// <param name="historyType"></param>
     /// <returns></returns>
-    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None)
+    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
+
+        string? nextActiveStateName = InitialStateName;
+        var childHistoryType =  historyType;
+        
+        // History state stuff
+        if (targetHistoryState != null)
+        {
+            // if I have a history state and it's name is same as the history state name, then I should go to the last active state
+            if (HistorySubState?.Name == targetHistoryState.Name)
+            {
+                nextActiveStateName = LastActiveStateName;
+                historyType = targetHistoryState.HistoryType;
+            }
+            else
+            {
+                nextActiveStateName = InitialStateName;
+            }
+        }
+
+        childHistoryType = targetHistoryState?.HistoryType == HistoryType.Deep ? HistoryType.Deep : HistoryType.None;
+        
+
         if (postAction)
         {
-            if (recursive && InitialStateName != null)
+            if (recursive && nextActiveStateName != null)
             {
-                GetState(InitialStateName)?.EntryState(postAction, recursive, historyType);
+
+                GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
             }
-            base.EntryState(postAction, recursive);
+
+            base.EntryState(postAction, recursive, historyType, targetHistoryState);
         }
         else // pre action
         {
-            base.EntryState(postAction, recursive);
+            base.EntryState(postAction, recursive, historyType, targetHistoryState);
 
-            if (recursive && InitialStateName != null)
+            if (recursive && nextActiveStateName != null)
             {
-                GetState(InitialStateName)?.EntryState(postAction, recursive, historyType);
+                GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
             }
         }
 
@@ -227,7 +235,7 @@ public class NormalState : RealState
     public override void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType historyType = HistoryType.None)
     {
 
-        string? targetStateName = null;
+        string? nextActiveChildStateName = null;
 
         //History type designation is triggered to a non-history state only when the target state is a history state.During entry propagation,
         //if the history state is shallow, it transitions to a normal state, and if the history state is deep, it continues to propagate as a history state.
@@ -235,17 +243,17 @@ public class NormalState : RealState
         if (historyType == HistoryType.None)
         {
             if (InitialStateName == null) return;
-            targetStateName = InitialStateName;
+            nextActiveChildStateName = InitialStateName;
         }
         else
         {
             if (LastActiveStateName == null) return;
-            targetStateName = LastActiveStateName;
+            nextActiveChildStateName = LastActiveStateName;
         }
 
-        var state = GetState(targetStateName);
+        var state = GetState(nextActiveChildStateName);
 
-        collection.Add(targetStateName);
+        collection.Add(nextActiveChildStateName);
 
         if (historyType == HistoryType.Deep)
         {

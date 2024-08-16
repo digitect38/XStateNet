@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace XStateNet;
 
@@ -53,7 +54,7 @@ public abstract class RealState : StateBase
 
     public virtual void Start()
     {
-        EntryState(HistoryType.None);
+        EntryState();
     }
 
     public bool IsDone {set; get; }= false;             // If the state is done, it will not be active anymore.
@@ -77,49 +78,6 @@ public abstract class RealState : StateBase
             super.GetSuperStateCollection(collection);
         }
     }
-
-    #region regacy  transition
-    /// <summary>
-    /// 
-    /// </summary>
-    public virtual void ExitState()
-    {
-        StateMachine.Log(">>>- State_Real.ExitState: " + Name);
-
-        IsActive = false;
-
-        if (Parent != null)
-        {
-            Parent.ActiveStateName = null;
-        }
-
-        ExitActions?.ForEach(action => action.Action(StateMachine));
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="historyType"></param>
-    public virtual void EntryState(HistoryType historyType = HistoryType.None)
-    {
-        StateMachine.Log(">>>- State_Real.EntryState: " + Name);
-
-        IsDone = false;
-
-        EntryActions?.ForEach(action => action.Action(StateMachine));
-
-        // Let define active state as all the entry actions performed successfuly.
-
-        IsActive = true;
-
-        if (Parent != null)
-        {
-            Parent.ActiveStateName = Name;
-        }
-
-        ScheduleAfterTransitionTimer();
-    }
-    #endregion
 
     /// <summary>
     /// 
@@ -149,7 +107,7 @@ public abstract class RealState : StateBase
     /// 
     /// </summary>
     /// <param name="historyType"></param>
-    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None)
+    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? historyState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 
@@ -229,7 +187,7 @@ public abstract class RealState : StateBase
                 // Exit
                 foreach (var stateName in exitList)
                 {
-                    ((RealState)GetState(stateName)).ExitState();
+                    ((RealState)GetState(stateName)).ExitState(true, false);
                 }
 
                 StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
@@ -260,7 +218,7 @@ public abstract class RealState : StateBase
                     
                     if (state != null)
                     {
-                        state.EntryState(HistoryType.None);
+                        state.EntryState(postAction:false, recursive:false);
                     }
                 }
             }

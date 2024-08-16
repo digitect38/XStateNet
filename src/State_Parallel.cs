@@ -57,38 +57,7 @@ public class ParallelState : RealState
         StateMachine.Send("onDone");
     }
 
-    public override void EntryState(HistoryType historyType = HistoryType.None)
-    {
-        StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
-
-        base.EntryState(historyType);
-
-        SubStateNames.AsParallel().ForAll(
-            subStateName =>
-            {
-                if(StateMachine == null) throw new Exception("StateMachine is null");
-                var subState = StateMachine.GetState(subStateName) as RealState;
-                subState?.EntryState(historyType);
-            }
-        );
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-
-    public override void ExitState()
-    {
-
-        StateMachine.Log(">>>- State_Parallel.ExitState: " + Name);
-
-        foreach (string subStateName in SubStateNames)
-        {
-            GetState(subStateName)?.ExitState();
-        }
-    }
-
-    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None)
+    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? historyState = null)
     {
         //StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
 

@@ -191,7 +191,7 @@ public partial class StateMachine
         foreach (var stateName in list)
         {            
             var state = GetState(stateName) as RealState;
-            state.EntryState(HistoryType.None);
+            state?.EntryState();
         }      
 #endif   
 
@@ -442,7 +442,7 @@ public partial class StateMachine
     // 3.1 Revisit exit path along actualExitPath here if meet parallel fork,
     // 
 
-    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionPath(string? srcStateName, string tgtStateName)
+    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionSinglePath(string? srcStateName, string tgtStateName)
     {
         StateMachine.Log(">>> - GetFullTransitionPath");
                 
