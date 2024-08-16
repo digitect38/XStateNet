@@ -246,7 +246,11 @@ public partial class StateMachine
 
         foreach (var (state, transition, @event) in transitionList)
         {
+#if true
             state.Transit(transition, @event);
+#else
+            TransitFull(transition, @event);
+#endif
         }
     }
 
@@ -407,6 +411,12 @@ public partial class StateMachine
         return strings.ToCsvString(this, leafOnly, separator);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateName"></param>
+    /// <param name="singleBranchPath"></param>
+    /// <returns></returns>
     public ICollection<string> GetSourceSubStateCollection(string? stateName = null, bool singleBranchPath = false)
     {
         RealState? state = null;
@@ -442,7 +452,7 @@ public partial class StateMachine
     // 3.1 Revisit exit path along actualExitPath here if meet parallel fork,
     // 
 
-    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionSinglePath(string? srcStateName, string tgtStateName)
+    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionSinglePath(string? srcStateName, string? tgtStateName)
     {
         StateMachine.Log(">>> - GetFullTransitionPath");
                 
@@ -477,16 +487,28 @@ public partial class StateMachine
         return (actualExitPath.ToList(), actualEntryPath.ToList());
     }
 
-    public void TransitUp(RealState? topExitState)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="topExitState"></param>
+    public Task TransitUp(RealState? topExitState)
     {
         if(topExitState != null)
             topExitState.ExitState(postAction: true, recursive: true);
+        return Task.CompletedTask;
     }
 
-    public void TransitDown(RealState? topEntryState)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="topEntryState"></param>
+    /// <param name="historyStateName"></param>
+    public Task TransitDown(RealState? topEntryState, string? historyStateName = null)
     {
+        var historyState = historyStateName != null ? GetState(historyStateName) as HistoryState : null;
         if (topEntryState != null)
-            topEntryState.EntryState(postAction: false, recursive: true);
+            topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -576,6 +598,42 @@ public partial class StateMachine
         state?.GetSuperStateCollection(list);
 
         return list;
+    }
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="transition"></param>
+/// <param name="event"></param>
+    public async void TransitFull(Transition transition, string @event)
+    {
+        var fromState = transition.SourceName;
+        string? toState = transition.TargetName;
+
+        var path1 = GetFullTransitionSinglePath(fromState, toState);
+
+        string? firstExit = path1.exitSinglePath.First();
+        string? firstEntry = path1.entrySinglePath.First();
+
+        await TransitUp(firstExit?.ToState(this) as RealState);
+        transition.Actions?.ForEach(action => action.Action(this));
+        await TransitDown(firstEntry?.ToState(this) as RealState, toState);
+    }
+    /// <summary>
+    /// Only for test
+    /// </summary>
+    /// <param name="fromState"></param>
+    /// <param name="toState"></param>
+    public async void TransitFull(string fromState, string toState)
+    {
+
+        var path1 = GetFullTransitionSinglePath(fromState, toState);
+
+        string? firstExit = path1.exitSinglePath.First();
+        string? firstEntry = path1.entrySinglePath.First();
+
+        await TransitUp(firstExit?.ToState(this) as RealState);
+        await TransitDown(firstEntry?.ToState(this) as RealState, toState);
     }
 
     /// <summary>

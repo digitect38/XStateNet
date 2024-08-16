@@ -35,7 +35,7 @@ class Program
 
             var firstEntry = path1.entrySinglePath.First();
 
-            stateMachine.TransitDown(firstEntry.ToState(stateMachine) as RealState);
+            stateMachine.TransitDown(firstEntry.ToState(stateMachine) as RealState, null);
         }
 
     }

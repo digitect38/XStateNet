@@ -107,7 +107,7 @@ public abstract class RealState : StateBase
     /// 
     /// </summary>
     /// <param name="historyType"></param>
-    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? historyState = null)
+    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 

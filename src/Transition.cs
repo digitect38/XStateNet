@@ -28,7 +28,7 @@ public abstract class Transition : StateObject
             return (RealState)StateMachine.GetState(SourceName); 
         }
     }  
-        // can not be null any case. Source never be history state
+    // can not be null any case. Source never be history state
     public StateBase? Target {
         get {
             if (TargetName != null)
@@ -42,31 +42,6 @@ public abstract class Transition : StateObject
             {
                 return null;
             }
-        }
-    }
-
-    (string?, HistoryType) ConvertHistoryToNormalState(string targetName)
-    {
-        var historyType = HistoryType.None;
-
-        if (targetName != null)
-        {
-            if (targetName?.Split('.').Last() == "hist")
-            {
-                if(StateMachine == null) throw new Exception("StateMachine is null");
-                var historyState = StateMachine.GetStateAsHistory(targetName);
-                
-                if (historyState == null) throw new Exception($"History state {targetName} not found");
-                historyType = historyState.HistoryType;
-
-                if(historyState.ParentName == null) throw new Exception($"History state {targetName} has no parent");
-                targetName = historyState.ParentName;
-            }
-            return new NewStruct(targetName, historyType);
-        }
-        else
-        {
-            throw new Exception("TargetName is null");
         }
     }
     

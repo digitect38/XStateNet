@@ -57,7 +57,7 @@ public class ParallelState : RealState
         StateMachine.Send("onDone");
     }
 
-    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? historyState = null)
+    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
 

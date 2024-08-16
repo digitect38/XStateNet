@@ -101,8 +101,9 @@ public class NormalState : RealState
         // History state stuff
         if (targetHistoryState != null)
         {
-            // if I have a history state and it's name is same as the history state name, then I should go to the last active state
-            if (HistorySubState?.Name == targetHistoryState.Name)
+            // if I have a history state and it's name is same as the history state name or historyType is shallow or deep, then I should go to the last active state
+            // otherwise, I should go to the initial state.
+            if (HistorySubState?.Name == targetHistoryState.Name || historyType != HistoryType.None)
             {
                 nextActiveStateName = LastActiveStateName;
                 historyType = targetHistoryState.HistoryType;
