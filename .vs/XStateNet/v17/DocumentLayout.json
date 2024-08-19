@@ -3,16 +3,16 @@
   "WorkspaceRootPath": "C:\\Users\\digit\\source\\repos\\XStateNet2\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\state_real.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_real.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet2\\src\\transition.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -30,7 +30,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 15,
+          "SelectedChildIndex": 17,
           "Children": [
             {
               "$type": "Bookmark",
@@ -90,7 +90,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "UnitTest_Always.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\test\\UnitTest_Always.cs",
               "RelativeDocumentMoniker": "test\\UnitTest_Always.cs",
@@ -103,7 +103,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "State_Real.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\State_Real.cs",
               "RelativeDocumentMoniker": "src\\State_Real.cs",
@@ -129,13 +129,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 0,
               "Title": "StateMachine.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
               "RelativeDocumentMoniker": "src\\StateMachine.cs",
               "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet2\\src\\StateMachine.cs",
               "RelativeToolTip": "src\\StateMachine.cs",
-              "ViewState": "AQIAAEkAAAAAAAAAAAAIwEUAAAAEAAAA",
+              "ViewState": "AQIAABYAAAAAAAAAAAAIwCUAAAA3AAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-08-19T14:41:01.104Z",
               "EditorCaption": ""
