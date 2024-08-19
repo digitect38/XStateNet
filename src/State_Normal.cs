@@ -71,13 +71,6 @@ public class NormalState : RealState
     public override void OnDone()
     {
         IsDone = true;
-        /* onDone is meaningfull only for parallel state?!
-        if(OnDoneTransition != null)
-        {
-            //TransitionExecutor.Execute(OnDoneTransition);
-            StateMachine.transitionExecutor.Execute(OnDoneTransition, $"onDone");
-        }
-        */
         Parent?.OnDone();
     }
 

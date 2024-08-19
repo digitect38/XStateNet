@@ -150,9 +150,7 @@ public abstract class RealState : StateBase
             StateMachine.Log("");
             timer.Stop();
             timer.Dispose();
-            //HandleAfterTransition(transition);
-            StateMachine.transitionExecutor.Execute(AfterTransition, $"after: {AfterTransition.Delay}");
-            //after.Value?.Transit();
+            StateMachine?.transitionExecutor.Execute(AfterTransition, $"after: {AfterTransition.Delay}");
         };
         
         timer.AutoReset = false;
@@ -161,24 +159,6 @@ public abstract class RealState : StateBase
         StateMachine.Log("");
         StateMachine.Log($">>> Scheduled after transition {Name} in {AfterTransition.Delay} ms");
         StateMachine.Log("");
-    }    
-        
-    // check if the state is self or ancestor of the this state
-    public bool IsAncestorOf(StateBase state)
-    {
-        StateMachine.Log($"IsAncestorOf: {Name} -> {state.Name}");
-
-        if (this == state) return true;
-
-        if (this is RealState realState)
-        {
-            if(state.Parent != null)
-                return realState.IsAncestorOf(state.Parent);
-            else
-                throw new Exception("Parent is null");
-        }
-
-        return false;
     }
 
     public virtual void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
@@ -197,6 +177,11 @@ public abstract class RealState : StateBase
                 }
             }
         }
+
+        //
+        // Question: Should we execute always transition whenever 'after' and 'onDone' transitions?
+        // Clarify always transition rule!
+        //
 
         if (AlwaysTransition != null)
             transitionList.Add((this, AlwaysTransition, "always"));

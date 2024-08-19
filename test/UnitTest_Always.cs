@@ -49,7 +49,6 @@ public class StateMachine_AlwaysTests
         }
 
 
-
         bool IsSmallNumber(StateMachine sm)
         {
             StateMachine.Log("in IsSmallNumber()...");
