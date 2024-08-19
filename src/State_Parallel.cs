@@ -62,7 +62,7 @@ public class ParallelState : RealState
             {
                 StateMachine?.transitionExecutor.Execute(OnDoneTransition, $"onDone");
             }
-            Parent?.OnDone();
+            //Parent?.OnDone();
         }
     }
 
