@@ -21,7 +21,8 @@ public class FinalState : NormalState
 
     public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
-        base.EntryState(postAction, recursive, historyType, targetHistoryState);  
+        base.EntryState(postAction, recursive, historyType, targetHistoryState);
+        IsDone = true;
         Parent?.OnDone();
         
         return Task.CompletedTask;
@@ -57,7 +58,7 @@ public class FinalState : NormalState
 
 public class Parser_FinalState : Parser_RealState
 {
-    public Parser_FinalState(string machineId) : base(machineId) { }
+    public Parser_FinalState(string? machineId) : base(machineId) { }
 
     public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {

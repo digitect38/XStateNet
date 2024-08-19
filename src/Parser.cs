@@ -69,7 +69,11 @@ public partial class StateMachine
         StateBase? stateBase;
 
         var stateTypeStr = stateToken["type"]?.ToString();
-        StateType stateType = stateTypeStr == "parallel" ? StateType.Parallel : stateTypeStr == "history" ? StateType.History : StateType.Normal;
+
+        StateType stateType = 
+            stateTypeStr == "parallel" ? StateType.Parallel : 
+            stateTypeStr == "history" ? StateType.History : 
+            stateTypeStr == "final" ? StateType.Final : StateType.Normal;
 
         switch (stateType)
         {
@@ -84,7 +88,6 @@ public partial class StateMachine
                 }
 
                 RegisterState(stateBase);
-
                 return; // no more settings needed!
 
             case StateType.Parallel:
@@ -105,7 +108,7 @@ public partial class StateMachine
 
                 if (stateBase == null)
                 {
-                    throw new Exception("ParallelState is null!");
+                    throw new Exception("FinalState is null!");
                 }
 
                 RegisterState(stateBase);
@@ -120,7 +123,6 @@ public partial class StateMachine
                 }
 
                 RegisterState(stateBase);
-
                 break;
         }
 
@@ -183,6 +185,18 @@ public partial class StateMachine
             ParseTransitions(state, TransitionType.Always, "always", alwaysToken);
         }
 
+        var onDoneToken = stateToken["onDone"];
+
+        if (onDoneToken != null)
+        {
+            if (onDoneToken == null)
+            {
+                throw new Exception("onDone token is null!");
+            }
+
+            ParseTransitions(state, TransitionType.OnDone, "onDone", onDoneToken);
+        }
+
         var states = stateToken["states"];
 
         if (states != null)
@@ -190,7 +204,7 @@ public partial class StateMachine
             ParseStates(states, stateName);
         }
 
-        Parser_Action.ParseActions("exit", ActionMap, stateToken);
+        //Parser_Action.ParseActions("exit", ActionMap, stateToken);
     }
 
     private void ParseStates(JToken statesToken, string parentName)
@@ -346,6 +360,12 @@ public partial class StateMachine
             {
             };
         }
+        else if (type == TransitionType.OnDone)
+        {
+            transition = new OnDoneTransition(machineId)
+            {
+            };
+        }
         else
         {
             throw new Exception("Invalid transition type!");
@@ -376,6 +396,11 @@ public partial class StateMachine
             case TransitionType.Always:
                 {
                     source.AlwaysTransition = transition as AlwaysTransition;
+                }
+                break;
+            case TransitionType.OnDone:
+                {
+                    source.OnDoneTransition = transition as OnDoneTransition;
                 }
                 break;
 

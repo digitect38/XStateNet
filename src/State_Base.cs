@@ -5,6 +5,7 @@ public abstract class StateBase : StateObject
 {
     public string? Name { get; set; }
     public string? ParentName { get; set; }
+    public TransitionExecutor? transitionExecutor => StateMachine?.transitionExecutor;
 
     public RealState? Parent => string.IsNullOrEmpty(ParentName) ? null : StateMachine?.GetState(ParentName) as RealState;
 

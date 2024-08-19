@@ -16,4 +16,10 @@ public abstract class StateObject
     public StateObject(string? machineId)  {
         this.machineId = machineId;
     }
+
+    public StateBase GetState(string stateName)
+    {
+        if(StateMachine == null) throw new Exception("StateMachine is null");
+        return StateMachine.GetState(stateName);
+    }
 }

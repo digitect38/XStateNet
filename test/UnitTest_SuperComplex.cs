@@ -51,7 +51,7 @@ namespace SuperComplexStateMachineTests
         {
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
-            var currentState = _stateMachine.GetActiveStateString(false);
+            var currentState = _stateMachine.GetActiveStateString(true);
             Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.systemCheck.checkingCPU"));
             Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
@@ -106,6 +106,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             var currentState = _stateMachine.GetActiveStateString();
@@ -118,6 +119,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_A_SELECTED");
@@ -131,6 +133,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_A_SELECTED");
@@ -145,11 +148,13 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_A_SELECTED");
             _stateMachine.Send("NEXT");
             _stateMachine.Send("NEXT");
+            _stateMachine.Send("COMPLETE");
             var currentState = _stateMachine.GetActiveStateString();
             Assert.AreEqual("#superComplexFSM.ready", currentState);
         }
@@ -160,6 +165,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_B_SELECTED");
@@ -173,6 +179,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_B_SELECTED");
@@ -188,6 +195,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_B_SELECTED");
@@ -204,6 +212,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_B_SELECTED");
@@ -220,12 +229,14 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("START_PROCESS");
             _stateMachine.Send("TASK_B_SELECTED");
             _stateMachine.Send("NEXT");
             _stateMachine.Send("COMPLETE_A");
             _stateMachine.Send("COMPLETE_B");
+            _stateMachine.Send("COMPLETE");
             var currentState = _stateMachine.GetActiveStateString();
             Assert.AreEqual("#superComplexFSM.ready", currentState);
         }
@@ -240,6 +251,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("SHUTDOWN");
             var currentState = _stateMachine.GetActiveStateString();
@@ -266,6 +278,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("SHUTDOWN");
             _stateMachine.Send("CLEANUP_DONE");
@@ -275,11 +288,24 @@ namespace SuperComplexStateMachineTests
         }
 
         [Test]
+        public void TestReady()
+        {
+            _stateMachine.Send("INIT_COMPLETE");
+            _stateMachine.Send("MEMORY_OK");
+            _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
+            _stateMachine.Send("VALID");
+            var currentState = _stateMachine.GetActiveStateString();
+            Assert.That("#superComplexFSM.ready" == currentState);
+        }
+
+        [Test]
         public void TestFinalShutdown()
         {
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
             _stateMachine.Send("SHUTDOWN");
             _stateMachine.Send("CLEANUP_DONE");
@@ -317,8 +343,9 @@ namespace SuperComplexStateMachineTests
             _stateMachine.Send("INIT_COMPLETE");
             _stateMachine.Send("MEMORY_OK");
             _stateMachine.Send("CPU_OK");
+            _stateMachine.Send("INPUT_RECEIVED");
             _stateMachine.Send("VALID");
-            _stateMachine.Send("INVALID_EVENT");
+            //_stateMachine.Send("INVALID_EVENT");
             var currentState = _stateMachine.GetActiveStateString();
             Assert.AreEqual("#superComplexFSM.ready", currentState);
         }

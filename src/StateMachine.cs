@@ -36,8 +36,8 @@
 //     [ ] Parallel case analysis
 //     [ ] Parallel case implementation
 // [ ] Implement and prove by unittest self transition 
-// [ ] Implement 'final' keyword processing code
-// [ ] Implement 'onDone' transition
+// [v] Implement 'final' keyword processing code as IsDone property for RealState.
+// [ ] Implement 'onDone' transition. Treat it as a special event similar to 'always' or 'reset'
 // [ ] State branch block transition (Parallel by parallel)
 // [ ] Implement single action expression (not an array, embraced using square bracket) for entry, exit, transition
 /////////////////////////////////////////////////////////////////////////
@@ -75,6 +75,7 @@ public partial class StateMachine
     public ConcurrentDictionary<string, object>? ContextMap { get; private set; } // use object because context can have various types of data
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
+    public TransitionExecutor transitionExecutor { private set; get; }
 
     //
     // This state machine map is for interact each other in a process.
@@ -183,7 +184,8 @@ public partial class StateMachine
 #if false
         RootState?.Start();
 #else
-        var list = GetEntryList(machineId);
+        transitionExecutor = new TransitionExecutor(machineId);
+    var list = GetEntryList(machineId);
         string entry = list.ToCsvString(this, false, " -> ");
         
         Log($">>> Start entry: {entry}");
@@ -246,11 +248,7 @@ public partial class StateMachine
 
         foreach (var (state, transition, @event) in transitionList)
         {
-#if true
-            state.Transit(transition, @event);
-#else
-            TransitFull(transition, @event);
-#endif
+            transitionExecutor.Execute(transition, @event);
         }
     }
 
@@ -561,9 +559,11 @@ public partial class StateMachine
     /// <param name="statePath"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public ICollection<string> GetSuperStateCollection(string? statePath)
+    public ICollection<string>? GetSuperStateCollection(string? statePath)
     {
         RealState? state = null;
+
+        if (statePath == null) return null;
 
         state = GetState(statePath) as RealState;
 
@@ -615,9 +615,30 @@ public partial class StateMachine
         string? firstExit = path1.exitSinglePath.First();
         string? firstEntry = path1.entrySinglePath.First();
 
-        await TransitUp(firstExit?.ToState(this) as RealState);
-        transition.Actions?.ForEach(action => action.Action(this));
-        await TransitDown(firstEntry?.ToState(this) as RealState, toState);
+        if ((transition.Guard == null || transition.Guard.Predicate(this))
+            && (transition.InCondition == null || transition.InCondition()))
+        {
+            if (toState != null)
+            {
+                await TransitUp(firstExit?.ToState(this) as RealState);
+                transition.Actions?.ForEach(action => action.Action(this));
+                await TransitDown(firstEntry?.ToState(this) as RealState, toState);
+            }
+
+            else
+            {
+                // action only transition
+
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        action.Action(this);
+                    }
+                }
+            }
+            
+        }
     }
     /// <summary>
     /// Only for test

@@ -36,12 +36,12 @@ public abstract class RealState : StateBase
 
     public bool IsParallel => typeof(ParallelState) == this.GetType();
 
-    public RealState? GetState(string stateName)
+    public new RealState? GetState(string stateName)
     {
-        return StateMachine.GetState(stateName) as RealState;
+        return StateMachine?.GetState(stateName) as RealState;
     }
 
-    public RealState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
+    public RealState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
         SubStateNames = new List<string>();
         EntryActions = new List<NamedAction>();
@@ -69,6 +69,8 @@ public abstract class RealState : StateBase
     /// <param name="collection"></param>
     public void GetSuperStateCollection(ICollection<string> collection)
     {
+        if (Name == null) throw new Exception("Name is null");
+
         collection.Add(Name);
         
         var super = Parent;
@@ -90,6 +92,7 @@ public abstract class RealState : StateBase
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
 
         IsActive = false;
+        IsDone = false; // for next time
 
         if (Parent != null)
         {
@@ -133,24 +136,22 @@ public abstract class RealState : StateBase
 
     public void ScheduleAfterTransitionTimer()
     {
-        var transition = AfterTransition;
-
-        if (transition == null) return;
+        if (AfterTransition == null) return;
 
         var timer = new System.Timers.Timer();
-        timer.Interval = transition.Delay;
+        timer.Interval = AfterTransition.Delay;
         var now = DateTime.Now;
 
         timer.Elapsed += (sender, e) =>
         {
             StateMachine.Log("");
-            StateMachine.Log($">>> Scheduled time has come {Name} in {transition.Delay} ms");
+            StateMachine.Log($">>> Scheduled time has come {Name} in {AfterTransition.Delay} ms");
             StateMachine.Log($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
             StateMachine.Log("");
             timer.Stop();
             timer.Dispose();
             //HandleAfterTransition(transition);
-            Transit(transition, $"after: {transition.Delay}");
+            StateMachine.transitionExecutor.Execute(AfterTransition, $"after: {AfterTransition.Delay}");
             //after.Value?.Transit();
         };
         
@@ -158,89 +159,10 @@ public abstract class RealState : StateBase
         timer.Start();
 
         StateMachine.Log("");
-        StateMachine.Log($">>> Scheduled after transition {Name} in {transition.Delay} ms");
+        StateMachine.Log($">>> Scheduled after transition {Name} in {AfterTransition.Delay} ms");
         StateMachine.Log("");
     }    
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="state"></param>
-    /// <param name="transition"></param>
-    /// <param name="eventName"></param>
-    public void Transit(Transition? transition, string eventName)
-    {
-        if (transition == null) return;
-
-        StateMachine.Log($">> transition on event {eventName} in state {Name}");
-
-        if ((transition.Guard == null || transition.Guard.Predicate(StateMachine))
-            && (transition.InCondition == null || transition.InCondition()))
-        {
-
-            string sourceName = transition.SourceName;
-            string? targetName = transition.TargetName;
-
-            if (targetName != null)
-            {
-                var (exitList, entryList) = StateMachine.GetExitEntryList(transition.SourceName, targetName);
-
-                // Exit
-                foreach (var stateName in exitList)
-                {
-                    ((RealState)GetState(stateName)).ExitState(true, false);
-                }
-
-                StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
-
-                // Transition
-                RealState? source = GetState(sourceName) as RealState;
-                StateBase? target = GetState(targetName);
-
-                if (target is HistoryState)
-                {
-                    target = StateMachine.GetStateAsHistory(targetName);
-                }
-
-                StateMachine.OnTransition?.Invoke(source, target, eventName);
-
-                if (transition.Actions != null)
-                {
-                    foreach (var action in transition.Actions)
-                    {
-                        action.Action(StateMachine);
-                    }
-                }
-
-                // Entry
-                foreach (var stateName in entryList)
-                {
-                    var state = GetState(stateName);
-                    
-                    if (state != null)
-                    {
-                        state.EntryState(postAction:false, recursive:false);
-                    }
-                }
-            }
-            else
-            {
-                // action only transition
-
-                if (transition.Actions != null)
-                {
-                    foreach (var action in transition.Actions)
-                    {
-                        action.Action(StateMachine);
-                    }
-                }
-            }
-        }
-        else
-        {
-            StateMachine.Log($"Condition not met for transition on event {eventName}");
-        }
-    }
-
+        
     // check if the state is self or ancestor of the this state
     public bool IsAncestorOf(StateBase state)
     {
@@ -279,11 +201,14 @@ public abstract class RealState : StateBase
         if (AlwaysTransition != null)
             transitionList.Add((this, AlwaysTransition, "always"));
 
+        /* After and onDone transition should be called other 
+         * 
         if (AfterTransition != null)
             transitionList.Add((this, AfterTransition, "after"));
-
+        onDone transition should be called by OnDone() methid
         if (OnDoneTransition != null)
             transitionList.Add((this, OnDoneTransition, "onDone"));
+        */
     }
 
     public abstract void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType hist = HistoryType.None);
@@ -293,5 +218,5 @@ public abstract class RealState : StateBase
 
 public abstract class Parser_RealState : Parser_StateBase
 {
-    public Parser_RealState(string machineId) : base(machineId)  { }
+    public Parser_RealState(string? machineId) : base(machineId)  { }
 }

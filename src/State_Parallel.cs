@@ -49,12 +49,21 @@ public class ParallelState : RealState
 
         foreach(string subStateName in SubStateNames)
         {
-            done = done && GetState(subStateName).IsDone;
+            var state = GetState(subStateName);
+            done = done && state.IsDone;
         }
 
-        if(done) IsDone = true;
+        if (done)
+        {
+            IsDone = true;
+            Parent?.OnDone();
 
-        StateMachine.Send("onDone");
+            if (OnDoneTransition != null)
+            {
+                StateMachine?.transitionExecutor.Execute(OnDoneTransition, $"onDone");
+            }
+            Parent?.OnDone();
+        }
     }
 
     public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
@@ -243,7 +252,7 @@ public class ParallelState : RealState
 
 public class Parser_ParallelState : Parser_RealState
 {
-    public Parser_ParallelState(string machineId) : base(machineId) { }
+    public Parser_ParallelState(string? machineId) : base(machineId) { }
 
     public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
     {

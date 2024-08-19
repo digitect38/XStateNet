@@ -35,7 +35,7 @@ public class InConditionTests
         _stateMachine.Send("EVENT1");
         currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.subStateB1");
-
+        
         // Transition stateB.subStateB1 to stateB.subStateB2
         _stateMachine.Send("EVENT2");
         currentState = _stateMachine.GetActiveStateString();
@@ -45,7 +45,7 @@ public class InConditionTests
         _stateMachine.Send("CHECK_IN_CONDITION");
         currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.finalState");
-    }
+        }
 
     [Test]
     public void TestInConditionWithParallelStateNotMet()

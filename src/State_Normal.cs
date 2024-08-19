@@ -32,7 +32,7 @@ public class NormalState : RealState
     /// <param name="name"></param>
     /// <param name="parentName"></param>
     /// <param name="stateMachineId"></param>
-    public NormalState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
+    public NormalState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
     }
 
@@ -71,6 +71,13 @@ public class NormalState : RealState
     public override void OnDone()
     {
         IsDone = true;
+        /* onDone is meaningfull only for parallel state?!
+        if(OnDoneTransition != null)
+        {
+            //TransitionExecutor.Execute(OnDoneTransition);
+            StateMachine.transitionExecutor.Execute(OnDoneTransition, $"onDone");
+        }
+        */
         Parent?.OnDone();
     }
 
@@ -94,7 +101,7 @@ public class NormalState : RealState
     /// <returns></returns>
     public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
-
+     
         string? nextActiveStateName = InitialStateName;
         var childHistoryType =  historyType;
         
@@ -184,7 +191,7 @@ public class NormalState : RealState
     /// <param name="depth"></param>
     public override void PrintActiveStateTree(int depth)
     {
-        Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
+        Helper.WriteLine(depth * 2, $"- {Name?.Split('.').Last()}");
 
         //Debug.Assert(IsActive);
 
@@ -273,7 +280,7 @@ public class NormalState : RealState
 /// </summary>
 public class Parser_NormalState : Parser_RealState
 {
-    public Parser_NormalState(string machineId) : base(machineId) { }
+    public Parser_NormalState(string? machineId) : base(machineId) { }
 
     /// <summary>
     /// 
@@ -282,7 +289,7 @@ public class Parser_NormalState : Parser_RealState
     /// <param name="parentName"></param>
     /// <param name="stateToken"></param>
     /// <returns></returns>
-    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
+    public override StateBase Parse(string? stateName, string? parentName, JToken stateToken)
     {
         var initial = stateToken["initial"];
 
