@@ -38,6 +38,8 @@
 // [ ] Implement and prove by unittest self transition 
 // [v] Implement 'final' keyword processing code as IsDone property for RealState.
 // [v] Implement 'onDone' transition. Treat it as a special event similar to 'always' or 'reset'
+// [ ] Implement 'onError' transition.
+// [ ] Implement 'invoke' keyword.
 // [x] State branch block transition (Parallel by parallel) --> Not work
 // [v] Implement top down transition algorithm for full transition --> this is the solution for the above issue
 // [ ] Implement single action expression (not an array, embraced using square bracket) for entry, exit, transition
