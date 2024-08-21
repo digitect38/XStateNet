@@ -307,7 +307,18 @@ public partial class StateMachine
             try
             {
                 targetName = token["target"]?.ToString();
-                actionNames = token["actions"]?.ToObject<List<string>>();
+
+                if (token["actions"] != null)
+                {
+                    if (token["actions"] is JArray)
+                    {
+                        actionNames = token["actions"]?.ToObject<List<string>>();
+                    }
+                    else
+                    {
+                        throw new Exception("Actions that non-array type is not yet supported!");
+                    }
+                }
 
                 var guardTokeen = token["guard"];
                 var condToken = token["cond"];

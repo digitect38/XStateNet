@@ -26,6 +26,7 @@ public abstract class RealState : StateBase
 
     public List<NamedAction>? EntryActions { get; set; }
     public List<NamedAction>? ExitActions { get; set; }
+    public NamedAction? InvokeAction { get; set; }
 
     public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
