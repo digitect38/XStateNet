@@ -26,7 +26,7 @@ public abstract class RealState : StateBase
 
     public List<NamedAction>? EntryActions { get; set; }
     public List<NamedAction>? ExitActions { get; set; }
-    public NamedAction? InvokeAction { get; set; }
+    public NamedService? Service { get; set; }
 
     public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
@@ -118,7 +118,11 @@ public abstract class RealState : StateBase
         IsDone = false;
 
         if (StateMachine != null)
-            EntryActions?.ForEach(action => action.Action(StateMachine));
+        {
+            EntryActions?.ForEach(a => a.Action(StateMachine));
+            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
+            Service?.Service(StateMachine);
+        }
 
         // Let define active state as all the entry actions performed successfuly.
 

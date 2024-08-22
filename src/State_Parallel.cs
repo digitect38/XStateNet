@@ -263,7 +263,8 @@ public class Parser_ParallelState : Parser_RealState
         if(StateMachine == null) throw new Exception("StateMachine is null");
         state.EntryActions = Parser_Action.ParseActions("entry", StateMachine.ActionMap, stateToken);
         state.ExitActions = Parser_Action.ParseActions("exit", StateMachine.ActionMap, stateToken);
-        
+        state.Service = Parser_Service.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
+
         return state;
     }
 }

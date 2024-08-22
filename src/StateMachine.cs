@@ -40,6 +40,8 @@
 // [v] Implement 'onDone' transition. Treat it as a special event similar to 'always' or 'reset'
 // [ ] Implement 'onError' transition.
 // [ ] Implement 'invoke' keyword.
+//      [v] Simple Unit test for invoke
+//      [ ] Heavy Unit test for invoke
 // [ ] Implement 'internal' keyword.
 // [x] State branch block transition (Parallel by parallel) --> Not work
 // [v] Implement top down transition algorithm for full transition --> this is the solution for the above issue
@@ -58,6 +60,7 @@ namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
+using ServiceMap = ConcurrentDictionary<string, NamedService>;
 
 enum MachineState
 {
@@ -77,8 +80,11 @@ public partial class StateMachine
     public RealState? RootState { set; get; }
     private ConcurrentDictionary<string, StateBase>? StateMap { set; get; }
     public ConcurrentDictionary<string, object>? ContextMap { get; private set; } // use object because context can have various types of data
+    
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
+    public ServiceMap? ServiceMap { set; get; }
+
     public TransitionExecutor transitionExecutor { private set; get; }
 
     //
@@ -109,10 +115,10 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromFile(string jsonFilePath, ActionMap actionCallbacks, GuardMap guardCallbacks)
+    public static StateMachine CreateFromFile(string jsonFilePath, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
 
     /// <summary>
@@ -122,9 +128,9 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(string? jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null)
+    public static StateMachine CreateFromScript(string? jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
     {
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
 
     /// <summary>
@@ -135,10 +141,10 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromFile(StateMachine sm, string jsonFilePath, ActionMap actionCallbacks, GuardMap guardCallbacks)
+    public static StateMachine CreateFromFile(StateMachine sm, string jsonFilePath, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
 
     /// <summary>
@@ -149,9 +155,9 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, ActionMap actionCallbacks, GuardMap guardCallbacks)
+    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
     {
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
 
     /// <summary>

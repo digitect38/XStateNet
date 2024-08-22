@@ -49,28 +49,6 @@ internal  class Parser_Action
 
         return actions;
     }
-    public static NamedAction? ParseInvoke(string key, ActionMap? actionMap, JToken token)
-    {
-
-        if (token[key] == null)
-        {
-            return null;
-        }
-
-        var jobj = token[key]?.ToObject<List<string>>();
-
-        if (jobj == null)
-        {
-            return null;
-        }
-
-        if (actionMap == null)
-        {
-            return null;
-        }
-               
-
-        return action;
-    }
+    
 }
 

@@ -106,11 +106,6 @@ public abstract class Transition : StateObject
             {
                 if(StateMachine == null) throw new Exception("StateMachine is null");
                 return StateMachine.GetState(TargetName);       // can be null if targetless transition. Target can be history state
-                /*
-                return TargetName.Contains(".hist") 
-                    ? StateMachine.GetStateAsHistory(TargetName) 
-                    : StateMachine.GetState(TargetName);       // can be null if targetless transition. Target can be history state
-                */
             }
             else
             {

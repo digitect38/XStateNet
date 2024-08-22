@@ -61,11 +61,13 @@ namespace VideoPlayerStateMachineTests
 
             // Define the actions, including the service 'startVideo'
             var actions = new ConcurrentDictionary<string, List<NamedAction>>();
+            var guards = new ConcurrentDictionary<string, NamedGuard>();
 
             // Define services, in this case, 'startVideo' which sets _serviceInvoked to true
-            var services = new ConcurrentDictionary<string, Func<StateMachine, Task>>
+            // ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
+            var services = new ConcurrentDictionary<string, NamedService>
             {
-                ["startVideo"] = new Func<StateMachine, Task>((sm) =>
+                ["startVideo"] = new ("startVideo", (sm) =>
                 {
                     _serviceInvoked = true;
                     StateMachine.Log("startVideo service invoked");
@@ -73,7 +75,7 @@ namespace VideoPlayerStateMachineTests
                 })
             };
 
-            _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, services).Start();
+            _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
             Assert.IsFalse(_serviceInvoked);

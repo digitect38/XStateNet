@@ -29,6 +29,17 @@ public class NamedGuard
     }
 }
 
+public class NamedService   // for "invoke"
+{
+    public string Name { get; set; }
+    public Func<StateMachine, Task> Service { get; set; }
+    public NamedService(string name, Func<StateMachine, Task> service)
+    {
+        Name = name;
+        Service = service;
+    }
+}
+
 public enum StateType
 {
     Normal,

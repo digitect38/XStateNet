@@ -7,11 +7,12 @@ namespace XStateNet;
 
 using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
 using GuardMap = ConcurrentDictionary<string, NamedGuard>;
+using ServiceMap = ConcurrentDictionary<string, NamedService>;
 
 
 public partial class StateMachine
 {
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
@@ -21,9 +22,15 @@ public partial class StateMachine
             throw new Exception("Invalid JSON script!");
         }
 
+        if(stateMachine == null)
+        {
+            throw new Exception("StateMachine is null!");
+        }
+
         stateMachine.machineId = $"#{rootToken["id"]}";
         stateMachine.ActionMap = actionCallbacks;
         stateMachine.GuardMap = guardCallbacks;
+        stateMachine.ServiceMap = serviceCallbacks;
 
 
         _instanceMap[stateMachine.machineId] = stateMachine;
@@ -39,8 +46,9 @@ public partial class StateMachine
 
             foreach (JToken contextItem in tokenList)
             {
-                if (contextItem != null && contextItem.First != null)
+                if (contextItem != null && contextItem.First != null && stateMachine.ContextMap != null)
                 {
+
                     stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
                 }
             }
@@ -50,10 +58,10 @@ public partial class StateMachine
 
         return stateMachine;
     }
-    public static StateMachine ParseStateMachine(string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks)
+    public static StateMachine ParseStateMachine(string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
     {
         var stateMachine = new StateMachine() { };
-        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks);
+        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
 
     private static string ConvertToQuotedKeys(string? json)
@@ -141,6 +149,10 @@ public partial class StateMachine
 
         if (!string.IsNullOrEmpty(parentName))
         {
+            if(StateMap == null)
+            {
+                throw new Exception("StateMap is null!");
+            }
             var parent = (RealState)StateMap[parentName];
             parent.SubStateNames.Add(stateName);
         }

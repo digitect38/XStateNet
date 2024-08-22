@@ -295,6 +295,7 @@ public class Parser_NormalState : Parser_RealState
 
         state.EntryActions = Parser_Action.ParseActions("entry", StateMachine?.ActionMap, stateToken);
         state.ExitActions = Parser_Action.ParseActions("exit", StateMachine?.ActionMap, stateToken);
+        state.Service = Parser_Service.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
 
         return state;
     }
