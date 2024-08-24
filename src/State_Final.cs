@@ -13,7 +13,7 @@ public class FinalState : NormalState
         base.Start();
     }
 
-    public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
+    public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // parent first evaluation (is not the order exit/entry sequence)
         base.BuildTransitionList(eventName, transitionList);
@@ -28,48 +28,34 @@ public class FinalState : NormalState
         return Task.CompletedTask;
     }
 
-    public virtual Task ExitState(bool postAction = true, bool recursive = false)
+    public override Task ExitState(bool postAction = true, bool recursive = false)
     {
         base.ExitState(postAction, recursive);
 
         return Task.CompletedTask;
-    }
-
-    public override void GetActiveSubStateNames(List<string> list)
-    {
-        foreach (var subStateName in SubStateNames)
-        {
-            list.Add(subStateName);
-
-            var subState =  GetState(subStateName);
-
-            if (subState != null)
-            {
-                subState.GetActiveSubStateNames(list);
-            }
-        }
-    }
+    }    
     
     public override void PrintActiveStateTree(int depth)
     {
-        Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
+        Helper.WriteLine(depth * 2, $"- {Name?.Split('.').Last()}");
     }
 }
 
+/// <summary>
+/// 
+/// </summary>
 public class Parser_FinalState : Parser_RealState
 {
     public Parser_FinalState(string? machineId) : base(machineId) { }
 
-    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
+    public override StateNode Parse(string stateName, string? parentName, JToken stateToken)
     {
         var state = new FinalState(stateName, parentName, machineId)
         {
-        };
-        
-        if(StateMachine == null) throw new Exception("StateMachine is null");
-        state.EntryActions = Parser_Action.ParseActions("entry", StateMachine.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions("exit", StateMachine.ActionMap, stateToken);
-        
+        };        
+
+        ParseActionsAndService(state, stateToken);        
+
         return state;
     }
 }

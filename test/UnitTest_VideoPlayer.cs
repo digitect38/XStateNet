@@ -12,7 +12,7 @@ namespace VideoPlayerStateMachineTests
     [TestFixture]
     public class VideoPlayerStateMachineTests
     {
-        private StateMachine _stateMachine;
+        private StateMachine? _stateMachine;
         private bool _serviceInvoked;
 
         [Test]
@@ -85,13 +85,13 @@ namespace VideoPlayerStateMachineTests
 
             // Assert the current state
             var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#What is a state machine?.Opened.Playing", currentState);
+            Assert.That("#What is a state machine?.Opened.Playing" == currentState);
 
             // Wait for the asynchronous service to be invoked
             await Task.Delay(100); // Allow time for the async service to execute
 
             // Check if the startVideo service was invoked
-            Assert.IsTrue(_serviceInvoked, "The 'startVideo' service should have been invoked.");
+            Assert.That(_serviceInvoked, "The 'startVideo' service should have been invoked.");
         }
     }
 }

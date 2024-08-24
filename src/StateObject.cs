@@ -17,7 +17,7 @@ public abstract class StateObject
         this.machineId = machineId;
     }
 
-    public StateBase GetState(string stateName)
+    public StateNode GetState(string stateName)
     {
         if(StateMachine == null) throw new Exception("StateMachine is null");
         return StateMachine.GetState(stateName);

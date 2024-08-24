@@ -42,6 +42,7 @@
 // [ ] Implement 'invoke' keyword.
 //      [v] Simple Unit test for invoke
 //      [ ] Heavy Unit test for invoke
+// [ ] Implement 'activities' keyword.
 // [ ] Implement 'internal' keyword.
 // [x] State branch block transition (Parallel by parallel) --> Not work
 // [v] Implement top down transition algorithm for full transition --> this is the solution for the above issue
@@ -77,8 +78,8 @@ public partial class StateMachine
     }
 
     public string? machineId { set; get; }
-    public RealState? RootState { set; get; }
-    private ConcurrentDictionary<string, StateBase>? StateMap { set; get; }
+    public CompoundState? RootState { set; get; }
+    private ConcurrentDictionary<string, StateNode>? StateMap { set; get; }
     public ConcurrentDictionary<string, object>? ContextMap { get; private set; } // use object because context can have various types of data
     
     public ActionMap? ActionMap { set; get; }
@@ -95,7 +96,7 @@ public partial class StateMachine
     public static Dictionary<string, StateMachine> _instanceMap = new();
 
     // OnTransition delegate definition
-    public delegate void TransitionHandler(RealState? fromState, StateBase? toState, string eventName);
+    public delegate void TransitionHandler(CompoundState? fromState, StateNode? toState, string eventName);
     public TransitionHandler? OnTransition;
     private MachineState machineState = MachineState.Stopped;
 
@@ -104,7 +105,7 @@ public partial class StateMachine
     /// </summary>
     public StateMachine()
     {
-        StateMap = new ConcurrentDictionary<string, StateBase>();
+        StateMap = new ConcurrentDictionary<string, StateNode>();
         ContextMap = new ConcurrentDictionary<string, object>();
     }
 
@@ -164,7 +165,7 @@ public partial class StateMachine
     /// 
     /// </summary>
     /// <param name="state"></param>
-    public void RegisterState(StateBase state)
+    public void RegisterState(StateNode state)
     {
         if (StateMap != null)
         {
@@ -202,7 +203,7 @@ public partial class StateMachine
 
         foreach (var stateName in list)
         {            
-            var state = GetState(stateName) as RealState;
+            var state = GetState(stateName) as CompoundState;
             state?.EntryState();
         }      
 #endif   
@@ -240,7 +241,7 @@ public partial class StateMachine
     /// <param name="eventName"></param>
     void Transit(string eventName)
     {
-        var transitionList = new List<(RealState state, Transition transition, string @event)>();
+        var transitionList = new List<(CompoundState state, Transition transition, string @event)>();
 
         RootState?.BuildTransitionList(eventName, transitionList);
 
@@ -309,43 +310,16 @@ public partial class StateMachine
 
         return (source_exit.ToList(), target_entry.ToList());
     }
-    /*
-    public (List<string> exits, List<string> entrys) GetParallelList(string source, string target)
-    {
-
-        var (exits, entrys) = GetExitEntryList(source, target);
-
-        foreach (var exit in exits)
-        {   
-            var exitState = GetState(exit);
-            if (exitState is ParallelState parallelState)
-            {
-                var parExitState = (ParallelState)exitState;
-
-                foreach(var s in parExitState.SubStateNames)
-                {
-                    var source_sub_coll = GetSourceSubStateCollection(exit).Reverse();
-                    
-                    foreach(var s1 in source_sub_coll)
-                    {
-                        var s1s = GetState(s1) as RealState;
-                        s1s?.ExitState();
-                    }
-                }
-            }
-        }
-    }
-    */
-
+    
     /// <summary>
     /// 
     /// </summary>
     /// <param name="stateName"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public StateBase GetState(string? stateName)
+    public StateNode GetState(string? stateName)
     {
-        StateBase? state = null;
+        StateNode? state = null;
 
         if(stateName == null) throw new Exception("State name is null!");
         StateMap?.TryGetValue(stateName, out state);
@@ -400,7 +374,7 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public bool IsInState(StateMachine sm, string stateName)
     {
-        var state = (GetState(stateName) as RealState);
+        var state = (GetState(stateName) as CompoundState);
         if(state == null) throw new Exception($"State is not found with name, {stateName}");
 
         return state.IsActive;
@@ -427,7 +401,7 @@ public partial class StateMachine
     /// <returns></returns>
     public ICollection<string> GetSourceSubStateCollection(string? stateName = null, bool singleBranchPath = false)
     {
-        RealState? state = null;
+        CompoundState? state = null;
 
         if (stateName == null)
         {
@@ -435,7 +409,7 @@ public partial class StateMachine
         }
         else
         {
-            state = GetState(stateName) as RealState;
+            state = GetState(stateName) as CompoundState;
         }
 
         ICollection<string> list = new List<string>();
@@ -499,7 +473,7 @@ public partial class StateMachine
     /// 
     /// </summary>
     /// <param name="topExitState"></param>
-    public Task TransitUp(RealState? topExitState)
+    public Task TransitUp(CompoundState? topExitState)
     {
         if(topExitState != null)
             topExitState.ExitState(postAction: true, recursive: true);
@@ -511,7 +485,7 @@ public partial class StateMachine
     /// </summary>
     /// <param name="topEntryState"></param>
     /// <param name="historyStateName"></param>
-    public Task TransitDown(RealState? topEntryState, string? historyStateName = null)
+    public Task TransitDown(CompoundState? topEntryState, string? historyStateName = null)
     {
         var historyState = historyStateName != null ? GetState(historyStateName) as HistoryState : null;
         if (topEntryState != null)
@@ -530,11 +504,11 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public ICollection<string> GetTargetSubStateCollection(string? statePath, bool singleBranchPath = false)
     {
-        RealState? state = null;
+        CompoundState? state = null;
 
         ICollection<string> list = new List<string>();
 
-        if (GetState(statePath) is RealState realState)
+        if (GetState(statePath) is CompoundState realState)
         {
             state = realState;
 
@@ -571,11 +545,11 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public ICollection<string>? GetSuperStateCollection(string? statePath)
     {
-        RealState? state = null;
+        CompoundState? state = null;
 
         if (statePath == null) return null;
 
-        state = GetState(statePath) as RealState;
+        state = GetState(statePath) as CompoundState;
 
         if (statePath == null)
         {
@@ -583,7 +557,7 @@ public partial class StateMachine
         }
         else
         {
-            if (GetState(statePath) is RealState realState)
+            if (GetState(statePath) is CompoundState realState)
             {
                 state = realState;
             }
@@ -610,11 +584,11 @@ public partial class StateMachine
         return list;
     }
 
-/// <summary>
-/// 
-/// </summary>
-/// <param name="transition"></param>
-/// <param name="event"></param>
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="transition"></param>
+    /// <param name="event"></param>
     public async void TransitFull(Transition transition, string @event)
     {
         var fromState = transition.SourceName;
@@ -630,9 +604,9 @@ public partial class StateMachine
         {
             if (toState != null)
             {
-                await TransitUp(firstExit?.ToState(this) as RealState);
+                await TransitUp(firstExit?.ToState(this) as CompoundState);
                 transition.Actions?.ForEach(action => action.Action(this));
-                await TransitDown(firstEntry?.ToState(this) as RealState, toState);
+                await TransitDown(firstEntry?.ToState(this) as CompoundState, toState);
             }
 
             else
@@ -663,8 +637,8 @@ public partial class StateMachine
         string? firstExit = path1.exitSinglePath.First();
         string? firstEntry = path1.entrySinglePath.First();
 
-        await TransitUp(firstExit?.ToState(this) as RealState);
-        await TransitDown(firstEntry?.ToState(this) as RealState, toState);
+        await TransitUp(firstExit?.ToState(this) as CompoundState);
+        await TransitDown(firstEntry?.ToState(this) as CompoundState, toState);
     }
 
     /// <summary>

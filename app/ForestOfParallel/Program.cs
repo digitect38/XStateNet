@@ -31,11 +31,11 @@ class Program
 
         if (stateMachine != null)
         {
-            stateMachine.TransitUp(firstExit?.ToState(stateMachine) as RealState);
+            stateMachine.TransitUp(firstExit?.ToState(stateMachine) as CompoundState);
 
             var firstEntry = path1.entrySinglePath.First();
 
-            stateMachine.TransitDown(firstEntry.ToState(stateMachine) as RealState, null);
+            stateMachine.TransitDown(firstEntry.ToState(stateMachine) as CompoundState, null);
         }
 
     }

@@ -4,7 +4,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace XStateNet;
 
 
-public class ParallelState : RealState
+public class ParallelState : CompoundState
 {
     public ParallelState(string name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
@@ -22,7 +22,7 @@ public class ParallelState : RealState
         Task.WaitAll(tasks);
     }
 
-    public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
+    public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // parent first evaluation (is not the order exit/entry sequence)
         base.BuildTransitionList(eventName, transitionList);
@@ -43,6 +43,9 @@ public class ParallelState : RealState
 
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public override void OnDone()
     {
         bool done = true;
@@ -66,9 +69,19 @@ public class ParallelState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="postAction"></param>
+    /// <param name="recursive"></param>
+    /// <param name="historyType"></param>
+    /// <param name="targetHistoryState"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
+        if (StateMachine == null) throw new Exception("StateMachine is null");
 
         if (postAction)
         {
@@ -77,8 +90,7 @@ public class ParallelState : RealState
                 ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
                 Parallel.ForEach(SubStateNames, subStateName =>
                 {
-                    if (StateMachine == null) throw new Exception("StateMachine is null");
-                    var subState = StateMachine.GetState(subStateName) as RealState;
+                    var subState = StateMachine.GetState(subStateName) as CompoundState;
                     var task = subState?.EntryState(postAction, recursive, historyType);
                     if (task != null)
                     {
@@ -99,8 +111,7 @@ public class ParallelState : RealState
                 ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
                 Parallel.ForEach(SubStateNames, subStateName =>
                 {
-                    if (StateMachine == null) throw new Exception("StateMachine is null");
-                    var subState = StateMachine.GetState(subStateName) as RealState;
+                    var subState = StateMachine.GetState(subStateName) as CompoundState;
                     var task = subState?.EntryState(postAction, recursive, historyType);
                     if (task != null)
                     {
@@ -124,7 +135,6 @@ public class ParallelState : RealState
         {
             if (recursive && SubStateNames != null)
             {
-
                 ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
                 Parallel.ForEach(SubStateNames, subStateName =>
                 {
@@ -146,7 +156,6 @@ public class ParallelState : RealState
 
             if (recursive && SubStateNames != null)
             {
-
                 ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
                 Parallel.ForEach(SubStateNames, subStateName =>
                 {
@@ -162,6 +171,10 @@ public class ParallelState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="list"></param>
     public override void GetActiveSubStateNames(List<string> list)
     {
         foreach (var subStateName in SubStateNames)
@@ -177,6 +190,11 @@ public class ParallelState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="collection"></param>
+    /// <param name="singleBrancePath"></param>
     public override void GetSouceSubStateCollection(ICollection<string> collection, bool singleBrancePath = false)
     {
         if (singleBrancePath) 
@@ -195,6 +213,12 @@ public class ParallelState : RealState
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="collection"></param>
+    /// <param name="singleBranchPath"></param>
+    /// <param name="hist"></param>
     public override void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType hist = HistoryType.None)
     {
         if(singleBranchPath && SubStateNames.Count > 0)
@@ -211,25 +235,18 @@ public class ParallelState : RealState
                 GetState(subState)?.GetTargetSubStateCollection(collection, singleBranchPath);
             }
         }
-        /*
-        foreach (string subStateName in SubStateNames)
-        {
-            var state = GetState(subStateName);
-            if (state != null)
-            {
-                collection.Add(subStateName);
-                GetState(subStateName)?.GetTargetSubStateCollection(collection, singleBranchPath);
-            }
-        }
-        */
     }
-
-    private List<RealState> GetInitialStates(RealState state)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    /// <returns></returns>
+    private List<CompoundState> GetInitialStates(CompoundState state)
     {
-        var initialStates = new List<RealState>();
+        var initialStates = new List<CompoundState>();
         if (state.InitialStateName != null)
         {
-            var initialSubState = GetState(state.InitialStateName) as RealState;
+            var initialSubState = GetState(state.InitialStateName) as CompoundState;
             if (initialSubState != null)
             {
                 initialStates.Add(initialSubState);
@@ -239,9 +256,13 @@ public class ParallelState : RealState
         return initialStates;
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="depth"></param>
     public override void PrintActiveStateTree(int depth)
     {
-        Helper.WriteLine(depth * 2, $"- {Name.Split('.').Last()}");
+        Helper.WriteLine(depth * 2, $"- {Name?.Split('.').Last()}");
 
         foreach (var currentStateName in SubStateNames)
         {
@@ -250,20 +271,20 @@ public class ParallelState : RealState
     }
 }
 
+/// <summary>
+/// 
+/// </summary>
 public class Parser_ParallelState : Parser_RealState
 {
     public Parser_ParallelState(string? machineId) : base(machineId) { }
 
-    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
+    public override StateNode Parse(string stateName, string? parentName, JToken stateToken)
     {
         var state = new ParallelState(stateName, parentName, machineId)
         {
-        };
-        
-        if(StateMachine == null) throw new Exception("StateMachine is null");
-        state.EntryActions = Parser_Action.ParseActions("entry", StateMachine.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions("exit", StateMachine.ActionMap, stateToken);
-        state.Service = Parser_Service.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
+        };        
+
+        ParseActionsAndService(state, stateToken);
 
         return state;
     }

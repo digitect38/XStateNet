@@ -1,6 +1,9 @@
 ﻿using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
+/// <summary>
+/// 
+/// </summary>
 public class HistoryState : VirtualState
 {
     public HistoryType HistoryType { set; get; }
@@ -28,7 +31,9 @@ public class HistoryState : VirtualState
     // Note:  history stateonly used to buildtransition list. So not used in transition.
 }
 
-
+/// <summary>
+/// 
+/// </summary>
 public class Parser_HistoryState : Parser_StateBase
 {
     HistoryType historyType;
@@ -38,7 +43,7 @@ public class Parser_HistoryState : Parser_StateBase
         this.historyType = historyType;
     }
 
-    public override StateBase Parse(string stateName, string? parentName, JToken stateToken)
+    public override StateNode Parse(string stateName, string? parentName, JToken stateToken)
     {
         return new HistoryState(stateName, parentName, machineId, historyType);
     }    

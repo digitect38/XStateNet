@@ -12,6 +12,16 @@ using ServiceMap = ConcurrentDictionary<string, NamedService>;
 
 public partial class StateMachine
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateMachine"></param>
+    /// <param name="jsonScript"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <param name="serviceCallbacks"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
@@ -58,12 +68,25 @@ public partial class StateMachine
 
         return stateMachine;
     }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="jsonScript"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <param name="serviceCallbacks"></param>
+    /// <returns></returns>
     public static StateMachine ParseStateMachine(string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
     {
         var stateMachine = new StateMachine() { };
         return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="json"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private static string ConvertToQuotedKeys(string? json)
     {
         var regex = new Regex(@"(?<!\\)(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*:");
@@ -71,10 +94,16 @@ public partial class StateMachine
         var result = regex.Replace(json, "\"$1\":");
         return result;
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="stateName"></param>
+    /// <param name="stateToken"></param>
+    /// <param name="parentName"></param>
+    /// <exception cref="Exception"></exception>
     public void ParseState(string stateName, JToken stateToken, string? parentName)
     {
-        StateBase? stateBase;
+        StateNode? stateBase;
 
         var stateTypeStr = stateToken["type"]?.ToString();
 
@@ -134,7 +163,7 @@ public partial class StateMachine
                 break;
         }
 
-        RealState state = (RealState)stateBase;
+        CompoundState state = (CompoundState)stateBase;
 
         if (state == null)
         {
@@ -153,7 +182,7 @@ public partial class StateMachine
             {
                 throw new Exception("StateMap is null!");
             }
-            var parent = (RealState)StateMap[parentName];
+            var parent = (CompoundState)StateMap[parentName];
             parent.SubStateNames.Add(stateName);
         }
 
@@ -218,7 +247,11 @@ public partial class StateMachine
 
         //Parser_Action.ParseActions("exit", ActionMap, stateToken);
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="statesToken"></param>
+    /// <param name="parentName"></param>
     private void ParseStates(JToken statesToken, string parentName)
     {
         foreach (var subToken in statesToken)
@@ -231,7 +264,12 @@ public partial class StateMachine
             }
         }
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="actionNames"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private List<NamedAction>? GetActionCallbacks(List<string> actionNames)
     {
         if (actionNames == null) return null;       
@@ -252,7 +290,12 @@ public partial class StateMachine
         }
         return result;
     }
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="guardName"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private NamedGuard? GetGuardCallback(string guardName)
     {
         if (guardName == null) return null;
@@ -271,8 +314,16 @@ public partial class StateMachine
             return null;
         }
     }
-
-    private List<Transition> ParseTransitions(RealState state, TransitionType type, string @event, JToken token)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    /// <param name="type"></param>
+    /// <param name="event"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    private List<Transition> ParseTransitions(CompoundState state, TransitionType type, string @event, JToken token)
     {
         List<Transition> transitions = new List<Transition>();
 
@@ -298,8 +349,16 @@ public partial class StateMachine
 
         return transitions;
     }
-
-    private Transition ParseTransition(RealState source, TransitionType type, string @event, JToken token)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="type"></param>
+    /// <param name="event"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    private Transition ParseTransition(CompoundState source, TransitionType type, string @event, JToken token)
     {
 
         List<string>? actionNames = null;
@@ -434,8 +493,13 @@ public partial class StateMachine
 
         return transition;
     }
-
     
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="key"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
     public List<NamedAction> ParseActions(string key, JToken token)
     {
         List<NamedAction> actions = null;
@@ -464,7 +528,12 @@ public partial class StateMachine
 
         return actions;
     }
-    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="currentPath"></param>
+    /// <param name="target"></param>
+    /// <returns></returns>
     public static string? ResolveAbsolutePath(string? currentPath, string target)
     {
         if (target.StartsWith("#"))
@@ -493,8 +562,7 @@ public partial class StateMachine
         }
     }
 
-    HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;
-   
+    HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;   
 }
 
 

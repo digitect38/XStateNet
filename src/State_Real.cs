@@ -1,18 +1,13 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
 namespace XStateNet;
 
-/// <summary>
-/// Notes : 
-/// Normal and Parallel states can be active or not. 
-/// Normal state can have an initial state.
-/// Parallel state can not have initial state. But have all as active states
-/// Parallel state is defined here, as the state has multiple parallel sub states.
-/// </summary>
-public abstract class RealState : StateBase
+
+public abstract class RealState : StateNode
 {
     bool onDone = false;
     public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
@@ -28,21 +23,91 @@ public abstract class RealState : StateBase
     public List<NamedAction>? ExitActions { get; set; }
     public NamedService? Service { get; set; }
 
+    public RealState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
+    {
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="postAction">action while return the method</param>
+    /// <param name="recursive">recursion to sub states</param>
+
+    public virtual Task ExitState(bool postAction = true, bool recursive = false)
+    {
+        //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
+
+        IsActive = false;
+
+        if (Parent != null)
+        {
+            Parent.ActiveStateName = null;
+        }
+
+        if (StateMachine != null)
+            ExitActions?.ForEach(action => action.Action(StateMachine));
+
+        return Task.CompletedTask;
+    }
+
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="historyType"></param>
+    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    {
+        //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
+
+
+        if (StateMachine != null)
+        {
+            EntryActions?.ForEach(a => a.Action(StateMachine));
+            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
+            Service?.Service(StateMachine);
+        }
+
+        // Let define active state as all the entry actions performed successfuly.
+
+        IsActive = true;
+
+        if (Parent != null)
+        {
+            Parent.ActiveStateName = Name;
+        }        
+
+        return Task.CompletedTask;
+    }
+
+
+    //public abstract void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList);
+    public abstract void PrintActiveStateTree(int depth);
+}
+/// <summary>
+/// Notes : 
+/// Normal and Parallel states can be active or not. 
+/// Normal state can have an initial state.
+/// Parallel state can not have initial state. But have all as active states
+/// Parallel state is defined here, as the state has multiple parallel sub states.
+/// </summary>
+public abstract class CompoundState : RealState
+{
+
     public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
     public string? InitialStateName { get; set; }
 
     public string? ActiveStateName { get; set; }
-    public RealState? ActiveState => ActiveStateName != null ? GetState(ActiveStateName!) : null;
+    public CompoundState? ActiveState => ActiveStateName != null ? GetState(ActiveStateName!) : null;
 
     public bool IsParallel => typeof(ParallelState) == this.GetType();
 
-    public new RealState? GetState(string stateName)
+    public new CompoundState? GetState(string stateName)
     {
-        return StateMachine?.GetState(stateName) as RealState;
+        return StateMachine?.GetState(stateName) as CompoundState;
     }
 
-    public RealState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
+    public CompoundState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
     {
         SubStateNames = new List<string>();
         EntryActions = new List<NamedAction>();
@@ -88,7 +153,7 @@ public abstract class RealState : StateBase
     /// <param name="postAction">action while return the method</param>
     /// <param name="recursive">recursion to sub states</param>
 
-    public virtual Task ExitState(bool postAction = true, bool recursive = false)
+    public override Task ExitState(bool postAction = true, bool recursive = false)
     {
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
 
@@ -111,7 +176,7 @@ public abstract class RealState : StateBase
     /// 
     /// </summary>
     /// <param name="historyType"></param>
-    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 
@@ -166,8 +231,10 @@ public abstract class RealState : StateBase
         StateMachine.Log("");
     }
 
-    public virtual void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
+    public virtual void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
+        if(StateMachine == null) throw new Exception("StateMachine is null");
+
         //StateMachine.Log(">>>- State.Real.BuildTransitionList: " + Name);
         // self second
         OnTransitionMap.TryGetValue(eventName, out var transitions);
@@ -203,10 +270,23 @@ public abstract class RealState : StateBase
 
     public abstract void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType hist = HistoryType.None);
     public abstract void GetSouceSubStateCollection(ICollection<string> collection, bool singleBranchPath = false);
-    public abstract void PrintActiveStateTree(int depth);  
+    //public abstract void PrintActiveStateTree(int depth);  
 }
 
 public abstract class Parser_RealState : Parser_StateBase
 {
     public Parser_RealState(string? machineId) : base(machineId)  { }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    /// <param name="stateToken"></param>
+    protected void ParseActionsAndService(CompoundState state, JToken stateToken)
+    {
+        if (StateMachine == null) throw new Exception("StateMachine is null");
+        state.EntryActions = StateMachine.ParseActions("entry", StateMachine?.ActionMap, stateToken);
+        state.ExitActions = StateMachine.ParseActions("exit", StateMachine?.ActionMap, stateToken);
+        state.Service = StateMachine.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
+    }
 }

@@ -14,7 +14,7 @@ public static class Helper
         StateMachine.Log(msg);
     }
 
-    public static string ToCsvString(this IEnumerable<StateBase> collection, string separator = ";")
+    public static string ToCsvString(this IEnumerable<StateNode> collection, string separator = ";")
     {
         return string.Join(separator, collection.Select(state => state.Name));
     }
@@ -23,7 +23,7 @@ public static class Helper
     {
         if (leafOnly)
             return string.Join(separator, collection.Where(state => 
-                ((RealState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
+                ((CompoundState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
         else
             return string.Join(separator, collection.Select(state => state));
     }
@@ -32,12 +32,12 @@ public static class Helper
     {
         if (leafOnly)
             return string.Join(separator, collection.Where(state =>
-                ((RealState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
+                ((CompoundState)(stateMachine.GetState(state))).SubStateNames.Count == 0).Select(state => state));
         else
             return string.Join(separator, collection.Select(state => state));
     }
 
-    public static StateBase ToState(this string stateName, StateMachine stateMachine)
+    public static StateNode ToState(this string stateName, StateMachine stateMachine)
     {
         return stateMachine.GetState(stateName);
     }

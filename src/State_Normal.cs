@@ -6,7 +6,7 @@ namespace XStateNet;
 /// <summary>
 /// 
 /// </summary>
-public class NormalState : RealState
+public class NormalState : CompoundState
 {
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
 
@@ -54,7 +54,7 @@ public class NormalState : RealState
     /// </summary>
     /// <param name="eventName"></param>
     /// <param name="transitionList"></param>
-    public override void BuildTransitionList(string eventName, List<(RealState state, Transition transition, string eventName)> transitionList)
+    public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // Evaluation should be top-down direction
 
@@ -176,8 +176,6 @@ public class NormalState : RealState
         return Task.CompletedTask;
     }
 
-
-
     /// <summary>
     /// 
     /// </summary>
@@ -282,7 +280,7 @@ public class Parser_NormalState : Parser_RealState
     /// <param name="parentName"></param>
     /// <param name="stateToken"></param>
     /// <returns></returns>
-    public override StateBase Parse(string? stateName, string? parentName, JToken stateToken)
+    public override StateNode Parse(string? stateName, string? parentName, JToken stateToken)
     {
         var initial = stateToken["initial"];
 
@@ -293,9 +291,7 @@ public class Parser_NormalState : Parser_RealState
 
         state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;
 
-        state.EntryActions = Parser_Action.ParseActions("entry", StateMachine?.ActionMap, stateToken);
-        state.ExitActions = Parser_Action.ParseActions("exit", StateMachine?.ActionMap, stateToken);
-        state.Service = Parser_Service.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
+        ParseActionsAndService(state, stateToken);
 
         return state;
     }

@@ -4,3 +4,74 @@ Active state map 의 구조
 이것는 event evaluation 입장에서 중요하다.
 Map에 등록된 state 들의 순서에 따라 event 가 evaluation 순서가 정해지기 때문에 condition 및 guard 선/후 관계 평가에 영향을 준다.
 제대로 된 map은 state tree 의 depth 순서대로 등록되어야 한다.
+
+
+XState keywords
+
+{
+  "TopLevelKeywords": {
+    "id": "A unique identifier for the state machine or state node.",
+    "initial": "Specifies the initial state when the machine starts.",
+    "context": "Holds extended state data, which can be read and modified during state transitions.",
+    "states": "Defines the states of the machine, including nested states.",
+    "on": "Specifies the event transitions for a state, mapping events to target states or actions.",
+    "type": "Defines the type of state node (e.g., atomic, compound, parallel, final, history).",
+    "entry": "Actions to execute when entering a state (also known as onEntry).",
+    "exit": "Actions to execute when exiting a state (also known as onExit).",
+    "always": "Transitions that occur automatically, based on conditions (guards).",
+    "invoke": "Calls external services or asynchronous tasks when a state is entered.",
+    "activities": "Long-running tasks tied to the lifecycle of a state.",
+    "*delays": "Specifies delayed transitions, mapping delay times to events or transitions.",
+    "history": "Specifies if the machine should remember its previous state (used in history states).",
+    "after": "Delayed transitions after a specified time has passed in a state.",
+    "onDone": "Transitions or actions to take when an invoked service completes successfully.",
+    "onError": "Transitions or actions to take when an invoked service fails.",
+    "*data": "Returns data from the state machine in final states.",
+    "*parent": "Refers to the parent state node in nested (child) states.",
+    "*transient": "Shorthand for always transitions without guards.",
+    "parallel": "Specifies that states should be executed in parallel rather than sequentially.",
+    "*preserveActionOrder": "Ensures actions are executed in the order they were defined."
+  },
+  "StateNodeKeywords": {
+    "target": "Specifies the target state for a transition.",
+    "actions": "Defines actions to be executed when a transition occurs.",
+    "cond": "A condition (guard) that must be met for a transition to occur.",
+    "*internal": "Specifies whether a transition is internal (does not exit or re-enter the state).",
+    "*meta": "Provides metadata for states or state nodes.",
+    "initial": "Specifies the initial state for compound or parallel states.",
+    "final": "Indicates a final state in a compound state or state machine.",
+    "done": "Used in final states to trigger a 'done' event.",
+    "entry": "Actions to be executed when a state is entered (synonym for onEntry).",
+    "exit": "Actions to be executed when a state is exited (synonym for onExit).",
+    "invoke": "Calls an external service or task when the state is entered.",
+    "*activities": "Starts long-running actions when the state is active.",
+    "after": "Triggers a transition after a specified delay."
+  },
+  "ActionKeywords": {
+    "send": "Sends an event to the state machine or another actor.",
+    "*assign": "Updates the context data.",
+    "*raise": "Raises an event within the state machine.",
+    "*log": "Logs information to the console.",
+    "*choose": "Executes actions conditionally, based on guards.",
+    "*escalate": "Sends an error event to the parent machine or actor.",
+    "*respond": "Sends a response event back to the invoker of an actor.",
+    "*forwardTo": "Forwards an event to another actor or state machine."
+  },
+  "ServiceKeywords": {
+    "src": "Specifies the source or service to invoke (e.g., a promise, callback, actor, or observable).",
+    "onDone": "Defines the transition or actions to take when the service completes successfully.",
+    "*onError": "Defines the transition or actions to take when the service fails.",
+    "*autoForward": "Automatically forwards events to the invoked service.",
+    "*data": "Passes data to the invoked service."
+  },
+  "GuardKeywords": {
+    "cond": "Specifies a guard condition that must be true for a transition to occur.",
+    "guards": "A set of guard conditions that can be referenced by name."
+  },
+  "SpecialStatesAndTransitions": {
+    "final": "Defines a final state in a state machine or compound state.",
+    "history": "Specifies a history state, which remembers the last active child state.",
+    "initial": "Specifies the initial state in a compound state.",
+    "parallel": "Indicates that the state has parallel (simultaneously active) child states."
+  }
+}
