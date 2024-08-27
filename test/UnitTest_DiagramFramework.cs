@@ -7,10 +7,10 @@ namespace AdvancedFeatures;
 public class DiagrammingFrameworkTests
 {
     private StateMachine _stateMachine;
-    private ConcurrentDictionary<string, object> _context = new ConcurrentDictionary<string, object>();
+    private ContextMap _context = new ();
 
-    ConcurrentDictionary<string, List<NamedAction>> actionMap = new();
-    ConcurrentDictionary<string, NamedGuard> guardMap = new();
+    ActionMap actionMap = new();
+    GuardMap guardMap = new();
 
     [SetUp]
     public void Setup()

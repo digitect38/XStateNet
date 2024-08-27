@@ -59,9 +59,6 @@ using System.Xml.Linq;
 
 namespace XStateNet;
 
-using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using GuardMap = ConcurrentDictionary<string, NamedGuard>;
-using ServiceMap = ConcurrentDictionary<string, NamedService>;
 
 enum MachineState
 {
@@ -85,6 +82,7 @@ public partial class StateMachine
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
     public ServiceMap? ServiceMap { set; get; }
+    public DelayMap? DelayMap { set; get; }
 
     public TransitionExecutor transitionExecutor { private set; get; }
 
@@ -116,10 +114,16 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromFile(string jsonFilePath, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
+    public static StateMachine CreateFromFile(
+        string jsonFilePath, 
+        ActionMap? actionCallbacks = null, 
+        GuardMap? guardCallbacks = null, 
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null
+    )
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
     /// <summary>
@@ -129,9 +133,15 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(string? jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
+    public static StateMachine CreateFromScript(
+        string? jsonScript,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null
+    )
     {
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
     /// <summary>
@@ -142,10 +152,17 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromFile(StateMachine sm, string jsonFilePath, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
+    public static StateMachine CreateFromFile(
+        StateMachine sm, 
+        string jsonFilePath, 
+        ActionMap? actionCallbacks = null, 
+        GuardMap? guardCallbacks = null, 
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null
+        )
     {
         var jsonScript = File.ReadAllText(jsonFilePath);
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
     /// <summary>
@@ -156,9 +173,14 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, ActionMap? actionCallbacks = null, GuardMap? guardCallbacks = null, ServiceMap? serviceCallbacks = null)
+    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, 
+        ActionMap? actionCallbacks = null, 
+        GuardMap? guardCallbacks = null, 
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null
+        )
     {
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
     /// <summary>
@@ -599,7 +621,7 @@ public partial class StateMachine
         string? firstExit = path1.exitSinglePath.First();
         string? firstEntry = path1.entrySinglePath.First();
 
-        if ((transition.Guard == null || transition.Guard.Predicate(this))
+        if ((transition.Guard == null || transition.Guard.PredicateFunc(this))
             && (transition.InCondition == null || transition.InCondition()))
         {
             if (toState != null)

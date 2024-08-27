@@ -3,16 +3,68 @@
   "WorkspaceRootPath": "C:\\Users\\digit\\source\\repos\\XStateNet5\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\state_base.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_base.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_delays.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_delays.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_leaderfolower.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_leaderfolower.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_supercomplex.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_supercomplex.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_incondition.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_incondition.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_ping_and_pong_machines.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_ping_and_pong_machines.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_historystate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_historystate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{F77A468A-FECA-42BB-9E4E-9BFFE84A8B72}|app\\ForestOfParallel\\ForestOfParallel.csproj|solutionrelative:app\\forestofparallel\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_trafficlight.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_trafficlight.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_mutualexclusive.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_mutualexclusive.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\test\\unittest_videoplayer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_videoplayer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\state_real.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_real.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\parser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\parser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\transition.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\transition.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\parser_action.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\parser_action.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\state_base.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_base.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\source\\repos\\xstatenet5\\src\\notes.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
@@ -30,73 +82,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 14,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "State_Base.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Base.cs",
-              "RelativeDocumentMoniker": "src\\State_Base.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Base.cs",
-              "RelativeToolTip": "src\\State_Base.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABoAAABdAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-24T15:11:49.217Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "StateMachine.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\StateMachine.cs",
-              "RelativeDocumentMoniker": "src\\StateMachine.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\StateMachine.cs",
-              "RelativeToolTip": "src\\StateMachine.cs",
-              "ViewState": "AQIAAEUAAAAAAAAAAAAAADUAAAAhAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-24T15:09:56.177Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "Notes.txt",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Notes.txt",
-              "RelativeDocumentMoniker": "src\\Notes.txt",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Notes.txt",
-              "RelativeToolTip": "src\\Notes.txt",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAYAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
-              "WhenOpened": "2024-08-24T15:08:48.267Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "State_Real.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Real.cs",
-              "RelativeDocumentMoniker": "src\\State_Real.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Real.cs",
-              "RelativeToolTip": "src\\State_Real.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAkAAAArAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-23T02:44:36.066Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "State_Final.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Final.cs",
-              "RelativeDocumentMoniker": "src\\State_Final.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Final.cs",
-              "RelativeToolTip": "src\\State_Final.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABUAAAAfAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-23T02:04:15.401Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Bookmark",
               "Name": "ST:130:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
@@ -152,6 +139,240 @@
             {
               "$type": "Bookmark",
               "Name": "ST:142:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "UnitTest_Delays.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_Delays.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs*",
+              "RelativeToolTip": "test\\UnitTest_Delays.cs*",
+              "ViewState": "AQIAADcAAAAAAAAAAAAkwFEAAABCAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T16:00:09.754Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "UnitTest_InCondition.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_InCondition.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_InCondition.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_InCondition.cs",
+              "RelativeToolTip": "test\\UnitTest_InCondition.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABUAAAAxAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:35:50.765Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "UnitTest_HistoryState.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_HistoryState.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_HistoryState.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_HistoryState.cs",
+              "RelativeToolTip": "test\\UnitTest_HistoryState.cs",
+              "ViewState": "AQIAAFoAAAAAAAAAAAAYwGkAAAAMAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:35:48.766Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\app\\ForestOfParallel\\Program.cs",
+              "RelativeDocumentMoniker": "app\\ForestOfParallel\\Program.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\app\\ForestOfParallel\\Program.cs",
+              "RelativeToolTip": "app\\ForestOfParallel\\Program.cs",
+              "ViewState": "AQIAAB0AAAAAAAAAAAAtwC4AAABiAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:35:36.813Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "UnitTest_TrafficLight.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_TrafficLight.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_TrafficLight.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_TrafficLight.cs",
+              "RelativeToolTip": "test\\UnitTest_TrafficLight.cs",
+              "ViewState": "AQIAALUAAAAAAAAAAAAtwMUAAABHAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:34:37.94Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "UnitTest_SuperComplex.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_SuperComplex.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_SuperComplex.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_SuperComplex.cs",
+              "RelativeToolTip": "test\\UnitTest_SuperComplex.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:34:36.207Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UnitTest_mutualExclusive.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_mutualExclusive.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_mutualExclusive.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_mutualExclusive.cs",
+              "RelativeToolTip": "test\\UnitTest_mutualExclusive.cs",
+              "ViewState": "AQIAAAEAAAAAAAAAAAAYwBEAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:33:56.981Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "UnitTest_LeaderFolower.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_LeaderFolower.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_LeaderFolower.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_LeaderFolower.cs",
+              "RelativeToolTip": "test\\UnitTest_LeaderFolower.cs",
+              "ViewState": "AQIAAAkAAAAAAAAAAAAAABsAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:33:10.563Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "UnitTest_VideoPlayer.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_VideoPlayer.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_VideoPlayer.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_VideoPlayer.cs",
+              "RelativeToolTip": "test\\UnitTest_VideoPlayer.cs",
+              "ViewState": "AQIAADkAAAAAAAAAAAAEwE0AAABdAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:24:28.358Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "UnitTest_Ping_and_Pong_Machines.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Ping_and_Pong_Machines.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_Ping_and_Pong_Machines.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Ping_and_Pong_Machines.cs",
+              "RelativeToolTip": "test\\UnitTest_Ping_and_Pong_Machines.cs",
+              "ViewState": "AQIAAJAAAAAAAAAAAAAAAK8AAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T15:13:04.291Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "Transition.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Transition.cs",
+              "RelativeDocumentMoniker": "src\\Transition.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Transition.cs",
+              "RelativeToolTip": "src\\Transition.cs",
+              "ViewState": "AQIAAGwAAAAAAAAAAAAqwH8AAAAZAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T14:19:52.978Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "Parser_Action.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Parser_Action.cs",
+              "RelativeDocumentMoniker": "src\\Parser_Action.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Parser_Action.cs",
+              "RelativeToolTip": "src\\Parser_Action.cs",
+              "ViewState": "AQIAAAQAAAAAAAAAAAAAwA4AAAABAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T14:07:28.714Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "Parser.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Parser.cs",
+              "RelativeDocumentMoniker": "src\\Parser.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Parser.cs",
+              "RelativeToolTip": "src\\Parser.cs",
+              "ViewState": "AQIAAKUBAAAAAAAAAAAqwLMBAAAOAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-27T13:51:58.96Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "State_Base.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Base.cs",
+              "RelativeDocumentMoniker": "src\\State_Base.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Base.cs",
+              "RelativeToolTip": "src\\State_Base.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAAOAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-24T15:11:49.217Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "StateMachine.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\StateMachine.cs",
+              "RelativeDocumentMoniker": "src\\StateMachine.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\StateMachine.cs",
+              "RelativeToolTip": "src\\StateMachine.cs",
+              "ViewState": "AQIAAHMAAAAAAAAAAAAmwIwAAAAnAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-24T15:09:56.177Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "Notes.txt",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Notes.txt",
+              "RelativeDocumentMoniker": "src\\Notes.txt",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\Notes.txt",
+              "RelativeToolTip": "src\\Notes.txt",
+              "ViewState": "AQIAAAkAAAAAAAAAAAAAABwAAABEAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
+              "WhenOpened": "2024-08-24T15:08:48.267Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "State_Real.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Real.cs",
+              "RelativeDocumentMoniker": "src\\State_Real.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Real.cs",
+              "RelativeToolTip": "src\\State_Real.cs",
+              "ViewState": "AQIAAMQAAAAAAAAAAADwv94AAABqAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-23T02:44:36.066Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "State_Final.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Final.cs",
+              "RelativeDocumentMoniker": "src\\State_Final.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Final.cs",
+              "RelativeToolTip": "src\\State_Final.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABUAAAAfAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-08-23T02:04:15.401Z",
+              "EditorCaption": ""
             }
           ]
         }

@@ -13,11 +13,11 @@ namespace AdvancedFeatures
         private StateMachine _pingStateMachine;
         private StateMachine _pongStateMachine;
 
-        private ConcurrentDictionary<string, List<NamedAction>> _pingActions;
-        private ConcurrentDictionary<string, NamedGuard> _pingGuards;
+        private ActionMap _pingActions;
+        private GuardMap _pingGuards;
 
-        private ConcurrentDictionary<string, List<NamedAction>> _pongActions;
-        private ConcurrentDictionary<string, NamedGuard> _pongGuards;
+        private ActionMap _pongActions;
+        private GuardMap _pongGuards;
 
         private List<string> _transitionLog;
 
@@ -40,18 +40,18 @@ namespace AdvancedFeatures
             _pongStateMachine = new StateMachine();
 
             // Ping actions
-            _pingActions = new ConcurrentDictionary<string, List<NamedAction>>
+            _pingActions = new ActionMap()//new ConcurrentDictionary<string, List<NamedAction>>
             {
                 ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", (sm) => _pongStateMachine.Send("to_b")) }
             };
             _pingGuards = new();
 
             // Pong actions
-            _pongActions = new ConcurrentDictionary<string, List<NamedAction>>
+            _pongActions = new ActionMap //ConcurrentDictionary<string, List<NamedAction>>
             {
                 ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", (sm) => _pingStateMachine.Send("to_a")) }
             };
-            _pongGuards = new ConcurrentDictionary<string, NamedGuard>();
+            _pongGuards = new GuardMap(); // ConcurrentDictionary<string, NamedGuard>();
 
             StateMachine.CreateFromScript(_pingStateMachine, pingJson, _pingActions, _pingGuards);
             StateMachine.CreateFromScript(_pongStateMachine, pongJson, _pongActions, _pongGuards);

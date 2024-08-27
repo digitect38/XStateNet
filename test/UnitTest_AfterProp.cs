@@ -5,9 +5,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 namespace AdvancedFeatures;
 
-using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using GuardMap = ConcurrentDictionary<string, NamedGuard>;
-
 [TestFixture]
 public class AfterTests
 {

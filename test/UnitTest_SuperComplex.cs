@@ -9,15 +9,15 @@ namespace SuperComplexStateMachineTests
     public class SuperComplexStateMachineTests
     {
         private StateMachine _stateMachine;
-        private ConcurrentDictionary<string, List<NamedAction>> _actions;
-        private ConcurrentDictionary<string, NamedGuard> _guards;
+        private ActionMap _actions;
+        private GuardMap _guards;
 
         [SetUp]
         public void Setup()
         {
             // Initialize action and guard dictionaries
-            _actions = new ConcurrentDictionary<string, List<NamedAction>>();
-            _guards = new ConcurrentDictionary<string, NamedGuard>();
+            _actions = new ActionMap();
+            _guards = new GuardMap();
 
             // Load the state machine from the provided JSON script
             _stateMachine = StateMachine.CreateFromScript(json, _actions, _guards).Start();

@@ -1,13 +1,5 @@
 ﻿namespace XStateNet;
 
-public enum TransitionType
-{
-    On,
-    Always,
-    After,
-    OnDone
-}
-
 /// <summary>
 /// 
 /// </summary>
@@ -22,7 +14,7 @@ public class TransitionExecutor : StateObject
 
         StateMachine.Log($">> transition on event {eventName} in state {transition.SourceName}");
 
-        if ((transition.Guard == null || transition.Guard.Predicate(StateMachine))
+        if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine))
             && (transition.InCondition == null || transition.InCondition()))
         {
 
@@ -135,8 +127,8 @@ public class OnTransition : Transition
 /// </summary>
 public class AfterTransition : Transition
 {
-    public int Delay { get; set; }
-    public AfterTransition(string? machineId) : base(machineId){}
+    public string? Delay { get; set; }
+    public AfterTransition(string? machineId) : base(machineId) { }
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,23 +21,34 @@ public class NamedAction
 public class NamedGuard
 {
     public string Name { get; set; }
-    public Func<StateMachine, bool> Predicate { get; set; }
+    public Func<StateMachine, bool> PredicateFunc { get; set; }
 
     public NamedGuard(string name, Func<StateMachine, bool> predicate)
     {
         Name = name;
-        Predicate = predicate;
+        PredicateFunc = predicate;
     }
 }
 
 public class NamedService   // for "invoke"
 {
     public string Name { get; set; }
-    public Func<StateMachine, Task> Service { get; set; }
+    public Func<StateMachine, Task> ServiceFunc { get; set; }
     public NamedService(string name, Func<StateMachine, Task> service)
     {
         Name = name;
-        Service = service;
+        ServiceFunc = service;
+    }
+}
+
+public class NamedDelay   // for "delays"
+{
+    public string Name { get; set; }
+    public Func<StateMachine, int> DelayFunc { get; set; }
+    public NamedDelay(string name, Func<StateMachine, int> delayFunc)
+    {
+        Name = name;
+        DelayFunc = delayFunc;
     }
 }
 
@@ -53,4 +65,37 @@ public enum HistoryType
     None,
     Shallow,
     Deep
+}
+
+public enum TransitionType
+{
+    On,
+    Always,
+    After,
+    OnDone
+}
+
+public class ContextMap : ConcurrentDictionary<string, object>
+{ 
+    public ContextMap() : base() { }
+}
+
+public class ActionMap : ConcurrentDictionary<string, List<NamedAction>>
+{
+    public ActionMap() : base() { }
+}
+
+public class GuardMap : ConcurrentDictionary<string, NamedGuard>
+{
+    public GuardMap() : base() { }
+}
+
+public class ServiceMap : ConcurrentDictionary<string, NamedService>
+{
+    public ServiceMap() : base() { }
+}
+
+public class DelayMap : ConcurrentDictionary<string, NamedDelay>
+{
+    public DelayMap() : base() { }
 }

@@ -10,8 +10,8 @@ namespace ComplexMachine;
 public class AtmStateMachineTests
 {
     private StateMachine _stateMachine;
-    private ConcurrentDictionary<string, List<NamedAction>> _actions;
-    private ConcurrentDictionary<string, NamedGuard> _guards;
+    private ActionMap _actions;
+    private GuardMap _guards;
 
     [SetUp]
     public void Setup()

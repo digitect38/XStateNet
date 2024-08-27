@@ -22,8 +22,10 @@ public abstract class RealState : StateNode
     public List<NamedAction>? EntryActions { get; set; }
     public List<NamedAction>? ExitActions { get; set; }
     public NamedService? Service { get; set; }
+    public NamedDelay? Delay { get; set; }
 
-    public RealState(string? name, string? parentName, string? stateMachineId) : base(name, parentName, stateMachineId)
+    public RealState(string? name, string? parentName, string? stateMachineId) 
+        : base(name, parentName, stateMachineId)
     {
     }
 
@@ -64,7 +66,7 @@ public abstract class RealState : StateNode
         {
             EntryActions?.ForEach(a => a.Action(StateMachine));
             //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
-            Service?.Service(StateMachine);
+            Service?.ServiceFunc(StateMachine);
         }
 
         // Let define active state as all the entry actions performed successfuly.
@@ -186,7 +188,7 @@ public abstract class CompoundState : RealState
         {
             EntryActions?.ForEach(a => a.Action(StateMachine));
             //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
-            Service?.Service(StateMachine);
+            Service?.ServiceFunc(StateMachine);
         }
 
         // Let define active state as all the entry actions performed successfuly.
@@ -209,7 +211,18 @@ public abstract class CompoundState : RealState
         if (AfterTransition == null) return;
 
         var timer = new System.Timers.Timer();
-        timer.Interval = AfterTransition.Delay;
+
+        if (int.TryParse(AfterTransition.Delay, out int delay))
+        {
+            timer.Interval = delay;
+        }
+        else
+        {
+            if(StateMachine == null) throw new Exception("StateMachine is null");
+            if(StateMachine.DelayMap == null) throw new Exception("DelayMap is null");
+            timer.Interval = StateMachine.DelayMap[AfterTransition?.Delay].DelayFunc.Invoke(StateMachine);
+        }
+
         var now = DateTime.Now;
 
         timer.Elapsed += (sender, e) =>
@@ -243,7 +256,7 @@ public abstract class CompoundState : RealState
         {
             foreach (var transition in transitions)
             {
-                if (transition.Guard == null || transition.Guard != null && transition.Guard.Predicate(StateMachine))
+                if (transition.Guard == null || transition.Guard != null && transition.Guard.PredicateFunc(StateMachine))
                 {
                     transitionList.Add((this, transition, eventName));
                 }

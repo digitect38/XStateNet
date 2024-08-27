@@ -42,7 +42,7 @@ class Program
 
     static void Log(string message) => Console.WriteLine(message);
 
-    static ConcurrentDictionary<string, List<NamedAction>>? _actions = new()
+    static ActionMap? _actions = new()
     {
         ["EnterS1"] = new List<NamedAction> { new NamedAction("EnterS1", (sm) => Log("ENT S1")) },
         ["ExitS1"] = new List<NamedAction> { new NamedAction("ExitS1", (sm) => Log("EXT S1")) },

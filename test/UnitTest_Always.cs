@@ -35,7 +35,7 @@ public class StateMachine_AlwaysTests
             }
         }";
 
-        var actions = new ConcurrentDictionary<string, List<NamedAction>>
+        var actions = new ActionMap
         {
             ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
             ["decrementCount"] = [new("decrementCount", (sm) => Decrement(sm))],
@@ -79,7 +79,7 @@ public class StateMachine_AlwaysTests
         {
             sm.ContextMap["count"] = (int)sm.ContextMap["count"] - 1;
         }
-        var guards = new ConcurrentDictionary<string, NamedGuard>
+        var guards = new GuardMap
         {
             ["isBigNumber"] = new("isBigNumber", (sm) => IsBigNumber(sm)),
             ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))

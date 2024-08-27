@@ -5,11 +5,6 @@ using System.Linq;
 
 namespace XStateNet;
 
-using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using GuardMap = ConcurrentDictionary<string, NamedGuard>;
-using ServiceMap = ConcurrentDictionary<string, NamedService>;
-
-
 public partial class StateMachine
 {
     /// <summary>
@@ -22,7 +17,12 @@ public partial class StateMachine
     /// <param name="serviceCallbacks"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, 
+        ActionMap? actionCallbacks, 
+        GuardMap? guardCallbacks, 
+        ServiceMap? serviceCallbacks,
+        DelayMap? delayCallbacks
+    )
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
@@ -41,6 +41,7 @@ public partial class StateMachine
         stateMachine.ActionMap = actionCallbacks;
         stateMachine.GuardMap = guardCallbacks;
         stateMachine.ServiceMap = serviceCallbacks;
+        stateMachine.DelayMap = delayCallbacks;
 
 
         _instanceMap[stateMachine.machineId] = stateMachine;
@@ -76,10 +77,15 @@ public partial class StateMachine
     /// <param name="guardCallbacks"></param>
     /// <param name="serviceCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine ParseStateMachine(string? jsonScript, ActionMap? actionCallbacks, GuardMap? guardCallbacks, ServiceMap? serviceCallbacks)
+    public static StateMachine ParseStateMachine(string? jsonScript,
+        ActionMap? actionCallbacks,
+        GuardMap? guardCallbacks,
+        ServiceMap? serviceCallbacks,
+        DelayMap? delayCallbacks
+    )
     {
         var stateMachine = new StateMachine() { };
-        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks);
+        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
     /// <summary>
     /// 
@@ -433,7 +439,7 @@ public partial class StateMachine
         {
             transition = new AfterTransition(machineId)
             {
-                Delay = int.Parse(@event),
+                Delay = @event
             };
         }
         else if (type == TransitionType.Always)
@@ -490,7 +496,6 @@ public partial class StateMachine
                 throw new Exception("Invalid transition type!");
         }
 
-
         return transition;
     }
     
@@ -500,9 +505,9 @@ public partial class StateMachine
     /// <param name="key"></param>
     /// <param name="token"></param>
     /// <returns></returns>
-    public List<NamedAction> ParseActions(string key, JToken token)
+    public List<NamedAction> ParseActions(string key, JToken? token)
     {
-        List<NamedAction> actions = null;
+        List<NamedAction>? actions = null;
 
         if (token[key] == null)
         {

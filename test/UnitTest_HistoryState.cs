@@ -45,8 +45,8 @@ public class HistoryState
         ;
 
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
-            new ConcurrentDictionary<string, List<NamedAction>>(),
-            new ConcurrentDictionary<string, NamedGuard>()).Start();
+            new ActionMap(),
+            new GuardMap()).Start();
 
         _stateMachine.Send("TO_A2");
         _stateMachine.Send("TO_B");
@@ -103,8 +103,8 @@ public class HistoryState
         ;
 
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
-            new ConcurrentDictionary<string, List<NamedAction>>(),
-            new ConcurrentDictionary<string, NamedGuard>()).Start();
+            new ActionMap(),
+            new GuardMap()).Start();
 
         var currentState = _stateMachine.GetActiveStateString();
         _stateMachine.Send("TO_A1b");

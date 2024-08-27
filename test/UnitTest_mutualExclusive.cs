@@ -13,8 +13,8 @@ public class MutualExclusionTests
     [SetUp]
     public void Setup()
     {
-        var actionCallbacks = new ConcurrentDictionary<string, List<NamedAction>>();
-        var guardCallbacks = new ConcurrentDictionary<string, NamedGuard>();
+        var actionCallbacks = new ActionMap();
+        var guardCallbacks = new GuardMap();
 
         string jsonScript = @"
         {

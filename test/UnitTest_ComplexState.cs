@@ -12,9 +12,7 @@ namespace AdvancedFeatures
         [SetUp]
         public void Setup()
         {
-            stateMachine = StateMachine.CreateFromScript(script2,
-                new System.Collections.Concurrent.ConcurrentDictionary<string, List<NamedAction>>(),
-                new System.Collections.Concurrent.ConcurrentDictionary<string, NamedGuard>());
+            stateMachine = StateMachine.CreateFromScript(script2, new ActionMap(), new GuardMap());
             stateMachine.Start();
         }
 

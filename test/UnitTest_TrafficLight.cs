@@ -18,9 +18,9 @@ public class TrafficMachine
     List<string> tranActions = new();
     List<string> exitActions = new();
     List<string> noTargetActions = new();
-    ConcurrentDictionary<string, List<NamedAction>> _actions1;
-    ConcurrentDictionary<string, List<NamedAction>> _actions2;
-    ConcurrentDictionary<string, NamedGuard> _guards;
+    ActionMap _actions1;
+    ActionMap _actions2;
+    GuardMap _guards;
 
     [SetUp]
     public void Setup()
@@ -99,7 +99,7 @@ public class TrafficMachine
             ["logNoTargetAction"] = [new("logNoTargetAction", (sm) => noTargetActions.Add("No target action executed"))] // No target action is a tansition action
         };
 
-        _guards = new ConcurrentDictionary<string, NamedGuard>
+        _guards = new GuardMap
         {
             ["isReady"] = new ("isReady", IsReady)
         };

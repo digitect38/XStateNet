@@ -12,11 +12,11 @@ namespace AdvancedFeatures
         private StateMachine _followerStateMachine;
         private StateMachine _leaderStateMachine;
 
-        private ConcurrentDictionary<string, List<NamedAction>> _followerActions;
-        private ConcurrentDictionary<string, NamedGuard> _followerGuards;
+        private ActionMap _followerActions;
+        private GuardMap _followerGuards;
 
-        private ConcurrentDictionary<string, List<NamedAction>> _leaderActions;
-        private ConcurrentDictionary<string, NamedGuard> _leaderGuards;
+        private ActionMap _leaderActions;
+        private GuardMap _leaderGuards;
 
         [SetUp]
         public void Setup()
@@ -26,7 +26,7 @@ namespace AdvancedFeatures
             _followerGuards = new ();
 
             // Leader actions
-            _leaderActions = new ConcurrentDictionary<string, List<NamedAction>>
+            _leaderActions = new ActionMap()
             {
                 ["sendToFollowerToB"] = new List<NamedAction> { new NamedAction("sendToFollowerToB", (sm) => _followerStateMachine.Send("to_b")) },
                 ["sendToFollowerToA"] = new List<NamedAction> { new NamedAction("sendToFollowerToA", (sm) => _followerStateMachine.Send("to_a")) }

@@ -8,14 +8,48 @@ using System.Collections.Concurrent;
 
 namespace XStateNet;
 
-using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using ServiceMap = ConcurrentDictionary<string, NamedService>;
-
 /// <summary>
 /// 
 /// </summary>
 public partial class StateMachine
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="key"></param>
+    /// <param name="delayMap"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public static NamedDelay? ParseDelay(string key, DelayMap? delayMap, JToken? token)
+    {
+        if (token == null)
+        {
+            throw new Exception("Token is null");
+        }
+
+        var delayName = token[key]?.ToString();
+
+        if (delayName == null)
+        {
+            return null;
+        }
+
+        if (delayMap == null)
+        {
+            return null;
+        }
+
+        if (delayMap.TryGetValue(delayName, out var delay))
+        {
+            return delay;
+        }
+        else
+        {
+            throw new Exception($"Delay {delayName} not found in the delay map.");
+        }
+    }
+
     /// <summary>
     /// 
     /// </summary>

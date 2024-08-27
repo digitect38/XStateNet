@@ -60,12 +60,12 @@ namespace VideoPlayerStateMachineTests
             }";
 
             // Define the actions, including the service 'startVideo'
-            var actions = new ConcurrentDictionary<string, List<NamedAction>>();
-            var guards = new ConcurrentDictionary<string, NamedGuard>();
+            var actions = new ActionMap();
+            var guards = new GuardMap();
 
             // Define services, in this case, 'startVideo' which sets _serviceInvoked to true
             // ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
-            var services = new ConcurrentDictionary<string, NamedService>
+            var services = new ServiceMap
             {
                 ["startVideo"] = new ("startVideo", (sm) =>
                 {
