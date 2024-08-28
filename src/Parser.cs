@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -6,11 +6,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 //using System.Windows.Forms;
-namespace SharpState;
-
-
-using ActionMap = ConcurrentDictionary<string, List<NamedAction>>;
-using GuardMap = ConcurrentDictionary<string, NamedGuard>;
+namespace XStateNet;
 
 public partial class StateMachine
 {
