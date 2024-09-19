@@ -463,8 +463,8 @@ public partial class StateMachine
 
         transition.SourceName = source.Name;
         transition.TargetName = targetName;
-        transition.Actions = GetActionCallbacks(actionNames);
-        transition.Guard = GetGuardCallback(guard);
+        if(actionNames != null)   transition.Actions = GetActionCallbacks(actionNames);
+        if(guard != null)  transition.Guard = GetGuardCallback(guard);
         transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : null;
 
         switch (type)
@@ -507,33 +507,35 @@ public partial class StateMachine
     /// <param name="key"></param>
     /// <param name="token"></param>
     /// <returns></returns>
-    public List<NamedAction> ParseActions(string key, JToken? token)
+    public List<NamedAction>? ParseActions(string? key, JToken? token)
     {
         List<NamedAction>? actions = null;
 
-        if (token[key] == null)
+        if (token != null && key != null)
         {
-            return actions;
-        }
 
-        var jobj = token[key].ToObject<List<string>>();
+            var jobj = token[key]?.ToObject<List<string>>();
 
-        if (jobj == null)
-        {
-            return actions;
-        }
-
-        actions = new List<NamedAction>();
-
-        foreach (var actionName in jobj)
-        {
-            if (ActionMap.ContainsKey(actionName))
+            if (jobj == null)
             {
-                actions.AddRange(ActionMap[actionName]);
+                return actions;
             }
+
+            actions = new List<NamedAction>();
+
+            if(ActionMap != null)
+                foreach (var actionName in jobj)
+                {
+                    if (ActionMap.ContainsKey(actionName))
+                    {
+                        actions.AddRange(ActionMap[actionName]);
+                    }
+                }
+
+            return actions;
         }
 
-        return actions;
+        return null;
     }
     /// <summary>
     /// 

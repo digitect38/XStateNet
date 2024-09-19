@@ -12,7 +12,7 @@ namespace BigStateMachine;
 [TestFixture]
 public class TrafficMachine
 {
-    private StateMachine _stateMachine;
+    private StateMachine? _stateMachine;
 
     List<string> entryActions = new();
     List<string> tranActions = new();
@@ -109,7 +109,7 @@ public class TrafficMachine
     Func<StateMachine, bool> IsReady = (sm) => 
     {
         object? res;
-        if (sm.ContextMap.TryGetValue("isReady", out res))
+        if (sm.ContextMap != null && sm.ContextMap.TryGetValue("isReady", out res))
         {
             return (bool)res;
         }
@@ -129,7 +129,8 @@ public class TrafficMachine
     public void TestInitialState()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
         var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
@@ -138,7 +139,8 @@ public class TrafficMachine
     public void TestTransitionRedToGreen()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if(_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
         _stateMachine.Send("TIMER");
         var currentState = _stateMachine.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.green.bright;#trafficLight.pedestrian.cannotWalk");
@@ -148,7 +150,8 @@ public class TrafficMachine
     public void TestGuardCondition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = false;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = false;
         _stateMachine.Send("TIMER");
         var currentState = _stateMachine.GetActiveStateString();
         // Should remain in last state as guard condition fails
@@ -159,7 +162,8 @@ public class TrafficMachine
     public void TestEntryAndExitActions()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
         
         _stateMachine.Send("TIMER");
         var currentState = _stateMachine.GetActiveStateString();
@@ -185,7 +189,8 @@ public class TrafficMachine
     public void TestNestedStates()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
         _stateMachine.Send("TIMER");
         //_stateMachine.Send("DARKER");
         var currentState = _stateMachine.GetActiveStateString();
@@ -205,7 +210,8 @@ public class TrafficMachine
     public void TestNoTargetEvent()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
 
         _stateMachine.Send("NO_TARGET");
 
@@ -216,7 +222,8 @@ public class TrafficMachine
     public void TestImplicitTargetTransition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.ContextMap["isReady"] = true;
+        if (_stateMachine.ContextMap != null)
+            _stateMachine.ContextMap["isReady"] = true;
 
         // Send event to trigger the implicit target transition
         _stateMachine.Send("IMPLICIT_TARGET");

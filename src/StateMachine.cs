@@ -57,8 +57,8 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace XStateNet;
 
+namespace XStateNet;
 
 enum MachineState
 {
@@ -76,9 +76,9 @@ public partial class StateMachine
 
     public string? machineId { set; get; }
     public CompoundState? RootState { set; get; }
-    private ConcurrentDictionary<string, StateNode>? StateMap { set; get; }
-    public ConcurrentDictionary<string, object>? ContextMap { get; private set; } // use object because context can have various types of data
-    
+    private StateMap? StateMap { set; get; }
+    public ContextMap? ContextMap { get; private set; } // use object because context can have various types of data
+
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
     public ServiceMap? ServiceMap { set; get; }
@@ -103,8 +103,8 @@ public partial class StateMachine
     /// </summary>
     public StateMachine()
     {
-        StateMap = new ConcurrentDictionary<string, StateNode>();
-        ContextMap = new ConcurrentDictionary<string, object>();
+        StateMap = new();
+        ContextMap = new();
     }
 
     /// <summary>
@@ -115,9 +115,9 @@ public partial class StateMachine
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
     public static StateMachine CreateFromFile(
-        string jsonFilePath, 
-        ActionMap? actionCallbacks = null, 
-        GuardMap? guardCallbacks = null, 
+        string jsonFilePath,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
         DelayMap? delayCallbacks = null
     )
@@ -153,10 +153,10 @@ public partial class StateMachine
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
     public static StateMachine CreateFromFile(
-        StateMachine sm, 
-        string jsonFilePath, 
-        ActionMap? actionCallbacks = null, 
-        GuardMap? guardCallbacks = null, 
+        StateMachine sm,
+        string jsonFilePath,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
         DelayMap? delayCallbacks = null
         )
@@ -173,9 +173,9 @@ public partial class StateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript, 
-        ActionMap? actionCallbacks = null, 
-        GuardMap? guardCallbacks = null, 
+    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
         DelayMap? delayCallbacks = null
         )
@@ -189,7 +189,7 @@ public partial class StateMachine
     /// <param name="state"></param>
     public void RegisterState(StateNode state)
     {
-        if (StateMap != null)
+        if (StateMap != null && state != null && state.Name != null)
         {
             StateMap[state.Name] = state;
         }
@@ -215,20 +215,20 @@ public partial class StateMachine
             return this;
         }
 #if false
-        RootState?.Start();
+    RootState?.Start();
 #else
         transitionExecutor = new TransitionExecutor(machineId);
-    var list = GetEntryList(machineId);
+        var list = GetEntryList(machineId);
         string entry = list.ToCsvString(this, false, " -> ");
-        
+
         Log($">>> Start entry: {entry}");
 
         foreach (var stateName in list)
-        {            
+        {
             var state = GetState(stateName) as CompoundState;
             state?.EntryState();
-        }      
-#endif   
+        }
+#endif
 
         machineState = MachineState.Running;
         return this;
@@ -292,7 +292,7 @@ public partial class StateMachine
 
         var target_sub = GetTargetSubStateCollection(target);
         StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
-                
+
         return target_sub.ToList();
     }
 
@@ -332,7 +332,7 @@ public partial class StateMachine
 
         return (source_exit.ToList(), target_entry.ToList());
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -343,7 +343,7 @@ public partial class StateMachine
     {
         StateNode? state = null;
 
-        if(stateName == null) throw new Exception("State name is null!");
+        if (stateName == null) throw new Exception("State name is null!");
         StateMap?.TryGetValue(stateName, out state);
 
         if (state == null)
@@ -397,7 +397,7 @@ public partial class StateMachine
     public bool IsInState(StateMachine sm, string stateName)
     {
         var state = (GetState(stateName) as CompoundState);
-        if(state == null) throw new Exception($"State is not found with name, {stateName}");
+        if (state == null) throw new Exception($"State is not found with name, {stateName}");
 
         return state.IsActive;
     }
@@ -456,10 +456,10 @@ public partial class StateMachine
     // 3.1 Revisit exit path along actualExitPath here if meet parallel fork,
     // 
 
-    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath)  GetFullTransitionSinglePath(string? srcStateName, string? tgtStateName)
+    public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath) GetFullTransitionSinglePath(string? srcStateName, string? tgtStateName)
     {
         StateMachine.Log(">>> - GetFullTransitionPath");
-                
+
         //1.
         var subExitPath = GetSourceSubStateCollection(srcStateName, true);
         StateMachine.Log($">>> -- subExitPath: {subExitPath.ToCsvString(this, false, " -> ")}");
@@ -473,7 +473,7 @@ public partial class StateMachine
         //2.
         var supEntryPath = GetSuperStateCollection(tgtStateName);
         StateMachine.Log($">>> -- supEntryPath: {supEntryPath.ToCsvString(this, false, " -> ")}");
-        
+
         var subEntryPath = GetTargetSubStateCollection(tgtStateName, true);
         StateMachine.Log($">>> -- subEntryPath: {subEntryPath.ToCsvString(this, false, " -> ")}");
 
@@ -497,7 +497,7 @@ public partial class StateMachine
     /// <param name="topExitState"></param>
     public Task TransitUp(CompoundState? topExitState)
     {
-        if(topExitState != null)
+        if (topExitState != null)
             topExitState.ExitState(postAction: true, recursive: true);
         return Task.CompletedTask;
     }
@@ -536,7 +536,7 @@ public partial class StateMachine
 
             state?.GetTargetSubStateCollection(list, singleBranchPath);
         }
-        else if (GetState(statePath) is HistoryState historyState) 
+        else if (GetState(statePath) is HistoryState historyState)
         {
             if (historyState.Parent is NormalState)
             {
@@ -643,7 +643,7 @@ public partial class StateMachine
                     }
                 }
             }
-            
+
         }
     }
     /// <summary>

@@ -75,6 +75,11 @@ public enum TransitionType
     OnDone
 }
 
+public class StateMap : ConcurrentDictionary<string, StateNode>
+{
+    public StateMap() : base() { }
+}
+
 public class ContextMap : ConcurrentDictionary<string, object>
 { 
     public ContextMap() : base() { }
