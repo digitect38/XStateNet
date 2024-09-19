@@ -18,21 +18,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 14,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "UnitTest_Delays.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs",
-              "RelativeDocumentMoniker": "test\\UnitTest_Delays.cs",
-              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs",
-              "RelativeToolTip": "test\\UnitTest_Delays.cs",
-              "ViewState": "AQIAADcAAACAmJmZmdkhwE8AAAAjAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-19T08:17:46.885Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Bookmark",
               "Name": "ST:130:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
@@ -91,6 +78,19 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "UnitTest_Delays.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_Delays.cs",
+              "ToolTip": "C:\\Users\\digit\\source\\repos\\XStateNet5\\test\\UnitTest_Delays.cs*",
+              "RelativeToolTip": "test\\UnitTest_Delays.cs*",
+              "ViewState": "AQIAAB8AAACAmJmZmdkhwC4AAAANAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-09-19T08:17:46.885Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
               "Title": "State_Real.cs",
               "DocumentMoniker": "C:\\Users\\digit\\source\\repos\\XStateNet5\\src\\State_Real.cs",
@@ -99,8 +99,7 @@
               "RelativeToolTip": "src\\State_Real.cs",
               "ViewState": "AQIAAJoAAAAA/P///z8lwO8AAAAWAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-19T08:08:41.044Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-09-19T08:08:41.044Z"
             }
           ]
         }

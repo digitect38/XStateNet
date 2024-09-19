@@ -25,7 +25,7 @@ namespace DelaysTest
                 'states': {
                     'a': {
                         'after': {
-                            'delay1': {
+                            'delay1234': {
                                 'target': 'b',
                                 'actions' : ['transAction']
                             }
@@ -40,12 +40,12 @@ namespace DelaysTest
 
             var actionCallbacks = new ActionMap()
             {
-                ["transAction"] = new List<NamedAction> { new NamedAction("transAction", (sm) => _transitionLog.Add("transitionAction executed")) },
+                ["transAction"] = new () { new ("transAction", (sm) => _transitionLog.Add("transitionAction executed")) },
             };
 
             var delayCallbacks = new DelayMap()
             {
-                ["delay1"] = new NamedDelay("delay1", (sm) => 1234),
+                ["delay1234"] = new ("delay1234", (sm) => 1234),
             };
 
 
