@@ -231,9 +231,9 @@ public abstract class CompoundState : RealState
             StateMachine.Log($">>> Scheduled time has come {Name} in {AfterTransition.Delay} ms");
             StateMachine.Log($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
             StateMachine.Log("");
+            StateMachine?.transitionExecutor.Execute(AfterTransition, $"after: {timer.Interval}");
             timer.Stop();
             timer.Dispose();
-            StateMachine?.transitionExecutor.Execute(AfterTransition, $"after: {AfterTransition.Delay}");
         };
         
         timer.AutoReset = false;

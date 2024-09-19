@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Diagnostics;
 
 namespace XStateNet;
 
@@ -25,6 +26,7 @@ public partial class StateMachine
     )
     {
         var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
+        //Debug.WriteLine(jsonWithQuotedKeys);
         var rootToken = JObject.Parse(jsonWithQuotedKeys);
 
         if (rootToken == null)

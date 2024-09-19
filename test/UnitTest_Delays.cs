@@ -20,25 +20,18 @@ namespace DelaysTest
             // The script provided in the original question
             string script = @"
             {
-                initial: 'a',
-                states: {
-                    a: {
-                        after: {
-                            delay1: {
-                                target: 'b',
-                                actions : ['transAction']
+                'id' : 'machine1',
+                'initial': 'a',
+                'states': {
+                    'a': {
+                        'after': {
+                            'delay1': {
+                                'target': 'b',
+                                'actions' : ['transAction']
                             }
                         },
                     },
-                    b:{}  
-                }
-            },
-            {
-                delays: {
-                    delay1: () => {  return 1000; },
-                },
-                actions : {
-                    transAction : () => { console.log('transitionAction'); }
+                    'b':{}  
                 }
             }";
 
@@ -52,14 +45,14 @@ namespace DelaysTest
 
             var delayCallbacks = new DelayMap()
             {
-                ["delay1"] = new NamedDelay("delay1", (sm) => 1000),
+                ["delay1"] = new NamedDelay("delay1", (sm) => 1234),
             };
 
 
-            _stateMachine = StateMachine.CreateFromScript(script, actionCallbacks);
+            _stateMachine = StateMachine.CreateFromScript(script, actionCallbacks, null, null, delayCallbacks);
 
             // Subscribe to the OnTransition event to log transitions
-            //_stateMachine.OnTransition += LogTransition;
+            _stateMachine.OnTransition += LogTransition;
 
             // Start the state machine
             _stateMachine.Start();
@@ -80,19 +73,20 @@ namespace DelaysTest
         public async Task StateMachine_Transitions_From_A_To_B_After_Timeout()
         {
             // Initially, the state machine should be in state 'a'
-            Assert.That(_stateMachine.GetActiveStateString() == "a");
-
+            var activeState = _stateMachine.GetActiveStateString();
+            Assert.That(_stateMachine.GetActiveStateString() == "#machine1.a");
+            
             // Wait for the timeout to trigger the transition
-            await Task.Delay(1100);
+            await Task.Delay(1500);
 
             // The state machine should now be in state 'b'
-            Assert.That(_stateMachine.GetActiveStateString() == "b");
+            Assert.That(_stateMachine.GetActiveStateString() == "#machine1.b");
 
             // Check that the transition action was executed
             Assert.That(_transitionLog.Contains("transitionAction executed"));
 
             // Check the transition log
-            Assert.That(_transitionLog.Contains("Transitioned from a to b on event after: timeout1"));
+            Assert.That(_transitionLog.Contains("Transitioned from #machine1.a to #machine1.b on event after: 1234"));
         }
     }
 }
