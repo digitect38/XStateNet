@@ -3,9 +3,14 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace XStateNet;
 
+/// <summary>
+/// 상태 기계를 파싱하고 관리하는 클래스입니다.
+/// JSON 스크립트를 파싱하여 상태, 전이, 액션 등을 생성하고 처리합니다.
+/// </summary>
 public partial class StateMachine
 {
     /// <summary>
@@ -25,51 +30,69 @@ public partial class StateMachine
         DelayMap? delayCallbacks
     )
     {
-        var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
-        //Debug.WriteLine(jsonWithQuotedKeys);
-        var rootToken = JObject.Parse(jsonWithQuotedKeys);
-
-        if (rootToken == null)
+        if (string.IsNullOrWhiteSpace(jsonScript))
         {
-            throw new Exception("Invalid JSON script!");
+            throw new ArgumentException("JSON 스크립트가 비어 있거나 null입니다.", nameof(jsonScript));
         }
 
-        if(stateMachine == null)
+        if (stateMachine == null)
         {
-            throw new Exception("StateMachine is null!");
+            throw new ArgumentNullException(nameof(stateMachine), "StateMachine이 null입니다.");
         }
 
-        stateMachine.machineId = $"#{rootToken["id"]}";
-        stateMachine.ActionMap = actionCallbacks;
-        stateMachine.GuardMap = guardCallbacks;
-        stateMachine.ServiceMap = serviceCallbacks;
-        stateMachine.DelayMap = delayCallbacks;
-
-
-        _instanceMap[stateMachine.machineId] = stateMachine;
-
-        if (rootToken.ContainsKey("context") && rootToken["context"] != null)
+        try
         {
-            var tokenList = rootToken["context"];
+            var jsonWithQuotedKeys = ConvertToQuotedKeys(jsonScript);
+            var rootToken = JObject.Parse(jsonWithQuotedKeys);
 
-            if (tokenList == null)
+            if (rootToken == null)
             {
-                throw new Exception("Invalid context object!");
+                throw new JsonException("유효하지 않은 JSON 스크립트입니다.");
             }
 
-            foreach (JToken contextItem in tokenList)
+            if (!rootToken.ContainsKey("id"))
             {
-                if (contextItem != null && contextItem.First != null && stateMachine.ContextMap != null)
-                {
+                throw new JsonException("JSON 스크립트에 'id' 필드가 없습니다.");
+            }
 
-                    stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
+            stateMachine.machineId = $"#{rootToken["id"]}";
+            stateMachine.ActionMap = actionCallbacks;
+            stateMachine.GuardMap = guardCallbacks;
+            stateMachine.ServiceMap = serviceCallbacks;
+            stateMachine.DelayMap = delayCallbacks;
+
+            _instanceMap[stateMachine.machineId] = stateMachine;
+
+            if (rootToken.ContainsKey("context") && rootToken["context"] != null)
+            {
+                var tokenList = rootToken["context"];
+
+                if (tokenList == null)
+                {
+                    throw new Exception("Invalid context object!");
+                }
+
+                foreach (JToken contextItem in tokenList)
+                {
+                    if (contextItem != null && contextItem.First != null && stateMachine.ContextMap != null)
+                    {
+                        stateMachine.ContextMap[contextItem.Path.Split('.').Last()] = contextItem.First;
+                    }
                 }
             }
+
+            stateMachine.ParseState($"{stateMachine.machineId}", rootToken, null);
+
+            return stateMachine;
         }
-
-        stateMachine.ParseState($"{stateMachine.machineId}", rootToken, null);
-
-        return stateMachine;
+        catch (JsonException ex)
+        {
+            throw new JsonException("JSON 파싱 중 오류가 발생했습니다.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("상태 기계 파싱 중 예기치 않은 오류가 발생했습니다.", ex);
+        }
     }
     /// <summary>
     /// 

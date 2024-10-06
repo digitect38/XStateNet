@@ -1,6 +1,4 @@
-﻿using NUnit.Framework;
-using System.Collections.Generic;
-using System.Linq;
+﻿
 namespace XStateNet.UnitTest;
 public static class Helper
 {
@@ -10,7 +8,7 @@ public static class Helper
         
         toBeList = toBe.Split(';').ToList();
 
-        Assert.AreEqual(asIs.Length, toBe.Length);
+        Assert.That(asIs.Length, Is.EqualTo(toBe.Length));
 
         foreach (var item in toBeList)
         {
