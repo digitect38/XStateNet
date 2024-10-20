@@ -3,6 +3,7 @@ using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 namespace AdvancedFeatures;
 
 [TestFixture]
@@ -10,28 +11,58 @@ public class AfterTests
 {
     private ActionMap actions;
     private GuardMap guards;
-    //static string testLog = "";
 
     [SetUp]
     public void Setup()
     {
+
         actions = new ActionMap
         {
-            ["logEntryRed"] = [new("logEntryRed", 
-                (sm) => { sm.ContextMap["log"] += "Entering red; "; StateMachine.Log("Entering Red; "); })],
-            ["logExitRed"] = [new("logExitRed", 
-                (sm) => { sm.ContextMap["log"] += "Exiting red; "; StateMachine.Log("Exiting Red; "); })],
-            ["logTransitionAfterRedToGreen"] = [new("logTransitionAfterRedToGreen", 
-                (sm) => { sm.ContextMap["log"] += "After transition to green; "; ; StateMachine.Log("After transition to green; ");  })],
+            ["logEntryRed"] = [
+                new("logEntryRed", (sm) => {                    
+                    if(sm.ContextMap != null) {
+                        sm.ContextMap["log"] += "Entering red; ";
+                        StateMachine.Log("Entering Red; "); 
+                    }
+                })
+            ],
+
+            ["logExitRed"] = [
+                new("logExitRed", (sm) => {
+                    if(sm.ContextMap != null) {
+                        sm.ContextMap["log"] += "Exiting red; ";
+                        StateMachine.Log("Exiting Red; "); 
+                    }
+                })
+            ],
+
+            ["logTransitionAfterRedToGreen"] = [
+                new("logTransitionAfterRedToGreen", (sm) => {
+                    if(sm.ContextMap != null) {
+                        sm.ContextMap["log"] += "After transition to green; ";
+                        StateMachine.Log("After transition to green;} ");
+                    }  
+                })
+            ],
+
             ["logEntryGreen"] = [new("logEntryGreen", 
-                (sm) => { sm.ContextMap["log"] += "Entering green; "; ; StateMachine.Log("Entering Green; "); })],
+                (sm) => {
+                    if(sm.ContextMap != null) {
+                        sm.ContextMap["log"] += "Entering green; ";
+                        StateMachine.Log("Entering Green; ");
+                    }
+                })
+            ],
         };
 
         guards = new GuardMap
         {
-            ["isReady"] = new NamedGuard("isReady", (sm) => (bool)sm.ContextMap["isReady"])
+            ["isReady"] = new NamedGuard("isReady", (sm) =>
+            {
+                var isReadyValue = sm.ContextMap?["isReady"];
+                return isReadyValue != null && isReadyValue.GetType() == typeof(JTokenType) && (bool)isReadyValue;
+            })
         };
-
     }
     [Test]
     public void TestAfterTransition()
