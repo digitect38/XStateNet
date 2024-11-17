@@ -93,29 +93,29 @@ public class AfterTests
 
 
         // Initial state should be 'red'
-        var cxtlog = _stateMachine.ContextMap["log"].ToString();
+        var cxtlog = _stateMachine?.ContextMap?["log"].ToString();
 
-        Assert.AreEqual(cxtlog, "Entering red; ");
+        Assert.That(cxtlog, Is.EqualTo("Entering red; "));
 
-        cxtlog = _stateMachine.ContextMap["log"].ToString();
+        cxtlog = _stateMachine?.ContextMap?["log"].ToString();
 
         // Wait half the time of the 'after' delay
         System.Threading.Thread.Sleep(450);
 
         // Assert that the 'after' transition has not occurred yet
-        Assert.AreEqual(cxtlog, "Entering red; ");
+        Assert.That(cxtlog, Is.EqualTo("Entering red; "));
 
         // Wait longer than the 'after' delay
         System.Threading.Thread.Sleep(100);
 
         // State should now be 'green'
-        _stateMachine.PrintCurrentStatesString();
-        var currentStates = _stateMachine.GetActiveStateString();
+        _stateMachine?.PrintCurrentStatesString();
+        var currentStates = _stateMachine?.GetActiveStateString();
 
-        cxtlog = _stateMachine.ContextMap["log"].ToString();
+        cxtlog = _stateMachine?.ContextMap?["log"].ToString();
         // Assert
-        Assert.AreEqual(currentStates, "#trafficLight.green");
-        Assert.AreEqual(cxtlog, "Entering red; Exiting red; After transition to green; Entering green; ");
+        Assert.That(currentStates, Is.EqualTo("#trafficLight.green"));
+        Assert.That(cxtlog, Is.EqualTo("Entering red; Exiting red; After transition to green; Entering green; "));
     }
 
     StateMachine _stateMachine = null;
@@ -155,8 +155,8 @@ public class AfterTests
 
         var currentState = _stateMachine.GetActiveStateString();
         // Assert
-        string log = _stateMachine.ContextMap["log"].ToString();
+        string? log = _stateMachine?.ContextMap?["log"]?.ToString();
         currentState.AssertEquivalence("#trafficLight.red");
-        Assert.AreEqual(log, "Entering red; ");
+        Assert.That(log, Is.EqualTo("Entering red; "));
     }
 }

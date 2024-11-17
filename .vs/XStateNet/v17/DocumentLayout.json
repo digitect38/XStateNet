@@ -7,6 +7,10 @@
       "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_afterprop.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\xstatenet\\test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\xstatenet\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -22,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 14,
+          "SelectedChildIndex": 15,
           "Children": [
             {
               "$type": "Bookmark",
@@ -82,20 +86,33 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "UnitTest_Always.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_Always.cs",
+              "RelativeDocumentMoniker": "test\\UnitTest_Always.cs",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_Always.cs",
+              "RelativeToolTip": "test\\UnitTest_Always.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-17T15:03:01.878Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 0,
               "Title": "UnitTest_AfterProp.cs",
               "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_AfterProp.cs",
               "RelativeDocumentMoniker": "test\\UnitTest_AfterProp.cs",
-              "ToolTip": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_AfterProp.cs",
-              "RelativeToolTip": "test\\UnitTest_AfterProp.cs",
-              "ViewState": "AQIAAAkAAAAAAAAAAAAmwCEAAAA7AAAA",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_AfterProp.cs*",
+              "RelativeToolTip": "test\\UnitTest_AfterProp.cs*",
+              "ViewState": "AQIAAEMAAAAAAAAAAAAlwGAAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-10-20T13:28:37.656Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "StateMachine.cs",
               "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\src\\StateMachine.cs",
               "RelativeDocumentMoniker": "src\\StateMachine.cs",
@@ -103,12 +120,11 @@
               "RelativeToolTip": "src\\StateMachine.cs",
               "ViewState": "AQIAAD4AAAAAAAAAAAAmwE8AAAARAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-06T15:33:23.309Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-06T15:33:23.309Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "State_History.cs",
               "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\src\\State_History.cs",
               "RelativeDocumentMoniker": "src\\State_History.cs",
@@ -116,8 +132,7 @@
               "RelativeToolTip": "src\\State_History.cs",
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAAQAAAAEAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-28T15:22:58.518Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-09-28T15:22:58.518Z"
             }
           ]
         }
