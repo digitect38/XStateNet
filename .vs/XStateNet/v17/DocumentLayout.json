@@ -3,20 +3,20 @@
   "WorkspaceRootPath": "C:\\Users\\digit\\XStateNet\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\xstatenet\\test\\unittest_afterprop.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_afterprop.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|c:\\users\\digit\\xstatenet\\xsview\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|solutionrelative:xsview\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|c:\\users\\digit\\xstatenet\\test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{AB845C15-609E-419E-835F-0797A33C86C1}|test\\test.csproj|solutionrelative:test\\unittest_always.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|c:\\users\\digit\\xstatenet\\xsview\\obj\\debug\\net8.0-windows\\mainwindow.g.i.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|solutionrelative:xsview\\obj\\debug\\net8.0-windows\\mainwindow.g.i.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\xstatenet\\src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\statemachine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|c:\\users\\digit\\xstatenet\\xsview\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|solutionrelative:xsview\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|c:\\users\\digit\\xstatenet\\src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8A7E17E5-4263-45F5-8DDC-A850887FB851}|src\\src.csproj|solutionrelative:src\\state_history.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|c:\\users\\digit\\xstatenet\\xsview\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{08A3139E-3F7B-4805-AE53-4276F3F6A2C6}|XSView\\XSView.csproj|solutionrelative:xsview\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     }
   ],
   "DocumentGroupContainers": [
@@ -87,52 +87,52 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "UnitTest_Always.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_Always.cs",
-              "RelativeDocumentMoniker": "test\\UnitTest_Always.cs",
-              "ToolTip": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_Always.cs",
-              "RelativeToolTip": "test\\UnitTest_Always.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "Title": "MainWindow.g.i.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\XSView\\obj\\Debug\\net8.0-windows\\MainWindow.g.i.cs",
+              "RelativeDocumentMoniker": "XSView\\obj\\Debug\\net8.0-windows\\MainWindow.g.i.cs",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\XSView\\obj\\Debug\\net8.0-windows\\MainWindow.g.i.cs",
+              "RelativeToolTip": "XSView\\obj\\Debug\\net8.0-windows\\MainWindow.g.i.cs",
+              "ViewState": "AQIAAEgAAAAAAAAAAAAAAFQAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-11-17T15:03:01.878Z",
+              "WhenOpened": "2025-01-25T14:17:52.618Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "UnitTest_AfterProp.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_AfterProp.cs",
-              "RelativeDocumentMoniker": "test\\UnitTest_AfterProp.cs",
-              "ToolTip": "C:\\Users\\digit\\XStateNet\\test\\UnitTest_AfterProp.cs*",
-              "RelativeToolTip": "test\\UnitTest_AfterProp.cs*",
-              "ViewState": "AQIAAEMAAAAAAAAAAAAlwGAAAAAAAAAA",
+              "Title": "MainWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\XSView\\MainWindow.xaml.cs",
+              "RelativeDocumentMoniker": "XSView\\MainWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\XSView\\MainWindow.xaml.cs*",
+              "RelativeToolTip": "XSView\\MainWindow.xaml.cs*",
+              "ViewState": "AQIAAFwAAAAAAAAAAAAhwDUAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-20T13:28:37.656Z",
+              "WhenOpened": "2025-01-25T13:48:50.214Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "StateMachine.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\src\\StateMachine.cs",
-              "RelativeDocumentMoniker": "src\\StateMachine.cs",
-              "ToolTip": "C:\\Users\\digit\\XStateNet\\src\\StateMachine.cs",
-              "RelativeToolTip": "src\\StateMachine.cs",
-              "ViewState": "AQIAAD4AAAAAAAAAAAAmwE8AAAARAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-06T15:33:23.309Z"
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\XSView\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "XSView\\MainWindow.xaml",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\XSView\\MainWindow.xaml",
+              "RelativeToolTip": "XSView\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-01-25T13:41:50.095Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
-              "Title": "State_History.cs",
-              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\src\\State_History.cs",
-              "RelativeDocumentMoniker": "src\\State_History.cs",
-              "ToolTip": "C:\\Users\\digit\\XStateNet\\src\\State_History.cs",
-              "RelativeToolTip": "src\\State_History.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAQAAAAEAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-28T15:22:58.518Z"
+              "Title": "App.xaml",
+              "DocumentMoniker": "C:\\Users\\digit\\XStateNet\\XSView\\App.xaml",
+              "RelativeDocumentMoniker": "XSView\\App.xaml",
+              "ToolTip": "C:\\Users\\digit\\XStateNet\\XSView\\App.xaml",
+              "RelativeToolTip": "XSView\\App.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-01-25T13:40:11.664Z",
+              "EditorCaption": ""
             }
           ]
         }
