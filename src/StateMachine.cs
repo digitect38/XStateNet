@@ -56,11 +56,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using System.Threading;
 
 
 namespace XStateNet;
 
-enum MachineState
+public enum MachineState
 {
     Running,
     Paused,
@@ -71,7 +72,11 @@ public partial class StateMachine
 {
     public static StateMachine? GetInstance(string Id)
     {
-        return _instanceMap.TryGetValue(Id, out _) ? _instanceMap[Id] : null;
+        if (string.IsNullOrWhiteSpace(Id))
+            return null;
+        
+        _instanceMap.TryGetValue(Id, out var instance);
+        return instance;
     }
 
     public string? machineId { set; get; }
@@ -85,19 +90,28 @@ public partial class StateMachine
     public DelayMap? DelayMap { set; get; }
 
     public TransitionExecutor transitionExecutor { private set; get; }
+    private EventQueue? _eventQueue;
+    private StateMachineSync? _sync;
+    private readonly object _stateLock = new object();
 
     //
     // This state machine map is for interact each other in a process.
     // For multiple machine interact each other in the range of multiple process or multiple hosts in the network, we need implement messaging mechanism.
     //
 
-    public static Dictionary<string, StateMachine> _instanceMap = new();
+    private static readonly ConcurrentDictionary<string, StateMachine> _instanceMap = new();
+    private readonly ConcurrentDictionary<string, StateNode?> _stateCache = new();
 
     // OnTransition delegate definition
     public delegate void TransitionHandler(CompoundState? fromState, StateNode? toState, string eventName);
     public TransitionHandler? OnTransition;
-    private MachineState machineState = MachineState.Stopped;
+    private volatile MachineState machineState = MachineState.Stopped;
 
+    /// <summary>
+    /// Enable thread-safe operation mode
+    /// </summary>
+    public bool EnableThreadSafety { get; set; } = false;
+    
     /// <summary>
     /// 
     /// </summary>
@@ -122,7 +136,8 @@ public partial class StateMachine
         DelayMap? delayCallbacks = null
     )
     {
-        var jsonScript = File.ReadAllText(jsonFilePath);
+        // Use secure file reading with validation
+        var jsonScript = Security.SafeReadFile(jsonFilePath);
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
@@ -161,7 +176,8 @@ public partial class StateMachine
         DelayMap? delayCallbacks = null
         )
     {
-        var jsonScript = File.ReadAllText(jsonFilePath);
+        // Use secure file reading with validation
+        var jsonScript = Security.SafeReadFile(jsonFilePath);
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
     }
 
@@ -189,14 +205,16 @@ public partial class StateMachine
     /// <param name="state"></param>
     public void RegisterState(StateNode state)
     {
-        if (StateMap != null && state != null && state.Name != null)
-        {
-            StateMap[state.Name] = state;
-        }
-        else
-        {
-            throw new Exception("StateMap is not initialized");
-        }
+        if (StateMap == null)
+            throw new InvalidOperationException("StateMap is not initialized");
+        
+        if (state == null)
+            throw new ArgumentNullException(nameof(state));
+        
+        if (string.IsNullOrWhiteSpace(state.Name))
+            throw new ArgumentException("State name cannot be null or empty");
+        
+        StateMap[state.Name] = state;
     }
 
     /// <summary>
@@ -205,32 +223,41 @@ public partial class StateMachine
     /// <returns></returns>
     public StateMachine Start()
     {
-        StateMachine.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        StateMachine.Log(">>> Start state machine");
-        StateMachine.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => ">>> Start state machine");
 
-        if (machineState == MachineState.Running)
+        lock (_stateLock)
         {
-            StateMachine.Log("State machine is already RUNNING!");
-            return this;
+            if (machineState == MachineState.Running)
+            {
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => "State machine is already RUNNING!");
+                return this;
+            }
+            
+            // Initialize components based on thread safety setting
+            if (EnableThreadSafety)
+            {
+                _sync = new StateMachineSync();
+                _eventQueue = new EventQueue(this);
+                transitionExecutor = new SafeTransitionExecutor(machineId, _sync);
+            }
+            else
+            {
+                transitionExecutor = new TransitionExecutor(machineId);
+            }
+            
+            var list = GetEntryList(machineId);
+            string entry = list.ToCsvString(this, false, " -> ");
+
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => $">>> Start entry: {entry}");
+
+            foreach (var stateName in list)
+            {
+                var state = GetState(stateName) as CompoundState;
+                state?.EntryState();
+            }
+
+            machineState = MachineState.Running;
         }
-#if false
-    RootState?.Start();
-#else
-        transitionExecutor = new TransitionExecutor(machineId);
-        var list = GetEntryList(machineId);
-        string entry = list.ToCsvString(this, false, " -> ");
-
-        Log($">>> Start entry: {entry}");
-
-        foreach (var stateName in list)
-        {
-            var state = GetState(stateName) as CompoundState;
-            state?.EntryState();
-        }
-#endif
-
-        machineState = MachineState.Running;
         return this;
     }
 
@@ -240,21 +267,66 @@ public partial class StateMachine
     /// <param name="eventName"></param>
     public void Send(string eventName)
     {
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
 
-        StateMachine.Log($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        StateMachine.Log($">>> Send event: {eventName}");
-        StateMachine.Log($">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-
-        if (machineState != MachineState.Running)
+        lock (_stateLock)
         {
-            StateMachine.Log($"State machine is not RUNNING!");
-            return;
+            if (machineState != MachineState.Running)
+            {
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
+                return;
+            }
         }
 
+        // Direct synchronous processing for backward compatibility
+        // EventQueue is only used when explicitly enabled
         Transit(eventName);
-
         PrintCurrentStateTree();
         PrintCurrentStatesString();
+    }
+    
+    /// <summary>
+    /// Send event asynchronously with thread-safe processing
+    /// </summary>
+    public async Task SendAsync(string eventName)
+    {
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event async: {eventName}");
+
+        lock (_stateLock)
+        {
+            if (machineState != MachineState.Running)
+            {
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
+                return;
+            }
+        }
+
+        if (_eventQueue != null)
+        {
+            await _eventQueue.SendAsync(eventName);
+        }
+        else
+        {
+            await Task.Run(() =>
+            {
+                Transit(eventName);
+                PrintCurrentStateTree();
+                PrintCurrentStatesString();
+            });
+        }
+    }
+    
+    /// <summary>
+    /// Process event asynchronously (called by EventQueue)
+    /// </summary>
+    internal async Task ProcessEventAsync(string eventName)
+    {
+        await Task.Run(() =>
+        {
+            Transit(eventName);
+            PrintCurrentStateTree();
+            PrintCurrentStatesString();
+        });
     }
 
     /// <summary>
@@ -270,12 +342,16 @@ public partial class StateMachine
 
         //step 1:  build transition list
 
-        StateMachine.Log("***** Transition list *****");
-        foreach (var t in transitionList)
+        if (Logger.CurrentLevel >= Logger.LogLevel.Debug)
         {
-            StateMachine.Log($"Transition : (source = {t.transition?.SourceName}, target =  {t.transition?.TargetName}, event =  {t.@event}");
-        }
-        StateMachine.Log("***************************");
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***** Transition list *****");
+            foreach (var t in transitionList)
+            {
+                var key = PerformanceOptimizations.GetTransitionKey(t.transition?.SourceName, t.transition?.TargetName);
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $"Transition : {key}, event = {t.@event}");
+            }
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***************************");
+        };
 
         //step 2:  perform transitions
 
@@ -287,11 +363,11 @@ public partial class StateMachine
 
     public List<string> GetEntryList(string target) // for Start
     {
-        StateMachine.Log(">>> - GetEntryList");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => ">>> - GetEntryList");
 
 
         var target_sub = GetTargetSubStateCollection(target);
-        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
 
         return target_sub.ToList();
     }
@@ -304,31 +380,31 @@ public partial class StateMachine
     /// <returns></returns>
     public (List<string> exits, List<string> entrys) GetExitEntryList(string source, string target)
     {
-        StateMachine.Log(">>> - GetExitEntryList");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => ">>> - GetExitEntryList");
 
         var source_sub = GetSourceSubStateCollection(source).Reverse();
-        StateMachine.Log($">>> -- source_sub: {source_sub.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_sub: {source_sub.ToCsvString(this, false, " -> ")}");
 
         var source_sup = GetSuperStateCollection(source);
-        StateMachine.Log($">>> -- source_sup: {source_sup.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_sup: {source_sup.ToCsvString(this, false, " -> ")}");
 
         var source_cat = source_sub.Concat(source_sup);
-        StateMachine.Log($">>> -- source_cat: {source_cat.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_cat: {source_cat.ToCsvString(this, false, " -> ")}");
 
         var target_sub = GetTargetSubStateCollection(target);
-        StateMachine.Log($">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
 
         var target_sup = GetSuperStateCollection(target).Reverse();
-        StateMachine.Log($">>> -- target_sup: {target_sup.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_sup: {target_sup.ToCsvString(this, false, " -> ")}");
 
         var target_cat = target_sup.Concat(target_sub);
-        StateMachine.Log($">>> -- target_cat: {target_cat.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_cat: {target_cat.ToCsvString(this, false, " -> ")}");
 
         var source_exit = source_cat.Except(target_cat);    // exclude common ancestors from source
         var target_entry = target_cat.Except(source_cat);   // exclude common ancestors from source
 
-        StateMachine.Log($">>> -- source_exit: {source_exit.ToCsvString(this, false, " -> ")}");
-        StateMachine.Log($">>> -- target_entry: {target_entry.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_exit: {source_exit.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_entry: {target_entry.ToCsvString(this, false, " -> ")}");
 
         return (source_exit.ToList(), target_entry.ToList());
     }
@@ -341,16 +417,25 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public StateNode GetState(string? stateName)
     {
-        StateNode? state = null;
-
-        if (stateName == null) throw new Exception("State name is null!");
-        StateMap?.TryGetValue(stateName, out state);
-
-        if (state == null)
+        if (string.IsNullOrWhiteSpace(stateName))
+            throw new ArgumentNullException(nameof(stateName), "State name cannot be null or empty");
+        
+        // Try to get from cache first
+        if (_stateCache.TryGetValue(stateName, out var cachedState) && cachedState != null)
         {
-            throw new Exception($"State name {stateName} is not found in the StateMap");
+            return cachedState;
+        }
+        
+        if (StateMap == null)
+            throw new InvalidOperationException("StateMap is not initialized");
+        
+        if (!StateMap.TryGetValue(stateName, out var state) || state == null)
+        {
+            throw new ArgumentException($"State '{stateName}' not found in StateMap");
         }
 
+        // Cache the result
+        _stateCache.TryAdd(stateName, state);
         return state;
     }
 
@@ -361,8 +446,16 @@ public partial class StateMachine
     /// <returns></returns>
     public HistoryState? GetStateAsHistory(string stateName)
     {
-        if (StateMap == null) throw new Exception("StateMap is not initialized");
-        return StateMap[stateName] as HistoryState;
+        if (StateMap == null) 
+            throw new InvalidOperationException("StateMap is not initialized");
+        
+        if (string.IsNullOrWhiteSpace(stateName))
+            throw new ArgumentNullException(nameof(stateName), "State name cannot be null or empty");
+        
+        if (StateMap.TryGetValue(stateName, out var state))
+            return state as HistoryState;
+        
+        return null;
     }
 
     /// <summary>
@@ -373,12 +466,19 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     private Func<bool> GetInConditionCallback(string inConditionString)
     {
-        string stateMachineId = inConditionString.Split('.')[0];
+        if (string.IsNullOrWhiteSpace(inConditionString))
+            throw new ArgumentNullException(nameof(inConditionString));
+        
+        var parts = inConditionString.Split('.');
+        if (parts.Length == 0)
+            throw new ArgumentException("Invalid in-condition string format");
+        
+        string stateMachineId = parts[0];
         if (stateMachineId != machineId)
         {
-
             StateMachine? sm = GetInstance(stateMachineId);
-            if (sm == null) throw new Exception($"State machine is not found with id, {stateMachineId}");
+            if (sm == null) 
+                throw new InvalidOperationException($"State machine not found: {stateMachineId}");
 
             return () => IsInState(sm, inConditionString);
         }
@@ -396,8 +496,15 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public bool IsInState(StateMachine sm, string stateName)
     {
-        var state = (GetState(stateName) as CompoundState);
-        if (state == null) throw new Exception($"State is not found with name, {stateName}");
+        if (sm == null)
+            throw new ArgumentNullException(nameof(sm));
+        
+        if (string.IsNullOrWhiteSpace(stateName))
+            throw new ArgumentNullException(nameof(stateName));
+        
+        var stateNode = GetState(stateName);
+        if (stateNode is not CompoundState state)
+            throw new InvalidOperationException($"State '{stateName}' is not a CompoundState");
 
         return state.IsActive;
     }
@@ -431,7 +538,10 @@ public partial class StateMachine
         }
         else
         {
-            state = GetState(stateName) as CompoundState;
+            var stateNode = GetState(stateName);
+            state = stateNode as CompoundState;
+            if (state == null)
+                throw new InvalidOperationException($"State '{stateName}' is not a CompoundState");
         }
 
         ICollection<string> list = new List<string>();
@@ -458,35 +568,35 @@ public partial class StateMachine
 
     public (ICollection<string> exitSinglePath, ICollection<string> entrySinglePath) GetFullTransitionSinglePath(string? srcStateName, string? tgtStateName)
     {
-        StateMachine.Log(">>> - GetFullTransitionPath");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => ">>> - GetFullTransitionPath");
 
         //1.
         var subExitPath = GetSourceSubStateCollection(srcStateName, true);
-        StateMachine.Log($">>> -- subExitPath: {subExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subExitPath: {subExitPath.ToCsvString(this, false, " -> ")}");
 
         var supExitPath = GetSuperStateCollection(srcStateName);
-        StateMachine.Log($">>> -- supExitPath: {supExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supExitPath: {supExitPath.ToCsvString(this, false, " -> ")}");
 
         var fullExitPath = supExitPath.Reverse().Concat(subExitPath);
-        StateMachine.Log($">>> -- fullExitPath: {fullExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- fullExitPath: {fullExitPath.ToCsvString(this, false, " -> ")}");
 
         //2.
         var supEntryPath = GetSuperStateCollection(tgtStateName);
-        StateMachine.Log($">>> -- supEntryPath: {supEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supEntryPath: {supEntryPath.ToCsvString(this, false, " -> ")}");
 
         var subEntryPath = GetTargetSubStateCollection(tgtStateName, true);
-        StateMachine.Log($">>> -- subEntryPath: {subEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subEntryPath: {subEntryPath.ToCsvString(this, false, " -> ")}");
 
         var fullEntryPath = supEntryPath.Reverse().Concat(subEntryPath);
-        StateMachine.Log($">>> -- fullEntryPath: {fullEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- fullEntryPath: {fullEntryPath.ToCsvString(this, false, " -> ")}");
 
 
         // 3.
         var actualExitPath = fullExitPath.Except(fullEntryPath);    // top down
-        StateMachine.Log($">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
 
         var actualEntryPath = fullEntryPath.Except(fullExitPath);   // top down
-        StateMachine.Log($">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
 
         return (actualExitPath.ToList(), actualEntryPath.ToList());
     }
@@ -526,32 +636,32 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public ICollection<string> GetTargetSubStateCollection(string? statePath, bool singleBranchPath = false)
     {
+        if (string.IsNullOrWhiteSpace(statePath))
+            throw new ArgumentNullException(nameof(statePath));
+        
         CompoundState? state = null;
-
         ICollection<string> list = new List<string>();
+        
+        var stateNode = GetState(statePath);
 
-        if (GetState(statePath) is CompoundState realState)
+        if (stateNode is CompoundState realState)
         {
             state = realState;
-
             state?.GetTargetSubStateCollection(list, singleBranchPath);
         }
-        else if (GetState(statePath) is HistoryState historyState)
+        else if (stateNode is HistoryState historyState)
         {
-            if (historyState.Parent is NormalState)
+            if (historyState.Parent is not NormalState normalParent)
             {
-                state = ((NormalState)historyState.Parent).LastActiveState;
-
-                state?.GetTargetSubStateCollection(list, singleBranchPath, historyState.HistoryType);
+                throw new InvalidOperationException("History state must be a child of NormalState");
             }
-            else
-            {
-                throw new Exception("History state should be child of Normal state");
-            }
+            
+            state = normalParent.LastActiveState;
+            state?.GetTargetSubStateCollection(list, singleBranchPath, historyState.HistoryType);
         }
         else
         {
-            throw new Exception("State should be RealState or HistoryState type");
+            throw new InvalidOperationException($"State '{statePath}' must be CompoundState or HistoryState");
         }
 
         return list;
@@ -567,37 +677,27 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     public ICollection<string>? GetSuperStateCollection(string? statePath)
     {
+        if (statePath == null) 
+            return null;
+
         CompoundState? state = null;
+        var stateNode = GetState(statePath);
 
-        if (statePath == null) return null;
-
-        state = GetState(statePath) as CompoundState;
-
-        if (statePath == null)
+        if (stateNode is CompoundState realState)
         {
-            state = RootState;
+            state = realState;
+        }
+        else if (stateNode is HistoryState historyState)
+        {
+            if (historyState.Parent is not NormalState normalParent)
+            {
+                throw new InvalidOperationException("History state must be a child of NormalState");
+            }
+            state = normalParent.LastActiveState;
         }
         else
         {
-            if (GetState(statePath) is CompoundState realState)
-            {
-                state = realState;
-            }
-            else if (GetState(statePath) is HistoryState historyState)
-            {
-                if (historyState.Parent is NormalState)
-                {
-                    state = ((NormalState)historyState.Parent).LastActiveState;
-                }
-                else
-                {
-                    throw new Exception("History state should be child of Normal state");
-                }
-            }
-            else
-            {
-                throw new Exception("State should be RealState or HistoryState type");
-            }
+            throw new InvalidOperationException($"State '{statePath}' must be CompoundState or HistoryState");
         }
 
         ICollection<string> list = new List<string>();
@@ -611,39 +711,60 @@ public partial class StateMachine
     /// </summary>
     /// <param name="transition"></param>
     /// <param name="event"></param>
-    public async void TransitFull(Transition transition, string @event)
+    public async Task TransitFull(Transition transition, string @event)
     {
         var fromState = transition.SourceName;
         string? toState = transition.TargetName;
 
         var path1 = GetFullTransitionSinglePath(fromState, toState);
 
-        string? firstExit = path1.exitSinglePath.First();
-        string? firstEntry = path1.entrySinglePath.First();
+        string? firstExit = path1.exitSinglePath.FirstOrDefault();
+        string? firstEntry = path1.entrySinglePath.FirstOrDefault();
 
         if ((transition.Guard == null || transition.Guard.PredicateFunc(this))
             && (transition.InCondition == null || transition.InCondition()))
         {
             if (toState != null)
             {
-                await TransitUp(firstExit?.ToState(this) as CompoundState);
-                transition.Actions?.ForEach(action => action.Action(this));
-                await TransitDown(firstEntry?.ToState(this) as CompoundState, toState);
-            }
-
-            else
-            {
-                // action only transition
-
+                if (firstExit != null)
+                    await TransitUp(firstExit.ToState(this) as CompoundState);
+                
                 if (transition.Actions != null)
                 {
                     foreach (var action in transition.Actions)
                     {
-                        action.Action(this);
+                        try
+                        {
+                            action.Action(this);
+                        }
+                        catch (Exception ex)
+                        {
+                            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Error, () => $"Error executing action: {ex.Message}");
+                        }
+                    }
+                }
+                
+                if (firstEntry != null)
+                    await TransitDown(firstEntry.ToState(this) as CompoundState, toState);
+            }
+            else
+            {
+                // action only transition
+                if (transition.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        try
+                        {
+                            action.Action(this);
+                        }
+                        catch (Exception ex)
+                        {
+                            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Error, () => $"Error executing action: {ex.Message}");
+                        }
                     }
                 }
             }
-
         }
     }
     /// <summary>
@@ -651,16 +772,18 @@ public partial class StateMachine
     /// </summary>
     /// <param name="fromState"></param>
     /// <param name="toState"></param>
-    public async void TransitFull(string fromState, string toState)
+    public async Task TransitFull(string fromState, string toState)
     {
-
         var path1 = GetFullTransitionSinglePath(fromState, toState);
 
-        string? firstExit = path1.exitSinglePath.First();
-        string? firstEntry = path1.entrySinglePath.First();
+        string? firstExit = path1.exitSinglePath.FirstOrDefault();
+        string? firstEntry = path1.entrySinglePath.FirstOrDefault();
 
-        await TransitUp(firstExit?.ToState(this) as CompoundState);
-        await TransitDown(firstEntry?.ToState(this) as CompoundState, toState);
+        if (firstExit != null)
+            await TransitUp(firstExit.ToState(this) as CompoundState);
+        
+        if (firstEntry != null)
+            await TransitDown(firstEntry.ToState(this) as CompoundState, toState);
     }
 
     /// <summary>
@@ -669,7 +792,7 @@ public partial class StateMachine
     /// <param name="message"></param>
     public static void Log(string message)
     {
-        Console.WriteLine(message);
+        Logger.Debug(message);
     }
 
     /// <summary>
@@ -677,9 +800,9 @@ public partial class StateMachine
     /// </summary>
     public void PrintCurrentStatesString()
     {
-        StateMachine.Log("=== Current States ===");
-        StateMachine.Log(GetActiveStateString());
-        StateMachine.Log("======================");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "=== Current States ===");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => GetActiveStateString());
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "======================");
     }
 
     /// <summary>
@@ -687,8 +810,96 @@ public partial class StateMachine
     /// </summary>
     public void PrintCurrentStateTree()
     {
-        StateMachine.Log("=== Current State Tree ===");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "=== Current State Tree ===");
         RootState?.PrintActiveStateTree(0);
-        StateMachine.Log("==========================");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "==========================");
+    }
+    
+    /// <summary>
+    /// Stop the state machine and clean up resources
+    /// </summary>
+    public void Stop()
+    {
+        lock (_stateLock)
+        {
+            if (machineState == MachineState.Stopped)
+            {
+                Logger.Debug("State machine is already stopped");
+                return;
+            }
+            
+            machineState = MachineState.Stopped;
+            Logger.Info("State machine stopped");
+        }
+        
+        // Cleanup resources
+        Dispose();
+    }
+    
+    /// <summary>
+    /// Pause the state machine
+    /// </summary>
+    public void Pause()
+    {
+        lock (_stateLock)
+        {
+            if (machineState != MachineState.Running)
+            {
+                Logger.Warning("Can only pause a running state machine");
+                return;
+            }
+            
+            machineState = MachineState.Paused;
+            Logger.Info("State machine paused");
+        }
+    }
+    
+    /// <summary>
+    /// Resume the state machine from paused state
+    /// </summary>
+    public void Resume()
+    {
+        lock (_stateLock)
+        {
+            if (machineState != MachineState.Paused)
+            {
+                Logger.Warning("Can only resume a paused state machine");
+                return;
+            }
+            
+            machineState = MachineState.Running;
+            Logger.Info("State machine resumed");
+        }
+    }
+    
+    private bool _disposed = false;
+    
+    /// <summary>
+    /// Dispose of state machine resources
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+        
+        if (disposing)
+        {
+            // Dispose managed resources
+            _eventQueue?.Dispose();
+            _sync?.Dispose();
+            
+            // Remove from global instance map
+            if (machineId != null)
+            {
+                _instanceMap.TryRemove(machineId, out _);
+            }
+        }
+        
+        _disposed = true;
     }
 }

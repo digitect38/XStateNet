@@ -7,12 +7,18 @@ public class TransitionExecutor : StateObject
 {
     public TransitionExecutor(string? machineId) : base(machineId) { }
 
-    public async void Execute(Transition? transition, string eventName)
+    public void Execute(Transition? transition, string eventName)
+    {
+        ExecuteCore(transition, eventName);
+    }
+    
+    protected virtual void ExecuteCore(Transition? transition, string eventName)
     {
         if (transition == null) return;
-        if (StateMachine == null) throw new Exception("StateMachine is null");
+        if (StateMachine == null) 
+            throw new InvalidOperationException("StateMachine is not initialized");
 
-        StateMachine.Log($">> transition on event {eventName} in state {transition.SourceName}");
+        Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
 
         if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine))
             && (transition.InCondition == null || transition.InCondition()))
@@ -21,7 +27,8 @@ public class TransitionExecutor : StateObject
             string? sourceName = transition?.SourceName;
             string? targetName = transition?.TargetName;
 
-            if (sourceName == null) throw new Exception("sourceName is null");
+            if (string.IsNullOrWhiteSpace(sourceName)) 
+                throw new InvalidOperationException("Source state name cannot be null or empty");
 
             if (targetName != null)
             {
@@ -31,15 +38,17 @@ public class TransitionExecutor : StateObject
                 string? firstEntry = entryList.First();
 
                 // Exit
+                if (firstExit != null)
+                {
+                    StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState).GetAwaiter().GetResult();
+                }
 
-                await StateMachine.TransitUp(firstExit?.ToState(StateMachine) as CompoundState);
-
-                StateMachine.Log($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
+                Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
 
                 // Transition
-                CompoundState? source = GetState(sourceName) as CompoundState;
+                var sourceNode = GetState(sourceName);
+                CompoundState? source = sourceNode as CompoundState;
                 StateNode? target = GetState(targetName);
-
 
                 StateMachine.OnTransition?.Invoke(source, target, eventName);
 
@@ -47,13 +56,22 @@ public class TransitionExecutor : StateObject
                 {
                     foreach (var action in transition.Actions)
                     {
-                        action.Action(StateMachine);
+                        try
+                        {
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing transition action: {ex.Message}");
+                        }
                     }
                 }
 
                 // Entry
-
-                await StateMachine.TransitDown(firstEntry?.ToState(StateMachine) as CompoundState, targetName);
+                if (firstEntry != null)
+                {
+                    StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
+                }
             }
             else
             {
@@ -63,14 +81,21 @@ public class TransitionExecutor : StateObject
                 {
                     foreach (var action in transition.Actions)
                     {
-                        action.Action(StateMachine);
+                        try
+                        {
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing action: {ex.Message}");
+                        }
                     }
                 }
             }
         }
         else
         {
-            StateMachine.Log($"Condition not met for transition on event {eventName}");
+            Logger.Debug($"Condition not met for transition on event {eventName}");
         }
     }
 }
@@ -90,17 +115,25 @@ public abstract class Transition : StateObject
 
     public CompoundState? Source {
         get {
-            if(SourceName == null) throw new Exception("SourceName is null");
-            if(StateMachine == null) throw new Exception("StateMachine is null");
-            return (CompoundState)StateMachine.GetState(SourceName); 
+            if(string.IsNullOrWhiteSpace(SourceName)) 
+                throw new InvalidOperationException("SourceName cannot be null or empty");
+            if(StateMachine == null) 
+                throw new InvalidOperationException("StateMachine is not initialized");
+            
+            var state = StateMachine.GetState(SourceName);
+            if (state is not CompoundState compoundState)
+                throw new InvalidOperationException($"Source state '{SourceName}' is not a CompoundState");
+            
+            return compoundState;
         }
     }  
     // can not be null any case. Source never be history state
     public StateNode? Target {
         get {
-            if (TargetName != null)
+            if (!string.IsNullOrWhiteSpace(TargetName))
             {
-                if(StateMachine == null) throw new Exception("StateMachine is null");
+                if(StateMachine == null) 
+                    throw new InvalidOperationException("StateMachine is not initialized");
                 return StateMachine.GetState(TargetName);       // can be null if targetless transition. Target can be history state
             }
             else

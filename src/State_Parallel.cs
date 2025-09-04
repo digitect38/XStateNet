@@ -29,11 +29,11 @@ public class ParallelState : CompoundState
 
         // children next evaluation
 
-#if true // serial way
+#if true // serial way - KEEP SERIAL to avoid race conditions with shared list
         foreach (string subStateName in SubStateNames) {
             GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
-#else   // parallel way
+#else   // parallel way - UNSAFE: List is not thread-safe
         SubStateNames.AsParallel().ForAll(
             subStateName => {
                 GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
@@ -41,6 +41,12 @@ public class ParallelState : CompoundState
         );
 #endif
 
+    }
+    
+    // Helper method for base class call
+    internal void BuildTransitionListBase(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
+    {
+        base.BuildTransitionList(eventName, transitionList);
     }
 
     /// <summary>
@@ -87,17 +93,37 @@ public class ParallelState : CompoundState
         {
             if (recursive && SubStateNames != null)
             {
-                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
-                Parallel.ForEach(SubStateNames, subStateName =>
+                // Only use parallel if we have enough items to benefit
+                if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    var subState = StateMachine.GetState(subStateName) as CompoundState;
-                    var task = subState?.EntryState(postAction, recursive, historyType);
-                    if (task != null)
+                    ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                    Parallel.ForEach(SubStateNames, subStateName =>
                     {
-                        tasks.Add(task);
+                        var subState = StateMachine.GetState(subStateName) as CompoundState;
+                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
+                    });
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    // Serial execution for small collections
+                    var tasks = new List<Task>();
+                    foreach (var subStateName in SubStateNames)
+                    {
+                        var subState = StateMachine.GetState(subStateName) as CompoundState;
+                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
                     }
-                });
-                await Task.WhenAll(tasks);
+                    if (tasks.Count > 0)
+                        await Task.WhenAll(tasks);
+                }
             }
 
             await base.EntryState(postAction, recursive, historyType);
@@ -108,17 +134,37 @@ public class ParallelState : CompoundState
 
             if (recursive && SubStateNames != null)
             {
-                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
-                Parallel.ForEach(SubStateNames, subStateName =>
+                // Only use parallel if we have enough items to benefit
+                if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    var subState = StateMachine.GetState(subStateName) as CompoundState;
-                    var task = subState?.EntryState(postAction, recursive, historyType);
-                    if (task != null)
+                    ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                    Parallel.ForEach(SubStateNames, subStateName =>
                     {
-                        tasks.Add(task);
+                        var subState = StateMachine.GetState(subStateName) as CompoundState;
+                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
+                    });
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    // Serial execution for small collections
+                    var tasks = new List<Task>();
+                    foreach (var subStateName in SubStateNames)
+                    {
+                        var subState = StateMachine.GetState(subStateName) as CompoundState;
+                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
                     }
-                });
-                await Task.WhenAll(tasks);
+                    if (tasks.Count > 0)
+                        await Task.WhenAll(tasks);
+                }
             }
         }
     }
@@ -135,17 +181,35 @@ public class ParallelState : CompoundState
         {
             if (recursive && SubStateNames != null)
             {
-                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
-                Parallel.ForEach(SubStateNames, subStateName =>
+                // Only use parallel if we have enough items to benefit
+                if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    var task = GetState(subStateName)?.ExitState(postAction, recursive);
-                    if (task != null)
+                    ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                    Parallel.ForEach(SubStateNames, subStateName =>
                     {
-                        tasks.Add(task);
+                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
+                    });
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    // Serial execution for small collections
+                    var tasks = new List<Task>();
+                    foreach (var subStateName in SubStateNames)
+                    {
+                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
                     }
-                });
-
-                await Task.WhenAll(tasks);
+                    if (tasks.Count > 0)
+                        await Task.WhenAll(tasks);
+                }
             }
 
             await base.ExitState(postAction, recursive);
@@ -156,17 +220,35 @@ public class ParallelState : CompoundState
 
             if (recursive && SubStateNames != null)
             {
-                ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
-                Parallel.ForEach(SubStateNames, subStateName =>
+                // Only use parallel if we have enough items to benefit
+                if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    var task = GetState(subStateName)?.ExitState(postAction, recursive);
-                    if (task != null)
+                    ConcurrentBag<Task> tasks = new ConcurrentBag<Task>();
+                    Parallel.ForEach(SubStateNames, subStateName =>
                     {
-                        tasks.Add(task);
+                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
+                    });
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    // Serial execution for small collections
+                    var tasks = new List<Task>();
+                    foreach (var subStateName in SubStateNames)
+                    {
+                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
                     }
-                });
-
-                await Task.WhenAll(tasks);
+                    if (tasks.Count > 0)
+                        await Task.WhenAll(tasks);
+                }
             }
         }
     }

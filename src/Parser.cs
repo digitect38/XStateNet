@@ -32,13 +32,16 @@ public partial class StateMachine
     {
         if (string.IsNullOrWhiteSpace(jsonScript))
         {
-            throw new ArgumentException("JSON 스크립트가 비어 있거나 null입니다.", nameof(jsonScript));
+            throw new ArgumentException("JSON script cannot be null or empty", nameof(jsonScript));
         }
 
         if (stateMachine == null)
         {
-            throw new ArgumentNullException(nameof(stateMachine), "StateMachine이 null입니다.");
+            throw new ArgumentNullException(nameof(stateMachine), "StateMachine cannot be null");
         }
+        
+        // Validate JSON input for security
+        Security.ValidateJsonInput(jsonScript);
 
         try
         {
@@ -47,12 +50,12 @@ public partial class StateMachine
 
             if (rootToken == null)
             {
-                throw new JsonException("유효하지 않은 JSON 스크립트입니다.");
+                throw new JsonException("Invalid JSON script");
             }
 
             if (!rootToken.ContainsKey("id"))
             {
-                throw new JsonException("JSON 스크립트에 'id' 필드가 없습니다.");
+                throw new JsonException("JSON script must contain an 'id' field");
             }
 
             stateMachine.machineId = $"#{rootToken["id"]}";
@@ -87,11 +90,11 @@ public partial class StateMachine
         }
         catch (JsonException ex)
         {
-            throw new JsonException("JSON 파싱 중 오류가 발생했습니다.", ex);
+            throw new JsonException("Error parsing JSON", ex);
         }
         catch (Exception ex)
         {
-            throw new Exception("상태 기계 파싱 중 예기치 않은 오류가 발생했습니다.", ex);
+            throw new InvalidOperationException("Unexpected error while parsing state machine", ex);
         }
     }
     /// <summary>
@@ -120,8 +123,11 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     private static string ConvertToQuotedKeys(string? json)
     {
-        var regex = new Regex(@"(?<!\\)(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*:");
-        if (json == null) throw new Exception("Invalid JSON script!");
+        if (json == null) 
+            throw new ArgumentNullException(nameof(json), "JSON script cannot be null");
+        
+        // Use safe regex with timeout to prevent ReDoS
+        var regex = Security.CreateSafeRegex(@"(?<!\\)(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*:");
         var result = regex.Replace(json, "\"$1\":");
         return result;
     }
@@ -152,7 +158,7 @@ public partial class StateMachine
 
                 if (stateBase == null)
                 {
-                    throw new Exception("HistoryState is null!");
+                    throw new InvalidOperationException($"Failed to create HistoryState for {stateName}");
                 }
 
                 RegisterState(stateBase);
@@ -164,7 +170,7 @@ public partial class StateMachine
 
                 if (stateBase == null)
                 {
-                    throw new Exception("ParallelState is null!");
+                    throw new InvalidOperationException($"Failed to create ParallelState for {stateName}");
                 }
 
                 RegisterState(stateBase);
@@ -176,7 +182,7 @@ public partial class StateMachine
 
                 if (stateBase == null)
                 {
-                    throw new Exception("FinalState is null!");
+                    throw new InvalidOperationException($"Failed to create FinalState for {stateName}");
                 }
 
                 RegisterState(stateBase);
@@ -187,7 +193,7 @@ public partial class StateMachine
 
                 if (stateBase == null)
                 {
-                    throw new Exception("NormalState is null!");
+                    throw new InvalidOperationException($"Failed to create NormalState for {stateName}");
                 }
 
                 RegisterState(stateBase);
@@ -198,7 +204,7 @@ public partial class StateMachine
 
         if (state == null)
         {
-            throw new Exception("RealState is null!");
+            throw new InvalidOperationException($"Failed to cast state to CompoundState for {stateName}");
         }
 
         if (parentName == null)
@@ -211,7 +217,7 @@ public partial class StateMachine
         {
             if(StateMap == null)
             {
-                throw new Exception("StateMap is null!");
+                throw new InvalidOperationException("StateMap is not initialized");
             }
             var parent = (CompoundState)StateMap[parentName];
             parent.SubStateNames.Add(stateName);
@@ -310,16 +316,18 @@ public partial class StateMachine
             throw new Exception("ActionMap is null!");
         }
 
-        var result = new List<NamedAction>();
+        // Lazy initialization - avoid allocating if empty
+        List<NamedAction>? result = null;
 
         foreach (var actionName in actionNames)
         {
             if (ActionMap.ContainsKey(actionName))
             {
+                result ??= new List<NamedAction>();
                 result.AddRange(ActionMap[actionName]);
             }
         }
-        return result;
+        return result ?? new List<NamedAction>();
     }
     /// <summary>
     /// 
@@ -356,7 +364,7 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     private List<Transition> ParseTransitions(CompoundState state, TransitionType type, string @event, JToken token)
     {
-        List<Transition> transitions = new List<Transition>();
+        List<Transition> transitions = new List<Transition>(4); // Pre-allocate with typical size
 
         if (token.Type == JTokenType.Array)
         {
@@ -496,7 +504,7 @@ public partial class StateMachine
                 {
                     if (!source.OnTransitionMap.ContainsKey(@event))
                     {
-                        source.OnTransitionMap[@event] = new List<Transition>();
+                        source.OnTransitionMap[@event] = new List<Transition>(2); // Pre-allocate with typical size
                     }
                     source.OnTransitionMap[@event].Add(transition);
                 }
@@ -544,7 +552,7 @@ public partial class StateMachine
                 return actions;
             }
 
-            actions = new List<NamedAction>();
+            actions = new List<NamedAction>(4); // Pre-allocate with typical size
 
             if(ActionMap != null)
                 foreach (var actionName in jobj)
