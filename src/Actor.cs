@@ -129,13 +129,22 @@ public class StateMachineActor : IActor
     {
         if (Status == ActorStatus.Running) return;
         
-        Status = ActorStatus.Running;
-        _cancellationTokenSource = new CancellationTokenSource();
-        _stateMachine.Start();
-        
-        // Start message processing loop
-        _processingTask = ProcessMessages(_cancellationTokenSource.Token);
-        await Task.CompletedTask;
+        try
+        {
+            Status = ActorStatus.Running;
+            _cancellationTokenSource = new CancellationTokenSource();
+            _stateMachine.Start();
+            
+            // Start message processing loop
+            _processingTask = ProcessMessages(_cancellationTokenSource.Token);
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting actor '{Id}': {ex.Message}");
+            Status = ActorStatus.Error;
+            throw; // Re-throw to preserve original behavior
+        }
     }
     
     /// <summary>
@@ -189,6 +198,17 @@ public class StateMachineActor : IActor
                     }
                     
                     _stateMachine.Send(message.EventName);
+                    
+                    // Check if an error was caught by the state machine's error handling
+                    if (_stateMachine.ContextMap != null && _stateMachine.ContextMap.ContainsKey("_error"))
+                    {
+                        var error = _stateMachine.ContextMap["_error"];
+                        if (error is Exception ex)
+                        {
+                            Console.WriteLine($"State machine error detected in actor '{Id}': {ex.Message}");
+                            Status = ActorStatus.Error;
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
