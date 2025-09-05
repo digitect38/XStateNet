@@ -56,15 +56,34 @@ public class NormalState : CompoundState
     /// <param name="transitionList"></param>
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
-        // Evaluation should be top-down direction
-
-        // parent first
-        base.BuildTransitionList(eventName, transitionList);
-
-        // children next
-        if (ActiveStateName != null)
+        // For onError events, child states should handle first and prevent parent handling
+        if (eventName == "onError")
         {
-            GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
+            // Check children first for onError
+            if (ActiveStateName != null)
+            {
+                var initialCount = transitionList.Count;
+                GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
+                
+                // If child added an onError transition, don't add parent's onError
+                if (transitionList.Count > initialCount)
+                {
+                    return;
+                }
+            }
+            
+            // Only add parent's onError if no child handled it
+            base.BuildTransitionList(eventName, transitionList);
+        }
+        else
+        {
+            // Normal evaluation order: parent first, then children
+            base.BuildTransitionList(eventName, transitionList);
+
+            if (ActiveStateName != null)
+            {
+                GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
+            }
         }
     }
 

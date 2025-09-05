@@ -354,10 +354,25 @@ public partial class StateMachine
         };
 
         //step 2:  perform transitions
-
+        // For transitions from the same state with the same event (like guarded transitions),
+        // only execute the first matching one
+        
+        var executedTransitions = new HashSet<(string?, string?)>();
+        
+        
         foreach (var (state, transition, @event) in transitionList)
         {
+            var key = (transition?.SourceName, @event);
+            
+            // Skip if we've already executed a transition from this state for this event
+            if (executedTransitions.Contains(key))
+            {
+                Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
+                continue;
+            }
+            
             transitionExecutor.Execute(transition, @event);
+            executedTransitions.Add(key);
         }
     }
 

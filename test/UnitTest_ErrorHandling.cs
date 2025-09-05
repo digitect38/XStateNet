@@ -341,13 +341,13 @@ public class UnitTest_ErrorHandling
                         },
                         'error': {
                             'entry': ['throwError']
+                        },
+                        'failed': {
+                            'type': 'final'
                         }
                     },
                     'onError': {
                         'target': '.failed'
-                    },
-                    'failed': {
-                        'type': 'final'
                     }
                 },
                 'regionB': {
