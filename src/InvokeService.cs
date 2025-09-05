@@ -136,9 +136,14 @@ public class ServiceInvoker : StateObject
     {
         Logger.Error($"Service '{service.ServiceName}' failed: {service.Error?.Message}");
         
-        // Send onError event
-        if (StateMachine != null)
+        // Store error information in context
+        if (StateMachine != null && service.Error != null)
         {
+            StateMachine.ContextMap["_error"] = service.Error;
+            StateMachine.ContextMap["_lastError"] = service.Error;  // For backward compatibility
+            StateMachine.ContextMap["_errorType"] = service.Error.GetType().Name;
+            StateMachine.ContextMap["_errorMessage"] = service.Error.Message;
+            
             var errorEvent = $"error.invoke.{service.InvokingState.Name}.{service.ServiceName}";
             StateMachine.Send(errorEvent);
             

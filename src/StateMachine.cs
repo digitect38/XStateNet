@@ -90,6 +90,7 @@ public partial class StateMachine
     public DelayMap? DelayMap { set; get; }
 
     public TransitionExecutor transitionExecutor { private set; get; }
+    public ServiceInvoker serviceInvoker { private set; get; }
     private EventQueue? _eventQueue;
     private StateMachineSync? _sync;
     private readonly object _stateLock = new object();
@@ -244,6 +245,8 @@ public partial class StateMachine
             {
                 transitionExecutor = new TransitionExecutor(machineId);
             }
+            
+            serviceInvoker = new ServiceInvoker(machineId);
             
             var list = GetEntryList(machineId);
             string entry = list.ToCsvString(this, false, " -> ");
@@ -607,6 +610,19 @@ public partial class StateMachine
 
 
         // 3.
+        // Special handling for self-transitions (external transitions to the same state)
+        if (srcStateName == tgtStateName && !string.IsNullOrEmpty(srcStateName))
+        {
+            // For external self-transitions, we should exit and re-enter the same state
+            var selfTransitionExitPath = new List<string> { srcStateName };
+            var selfTransitionEntryPath = new List<string> { srcStateName };
+            
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- Self-transition actualExitPath: {selfTransitionExitPath.ToCsvString(this, false, " -> ")}");
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- Self-transition actualEntryPath: {selfTransitionEntryPath.ToCsvString(this, false, " -> ")}");
+            
+            return (selfTransitionExitPath, selfTransitionEntryPath);
+        }
+        
         var actualExitPath = fullExitPath.Except(fullEntryPath);    // top down
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
 

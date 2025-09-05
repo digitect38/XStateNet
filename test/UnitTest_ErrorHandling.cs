@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using XStateNet;
 
+namespace ActorModel.AdvancedFeatures;
+
 [TestFixture]
 public class UnitTest_ErrorHandling
 {

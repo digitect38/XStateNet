@@ -3,6 +3,8 @@ using System;
 using System.Threading.Tasks;
 using XStateNet;
 
+namespace ActorModelTests;
+
 [TestFixture]
 public class UnitTest_ActorModel
 {

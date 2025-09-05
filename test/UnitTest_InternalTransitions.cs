@@ -36,8 +36,12 @@ public class UnitTest_InternalTransitions
             }) },
             ["incrementCounter"] = new List<NamedAction> { new NamedAction("incrementCounter", (sm) => {
                 _actionCount++;
-                sm.ContextMap!["counter"] = (int)(sm.ContextMap["counter"] ?? 0) + 1;
-                _contextValues["counter"] = (int)sm.ContextMap["counter"];
+                var currentValue = sm.ContextMap!["counter"];
+                int counter = currentValue is Newtonsoft.Json.Linq.JValue jval 
+                    ? jval.ToObject<int>() 
+                    : Convert.ToInt32(currentValue ?? 0);
+                sm.ContextMap["counter"] = counter + 1;
+                _contextValues["counter"] = counter + 1;
                 _actionLog.Add($"increment:{sm.ContextMap["counter"]}");
             }) },
             ["updateValue"] = new List<NamedAction> { new NamedAction("updateValue", (sm) => {
@@ -46,13 +50,30 @@ public class UnitTest_InternalTransitions
             }) },
             ["log"] = new List<NamedAction> { new NamedAction("log", (sm) => {
                 _actionLog.Add($"log:{sm.GetActiveStateString()}");
+            }) },
+            ["incrementInternal"] = new List<NamedAction> { new NamedAction("incrementInternal", (sm) => {
+                var currentValue = sm.ContextMap!["internalCount"];
+                int internalCount = currentValue is Newtonsoft.Json.Linq.JValue jval 
+                    ? jval.ToObject<int>() 
+                    : Convert.ToInt32(currentValue ?? 0);
+                sm.ContextMap["internalCount"] = internalCount + 1;
+            }) },
+            ["incrementExternal"] = new List<NamedAction> { new NamedAction("incrementExternal", (sm) => {
+                var currentValue = sm.ContextMap!["externalCount"];
+                int externalCount = currentValue is Newtonsoft.Json.Linq.JValue jval 
+                    ? jval.ToObject<int>() 
+                    : Convert.ToInt32(currentValue ?? 0);
+                sm.ContextMap["externalCount"] = externalCount + 1;
             }) }
         };
         
         _guards = new GuardMap
         {
             ["lessThanFive"] = new NamedGuard("lessThanFive", (sm) => {
-                var counter = (int)(sm.ContextMap?["counter"] ?? 0);
+                var currentValue = sm.ContextMap?["counter"];
+                int counter = currentValue is Newtonsoft.Json.Linq.JValue jval 
+                    ? jval.ToObject<int>() 
+                    : Convert.ToInt32(currentValue ?? 0);
                 return counter < 5;
             })
         };
@@ -146,7 +167,8 @@ public class UnitTest_InternalTransitions
         Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("counting"));
         Assert.AreEqual(1, _entryCount); // No re-entry
         Assert.AreEqual(2, _actionCount);
-        Assert.AreEqual(2, (int)_stateMachine.ContextMap["counter"]);
+        var counterVal = _stateMachine.ContextMap["counter"];
+        Assert.AreEqual(2, counterVal is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)counterVal);
     }
     
     [Test]
@@ -164,6 +186,7 @@ public class UnitTest_InternalTransitions
                     'states': {
                         'child': {
                             'entry': ['entryAction'],
+                            'exit': ['exitAction'],
                             'on': {
                                 'INTERNAL_UPDATE': {
                                     'target': '.',
@@ -242,17 +265,19 @@ public class UnitTest_InternalTransitions
         }
         
         Assert.AreEqual(4, _actionCount);
-        Assert.AreEqual(4, (int)_stateMachine.ContextMap!["counter"]);
+        var counter1 = _stateMachine.ContextMap!["counter"];
+        Assert.AreEqual(4, counter1 is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : (int)counter1);
         
         // One more increment should reach 5 and transition externally
         _stateMachine.Send("INCREMENT");
         Assert.AreEqual(5, _actionCount);
-        Assert.AreEqual(5, (int)_stateMachine.ContextMap["counter"]);
+        var counter2 = _stateMachine.ContextMap["counter"];
+        Assert.AreEqual(5, counter2 is Newtonsoft.Json.Linq.JValue jv2 ? jv2.ToObject<int>() : (int)counter2);
         
         // Next increment should trigger external transition
         _stateMachine.Send("INCREMENT");
         Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("maxReached"));
-        Assert.Contains("log:nestedInternal.maxReached", _actionLog);
+        Assert.Contains("log:#guardedInternal.maxReached", _actionLog);
     }
     
     [Test]
@@ -303,7 +328,8 @@ public class UnitTest_InternalTransitions
         // Update region A internally
         _stateMachine.Send("UPDATE_A");
         Assert.AreEqual(initialEntries, _entryCount); // No re-entry
-        Assert.AreEqual(1, (int)_stateMachine.ContextMap["counter"]);
+        var counterValue = _stateMachine.ContextMap["counter"];
+        Assert.AreEqual(1, counterValue is Newtonsoft.Json.Linq.JValue jv3 ? jv3.ToObject<int>() : (int)counterValue);
         
         // Update region B internally
         _stateMachine.Send("UPDATE_B");
@@ -339,11 +365,11 @@ public class UnitTest_InternalTransitions
                     'on': {
                         'INTERNAL': {
                             'target': '.',
-                            'actions': [(sm) => { sm.ContextMap['internalCount'] = (int)sm.ContextMap['internalCount'] + 1; }]
+                            'actions': ['incrementInternal']
                         },
                         'EXTERNAL': {
                             'target': 'active',
-                            'actions': [(sm) => { sm.ContextMap['externalCount'] = (int)sm.ContextMap['externalCount'] + 1; }]
+                            'actions': ['incrementExternal']
                         },
                         'DONE': 'complete'
                     }
@@ -367,8 +393,10 @@ public class UnitTest_InternalTransitions
         
         Assert.AreEqual(initialEntries, _entryCount);
         Assert.AreEqual(initialExits, _exitCount);
-        Assert.AreEqual(2, (int)_stateMachine.ContextMap!["internalCount"]);
-        Assert.AreEqual(0, (int)_stateMachine.ContextMap["externalCount"]);
+        var internalCount1 = _stateMachine.ContextMap!["internalCount"];
+        var externalCount1 = _stateMachine.ContextMap["externalCount"];
+        Assert.AreEqual(2, internalCount1 is Newtonsoft.Json.Linq.JValue jvi1 ? jvi1.ToObject<int>() : (int)internalCount1);
+        Assert.AreEqual(0, externalCount1 is Newtonsoft.Json.Linq.JValue jve1 ? jve1.ToObject<int>() : (int)externalCount1);
         
         // External self-transitions
         _stateMachine.Send("EXTERNAL");
@@ -376,8 +404,10 @@ public class UnitTest_InternalTransitions
         
         Assert.AreEqual(initialEntries + 2, _entryCount); // Re-entered twice
         Assert.AreEqual(initialExits + 2, _exitCount); // Exited twice
-        Assert.AreEqual(2, (int)_stateMachine.ContextMap["internalCount"]);
-        Assert.AreEqual(2, (int)_stateMachine.ContextMap["externalCount"]);
+        var internalCount2 = _stateMachine.ContextMap["internalCount"];
+        var externalCount2 = _stateMachine.ContextMap["externalCount"];
+        Assert.AreEqual(2, internalCount2 is Newtonsoft.Json.Linq.JValue jvi2 ? jvi2.ToObject<int>() : (int)internalCount2);
+        Assert.AreEqual(2, externalCount2 is Newtonsoft.Json.Linq.JValue jve2 ? jve2.ToObject<int>() : (int)externalCount2);
         
         _stateMachine.Send("DONE");
         Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("complete"));
