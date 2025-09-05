@@ -144,8 +144,6 @@ public class AfterTests
             'initial': 'red'
         }";
 
-
-
         // Wait for the after transition to occur
         System.Threading.Thread.Sleep(600); // Wait longer than the 'after' delay
 

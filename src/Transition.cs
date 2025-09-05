@@ -1,4 +1,6 @@
-﻿namespace XStateNet;
+﻿using System.Linq;
+
+namespace XStateNet;
 
 /// <summary>
 /// 
@@ -10,6 +12,120 @@ public class TransitionExecutor : StateObject
     public void Execute(Transition? transition, string eventName)
     {
         ExecuteCore(transition, eventName);
+    }
+    
+    private void ExecuteMultipleTargets(Transition transition, string eventName)
+    {
+        if (transition.TargetNames == null || StateMachine == null) return;
+        
+        Logger.Info($"Executing multiple target transition for event {eventName}");
+        
+        // Execute transition actions once before any state changes
+        if (transition.Actions != null)
+        {
+            foreach (var action in transition.Actions)
+            {
+                try
+                {
+                    action.Action(StateMachine);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error executing transition action: {ex.Message}");
+                }
+            }
+        }
+        
+        // Process each target
+        foreach (var targetName in transition.TargetNames)
+        {
+            if (string.IsNullOrWhiteSpace(targetName)) continue;
+            
+            try
+            {
+                // Find the source state for this target in the parallel regions
+                var targetState = GetState(targetName);
+                if (targetState == null)
+                {
+                    Logger.Warning($"Target state '{targetName}' not found");
+                    continue;
+                }
+                
+                // Find the current active state in the same region as the target
+                var targetRegion = GetParentRegion(targetState);
+                if (targetRegion == null)
+                {
+                    Logger.Warning($"Could not find parent region for target state '{targetName}'");
+                    continue;
+                }
+                
+                // Get the current active state names in this region
+                var activeStateNamesInRegion = StateMachine.GetSourceSubStateCollection(null)
+                    .Select(name => StateMachine.GetState(name))
+                    .Where(state => state is CompoundState cs && IsInRegion(cs, targetRegion))
+                    .Select(state => state.Name)
+                    .Where(name => name != null)
+                    .ToList();
+                
+                if (activeStateNamesInRegion.Count == 0)
+                {
+                    Logger.Warning($"No active state found in region containing '{targetName}'");
+                    continue;
+                }
+                
+                var sourceInRegionName = activeStateNamesInRegion.First();
+                
+                // Execute the transition for this specific region
+                var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceInRegionName, targetName);
+                
+                string? firstExit = exitList.FirstOrDefault();
+                string? firstEntry = entryList.FirstOrDefault();
+                
+                // Exit
+                if (firstExit != null)
+                {
+                    StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState).GetAwaiter().GetResult();
+                }
+                
+                Logger.Info($"Transit: [ {sourceInRegionName} --> {targetName} ] by {eventName}");
+                
+                // Entry
+                if (firstEntry != null)
+                {
+                    StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error transitioning to target '{targetName}': {ex.Message}");
+            }
+        }
+    }
+    
+    private StateNode? GetParentRegion(StateNode state)
+    {
+        var current = state;
+        while (current != null)
+        {
+            var parent = current.Parent;
+            if (parent != null && parent.IsParallel)
+            {
+                return current;
+            }
+            current = current.Parent;
+        }
+        return null;
+    }
+    
+    private bool IsInRegion(CompoundState state, StateNode region)
+    {
+        var current = state;
+        while (current != null)
+        {
+            if (current == region) return true;
+            current = current.Parent;
+        }
+        return false;
     }
     
     protected virtual void ExecuteCore(Transition? transition, string eventName)
@@ -29,6 +145,13 @@ public class TransitionExecutor : StateObject
 
             if (string.IsNullOrWhiteSpace(sourceName)) 
                 throw new InvalidOperationException("Source state name cannot be null or empty");
+
+            // Handle multiple targets
+            if (transition.HasMultipleTargets && transition.TargetNames != null)
+            {
+                ExecuteMultipleTargets(transition, eventName);
+                return;
+            }
 
             if (targetName != null)
             {
@@ -108,9 +231,12 @@ public abstract class Transition : StateObject
 
     public string? SourceName { get; set; }
     public string? TargetName { get; set; }
+    public List<string>? TargetNames { get; set; } // Support for multiple targets
     public NamedGuard? Guard { get; set; }
     public List<NamedAction>? Actions { get; set; }
     public Func<bool>? InCondition { get; set; }
+    
+    public bool HasMultipleTargets => TargetNames != null && TargetNames.Count > 0;
 
 
     public CompoundState? Source {

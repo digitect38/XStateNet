@@ -402,6 +402,7 @@ public partial class StateMachine
 
         List<string>? actionNames = null;
         string? targetName = null;
+        List<string>? targetNames = null;
         string? guard = null;
         string? inCondition = null;
 
@@ -416,7 +417,17 @@ public partial class StateMachine
         {
             try
             {
-                targetName = token["target"]?.ToString();
+                var targetToken = token["target"];
+                
+                // Check if target is an array (multiple targets)
+                if (targetToken != null && targetToken.Type == JTokenType.Array)
+                {
+                    targetNames = targetToken.ToObject<List<string>>();
+                }
+                else
+                {
+                    targetName = targetToken?.ToString();
+                }
 
                 if (token["actions"] != null)
                 {
@@ -450,13 +461,19 @@ public partial class StateMachine
             }
         }
 
-        if (string.IsNullOrEmpty(targetName))
-        {
-            targetName = null; //transitionToken.First.Type == JTokenType.String  ? transitionToken.First.ToString() : null;
-        }
-        else
+        // Handle single target
+        if (!string.IsNullOrEmpty(targetName))
         {
             targetName = ResolveAbsolutePath(source.Name, targetName);
+        }
+        
+        // Handle multiple targets
+        if (targetNames != null && targetNames.Count > 0)
+        {
+            for (int i = 0; i < targetNames.Count; i++)
+            {
+                targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]);
+            }
         }
 
         Transition? transition = null;
@@ -494,6 +511,7 @@ public partial class StateMachine
 
         transition.SourceName = source.Name;
         transition.TargetName = targetName;
+        transition.TargetNames = targetNames; // Set multiple targets if present
         if(actionNames != null)   transition.Actions = GetActionCallbacks(actionNames);
         if(guard != null)  transition.Guard = GetGuardCallback(guard);
         transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : null;
