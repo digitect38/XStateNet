@@ -2,6 +2,7 @@ using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using XStateNet;
+namespace ActorModelTests;
 
 [TestFixture]
 public class UnitTest_InternalTransitions

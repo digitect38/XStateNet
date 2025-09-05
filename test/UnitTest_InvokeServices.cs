@@ -3,7 +3,7 @@ using System;
 using System.Threading.Tasks;
 using System.Threading;
 using XStateNet;
-
+namespace ActorModelTests;
 [TestFixture]
 public class UnitTest_InvokeServices
 {

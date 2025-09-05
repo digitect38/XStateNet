@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using XStateNet;
 
-namespace ActorModel.AdvancedFeatures;
+namespace XSateV5_Test.AdvancedFeatures;
 
 [TestFixture]
 public class UnitTest_ErrorHandling

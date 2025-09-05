@@ -2,7 +2,7 @@ using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using XStateNet;
-
+namespace XStateV5Features;
 [TestFixture]
 public class UnitTest_ErrorHandling_Debug
 {
