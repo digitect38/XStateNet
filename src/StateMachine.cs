@@ -617,6 +617,7 @@ public partial class StateMachine
             {
                 // Store error context
                 ContextMap["_error"] = ex;
+                ContextMap["_lastError"] = ex;  // For backward compatibility
                 ContextMap["_errorType"] = ex.GetType().Name;
                 ContextMap["_errorMessage"] = ex.Message;
                 
@@ -645,6 +646,7 @@ public partial class StateMachine
             {
                 // Store error context
                 ContextMap["_error"] = ex;
+                ContextMap["_lastError"] = ex;  // For backward compatibility
                 ContextMap["_errorType"] = ex.GetType().Name;
                 ContextMap["_errorMessage"] = ex.Message;
                 

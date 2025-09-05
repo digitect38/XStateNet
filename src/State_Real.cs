@@ -58,6 +58,7 @@ public abstract class RealState : StateNode
                 {
                     // Store error context and rethrow
                     StateMachine.ContextMap["_error"] = ex;
+                    StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
                     StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
                     StateMachine.ContextMap["_errorMessage"] = ex.Message;
                     throw;  // Rethrow to be handled at higher level
@@ -100,6 +101,7 @@ public abstract class RealState : StateNode
                     {
                         // Store error context and rethrow for higher level handling
                         StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
                         StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
                         StateMachine.ContextMap["_errorMessage"] = ex.Message;
                         throw;  // Rethrow to be handled by TransitDown
@@ -212,6 +214,7 @@ public abstract class CompoundState : RealState
                 {
                     // Store error context and rethrow
                     StateMachine.ContextMap["_error"] = ex;
+                    StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
                     StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
                     StateMachine.ContextMap["_errorMessage"] = ex.Message;
                     throw;  // Rethrow to be handled at higher level
@@ -256,6 +259,7 @@ public abstract class CompoundState : RealState
                     {
                         // Store error context and rethrow for higher level handling
                         StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
                         StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
                         StateMachine.ContextMap["_errorMessage"] = ex.Message;
                         throw;  // Rethrow to be handled by TransitDown
