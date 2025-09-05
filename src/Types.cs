@@ -72,7 +72,8 @@ public enum TransitionType
     On,
     Always,
     After,
-    OnDone
+    OnDone,
+    OnError
 }
 
 public class StateMap : ConcurrentDictionary<string, StateNode>

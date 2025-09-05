@@ -146,6 +146,33 @@ public class TransitionExecutor : StateObject
             if (string.IsNullOrWhiteSpace(sourceName)) 
                 throw new InvalidOperationException("Source state name cannot be null or empty");
 
+            // Handle internal transitions - execute actions without changing state
+            if (transition.IsInternal)
+            {
+                Logger.Info($"Internal transition on event {eventName} in state {sourceName}");
+                
+                // Execute transition actions without state change
+                if (transition?.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        try
+                        {
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing internal transition action: {ex.Message}");
+                        }
+                    }
+                }
+                
+                // Fire OnTransition event even for internal transitions
+                var sourceNode = GetState(sourceName);
+                StateMachine.OnTransition?.Invoke(sourceNode as CompoundState, sourceNode, eventName);
+                return;
+            }
+
             // Handle multiple targets
             if (transition.HasMultipleTargets && transition.TargetNames != null)
             {
@@ -235,6 +262,7 @@ public abstract class Transition : StateObject
     public NamedGuard? Guard { get; set; }
     public List<NamedAction>? Actions { get; set; }
     public Func<bool>? InCondition { get; set; }
+    public bool IsInternal { get; set; } // Internal transition flag
     
     public bool HasMultipleTargets => TargetNames != null && TargetNames.Count > 0;
 

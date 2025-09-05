@@ -274,6 +274,13 @@ public partial class StateMachine
 
             ParseTransitions(state, TransitionType.OnDone, "onDone", onDoneToken);
         }
+        
+        // Parse onError transitions
+        var onErrorToken = stateToken["onError"];
+        if (onErrorToken != null)
+        {
+            ParseTransitions(state, TransitionType.OnError, "onError", onErrorToken);
+        }
 
         var states = stateToken["states"];
 
@@ -461,8 +468,8 @@ public partial class StateMachine
             }
         }
 
-        // Handle single target
-        if (!string.IsNullOrEmpty(targetName))
+        // Handle single target (skip resolution for internal transitions)
+        if (!string.IsNullOrEmpty(targetName) && targetName != ".")
         {
             targetName = ResolveAbsolutePath(source.Name, targetName);
         }
@@ -472,7 +479,10 @@ public partial class StateMachine
         {
             for (int i = 0; i < targetNames.Count; i++)
             {
-                targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]);
+                if (targetNames[i] != ".")
+                {
+                    targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]);
+                }
             }
         }
 
@@ -504,6 +514,12 @@ public partial class StateMachine
             {
             };
         }
+        else if (type == TransitionType.OnError)
+        {
+            transition = new OnErrorTransition(machineId)
+            {
+            };
+        }
         else
         {
             throw new Exception("Invalid transition type!");
@@ -515,6 +531,13 @@ public partial class StateMachine
         if(actionNames != null)   transition.Actions = GetActionCallbacks(actionNames);
         if(guard != null)  transition.Guard = GetGuardCallback(guard);
         transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : null;
+        
+        // Check for internal transition (target is null or ".")
+        if (targetName == "." || (targetName == null && targetNames == null && transition.Actions != null))
+        {
+            transition.IsInternal = true;
+            transition.TargetName = null; // Internal transitions don't have targets
+        }
 
         switch (type)
         {
@@ -540,6 +563,16 @@ public partial class StateMachine
             case TransitionType.OnDone:
                 {
                     source.OnDoneTransition = transition as OnDoneTransition;
+                }
+                break;
+            case TransitionType.OnError:
+                {
+                    // OnError transitions are stored in the OnTransitionMap
+                    if (!source.OnTransitionMap.ContainsKey("onError"))
+                    {
+                        source.OnTransitionMap["onError"] = new List<Transition>(1);
+                    }
+                    source.OnTransitionMap["onError"].Add(transition);
                 }
                 break;
 
