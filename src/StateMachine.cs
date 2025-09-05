@@ -608,7 +608,22 @@ public partial class StateMachine
     public Task TransitUp(CompoundState? topExitState)
     {
         if (topExitState != null)
-            topExitState.ExitState(postAction: true, recursive: true);
+        {
+            try
+            {
+                topExitState.ExitState(postAction: true, recursive: true);
+            }
+            catch (Exception ex)
+            {
+                // Store error context
+                ContextMap["_error"] = ex;
+                ContextMap["_errorType"] = ex.GetType().Name;
+                ContextMap["_errorMessage"] = ex.Message;
+                
+                // Send onError event to trigger error transitions
+                Send("onError");
+            }
+        }
         return Task.CompletedTask;
     }
 
@@ -621,7 +636,22 @@ public partial class StateMachine
     {
         var historyState = historyStateName != null ? GetState(historyStateName) as HistoryState : null;
         if (topEntryState != null)
-            topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
+        {
+            try
+            {
+                topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
+            }
+            catch (Exception ex)
+            {
+                // Store error context
+                ContextMap["_error"] = ex;
+                ContextMap["_errorType"] = ex.GetType().Name;
+                ContextMap["_errorMessage"] = ex.Message;
+                
+                // Send onError event to trigger error transitions
+                Send("onError");
+            }
+        }
         return Task.CompletedTask;
     }
 

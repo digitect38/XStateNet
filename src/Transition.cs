@@ -152,12 +152,14 @@ public class TransitionExecutor : StateObject
                 Logger.Info($"Internal transition on event {eventName} in state {sourceName}");
                 
                 // Execute transition actions without state change
-                if (transition?.Actions != null)
+                if (transition?.Actions != null && transition.Actions.Count > 0)
                 {
+                    Logger.Debug($"Executing {transition.Actions.Count} actions for internal transition");
                     foreach (var action in transition.Actions)
                     {
                         try
                         {
+                            Logger.Debug($"Executing action: {action.Name}");
                             action.Action(StateMachine);
                         }
                         catch (Exception ex)
@@ -165,6 +167,10 @@ public class TransitionExecutor : StateObject
                             Logger.Error($"Error executing internal transition action: {ex.Message}");
                         }
                     }
+                }
+                else
+                {
+                    Logger.Debug($"No actions to execute for internal transition (Actions null: {transition?.Actions == null}, Count: {transition?.Actions?.Count ?? 0})");
                 }
                 
                 // Fire OnTransition event even for internal transitions
@@ -184,8 +190,8 @@ public class TransitionExecutor : StateObject
             {
                 var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceName, targetName);
 
-                string? firstExit = exitList.First();
-                string? firstEntry = entryList.First();
+                string? firstExit = exitList.FirstOrDefault();
+                string? firstEntry = entryList.FirstOrDefault();
 
                 // Exit
                 if (firstExit != null)

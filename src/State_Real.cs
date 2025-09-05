@@ -46,8 +46,24 @@ public abstract class RealState : StateNode
             Parent.ActiveStateName = null;
         }
 
-        if (StateMachine != null)
-            ExitActions?.ForEach(action => action.Action(StateMachine));
+        if (StateMachine != null && ExitActions != null)
+        {
+            foreach (var action in ExitActions)
+            {
+                try
+                {
+                    action.Action(StateMachine);
+                }
+                catch (Exception ex)
+                {
+                    // Store error context and rethrow
+                    StateMachine.ContextMap["_error"] = ex;
+                    StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                    StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    throw;  // Rethrow to be handled at higher level
+                }
+            }
+        }
 
         return Task.CompletedTask;
     }
@@ -61,22 +77,39 @@ public abstract class RealState : StateNode
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 
-
-        if (StateMachine != null)
-        {
-            EntryActions?.ForEach(a => a.Action(StateMachine));
-            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
-            Service?.ServiceFunc(StateMachine);
-        }
-
-        // Let define active state as all the entry actions performed successfuly.
-
+        // Mark state as active before executing entry actions so error transitions can be triggered
         IsActive = true;
 
         if (Parent != null)
         {
             Parent.ActiveStateName = Name;
-        }        
+        }
+
+        if (StateMachine != null)
+        {
+            // Execute entry actions with error handling
+            if (EntryActions != null)
+            {
+                foreach (var action in EntryActions)
+                {
+                    try
+                    {
+                        action.Action(StateMachine);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Store error context and rethrow for higher level handling
+                        StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        throw;  // Rethrow to be handled by TransitDown
+                    }
+                }
+            }
+            
+            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
+            Service?.ServiceFunc(StateMachine);
+        }
 
         return Task.CompletedTask;
     }
@@ -167,8 +200,24 @@ public abstract class CompoundState : RealState
             Parent.ActiveStateName = null;
         }
 
-        if(StateMachine != null)
-            ExitActions?.ForEach(action => action.Action(StateMachine));
+        if (StateMachine != null && ExitActions != null)
+        {
+            foreach (var action in ExitActions)
+            {
+                try
+                {
+                    action.Action(StateMachine);
+                }
+                catch (Exception ex)
+                {
+                    // Store error context and rethrow
+                    StateMachine.ContextMap["_error"] = ex;
+                    StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                    StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    throw;  // Rethrow to be handled at higher level
+                }
+            }
+        }
 
         return Task.CompletedTask;
     }
@@ -184,20 +233,38 @@ public abstract class CompoundState : RealState
 
         IsDone = false;
 
-        if (StateMachine != null)
-        {
-            EntryActions?.ForEach(a => a.Action(StateMachine));
-            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
-            Service?.ServiceFunc(StateMachine);
-        }
-
-        // Let define active state as all the entry actions performed successfuly.
-
+        // Mark state as active before executing entry actions so error transitions can be triggered
         IsActive = true;
 
         if (Parent != null)
         {
             Parent.ActiveStateName = Name;
+        }
+
+        if (StateMachine != null)
+        {
+            // Execute entry actions with error handling
+            if (EntryActions != null)
+            {
+                foreach (var action in EntryActions)
+                {
+                    try
+                    {
+                        action.Action(StateMachine);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Store error context and rethrow for higher level handling
+                        StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        throw;  // Rethrow to be handled by TransitDown
+                    }
+                }
+            }
+            
+            //Service?.AsParallel().ForAll(s => s.Service(StateMachine));
+            Service?.ServiceFunc(StateMachine);
         }
 
         ScheduleAfterTransitionTimer();
