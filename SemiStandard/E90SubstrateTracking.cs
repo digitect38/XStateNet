@@ -2,11 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Reflection;
 
 namespace XStateNet.Semi;
 
 /// <summary>
 /// E90 Substrate Tracking implementation using XStateNet state machines
+/// Uses JSON scripts to define state machines as intended by XStateNet design
 /// </summary>
 public class E90SubstrateTracking
 {
@@ -14,13 +17,55 @@ public class E90SubstrateTracking
     private readonly ConcurrentDictionary<string, SubstrateLocation> _locations = new();
     private readonly ConcurrentDictionary<string, List<SubstrateHistory>> _history = new();
     private readonly object _updateLock = new();
+    private static string? _jsonScript;
+    
+    /// <summary>
+    /// Load the E90 state machine JSON script
+    /// </summary>
+    static E90SubstrateTracking()
+    {
+        // Load embedded JSON resource or from file
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = "XStateNet.Semi.E90SubstrateStates.json";
+        
+        // First try to load from embedded resource
+        using (var stream = assembly.GetManifestResourceStream(resourceName))
+        {
+            if (stream != null)
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    _jsonScript = reader.ReadToEnd();
+                }
+            }
+        }
+        
+        // If not embedded, try to load from file
+        if (string.IsNullOrEmpty(_jsonScript))
+        {
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "E90SubstrateStates.json");
+            if (File.Exists(jsonPath))
+            {
+                _jsonScript = File.ReadAllText(jsonPath);
+            }
+            else
+            {
+                // If file doesn't exist in base directory, try the SemiStandard directory
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E90SubstrateStates.json");
+                if (File.Exists(jsonPath))
+                {
+                    _jsonScript = File.ReadAllText(jsonPath);
+                }
+            }
+        }
+    }
     
     /// <summary>
     /// Register a new substrate with its own state machine
     /// </summary>
     public SubstrateStateMachine RegisterSubstrate(string substrateid, string? lotId = null, int? slotNumber = null)
     {
-        var substrate = new SubstrateStateMachine(substrateid, lotId, slotNumber);
+        var substrate = new SubstrateStateMachine(substrateid, lotId, slotNumber, _jsonScript);
         _substrates[substrateid] = substrate;
         _history[substrateid] = new List<SubstrateHistory>();
         
@@ -171,7 +216,7 @@ public class E90SubstrateTracking
 }
 
 /// <summary>
-/// Substrate with its own XStateNet state machine
+/// Substrate with its own XStateNet state machine created from JSON
 /// </summary>
 public class SubstrateStateMachine
 {
@@ -186,7 +231,7 @@ public class SubstrateStateMachine
     public string? RecipeId { get; set; }
     public Dictionary<string, object> Properties { get; set; }
     
-    public SubstrateStateMachine(string id, string? lotId = null, int? slotNumber = null)
+    public SubstrateStateMachine(string id, string? lotId = null, int? slotNumber = null, string? jsonScript = null)
     {
         Id = id;
         LotId = lotId;
@@ -194,141 +239,25 @@ public class SubstrateStateMachine
         Properties = new Dictionary<string, object>();
         AcquiredTime = DateTime.UtcNow;
         
-        // Create E90 substrate state machine
-        StateMachine = CreateE90StateMachine(id);
+        // Create E90 substrate state machine from JSON script
+        StateMachine = CreateE90StateMachine(id, jsonScript);
         StateMachine.Start();
     }
     
     /// <summary>
-    /// Creates the E90-compliant substrate state machine
+    /// Creates the E90-compliant substrate state machine from JSON script
     /// </summary>
-    private StateMachine CreateE90StateMachine(string substrateid)
+    private StateMachine CreateE90StateMachine(string substrateid, string? jsonScript)
     {
-        var config = new Dictionary<string, object>
-        {
-            ["id"] = $"substrate_{substrateid}",
-            ["initial"] = "WaitingForHost",
-            ["states"] = new Dictionary<string, object>
-            {
-                ["WaitingForHost"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["ACQUIRE"] = "InCarrier",
-                        ["PLACED_IN_CARRIER"] = "InCarrier"
-                    }
-                },
-                ["InCarrier"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["SELECT_FOR_PROCESS"] = "NeedsProcessing",
-                        ["SKIP"] = "Skipped",
-                        ["REJECT"] = "Rejected"
-                    }
-                },
-                ["NeedsProcessing"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PLACED_IN_PROCESS_MODULE"] = "ReadyToProcess",
-                        ["PLACED_IN_ALIGNER"] = "Aligning",
-                        ["ABORT"] = "Aborted"
-                    }
-                },
-                ["Aligning"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["ALIGN_COMPLETE"] = "ReadyToProcess",
-                        ["ALIGN_FAIL"] = "Rejected"
-                    }
-                },
-                ["ReadyToProcess"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["START_PROCESS"] = "InProcess",
-                        ["ABORT"] = "Aborted"
-                    }
-                },
-                ["InProcess"] = new Dictionary<string, object>
-                {
-                    ["entry"] = new[] { "recordProcessStart" },
-                    ["exit"] = new[] { "recordProcessEnd" },
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PROCESS_COMPLETE"] = "Processed",
-                        ["PROCESS_ABORT"] = "Aborted",
-                        ["PROCESS_STOP"] = "Stopped",
-                        ["PROCESS_ERROR"] = "Rejected"
-                    }
-                },
-                ["Processed"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PLACED_IN_CARRIER"] = "Complete",
-                        ["REMOVE"] = "Removed"
-                    }
-                },
-                ["Aborted"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PLACED_IN_CARRIER"] = "Complete",
-                        ["REMOVE"] = "Removed"
-                    }
-                },
-                ["Stopped"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["RESUME"] = "InProcess",
-                        ["ABORT"] = "Aborted"
-                    }
-                },
-                ["Rejected"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PLACED_IN_CARRIER"] = "Complete",
-                        ["REMOVE"] = "Removed"
-                    }
-                },
-                ["Lost"] = new Dictionary<string, object>
-                {
-                    ["type"] = "final"
-                },
-                ["Skipped"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["PLACED_IN_CARRIER"] = "Complete",
-                        ["REMOVE"] = "Removed"
-                    }
-                },
-                ["Complete"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["REMOVE"] = "Removed"
-                    }
-                },
-                ["Removed"] = new Dictionary<string, object>
-                {
-                    ["type"] = "final"
-                }
-            }
-        };
-        
-        // Create action callbacks
+        // Define action callbacks for the state machine
         var actionMap = new ActionMap();
+        
         actionMap["recordProcessStart"] = new List<NamedAction>
         {
             new NamedAction("recordProcessStart", (sm) => 
             {
                 ProcessStartTime = DateTime.UtcNow;
+                Logger.Info($"Substrate {substrateid} process started at {ProcessStartTime}");
             })
         };
         
@@ -340,14 +269,114 @@ public class SubstrateStateMachine
                 if (ProcessStartTime.HasValue)
                 {
                     ProcessingTime = ProcessEndTime.Value - ProcessStartTime.Value;
+                    Logger.Info($"Substrate {substrateid} process ended. Duration: {ProcessingTime}");
                 }
             })
         };
         
-        var json = System.Text.Json.JsonSerializer.Serialize(config);
-        var stateMachine = new StateMachine();
-        stateMachine.machineId = $"substrate_{substrateid}";
-        return StateMachine.CreateFromScript(stateMachine, json, actionMap);
+        // Use the JSON script if provided, otherwise use default E90 states
+        if (string.IsNullOrEmpty(jsonScript))
+        {
+            // Fallback to inline JSON if external file not found
+            jsonScript = @"{
+                ""id"": ""substrate_" + substrateid + @""",
+                ""initial"": ""WaitingForHost"",
+                ""states"": {
+                    ""WaitingForHost"": {
+                        ""on"": {
+                            ""ACQUIRE"": ""InCarrier"",
+                            ""PLACED_IN_CARRIER"": ""InCarrier""
+                        }
+                    },
+                    ""InCarrier"": {
+                        ""on"": {
+                            ""SELECT_FOR_PROCESS"": ""NeedsProcessing"",
+                            ""SKIP"": ""Skipped"",
+                            ""REJECT"": ""Rejected""
+                        }
+                    },
+                    ""NeedsProcessing"": {
+                        ""on"": {
+                            ""PLACED_IN_PROCESS_MODULE"": ""ReadyToProcess"",
+                            ""PLACED_IN_ALIGNER"": ""Aligning"",
+                            ""ABORT"": ""Aborted""
+                        }
+                    },
+                    ""Aligning"": {
+                        ""on"": {
+                            ""ALIGN_COMPLETE"": ""ReadyToProcess"",
+                            ""ALIGN_FAIL"": ""Rejected""
+                        }
+                    },
+                    ""ReadyToProcess"": {
+                        ""on"": {
+                            ""START_PROCESS"": ""InProcess"",
+                            ""ABORT"": ""Aborted""
+                        }
+                    },
+                    ""InProcess"": {
+                        ""entry"": [""recordProcessStart""],
+                        ""exit"": [""recordProcessEnd""],
+                        ""on"": {
+                            ""PROCESS_COMPLETE"": ""Processed"",
+                            ""PROCESS_ABORT"": ""Aborted"",
+                            ""PROCESS_STOP"": ""Stopped"",
+                            ""PROCESS_ERROR"": ""Rejected""
+                        }
+                    },
+                    ""Processed"": {
+                        ""on"": {
+                            ""PLACED_IN_CARRIER"": ""Complete"",
+                            ""REMOVE"": ""Removed""
+                        }
+                    },
+                    ""Aborted"": {
+                        ""on"": {
+                            ""PLACED_IN_CARRIER"": ""Complete"",
+                            ""REMOVE"": ""Removed""
+                        }
+                    },
+                    ""Stopped"": {
+                        ""on"": {
+                            ""RESUME"": ""InProcess"",
+                            ""ABORT"": ""Aborted""
+                        }
+                    },
+                    ""Rejected"": {
+                        ""on"": {
+                            ""PLACED_IN_CARRIER"": ""Complete"",
+                            ""REMOVE"": ""Removed""
+                        }
+                    },
+                    ""Lost"": {
+                        ""type"": ""final""
+                    },
+                    ""Skipped"": {
+                        ""on"": {
+                            ""PLACED_IN_CARRIER"": ""Complete"",
+                            ""REMOVE"": ""Removed""
+                        }
+                    },
+                    ""Complete"": {
+                        ""on"": {
+                            ""REMOVE"": ""Removed""
+                        }
+                    },
+                    ""Removed"": {
+                        ""type"": ""final""
+                    }
+                }
+            }";
+        }
+        else
+        {
+            // Update the id in the JSON to be unique for this substrate
+            jsonScript = jsonScript.Replace("\"id\": \"E90SubstrateStateMachine\"", 
+                                          $"\"id\": \"substrate_{substrateid}\"");
+        }
+        
+        // Create state machine from JSON script using XStateNet's intended API
+        return StateMachine.CreateFromScript(jsonScript, actionMap);
     }
     
     /// <summary>

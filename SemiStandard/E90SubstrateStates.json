@@ -1,0 +1,89 @@
+{
+  "id": "E90SubstrateStateMachine",
+  "initial": "WaitingForHost",
+  "states": {
+    "WaitingForHost": {
+      "on": {
+        "ACQUIRE": "InCarrier",
+        "PLACED_IN_CARRIER": "InCarrier"
+      }
+    },
+    "InCarrier": {
+      "on": {
+        "SELECT_FOR_PROCESS": "NeedsProcessing",
+        "SKIP": "Skipped",
+        "REJECT": "Rejected"
+      }
+    },
+    "NeedsProcessing": {
+      "on": {
+        "PLACED_IN_PROCESS_MODULE": "ReadyToProcess",
+        "PLACED_IN_ALIGNER": "Aligning",
+        "ABORT": "Aborted"
+      }
+    },
+    "Aligning": {
+      "on": {
+        "ALIGN_COMPLETE": "ReadyToProcess",
+        "ALIGN_FAIL": "Rejected"
+      }
+    },
+    "ReadyToProcess": {
+      "on": {
+        "START_PROCESS": "InProcess",
+        "ABORT": "Aborted"
+      }
+    },
+    "InProcess": {
+      "entry": ["recordProcessStart"],
+      "exit": ["recordProcessEnd"],
+      "on": {
+        "PROCESS_COMPLETE": "Processed",
+        "PROCESS_ABORT": "Aborted",
+        "PROCESS_STOP": "Stopped",
+        "PROCESS_ERROR": "Rejected"
+      }
+    },
+    "Processed": {
+      "on": {
+        "PLACED_IN_CARRIER": "Complete",
+        "REMOVE": "Removed"
+      }
+    },
+    "Aborted": {
+      "on": {
+        "PLACED_IN_CARRIER": "Complete",
+        "REMOVE": "Removed"
+      }
+    },
+    "Stopped": {
+      "on": {
+        "RESUME": "InProcess",
+        "ABORT": "Aborted"
+      }
+    },
+    "Rejected": {
+      "on": {
+        "PLACED_IN_CARRIER": "Complete",
+        "REMOVE": "Removed"
+      }
+    },
+    "Lost": {
+      "type": "final"
+    },
+    "Skipped": {
+      "on": {
+        "PLACED_IN_CARRIER": "Complete",
+        "REMOVE": "Removed"
+      }
+    },
+    "Complete": {
+      "on": {
+        "REMOVE": "Removed"
+      }
+    },
+    "Removed": {
+      "type": "final"
+    }
+  }
+}

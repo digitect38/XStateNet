@@ -10,4 +10,10 @@
     <ProjectReference Include="..\XStateNet5Impl\XStateNet5.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="E90SubstrateStates.json" />
+    <EmbeddedResource Include="E87CarrierStates.json" />
+    <EmbeddedResource Include="E87LoadPortStates.json" />
+  </ItemGroup>
+
 </Project>
