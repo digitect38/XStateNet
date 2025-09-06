@@ -6,32 +6,25 @@ using System.Linq;
 namespace XStateNet.Semi;
 
 /// <summary>
-/// E90 Substrate Tracking implementation
+/// E90 Substrate Tracking implementation using XStateNet state machines
 /// </summary>
 public class E90SubstrateTracking
 {
-    private readonly ConcurrentDictionary<string, Substrate> _substrates = new();
+    private readonly ConcurrentDictionary<string, SubstrateStateMachine> _substrates = new();
     private readonly ConcurrentDictionary<string, SubstrateLocation> _locations = new();
     private readonly ConcurrentDictionary<string, List<SubstrateHistory>> _history = new();
     private readonly object _updateLock = new();
     
     /// <summary>
-    /// Register a new substrate
+    /// Register a new substrate with its own state machine
     /// </summary>
-    public Substrate RegisterSubstrate(string substrateid, string? lotId = null, int? slotNumber = null)
+    public SubstrateStateMachine RegisterSubstrate(string substrateid, string? lotId = null, int? slotNumber = null)
     {
-        var substrate = new Substrate(substrateid)
-        {
-            LotId = lotId,
-            SlotNumber = slotNumber,
-            State = SubstrateState.WaitingForHost,
-            AcquiredTime = DateTime.UtcNow
-        };
-        
+        var substrate = new SubstrateStateMachine(substrateid, lotId, slotNumber);
         _substrates[substrateid] = substrate;
         _history[substrateid] = new List<SubstrateHistory>();
         
-        AddHistory(substrateid, SubstrateState.WaitingForHost, null, "Substrate registered");
+        AddHistory(substrateid, "WaitingForHost", null, "Substrate registered");
         
         return substrate;
     }
@@ -56,38 +49,23 @@ public class E90SubstrateTracking
             }
             
             _locations[substrateid] = location;
-        }
-    }
-    
-    /// <summary>
-    /// Update substrate state
-    /// </summary>
-    public void UpdateState(string substrateid, SubstrateState newState, string? reason = null)
-    {
-        if (_substrates.TryGetValue(substrateid, out var substrate))
-        {
-            lock (_updateLock)
+            
+            // Send location change event to substrate state machine
+            if (_substrates.TryGetValue(substrateid, out var substrate))
             {
-                var oldState = substrate.State;
-                substrate.State = newState;
-                substrate.StateChangeTime = DateTime.UtcNow;
-                
-                // Update processing times
-                if (oldState == SubstrateState.NeedsProcessing && newState == SubstrateState.InProcess)
+                // Trigger state machine transition based on location type
+                switch (locationType)
                 {
-                    substrate.ProcessStartTime = DateTime.UtcNow;
+                    case SubstrateLocationType.ProcessModule:
+                        substrate.StateMachine.Send("PLACED_IN_PROCESS_MODULE");
+                        break;
+                    case SubstrateLocationType.Carrier:
+                        substrate.StateMachine.Send("PLACED_IN_CARRIER");
+                        break;
+                    case SubstrateLocationType.Aligner:
+                        substrate.StateMachine.Send("PLACED_IN_ALIGNER");
+                        break;
                 }
-                else if (oldState == SubstrateState.InProcess && 
-                         (newState == SubstrateState.Processed || newState == SubstrateState.Aborted))
-                {
-                    substrate.ProcessEndTime = DateTime.UtcNow;
-                    if (substrate.ProcessStartTime.HasValue)
-                    {
-                        substrate.ProcessingTime = substrate.ProcessEndTime.Value - substrate.ProcessStartTime.Value;
-                    }
-                }
-                
-                AddHistory(substrateid, newState, null, reason ?? $"State changed from {oldState} to {newState}");
             }
         }
     }
@@ -99,14 +77,9 @@ public class E90SubstrateTracking
     {
         if (_substrates.TryGetValue(substrateid, out var substrate))
         {
-            if (substrate.State != SubstrateState.NeedsProcessing)
-                return false;
-                
-            lock (_updateLock)
-            {
-                substrate.RecipeId = recipeId;
-                UpdateState(substrateid, SubstrateState.InProcess, $"Started processing with recipe {recipeId}");
-            }
+            substrate.RecipeId = recipeId;
+            substrate.StateMachine.Send("START_PROCESS");
+            AddHistory(substrateid, "InProcess", null, $"Started processing with recipe {recipeId}");
             return true;
         }
         return false;
@@ -119,11 +92,9 @@ public class E90SubstrateTracking
     {
         if (_substrates.TryGetValue(substrateid, out var substrate))
         {
-            if (substrate.State != SubstrateState.InProcess)
-                return false;
-                
-            var newState = success ? SubstrateState.Processed : SubstrateState.Aborted;
-            UpdateState(substrateid, newState, success ? "Processing completed" : "Processing aborted");
+            substrate.StateMachine.Send(success ? "PROCESS_COMPLETE" : "PROCESS_ABORT");
+            AddHistory(substrateid, success ? "Processed" : "Aborted", null, 
+                success ? "Processing completed" : "Processing aborted");
             return true;
         }
         return false;
@@ -134,10 +105,12 @@ public class E90SubstrateTracking
     /// </summary>
     public bool RemoveSubstrate(string substrateid)
     {
-        if (_substrates.TryRemove(substrateid, out var substrate))
+        if (_substrates.TryGetValue(substrateid, out var substrate))
         {
+            substrate.StateMachine.Send("REMOVE");
+            _substrates.TryRemove(substrateid, out _);
             _locations.TryRemove(substrateid, out _);
-            AddHistory(substrateid, SubstrateState.Removed, null, "Substrate removed from tracking");
+            AddHistory(substrateid, "Removed", null, "Substrate removed from tracking");
             return true;
         }
         return false;
@@ -146,7 +119,7 @@ public class E90SubstrateTracking
     /// <summary>
     /// Get substrate information
     /// </summary>
-    public Substrate? GetSubstrate(string substrateid)
+    public SubstrateStateMachine? GetSubstrate(string substrateid)
     {
         return _substrates.TryGetValue(substrateid, out var substrate) ? substrate : null;
     }
@@ -154,9 +127,9 @@ public class E90SubstrateTracking
     /// <summary>
     /// Get all substrates in a specific state
     /// </summary>
-    public IEnumerable<Substrate> GetSubstratesByState(SubstrateState state)
+    public IEnumerable<SubstrateStateMachine> GetSubstratesByState(string stateName)
     {
-        return _substrates.Values.Where(s => s.State == state);
+        return _substrates.Values.Where(s => s.GetCurrentState().Contains(stateName));
     }
     
     /// <summary>
@@ -182,7 +155,7 @@ public class E90SubstrateTracking
     /// <summary>
     /// Add history entry
     /// </summary>
-    private void AddHistory(string substrateid, SubstrateState? state, string? location, string description)
+    private void AddHistory(string substrateid, string? state, string? location, string description)
     {
         if (_history.TryGetValue(substrateid, out var history))
         {
@@ -198,46 +171,192 @@ public class E90SubstrateTracking
 }
 
 /// <summary>
-/// Substrate information
+/// Substrate with its own XStateNet state machine
 /// </summary>
-public class Substrate
+public class SubstrateStateMachine
 {
-    public string Id { get; set; }
+    public string Id { get; }
     public string? LotId { get; set; }
     public int? SlotNumber { get; set; }
-    public SubstrateState State { get; set; }
-    public DateTime AcquiredTime { get; set; }
-    public DateTime StateChangeTime { get; set; }
+    public StateMachine StateMachine { get; }
+    public DateTime AcquiredTime { get; }
     public DateTime? ProcessStartTime { get; set; }
     public DateTime? ProcessEndTime { get; set; }
     public TimeSpan? ProcessingTime { get; set; }
     public string? RecipeId { get; set; }
     public Dictionary<string, object> Properties { get; set; }
     
-    public Substrate(string id)
+    public SubstrateStateMachine(string id, string? lotId = null, int? slotNumber = null)
     {
         Id = id;
+        LotId = lotId;
+        SlotNumber = slotNumber;
         Properties = new Dictionary<string, object>();
-        StateChangeTime = DateTime.UtcNow;
+        AcquiredTime = DateTime.UtcNow;
+        
+        // Create E90 substrate state machine
+        StateMachine = CreateE90StateMachine(id);
+        StateMachine.Start();
     }
-}
-
-/// <summary>
-/// Substrate states per E90
-/// </summary>
-public enum SubstrateState
-{
-    WaitingForHost,
-    InCarrier,
-    NeedsProcessing,
-    InProcess,
-    Processed,
-    Aborted,
-    Stopped,
-    Rejected,
-    Lost,
-    Skipped,
-    Removed
+    
+    /// <summary>
+    /// Creates the E90-compliant substrate state machine
+    /// </summary>
+    private StateMachine CreateE90StateMachine(string substrateid)
+    {
+        var config = new Dictionary<string, object>
+        {
+            ["id"] = $"substrate_{substrateid}",
+            ["initial"] = "WaitingForHost",
+            ["states"] = new Dictionary<string, object>
+            {
+                ["WaitingForHost"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["ACQUIRE"] = "InCarrier",
+                        ["PLACED_IN_CARRIER"] = "InCarrier"
+                    }
+                },
+                ["InCarrier"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["SELECT_FOR_PROCESS"] = "NeedsProcessing",
+                        ["SKIP"] = "Skipped",
+                        ["REJECT"] = "Rejected"
+                    }
+                },
+                ["NeedsProcessing"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PLACED_IN_PROCESS_MODULE"] = "ReadyToProcess",
+                        ["PLACED_IN_ALIGNER"] = "Aligning",
+                        ["ABORT"] = "Aborted"
+                    }
+                },
+                ["Aligning"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["ALIGN_COMPLETE"] = "ReadyToProcess",
+                        ["ALIGN_FAIL"] = "Rejected"
+                    }
+                },
+                ["ReadyToProcess"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["START_PROCESS"] = "InProcess",
+                        ["ABORT"] = "Aborted"
+                    }
+                },
+                ["InProcess"] = new Dictionary<string, object>
+                {
+                    ["entry"] = new[] { "recordProcessStart" },
+                    ["exit"] = new[] { "recordProcessEnd" },
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PROCESS_COMPLETE"] = "Processed",
+                        ["PROCESS_ABORT"] = "Aborted",
+                        ["PROCESS_STOP"] = "Stopped",
+                        ["PROCESS_ERROR"] = "Rejected"
+                    }
+                },
+                ["Processed"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PLACED_IN_CARRIER"] = "Complete",
+                        ["REMOVE"] = "Removed"
+                    }
+                },
+                ["Aborted"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PLACED_IN_CARRIER"] = "Complete",
+                        ["REMOVE"] = "Removed"
+                    }
+                },
+                ["Stopped"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["RESUME"] = "InProcess",
+                        ["ABORT"] = "Aborted"
+                    }
+                },
+                ["Rejected"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PLACED_IN_CARRIER"] = "Complete",
+                        ["REMOVE"] = "Removed"
+                    }
+                },
+                ["Lost"] = new Dictionary<string, object>
+                {
+                    ["type"] = "final"
+                },
+                ["Skipped"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["PLACED_IN_CARRIER"] = "Complete",
+                        ["REMOVE"] = "Removed"
+                    }
+                },
+                ["Complete"] = new Dictionary<string, object>
+                {
+                    ["on"] = new Dictionary<string, object>
+                    {
+                        ["REMOVE"] = "Removed"
+                    }
+                },
+                ["Removed"] = new Dictionary<string, object>
+                {
+                    ["type"] = "final"
+                }
+            }
+        };
+        
+        // Create action callbacks
+        var actionMap = new ActionMap();
+        actionMap["recordProcessStart"] = new List<NamedAction>
+        {
+            new NamedAction("recordProcessStart", (sm) => 
+            {
+                ProcessStartTime = DateTime.UtcNow;
+            })
+        };
+        
+        actionMap["recordProcessEnd"] = new List<NamedAction>
+        {
+            new NamedAction("recordProcessEnd", (sm) => 
+            {
+                ProcessEndTime = DateTime.UtcNow;
+                if (ProcessStartTime.HasValue)
+                {
+                    ProcessingTime = ProcessEndTime.Value - ProcessStartTime.Value;
+                }
+            })
+        };
+        
+        var json = System.Text.Json.JsonSerializer.Serialize(config);
+        var stateMachine = new StateMachine();
+        stateMachine.machineId = $"substrate_{substrateid}";
+        return StateMachine.CreateFromScript(stateMachine, json, actionMap);
+    }
+    
+    /// <summary>
+    /// Get current state of the substrate
+    /// </summary>
+    public string GetCurrentState()
+    {
+        return StateMachine.GetSourceSubStateCollection(null).ToCsvString(StateMachine, true);
+    }
 }
 
 /// <summary>
@@ -277,7 +396,7 @@ public enum SubstrateLocationType
 public class SubstrateHistory
 {
     public DateTime Timestamp { get; set; }
-    public SubstrateState? State { get; set; }
+    public string? State { get; set; }
     public string? Location { get; set; }
     public string Description { get; set; } = "";
 }

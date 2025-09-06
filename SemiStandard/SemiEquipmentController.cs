@@ -318,8 +318,12 @@ public class SemiEquipmentController
     /// </summary>
     public async Task<bool> ProcessSubstrate(string substrateid, string recipeId)
     {
-        // Update substrate state
-        _substrateTracking.UpdateState(substrateid, SubstrateState.NeedsProcessing);
+        // Get substrate
+        var substrate = _substrateTracking.GetSubstrate(substrateid);
+        if (substrate == null) return false;
+        
+        // Send event to move to NeedsProcessing state
+        substrate.StateMachine.Send("SELECT_FOR_PROCESS");
         
         // Move to process module
         _substrateTracking.UpdateLocation(substrateid, "PM1", SubstrateLocationType.ProcessModule);
