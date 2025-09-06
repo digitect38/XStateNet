@@ -48,6 +48,12 @@ namespace SemiIntegratedTests
             
             InitializeActions();
             InitializeGuards();
+
+            // Enable at the start of your application or test
+            Logger.IncludeCallerInfo = true;
+
+            // Set desired log level
+            Logger.CurrentLevel = Logger.LogLevel.Info;
         }
         
         private void InitializeActions()

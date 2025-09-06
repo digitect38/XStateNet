@@ -12,7 +12,10 @@
       "Bash(dotnet clean:*)",
       "Bash(dotnet run:*)",
       "Bash(dir:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Read(//c/Users/digit/OneDrive/사진/Screenshots/**)",
+      "Bash(git checkout:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

@@ -294,7 +294,7 @@ public partial class StateMachine
         // Direct synchronous processing for backward compatibility
         // EventQueue is only used when explicitly enabled
         Transit(eventName);
-        PrintCurrentStateTree();
+        //PrintCurrentStateTree();
         PrintCurrentStatesString();
     }
     
@@ -328,7 +328,7 @@ public partial class StateMachine
             await Task.Run(() =>
             {
                 Transit(eventName);
-                PrintCurrentStateTree();
+                //PrintCurrentStateTree();
                 PrintCurrentStatesString();
             });
         }
@@ -342,7 +342,7 @@ public partial class StateMachine
         await Task.Run(() =>
         {
             Transit(eventName);
-            PrintCurrentStateTree();
+            //PrintCurrentStateTree();
             PrintCurrentStatesString();
         });
     }

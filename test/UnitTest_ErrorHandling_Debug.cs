@@ -24,12 +24,12 @@ public class UnitTest_ErrorHandling_Debug
         
         _actions = new ActionMap
         {
-            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", (sm) => {
+            ["throwError"] = new () { new ("throwError", (sm) => {
                 _actionLog.Add("throwError");
                 Console.WriteLine("About to throw error");
                 throw new InvalidOperationException("Test error");
             }) },
-            ["handleError"] = new List<NamedAction> { new NamedAction("handleError", (sm) => {
+            ["handleError"] = new () { new ("handleError", (sm) => {
                 _actionLog.Add("handleError");
                 _errorHandled = true;
                 _errorMessage = sm.ContextMap?["_errorMessage"]?.ToString();
