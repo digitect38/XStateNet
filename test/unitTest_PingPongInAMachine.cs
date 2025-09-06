@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;

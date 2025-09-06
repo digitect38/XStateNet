@@ -242,9 +242,16 @@ public class SafeTransitionExecutor : TransitionExecutor
                 Logger.Error($"Deadlock potential detected, aborting transition: {transitionKey}");
                 return;
             }
-            
+
             // Acquire transition lock
-            using (await _sync.AcquireTransitionLockAsync(transition.SourceName))
+            if (transition.SourceName != null)
+            {
+                using (await _sync.AcquireTransitionLockAsync(transition.SourceName))
+                {
+                    await PerformTransitionAsync(transition, eventName);
+                }
+            }
+            else
             {
                 await PerformTransitionAsync(transition, eventName);
             }
@@ -262,7 +269,7 @@ public class SafeTransitionExecutor : TransitionExecutor
     {
         Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
         
-        if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine))
+        if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine!))
             && (transition.InCondition == null || transition.InCondition()))
         {
             string? sourceName = transition?.SourceName;
@@ -273,14 +280,14 @@ public class SafeTransitionExecutor : TransitionExecutor
             
             if (targetName != null)
             {
-                var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceName, targetName);
+                var (exitList, entryList) = StateMachine!.GetFullTransitionSinglePath(sourceName, targetName);
                 
                 string? firstExit = exitList.FirstOrDefault();
                 string? firstEntry = entryList.FirstOrDefault();
                 
                 // Exit states
                 if (firstExit != null)
-                    await StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState);
+                    await StateMachine!.TransitUp(firstExit.ToState(StateMachine!) as CompoundState);
                 
                 Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
                 
@@ -291,7 +298,7 @@ public class SafeTransitionExecutor : TransitionExecutor
                     {
                         try
                         {
-                            action.Action(StateMachine);
+                            action.Action(StateMachine!);
                         }
                         catch (Exception ex)
                         {
@@ -302,12 +309,12 @@ public class SafeTransitionExecutor : TransitionExecutor
                 
                 // Enter states
                 if (firstEntry != null)
-                    await StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName);
+                    await StateMachine!.TransitDown(firstEntry.ToState(StateMachine!) as CompoundState, targetName);
                 
                 // Notify transition completed
                 var sourceNode = GetState(sourceName);
                 var targetNode = GetState(targetName);
-                StateMachine.OnTransition?.Invoke(sourceNode as CompoundState, targetNode, eventName);
+                StateMachine!.OnTransition?.Invoke(sourceNode as CompoundState, targetNode, eventName);
             }
             else
             {
@@ -318,7 +325,7 @@ public class SafeTransitionExecutor : TransitionExecutor
                     {
                         try
                         {
-                            action.Action(StateMachine);
+                            action.Action(StateMachine!);
                         }
                         catch (Exception ex)
                         {

@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using System;
 using System.Collections.Concurrent;
@@ -76,9 +76,9 @@ namespace AdvancedFeatures
             _pingStateMachine.OnTransition -= LogTransition;
             _pongStateMachine.OnTransition -= LogTransition;
         }
-        private void LogTransition(StateNode fromState, StateNode toState, string eventName)
+        private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
         {
-            _transitionLog.Add($"Transitioned from {fromState.Name} to {toState.Name} on event {eventName}");
+            _transitionLog.Add($"Transitioned from {fromState?.Name} to {toState?.Name} on event {eventName}");
         }
 
         [Test]

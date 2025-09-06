@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -12,7 +12,7 @@ namespace AdvancedFeatures;
 [TestFixture]
 public class HistoryState
 {
-    StateMachine _stateMachine;
+    StateMachine? _stateMachine;
 
     [Test]
     public void ShallowHistory()
@@ -48,16 +48,16 @@ public class HistoryState
             new ActionMap(),
             new GuardMap()).Start();
 
-        _stateMachine.Send("TO_A2");
-        _stateMachine.Send("TO_B");
+        _stateMachine!.Send("TO_A2");
+        _stateMachine!.Send("TO_B");
 
-        var currentState = _stateMachine.GetActiveStateString();
-        Assert.AreEqual("#testMachine.B", currentState);
+        var currentState = _stateMachine!.GetActiveStateString();
+        Assert.That(currentState, Is.EqualTo("#testMachine.B"));
 
-        _stateMachine.Send("TO_A");
+        _stateMachine!.Send("TO_A");
 
-        currentState = _stateMachine.GetActiveStateString(leafOnly: false);
-        Assert.AreEqual("#testMachine.A;#testMachine.A.A2", currentState);
+        currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
+        Assert.That(currentState, Is.EqualTo("#testMachine.A;#testMachine.A.A2"));
     }
 
     [Test]
@@ -106,14 +106,14 @@ public class HistoryState
             new ActionMap(),
             new GuardMap()).Start();
 
-        var currentState = _stateMachine.GetActiveStateString();
-        _stateMachine.Send("TO_A1b");
-        currentState = _stateMachine.GetActiveStateString();
-        _stateMachine.Send("TO_B");
-        currentState = _stateMachine.GetActiveStateString(leafOnly : false);
-        Assert.AreEqual("#testMachine.B;#testMachine.B.B1", currentState);
-        _stateMachine.Send("TO_A");
-        currentState = _stateMachine.GetActiveStateString(leafOnly: false);
+        var currentState = _stateMachine!.GetActiveStateString();
+        _stateMachine!.Send("TO_A1b");
+        currentState = _stateMachine!.GetActiveStateString();
+        _stateMachine!.Send("TO_B");
+        currentState = _stateMachine!.GetActiveStateString(leafOnly : false);
+        Assert.That(currentState, Is.EqualTo("#testMachine.B;#testMachine.B.B1"));
+        _stateMachine!.Send("TO_A");
+        currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
 
         currentState.AssertEquivalence("#testMachine.A;#testMachine.A.A1;#testMachine.A.A1.A1b");
     }

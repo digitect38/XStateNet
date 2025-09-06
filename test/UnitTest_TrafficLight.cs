@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -111,7 +111,7 @@ public class TrafficMachine
         object? res;
         if (sm.ContextMap != null && sm.ContextMap.TryGetValue("isReady", out res))
         {
-            return (bool)res;
+            return (bool)(res ?? false);
         }
         else
         {
@@ -130,8 +130,8 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
-        var currentState = _stateMachine.GetActiveStateString();
+            _stateMachine!.ContextMap!["isReady"] = true;
+        var currentState = _stateMachine!.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
@@ -140,9 +140,9 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         if(_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
-        _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetActiveStateString();
+            _stateMachine!.ContextMap!["isReady"] = true;
+        _stateMachine!.Send("TIMER");
+        var currentState = _stateMachine!.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.green.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
@@ -151,9 +151,9 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = false;
-        _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetActiveStateString();
+            _stateMachine!.ContextMap!["isReady"] = false;
+        _stateMachine!.Send("TIMER");
+        var currentState = _stateMachine!.GetActiveStateString();
         // Should remain in last state as guard condition fails
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
@@ -163,26 +163,26 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
+            _stateMachine!.ContextMap!["isReady"] = true;
         
-        _stateMachine.Send("TIMER");
-        var currentState = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("TIMER");
+        var currentState = _stateMachine!.GetActiveStateString();
 
-        Assert.IsTrue(exitActions.Contains("Exiting red.bright"));
-        Assert.IsTrue(exitActions.Contains("Exiting red"));
-        Assert.IsTrue(tranActions.Contains("TransitionAction: red --> green"));
-        Assert.IsTrue(entryActions.Contains("Entering green"));
-        Assert.IsTrue(entryActions.Contains("Entering green.bright"));
+        Assert.That(exitActions, Does.Contain("Exiting red.bright"));
+        Assert.That(exitActions, Does.Contain("Exiting red"));
+        Assert.That(tranActions, Does.Contain("TransitionAction: red --> green"));
+        Assert.That(entryActions, Does.Contain("Entering green"));
+        Assert.That(entryActions, Does.Contain("Entering green.bright"));
     }
 
     [Test]
     public void TestParallelStates()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.Send("PUSH_BUTTON");
-        var currentState = _stateMachine.GetActiveStateString();
-        Assert.IsTrue(currentState.Contains("canWalk"));
-        Assert.IsTrue(currentState.Contains("red"));
+        _stateMachine!.Send("PUSH_BUTTON");
+        var currentState = _stateMachine!.GetActiveStateString();
+        Assert.That(currentState, Does.Contain("canWalk"));
+        Assert.That(currentState, Does.Contain("red"));
     }
 
     [Test]
@@ -190,10 +190,10 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
-        _stateMachine.Send("TIMER");
+            _stateMachine!.ContextMap!["isReady"] = true;
+        _stateMachine!.Send("TIMER");
         //_stateMachine.Send("DARKER");
-        var currentState = _stateMachine.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateString();
         //currentState.AssertEquivalence("#trafficLight.light.green.dark;#trafficLight.pedestrian.cannotWalk");
     }
 
@@ -201,8 +201,8 @@ public class TrafficMachine
     public void TestInvalidTransition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
-        _stateMachine.Send("INVALID_EVENT");
-        var currentState = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("INVALID_EVENT");
+        var currentState = _stateMachine!.GetActiveStateString();
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
@@ -211,11 +211,11 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
+            _stateMachine!.ContextMap!["isReady"] = true;
 
-        _stateMachine.Send("NO_TARGET");
+        _stateMachine!.Send("NO_TARGET");
 
-        Assert.IsTrue(noTargetActions.Contains("No target action executed"));
+        Assert.That(noTargetActions, Does.Contain("No target action executed"));
 
     }
     [Test]
@@ -223,13 +223,13 @@ public class TrafficMachine
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
-            _stateMachine.ContextMap["isReady"] = true;
+            _stateMachine!.ContextMap!["isReady"] = true;
 
         // Send event to trigger the implicit target transition
-        _stateMachine.Send("IMPLICIT_TARGET");
+        _stateMachine!.Send("IMPLICIT_TARGET");
 
-        var currentState = _stateMachine.GetActiveStateString();
-        Assert.IsTrue(currentState.Contains("yellow"), "Current state should contain 'yellow'");
+        var currentState = _stateMachine!.GetActiveStateString();
+        Assert.That(currentState, Does.Contain("yellow"), "Current state should contain 'yellow'");
     }
     
 

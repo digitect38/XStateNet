@@ -55,19 +55,19 @@ public class UnitTest_ActorModel
         var stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         var actor = ActorSystem.Instance.Spawn("actor1", id => new StateMachineActor(id, stateMachine));
         
-        Assert.AreEqual("actor1", actor.Id);
-        Assert.AreEqual(ActorStatus.Idle, actor.Status);
+        Assert.That(actor.Id, Is.EqualTo("actor1"));
+        Assert.That(actor.Status, Is.EqualTo(ActorStatus.Idle));
         
         await actor.StartAsync();
-        Assert.AreEqual(ActorStatus.Running, actor.Status);
+        Assert.That(actor.Status, Is.EqualTo(ActorStatus.Running));
         
         await actor.SendAsync("WORK");
         await Task.Delay(50); // Allow message processing
         
-        Assert.IsTrue(actor.Machine.GetActiveStateString().Contains("working"));
+        Assert.That(actor.Machine.GetActiveStateString(), Does.Contain("working"));
         
         await actor.StopAsync();
-        Assert.AreEqual(ActorStatus.Stopped, actor.Status);
+        Assert.That(actor.Status, Is.EqualTo(ActorStatus.Stopped));
     }
     
     [Test]
@@ -142,10 +142,10 @@ public class UnitTest_ActorModel
         await pingActor.SendAsync("START");
         await Task.Delay(100); // Allow message processing
         
-        Assert.IsTrue(pingReceived);
-        Assert.IsTrue(pongReceived);
-        Assert.IsTrue(pingActor.Machine.GetActiveStateString().Contains("waiting"));
-        Assert.IsTrue(pongActor.Machine.GetActiveStateString().Contains("ponging"));
+        Assert.That(pingReceived, Is.True);
+        Assert.That(pongReceived, Is.True);
+        Assert.That(pingActor.Machine.GetActiveStateString(), Does.Contain("waiting"));
+        Assert.That(pongActor.Machine.GetActiveStateString(), Does.Contain("ponging"));
     }
     
     [Test]
@@ -193,14 +193,14 @@ public class UnitTest_ActorModel
         var childActor = parentActor.SpawnChild("child1", childMachine);
         await childActor.StartAsync();
         
-        Assert.AreEqual("parent.child1", childActor.Id);
-        Assert.AreEqual(ActorStatus.Running, childActor.Status);
-        Assert.IsTrue(childActor.Machine.GetActiveStateString().Contains("active"));
+        Assert.That(childActor.Id, Is.EqualTo("parent.child1"));
+        Assert.That(childActor.Status, Is.EqualTo(ActorStatus.Running));
+        Assert.That(childActor.Machine.GetActiveStateString(), Does.Contain("active"));
         
         await childActor.SendAsync("STOP");
         await Task.Delay(50);
         
-        Assert.IsTrue(childActor.Machine.GetActiveStateString().Contains("stopped"));
+        Assert.That(childActor.Machine.GetActiveStateString(), Does.Contain("stopped"));
     }
     
     [Test]
@@ -237,7 +237,7 @@ public class UnitTest_ActorModel
         await Task.Delay(50);
         
         // Actor should handle the error and set status appropriately
-        Assert.AreEqual(ActorStatus.Error, actor.Status);
+        Assert.That(actor.Status, Is.EqualTo(ActorStatus.Error));
     }
     
     [Test]
@@ -281,7 +281,7 @@ public class UnitTest_ActorModel
         
         await Task.Delay(100); // Allow all messages to be processed
         
-        Assert.AreEqual(10, messageCount);
+        Assert.That(messageCount, Is.EqualTo(10));
     }
     
     [Test]
@@ -325,8 +325,8 @@ public class UnitTest_ActorModel
         
         await Task.Delay(50);
         
-        Assert.IsNotNull(receivedData);
-        Assert.AreEqual(testData, receivedData);
-        Assert.IsTrue(actor.Machine.GetActiveStateString().Contains("received"));
+        Assert.That(receivedData, Is.Not.Null);
+        Assert.That(receivedData, Is.EqualTo(testData));
+        Assert.That(actor.Machine.GetActiveStateString(), Does.Contain("received"));
     }
 }

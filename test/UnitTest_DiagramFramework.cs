@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
@@ -16,7 +16,7 @@ public class DiagrammingFrameworkTests
     public void Setup()
     {
 
-        // 액션 추가
+        // �׼� �߰�
         actionMap["setLButtonDown"]     = [new ("setLButtonDown",   SetLButtonDown  )];
         actionMap["startSelection"]     = [new ("startSelection",   StartSelection  )];
         actionMap["updateSelection"]    = [new ("updateSelection",  UpdateSelection )];
@@ -32,7 +32,7 @@ public class DiagrammingFrameworkTests
         actionMap["startResizing"]      = [new("startResizing",     StartResizing   )];
         actionMap["endResizing"]        = [new("endResizing",       EndResizing     )];
 
-        // 가드 추가
+        // ���� �߰�
         guardMap["onShapeBody"]         = new NamedGuard("onShapeBody", OnShapeBody);
         guardMap["onCanvas"]            = new NamedGuard("onCanvas", OnCanvas);
 
@@ -52,16 +52,16 @@ public class DiagrammingFrameworkTests
         _context["r_button_down"] = false;
         _context["selectionCount"] = 0;
 
-        // 상태 머신 초기화
+        // ���� �ӽ� �ʱ�ȭ
         _stateMachine = StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
     }
 
 
-    // 유닛 테스트 메서드
+    // ���� �׽�Ʈ �޼���
     [Test]
     public void TestInitialState()
     {
-        var states = _stateMachine.GetActiveStateString();
+        var states = _stateMachine!.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.idle");
     }
 
@@ -70,8 +70,8 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine.Send("L_BUTTON_DOWN");
-        var states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_DOWN");
+        var states = _stateMachine!.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.selected.moving.idle");
     }
 
@@ -80,8 +80,8 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine.Send("L_BUTTON_DOWN");
-        var states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_DOWN");
+        var states = _stateMachine!.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.selecting");
     }
 
@@ -90,11 +90,11 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine.Send("L_BUTTON_DOWN");
-        _stateMachine.Send("MOUSE_MOVE");
+        _stateMachine!.Send("L_BUTTON_DOWN");
+        _stateMachine!.Send("MOUSE_MOVE");
         _context["selectionCount"] = 0;
-        _stateMachine.Send("L_BUTTON_UP");
-        var states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_UP");
+        var states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.idle");
     }
 
@@ -103,11 +103,11 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine.Send("L_BUTTON_DOWN");
-        _stateMachine.Send("MOUSE_MOVE");
+        _stateMachine!.Send("L_BUTTON_DOWN");
+        _stateMachine!.Send("MOUSE_MOVE");
         _context["selectionCount"] = 1;
-        _stateMachine.Send("L_BUTTON_UP");
-        var states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_UP");
+        var states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selecting");
     }
 
@@ -116,19 +116,19 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine.Send("L_BUTTON_DOWN");
+        _stateMachine!.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine.GetActiveStateString();
+        var states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
         _context["onResize"] = false;
 
-        _stateMachine.Send("MOUSE_MOVE");
-        states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("MOUSE_MOVE");
+        states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
-        _stateMachine.Send("L_BUTTON_UP");
-        states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_UP");
+        states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
     }
 
@@ -137,9 +137,9 @@ public class DiagrammingFrameworkTests
     {
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine.Send("L_BUTTON_DOWN");
+        _stateMachine!.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine.GetActiveStateString();
+        var states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.moving.idle");
 
 
@@ -147,18 +147,18 @@ public class DiagrammingFrameworkTests
         _context["onResizePad"] = true;
         _context["l_button_down"] = false;
 
-        _stateMachine.Send("MOUSE_MOVE");
+        _stateMachine!.Send("MOUSE_MOVE");
 
-        states = _stateMachine.GetActiveStateString();
+        states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.resizing.idle");
 
-        _stateMachine.Send("L_BUTTON_UP");
-        states = _stateMachine.GetActiveStateString();
+        _stateMachine!.Send("L_BUTTON_UP");
+        states = _stateMachine!.GetActiveStateString();
         states.Equals("#stateMachine.selected.resizing.idle");
     }
 
 
-    // 액션 메서드
+    // �׼� �޼���
     private void SetLButtonDown(StateMachine sm)
     {
         _context["l_button_down"] = true;
@@ -171,27 +171,27 @@ public class DiagrammingFrameworkTests
 
     private void UpdateSelection(StateMachine sm)
     {
-        // selectionCount 업데이트 로직 추가
+        // selectionCount ������Ʈ ���� �߰�
     }
 
     private void EndSelection(StateMachine sm)
     {
-        // selectionCount 종료 로직 추가
+        // selectionCount ���� ���� �߰�
     }
 
     private void StartMoving(StateMachine sm)
     {
-        // 이동 시작 로직 추가
+        // �̵� ���� ���� �߰�
     }
 
     private void EndMoving(StateMachine sm)
     {
-        // 이동 종료 로직 추가
+        // �̵� ���� ���� �߰�
     }
 
     private void UpdateMoving(StateMachine sm)
     {
-        // 이동 업데이트 로직 추가
+        // �̵� ������Ʈ ���� �߰�
     }
 
     private void StartConnecting(StateMachine sm)
@@ -214,40 +214,40 @@ public class DiagrammingFrameworkTests
 
     }
 
-    // 가드 메서드
+    // ���� �޼���
     private bool OnShapeBody(StateMachine sm)
     {
-        bool val = (bool)_context["onShapeBody"];
+        bool val = (bool)(_context["onShapeBody"] ?? false);
         return val;
     }
 
     private bool OnCanvas(StateMachine sm)
     {
-        bool val = (bool)_context["onCanvas"];
+        bool val = (bool)(_context["onCanvas"] ?? false);
         return val;
     }
 
     private bool NoShapeSelected(StateMachine sm)
     {
-        var val = (int)_context["selectionCount"];
+        var val = (int)(_context["selectionCount"] ?? 0);
         return (int)val == 0;
     }
 
     private bool onResizePadWithoutButton(StateMachine sm)
     {
-        var val = (bool)_context["onResizePad"] && !(bool)_context["l_button_down"];
+        var val = (bool)(_context["onResizePad"] ?? false) && !(bool)(_context["l_button_down"] ?? false);
         return val;
     }
 
     private bool onConnectionPinWithoutButton(StateMachine sm)
     {
-        var val = (bool)_context["onConnectionPin"] && !(bool)_context["l_button_down"] && !(bool)_context["r_button_down"];
+        var val = (bool)(_context["onConnectionPin"] ?? false) && !(bool)(_context["l_button_down"] ?? false) && !(bool)(_context["r_button_down"] ?? false);
         return val;
     }
 
     private bool onShapeBodyWithoutButton(StateMachine sm)
     {
-        var val = (bool)_context["onShapeBody"] && !(bool)_context["l_button_down"] && !(bool)_context["r_button_down"];
+        var val = (bool)(_context["onShapeBody"] ?? false) && !(bool)(_context["l_button_down"] ?? false) && !(bool)(_context["r_button_down"] ?? false);
         return val;
     }
 

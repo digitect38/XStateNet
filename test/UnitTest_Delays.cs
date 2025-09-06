@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using System;
 using System.Collections.Generic;
@@ -55,7 +55,7 @@ namespace DelaysTest
             _stateMachine.OnTransition += LogTransition;
 
             // Start the state machine
-            _stateMachine.Start();
+            _stateMachine!.Start();
         }
 
         [TearDown]
@@ -64,16 +64,16 @@ namespace DelaysTest
             //_stateMachine.OnTransition -= LogTransition;
         }
 
-        private void LogTransition(StateNode fromState, StateNode toState, string eventName)
+        private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
         {
-            _transitionLog.Add($"Transitioned from {fromState.Name} to {toState.Name} on event {eventName}");
+            _transitionLog.Add($"Transitioned from {fromState?.Name} to {toState?.Name} on event {eventName}");
         }
 
         [Test]
         public async Task StateMachine_Transitions_From_A_To_B_After_Timeout()
         {
             // Initially, the state machine should be in state 'a'
-            var activeState = _stateMachine.GetActiveStateString();
+            var activeState = _stateMachine!.GetActiveStateString();
             Assert.That(_stateMachine.GetActiveStateString() == "#machine1.a");
             
             // Wait for the timeout to trigger the transition

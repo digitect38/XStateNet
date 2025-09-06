@@ -17,9 +17,18 @@ namespace MultipleTargetsTests
         {
             _actions = new ActionMap
             {
-                ["actionA"] = [new("actionA", (sm) => sm.ContextMap["actionExecuted"] = "A")],
-                ["actionB"] = [new("actionB", (sm) => sm.ContextMap["actionExecuted"] = "B")],
-                ["resetAction"] = [new("resetAction", (sm) => sm.ContextMap["resetExecuted"] = true)]
+                ["actionA"] = [new("actionA", (sm) => 
+                {
+                    if(sm.ContextMap != null) sm.ContextMap["actionExecuted"] = "A";
+                })],
+                ["actionB"] = [new("actionB", (sm) =>
+                {
+                    if(sm.ContextMap != null) sm.ContextMap["actionExecuted"] = "B";
+                })],
+                ["resetAction"] = [new("resetAction", (sm) =>
+                {
+                    if(sm.ContextMap != null) sm.ContextMap["resetExecuted"] = true;
+                })]
             };
             
             _guards = new GuardMap();
@@ -63,16 +72,16 @@ namespace MultipleTargetsTests
             
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
             
-            var initialState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(initialState.Contains("region1.state1"));
-            Assert.IsTrue(initialState.Contains("region2.stateA"));
+            var initialState = _stateMachine!.GetActiveStateString();
+            Assert.That(initialState, Does.Contain("region1.state1"));
+            Assert.That(initialState, Does.Contain("region2.stateA"));
             
-            _stateMachine.Send("EVENT");
+            _stateMachine!.Send("EVENT");
             
-            var finalState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(finalState.Contains("region1.state2"));
-            Assert.IsTrue(finalState.Contains("region2.stateA")); // Unchanged
-            Assert.AreEqual("A", _stateMachine.ContextMap["actionExecuted"]);
+            var finalState = _stateMachine!.GetActiveStateString();
+            Assert.That(finalState, Does.Contain("region1.state2"));
+            Assert.That(finalState, Does.Contain("region2.stateA")); // Unchanged
+            Assert.That(_stateMachine.ContextMap!["actionExecuted"], Is.EqualTo("A"));
         }
         
         [Test]
@@ -136,21 +145,21 @@ namespace MultipleTargetsTests
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
             
             // Move all regions to their second states
-            _stateMachine.Send("NEXT");
+            _stateMachine!.Send("NEXT");
             
-            var movedState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(movedState.Contains("region1.state2"));
-            Assert.IsTrue(movedState.Contains("region2.stateB"));
-            Assert.IsTrue(movedState.Contains("region3.final"));
+            var movedState = _stateMachine!.GetActiveStateString();
+            Assert.That(movedState, Does.Contain("region1.state2"));
+            Assert.That(movedState, Does.Contain("region2.stateB"));
+            Assert.That(movedState, Does.Contain("region3.final"));
             
             // Now reset all regions to their specific states using multiple targets
-            _stateMachine.Send("RESET_ALL");
+            _stateMachine!.Send("RESET_ALL");
             
-            var resetState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(resetState.Contains("region1.state1"));
-            Assert.IsTrue(resetState.Contains("region2.stateA"));
-            Assert.IsTrue(resetState.Contains("region3.initial"));
-            Assert.IsTrue((bool)_stateMachine.ContextMap["resetExecuted"]);
+            var resetState = _stateMachine!.GetActiveStateString();
+            Assert.That(resetState, Does.Contain("region1.state1"));
+            Assert.That(resetState, Does.Contain("region2.stateA"));
+            Assert.That(resetState, Does.Contain("region3.initial"));
+            Assert.That((bool)(_stateMachine.ContextMap!["resetExecuted"] ?? false), Is.True);
         }
         
         [Test]
@@ -204,18 +213,18 @@ namespace MultipleTargetsTests
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
             
             // Start both regions
-            _stateMachine.Send("START");
+            _stateMachine!.Send("START");
             
-            var runningState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(runningState.Contains("left.running"));
-            Assert.IsTrue(runningState.Contains("right.processing"));
+            var runningState = _stateMachine!.GetActiveStateString();
+            Assert.That(runningState, Does.Contain("left.running"));
+            Assert.That(runningState, Does.Contain("right.processing"));
             
             // Trigger emergency stop with multiple targets
-            _stateMachine.Send("EMERGENCY");
+            _stateMachine!.Send("EMERGENCY");
             
-            var emergencyState = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(emergencyState.Contains("left.error"));
-            Assert.IsTrue(emergencyState.Contains("right.stopped"));
+            var emergencyState = _stateMachine!.GetActiveStateString();
+            Assert.That(emergencyState, Does.Contain("left.error"));
+            Assert.That(emergencyState, Does.Contain("right.stopped"));
         }
         
         [Test]
@@ -267,24 +276,24 @@ namespace MultipleTargetsTests
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
             
             // Test single target transition
-            _stateMachine.Send("EVENT1");
+            _stateMachine!.Send("EVENT1");
             
-            var state1 = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(state1.Contains("region1.b"));
-            Assert.IsTrue(state1.Contains("region2.y"));
+            var state1 = _stateMachine!.GetActiveStateString();
+            Assert.That(state1, Does.Contain("region1.b"));
+            Assert.That(state1, Does.Contain("region2.y"));
             
             // Reset to test multiple targets
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
             
             // Move region2 to y first
-            _stateMachine.Send("EVENT1");
+            _stateMachine!.Send("EVENT1");
             
             // Test multiple target transition from region2
-            _stateMachine.Send("EVENT2");
+            _stateMachine!.Send("EVENT2");
             
-            var state2 = _stateMachine.GetActiveStateString();
-            Assert.IsTrue(state2.Contains("region1.c"));
-            Assert.IsTrue(state2.Contains("region2.x")); // Reset to x
+            var state2 = _stateMachine!.GetActiveStateString();
+            Assert.That(state2, Does.Contain("region1.c"));
+            Assert.That(state2, Does.Contain("region2.x")); // Reset to x
         }
     }
 }

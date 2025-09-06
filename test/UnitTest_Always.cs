@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -11,7 +11,7 @@ namespace AdvancedFeatures;
 [TestFixture]
 public class StateMachine_AlwaysTests
 {
-    private StateMachine _stateMachine;
+    private StateMachine? _stateMachine;
        
     [Test]
     public void TestAlwaysTransition()
@@ -45,39 +45,39 @@ public class StateMachine_AlwaysTests
 
         void ResetCount(StateMachine sm)
         {
-            sm.ContextMap["count"] = 0;
+            sm.ContextMap!["count"] = 0;
         }
 
 
         bool IsSmallNumber(StateMachine sm)
         {
             StateMachine.Log("in IsSmallNumber()...");
-            var count = (int)sm.ContextMap["count"];
+            var count = (int)(sm.ContextMap!["count"] ?? 0);
             StateMachine.Log(">>>>> count = " + count);
-            return (int)sm.ContextMap["count"] <= 3;
+            return (int)(sm.ContextMap!["count"] ?? 0) <= 3;
         }
 
         bool IsBigNumber(StateMachine sm)
         {
             StateMachine.Log("in IsBigNumber()...");
-            var count = (int)sm.ContextMap["count"];
+            var count = (int)(sm.ContextMap!["count"] ?? 0);
             StateMachine.Log(">>>>> count = " + count);
-            return (int)sm.ContextMap["count"] > 3;
+            return (int)(sm.ContextMap!["count"] ?? 0) > 3;
         }
 
         void Increment(StateMachine sm)
         {
-            sm.ContextMap["count"] = (int)sm.ContextMap["count"] + 1;
+            sm.ContextMap!["count"] = (int)(sm.ContextMap!["count"] ?? 0) + 1;
 
             StateMachine.Log("in Increment()... after increment,");
-            var count = (int)sm.ContextMap["count"];
+            var count = (int)(sm.ContextMap!["count"] ?? 0);
             StateMachine.Log(">>>>> count = " + count);
 
         };
 
         void Decrement(StateMachine sm)
         {
-            sm.ContextMap["count"] = (int)sm.ContextMap["count"] - 1;
+            sm.ContextMap!["count"] = (int)(sm.ContextMap!["count"] ?? 0) - 1;
         }
         var guards = new GuardMap
         {
@@ -87,31 +87,31 @@ public class StateMachine_AlwaysTests
 
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
 
-        _stateMachine.RootState.PrintActiveStateTree(0);
+        _stateMachine!.RootState!.PrintActiveStateTree(0);
 
-        _stateMachine.ContextMap["count"] = 0;
+        _stateMachine!.ContextMap!["count"] = 0;
 
-        var currentState = _stateMachine.GetActiveStateString();
-        Assert.AreEqual("#counter.smallNumber", currentState);
+        var currentState = _stateMachine!.GetActiveStateString();
+        Assert.That(currentState, Is.EqualTo("#counter.smallNumber"));
 
         // Test incrementing to trigger always transition
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
-        _stateMachine.Send("INCREMENT");
+        _stateMachine!.Send("INCREMENT");
+        _stateMachine!.Send("INCREMENT");
+        _stateMachine!.Send("INCREMENT");
+        _stateMachine!.Send("INCREMENT");
         //_stateMachine.Send("INCREMENT");
 
-        currentState = _stateMachine.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateString();
 
-        StateMachine.Log(">>>>> _stateMachine.ContextMap[\"count\"] = " + _stateMachine.ContextMap["count"]);
-        Assert.AreEqual("#counter.bigNumber", currentState);
+        StateMachine.Log(">>>>> _stateMachine!.ContextMap![\"count\"] = " + _stateMachine!.ContextMap!["count"]);
+        Assert.That(currentState, Is.EqualTo("#counter.bigNumber"));
 
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
-        _stateMachine.Send("DECREMENT");
+        _stateMachine!.Send("DECREMENT");
+        _stateMachine!.Send("DECREMENT");
+        _stateMachine!.Send("DECREMENT");
+        _stateMachine!.Send("DECREMENT");
 
-        currentState = _stateMachine.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateString();
         currentState.AssertEquivalence("#counter.smallNumber");
     }
 }

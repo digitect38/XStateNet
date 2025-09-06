@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
@@ -61,30 +61,30 @@ public class MutualExclusionTests
         }";
 
         _stateMachine = StateMachine.CreateFromScript(jsonScript, actionCallbacks, guardCallbacks);
-        _stateMachine.Start();
+        _stateMachine!.Start();
     }
 
     [Test]
     public void TestInitialState()
     {
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
     [Test]
     public void TestTransitionShoot()
     {
-        _stateMachine.Send("OPEN");
-        _stateMachine.Send("SHOOT");
+        _stateMachine!.Send("OPEN");
+        _stateMachine!.Send("SHOOT");
 
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
     [Test]
     public void TestTransitionCannotShoot()
     {
-        _stateMachine.Send("SHOOT");
+        _stateMachine!.Send("SHOOT");
 
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
 
@@ -92,41 +92,41 @@ public class MutualExclusionTests
     public void TestTransitionCannotClose()
     {
         // trashcan should not be closed while shooting!
-        _stateMachine.Send("OPEN");
-        _stateMachine.Send("SHOOT");
-        _stateMachine.Send("CLOSE");
+        _stateMachine!.Send("OPEN");
+        _stateMachine!.Send("SHOOT");
+        _stateMachine!.Send("CLOSE");
 
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
     [Test]
     public void TestTransitionCanClose()
     {
         // trashcan can be closed after if shooting is done!
-        _stateMachine.Send("OPEN");
-        _stateMachine.Send("SHOOT");
-        _stateMachine.Send("DONE");
-        _stateMachine.Send("CLOSE");
+        _stateMachine!.Send("OPEN");
+        _stateMachine!.Send("SHOOT");
+        _stateMachine!.Send("DONE");
+        _stateMachine!.Send("CLOSE");
 
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
     [Test]
     public void TestShootAndDoneTransition()
     {
-        _stateMachine.Send("OPEN");
-        _stateMachine.Send("SHOOT");
-        _stateMachine.Send("DONE");
+        _stateMachine!.Send("OPEN");
+        _stateMachine!.Send("SHOOT");
+        _stateMachine!.Send("DONE");
 
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
     }
 
     [Test]
     public void TestOpenAndCloseTransition()
     {
-        _stateMachine.Send("OPEN");
-        _stateMachine.Send("CLOSE");
-        var stateString = _stateMachine.GetActiveStateString();
-        _stateMachine.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        _stateMachine!.Send("OPEN");
+        _stateMachine!.Send("CLOSE");
+        var stateString = _stateMachine!.GetActiveStateString();
+        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 }

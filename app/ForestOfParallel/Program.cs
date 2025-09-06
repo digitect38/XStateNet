@@ -44,11 +44,11 @@ class Program
 
     static ActionMap? _actions = new()
     {
-        ["EnterS1"] = new List<NamedAction> { new NamedAction("EnterS1", (sm) => Log("ENT S1")) },
-        ["ExitS1"] = new List<NamedAction> { new NamedAction("ExitS1", (sm) => Log("EXT S1")) },
+        ["EnterS1"] = new () { new NamedAction("EnterS1", (sm) => Log("ENT S1")) },
+        ["ExitS1"] = new () { new NamedAction("ExitS1", (sm) => Log("EXT S1")) },
 
-            ["EnterS11"] = new List<NamedAction> { new NamedAction("EnterS11", (sm) => Log("ENT S11")) },
-            ["ExitS11"] = new List<NamedAction> { new NamedAction("ExitS11", (sm) => Log("EXT S11")) },
+            ["EnterS11"] = new () { new NamedAction("EnterS11", (sm) => Log("ENT S11")) },
+            ["ExitS11"] = new () { new NamedAction("ExitS11", (sm) => Log("EXT S11")) },
 
                 ["EnterS111"] = new List<NamedAction> { new NamedAction("EnterS111", (sm) => Log("ENT S111")) },
                 ["ExitS111"] = new List<NamedAction> { new NamedAction("ExitS111", (sm) => Log("EXT S111")) },

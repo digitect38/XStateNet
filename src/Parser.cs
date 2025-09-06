@@ -481,7 +481,7 @@ public partial class StateMachine
             {
                 if (targetNames[i] != ".")
                 {
-                    targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]);
+                    targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]) ?? targetNames[i];
                 }
             }
         }
@@ -530,7 +530,7 @@ public partial class StateMachine
         transition.TargetNames = targetNames; // Set multiple targets if present
         if(actionNames != null)   transition.Actions = GetActionCallbacks(actionNames);
         if(guard != null)  transition.Guard = GetGuardCallback(guard);
-        transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : null;
+        transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : () => true;
         
         // Check for internal transition (target is null or ".")
         if (targetName == "." || (targetName == null && targetNames == null && transition.Actions != null))

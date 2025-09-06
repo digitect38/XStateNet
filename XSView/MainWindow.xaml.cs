@@ -16,7 +16,7 @@ namespace XSView
     /// </summary>
     public partial class MainWindow : Window
     {
-        private Rectangle _rect;    // 드래그할 사각형
+        // private Rectangle _rect;    // 드래그할 사각형 - unused
 
         public MainWindow()
         {
@@ -40,9 +40,9 @@ namespace XSView
     {
         int _x_radius = 50;
         int _y_radius = 50;
-        Window _win;
-        Canvas _canvas;
-        Rectangle _rect;
+        Window _win = null!;
+        Canvas _canvas = null!;
+        Rectangle _rect = null!;
 
         public StateShape()
         {

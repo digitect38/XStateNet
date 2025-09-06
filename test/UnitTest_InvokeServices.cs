@@ -90,21 +90,21 @@ public class UnitTest_InvokeServices
         }";
         
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine.Start();
+        _stateMachine!.Start();
         
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("idle"));
+        Assert.That(_stateMachine.GetActiveStateString().Contains("idle"), Is.True);
         
-        _stateMachine.Send("START");
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("fetching"));
+        _stateMachine!.Send("START");
+        Assert.That(_stateMachine.GetActiveStateString().Contains("fetching"), Is.True);
         
         // Wait for service to complete
         await Task.Delay(200);
-        _stateMachine.Send("onDone");
+        _stateMachine!.Send("onDone");
         
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("success"));
-        Assert.IsTrue(_serviceCompleted);
-        Assert.AreEqual(1, _serviceCallCount);
-        Assert.AreEqual("fetched data", _stateMachine.ContextMap!["data"]);
+        Assert.That(_stateMachine.GetActiveStateString().Contains("success"), Is.True);
+        Assert.That(_serviceCompleted, Is.True);
+        Assert.That(_serviceCallCount, Is.EqualTo(1));
+        Assert.That(_stateMachine.ContextMap!["data"], Is.EqualTo("fetched data"));
     }
     
     [Test]
@@ -142,18 +142,18 @@ public class UnitTest_InvokeServices
         }";
         
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine.Start();
+        _stateMachine!.Start();
         
-        _stateMachine.Send("START");
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processing"));
+        _stateMachine!.Send("START");
+        Assert.That(_stateMachine.GetActiveStateString().Contains("processing"), Is.True);
         
         // Wait for service to fail
         await Task.Delay(150);
-        _stateMachine.Send("onError");
+        _stateMachine!.Send("onError");
         
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("error"));
-        Assert.IsTrue(_errorOccurred);
-        Assert.AreEqual("Service failed intentionally", _lastErrorMessage);
+        Assert.That(_stateMachine.GetActiveStateString().Contains("error"), Is.True);
+        Assert.That(_errorOccurred, Is.True);
+        Assert.That(_lastErrorMessage, Is.EqualTo("Service failed intentionally"));
     }
     
     [Test]
@@ -211,38 +211,36 @@ public class UnitTest_InvokeServices
         }";
         
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine.Start();
+        _stateMachine!.Start();
         
-        _stateMachine.Send("START");
+        _stateMachine!.Send("START");
         
         // Both services should be running
-        var activeStates = _stateMachine.GetActiveStateString();
-        Assert.IsTrue(activeStates.Contains("serviceA.running"));
-        Assert.IsTrue(activeStates.Contains("serviceB.running"));
+        var activeStates = _stateMachine!.GetActiveStateString();
+        Assert.That(activeStates.Contains("serviceA.running"), Is.True);
+        Assert.That(activeStates.Contains("serviceB.running"), Is.True);
         
         // Wait for shorter service
         await Task.Delay(200);
-        _stateMachine.Send("onDone");
+        _stateMachine!.Send("onDone");
         
         // Service A should be complete
-        activeStates = _stateMachine.GetActiveStateString();
-        Assert.IsTrue(activeStates.Contains("serviceA.complete"));
+        activeStates = _stateMachine!.GetActiveStateString();
+        Assert.That(activeStates.Contains("serviceA.complete"), Is.True);
         
         // Wait for longer service
         await Task.Delay(400);
-        _stateMachine.Send("onDone");
+        _stateMachine!.Send("onDone");
         
         // Both services should be complete
-        activeStates = _stateMachine.GetActiveStateString();
-        Assert.IsTrue(activeStates.Contains("serviceA.complete"));
-        Assert.IsTrue(activeStates.Contains("serviceB.complete"));
+        activeStates = _stateMachine!.GetActiveStateString();
+        Assert.That(activeStates.Contains("serviceA.complete"), Is.True);
+        Assert.That(activeStates.Contains("serviceB.complete"), Is.True);
     }
     
     [Test]
     public void TestServiceCancellationOnStateExit()
     {
-        var serviceCancelled = false;
-        
         var cancellableService = new ServiceMap
         {
             ["cancellable"] = new NamedService("cancellable", async (sm) => {
@@ -252,7 +250,6 @@ public class UnitTest_InvokeServices
                 }
                 catch (TaskCanceledException)
                 {
-                    serviceCancelled = true;
                     throw;
                 }
             })
@@ -283,14 +280,14 @@ public class UnitTest_InvokeServices
         }";
         
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, cancellableService);
-        _stateMachine.Start();
+        _stateMachine!.Start();
         
-        _stateMachine.Send("START");
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processing"));
+        _stateMachine!.Send("START");
+        Assert.That(_stateMachine.GetActiveStateString().Contains("processing"), Is.True);
         
         // Cancel should exit the state and cancel the service
-        _stateMachine.Send("CANCEL");
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("cancelled"));
+        _stateMachine!.Send("CANCEL");
+        Assert.That(_stateMachine.GetActiveStateString().Contains("cancelled"), Is.True);
         
         // Note: In a real implementation, we'd need to verify the service was actually cancelled
         // This would require more sophisticated service management in the StateMachine

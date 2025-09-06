@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
@@ -89,15 +89,15 @@ public class AfterTests
         }";
 
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards);
-        _stateMachine.Start();
+        _stateMachine!.Start();
 
 
         // Initial state should be 'red'
-        var cxtlog = _stateMachine?.ContextMap?["log"].ToString();
+        var cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
         Assert.That(cxtlog, Is.EqualTo("Entering red; "));
 
-        cxtlog = _stateMachine?.ContextMap?["log"].ToString();
+        cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
         // Wait half the time of the 'after' delay
         System.Threading.Thread.Sleep(450);
@@ -112,13 +112,13 @@ public class AfterTests
         _stateMachine?.PrintCurrentStatesString();
         var currentStates = _stateMachine?.GetActiveStateString();
 
-        cxtlog = _stateMachine?.ContextMap?["log"].ToString();
+        cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
         // Assert
         Assert.That(currentStates, Is.EqualTo("#trafficLight.green"));
         Assert.That(cxtlog, Is.EqualTo("Entering red; Exiting red; After transition to green; Entering green; "));
     }
 
-    StateMachine _stateMachine = null;
+    StateMachine? _stateMachine = null;
 
     [Test]
     public void TestGuardedAfterTransition_FailsGuard()
@@ -151,7 +151,7 @@ public class AfterTests
 
         _stateMachine.PrintCurrentStatesString(); // State should still be 'red'
 
-        var currentState = _stateMachine.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateString();
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
         currentState.AssertEquivalence("#trafficLight.red");

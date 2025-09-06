@@ -22,6 +22,8 @@ public abstract class RealState : StateNode
     public List<NamedAction>? ExitActions { get; set; }
     public NamedService? Service { get; set; }
     public NamedDelay? Delay { get; set; }
+    
+    protected System.Timers.Timer? _afterTransitionTimer;
 
     public RealState(string? name, string? parentName, string? stateMachineId) 
         : base(name, parentName, stateMachineId)
@@ -45,6 +47,14 @@ public abstract class RealState : StateNode
             Parent.ActiveStateName = null;
         }
         
+        // Cancel any active after transition timer
+        if (_afterTransitionTimer != null)
+        {
+            _afterTransitionTimer.Stop();
+            _afterTransitionTimer.Dispose();
+            _afterTransitionTimer = null;
+        }
+        
         // Cancel any active services for this state
         if (StateMachine != null && StateMachine.serviceInvoker != null && this is CompoundState compoundState)
         {
@@ -57,7 +67,7 @@ public abstract class RealState : StateNode
             {
                 try
                 {
-                    action.Action(StateMachine);
+                    action.Action?.Invoke(StateMachine);
                 }
                 catch (Exception ex)
                 {
@@ -122,7 +132,7 @@ public abstract class RealState : StateNode
             }
             
             // Invoke service using ServiceInvoker for proper onDone/onError handling
-            if (Service != null && this is CompoundState compoundState)
+            if (Service != null && this is CompoundState compoundState && StateMachine?.serviceInvoker != null)
             {
                 _ = StateMachine.serviceInvoker.InvokeService(compoundState, Service.Name, Service);
             }
@@ -217,6 +227,14 @@ public abstract class CompoundState : RealState
             Parent.ActiveStateName = null;
         }
         
+        // Cancel any active after transition timer
+        if (_afterTransitionTimer != null)
+        {
+            _afterTransitionTimer.Stop();
+            _afterTransitionTimer.Dispose();
+            _afterTransitionTimer = null;
+        }
+        
         // Cancel any active services for this state
         if (StateMachine != null && StateMachine.serviceInvoker != null)
         {
@@ -229,7 +247,7 @@ public abstract class CompoundState : RealState
             {
                 try
                 {
-                    action.Action(StateMachine);
+                    action.Action?.Invoke(StateMachine);
                 }
                 catch (Exception ex)
                 {
@@ -296,7 +314,7 @@ public abstract class CompoundState : RealState
             }
             
             // Invoke service using ServiceInvoker for proper onDone/onError handling
-            if (Service != null && this is CompoundState compoundState)
+            if (Service != null && this is CompoundState compoundState && StateMachine?.serviceInvoker != null)
             {
                 _ = StateMachine.serviceInvoker.InvokeService(compoundState, Service.Name, Service);
             }
@@ -311,8 +329,19 @@ public abstract class CompoundState : RealState
     public void ScheduleAfterTransitionTimer()
     {
         if (AfterTransition == null) return;
+        if (StateMachine == null) throw new Exception("StateMachine is null");
 
+        // Cancel any existing timer before creating a new one
+        if (_afterTransitionTimer != null)
+        {
+            _afterTransitionTimer.Stop();
+            _afterTransitionTimer.Dispose();
+            _afterTransitionTimer = null;
+        }
+
+        // Create a new timer instead of using pool to avoid event handler issues
         var timer = new System.Timers.Timer();
+        _afterTransitionTimer = timer;
 
         if (int.TryParse(AfterTransition.Delay, out int delay))
         {
@@ -320,10 +349,18 @@ public abstract class CompoundState : RealState
         }
         else
         {
-            if(StateMachine == null) throw new Exception("StateMachine is null");
-            if(StateMachine.DelayMap == null) throw new Exception("DelayMap is null");
+            if (StateMachine.DelayMap == null) throw new Exception("DelayMap is null");
             if (AfterTransition?.Delay != null)
-                timer.Interval = StateMachine.DelayMap[AfterTransition.Delay].DelayFunc.Invoke(StateMachine);
+            {
+                if (StateMachine.DelayMap.TryGetValue(AfterTransition.Delay, out var namedDelay) && namedDelay?.DelayFunc != null)
+                {
+                    timer.Interval = namedDelay.DelayFunc.Invoke(StateMachine);
+                }
+                else
+                {
+                    throw new Exception($"Delay '{AfterTransition.Delay}' not found in DelayMap or has no DelayFunc.");
+                }
+            }
         }
 
         var now = DateTime.Now;
@@ -331,19 +368,26 @@ public abstract class CompoundState : RealState
         timer.Elapsed += (sender, e) =>
         {
             StateMachine.Log("");
-            StateMachine.Log($">>> Scheduled time has come {Name} in {AfterTransition.Delay} ms");
+            StateMachine.Log($">>> Scheduled time has come {Name} in {AfterTransition?.Delay} ms");
             StateMachine.Log($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
             StateMachine.Log("");
-            StateMachine?.transitionExecutor.Execute(AfterTransition, $"after: {timer.Interval}");
+            StateMachine.transitionExecutor.Execute(AfterTransition, $"after: {timer.Interval}");
             timer.Stop();
-            timer.Dispose();
+            // Dispose timer instead of returning to pool
+            if (sender is System.Timers.Timer t)
+            {
+                t.Dispose();
+                // Clear the reference since the timer has been disposed
+                if (_afterTransitionTimer == t)
+                    _afterTransitionTimer = null;
+            }
         };
         
         timer.AutoReset = false;
         timer.Start();
 
         StateMachine.Log("");
-        StateMachine.Log($">>> Scheduled after transition {Name} in {AfterTransition.Delay} ms");
+        StateMachine.Log($">>> Scheduled after transition {Name} in {AfterTransition?.Delay} ms");
         StateMachine.Log("");
     }
 
@@ -401,9 +445,9 @@ public abstract class Parser_RealState : Parser_StateBase
     protected void ParseActionsAndService(CompoundState state, JToken stateToken)
     {
         if (StateMachine == null) throw new Exception("StateMachine is null");
-        state.EntryActions = StateMachine.ParseActions("entry", StateMachine?.ActionMap, stateToken);
-        state.ExitActions = StateMachine.ParseActions("exit", StateMachine?.ActionMap, stateToken);
-        state.Service = StateMachine.ParseService("invoke", StateMachine?.ServiceMap, stateToken);
+        state.EntryActions = StateMachine.ParseActions("entry", StateMachine.ActionMap, stateToken);
+        state.ExitActions = StateMachine.ParseActions("exit", StateMachine.ActionMap, stateToken);
+        state.Service = StateMachine.ParseService("invoke", StateMachine.ServiceMap, stateToken);
         
         // Parse onDone and onError transitions from invoke if present
         var invokeToken = stateToken["invoke"];
@@ -414,7 +458,7 @@ public abstract class Parser_RealState : Parser_StateBase
             if (onDoneToken != null)
             {
                 var targetName = onDoneToken["target"]?.ToString();
-                if (!string.IsNullOrEmpty(targetName))
+                if (!string.IsNullOrEmpty(targetName) && !string.IsNullOrEmpty(state.Name))
                 {
                     // Ensure target name has the proper full path
                     // state.Name already includes the machine ID and # prefix
@@ -458,7 +502,7 @@ public abstract class Parser_RealState : Parser_StateBase
             if (onErrorToken != null)
             {
                 var targetName = onErrorToken["target"]?.ToString();
-                if (!string.IsNullOrEmpty(targetName))
+                if (!string.IsNullOrEmpty(targetName) && !string.IsNullOrEmpty(state.Name))
                 {
                     // Ensure target name has the proper full path
                     // state.Name already includes the machine ID and # prefix

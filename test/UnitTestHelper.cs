@@ -1,4 +1,4 @@
-﻿
+
 namespace XStateNet.UnitTest;
 public static class Helper
 {
@@ -12,7 +12,7 @@ public static class Helper
 
         foreach (var item in toBeList)
         {
-            Assert.IsTrue(asIs.Contains(item.Trim()));
+            Assert.That(asIs.Contains(item.Trim()), Is.True);
         }
     }
 }

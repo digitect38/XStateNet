@@ -18,7 +18,7 @@ class Program
 
 public class HistoryStateTest
 {
-    StateMachine stateMachine;
+    StateMachine stateMachine = null!;
 
     static void Log(string message) => Console.WriteLine(message);
 

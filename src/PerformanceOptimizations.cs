@@ -51,6 +51,37 @@ public static class PerformanceOptimizations
             resetAction: set => set.Clear());
     
     /// <summary>
+    /// Pool for System.Timers.Timer used in AfterTransitions
+    /// </summary>
+    private static readonly ObjectPool<System.Timers.Timer> _timerPool = 
+        new(() => new System.Timers.Timer(), 
+            maxSize: 50, 
+            resetAction: timer => 
+            {
+                timer.Stop();
+                timer.Enabled = false;
+                timer.AutoReset = false;
+                timer.Interval = 100; // Default interval
+                // Remove all event handlers - use GetEvent instead of GetField
+                var eventInfo = typeof(System.Timers.Timer).GetEvent("Elapsed");
+                if (eventInfo != null)
+                {
+                    var field = typeof(System.Timers.Timer).GetField("Elapsed", 
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (field == null)
+                    {
+                        // Try different field name for the backing field
+                        field = typeof(System.Timers.Timer).GetField("onIntervalElapsed", 
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    }
+                    if (field != null)
+                    {
+                        field.SetValue(timer, null);
+                    }
+                }
+            });
+    
+    /// <summary>
     /// Get cached transition key
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -186,6 +217,22 @@ public static class PerformanceOptimizations
     public static void ReturnTransitionHashSet(HashSet<(string?, string?)> set)
     {
         _transitionHashSetPool.Return(set);
+    }
+    
+    /// <summary>
+    /// Rent a Timer from the pool
+    /// </summary>
+    public static System.Timers.Timer RentTimer()
+    {
+        return _timerPool.Rent();
+    }
+    
+    /// <summary>
+    /// Return a Timer to the pool
+    /// </summary>
+    public static void ReturnTimer(System.Timers.Timer timer)
+    {
+        _timerPool.Return(timer);
     }
 }
 

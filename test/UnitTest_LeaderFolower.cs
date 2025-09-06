@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

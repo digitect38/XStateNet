@@ -93,7 +93,7 @@ public partial class StateMachine
     public ServiceInvoker serviceInvoker { private set; get; } = null!;
     private EventQueue? _eventQueue;
     private StateMachineSync? _sync;
-    private readonly object _stateLock = new object();
+    private readonly ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
 
     //
     // This state machine map is for interact each other in a process.
@@ -226,7 +226,8 @@ public partial class StateMachine
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => ">>> Start state machine");
 
-        lock (_stateLock)
+        _stateLock.EnterWriteLock();
+        try
         {
             if (machineState == MachineState.Running)
             {
@@ -248,7 +249,7 @@ public partial class StateMachine
             
             serviceInvoker = new ServiceInvoker(machineId);
             
-            var list = GetEntryList(machineId);
+            var list = GetEntryList(machineId!);
             string entry = list.ToCsvString(this, false, " -> ");
 
             PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => $">>> Start entry: {entry}");
@@ -261,6 +262,10 @@ public partial class StateMachine
 
             machineState = MachineState.Running;
         }
+        finally
+        {
+            _stateLock.ExitWriteLock();
+        }
         return this;
     }
 
@@ -272,13 +277,18 @@ public partial class StateMachine
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
 
-        lock (_stateLock)
+        _stateLock.EnterReadLock();
+        try
         {
             if (machineState != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
                 return;
             }
+        }
+        finally
+        {
+            _stateLock.ExitReadLock();
         }
 
         // Direct synchronous processing for backward compatibility
@@ -295,13 +305,18 @@ public partial class StateMachine
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event async: {eventName}");
 
-        lock (_stateLock)
+        _stateLock.EnterReadLock();
+        try
         {
             if (machineState != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
                 return;
             }
+        }
+        finally
+        {
+            _stateLock.ExitReadLock();
         }
 
         if (_eventQueue != null)
@@ -420,15 +435,15 @@ public partial class StateMachine
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_sub: {source_sub.ToCsvString(this, false, " -> ")}");
 
         var source_sup = GetSuperStateCollection(source);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_sup: {source_sup.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_sup: {source_sup?.ToCsvString(this, false, " -> ")}");
 
-        var source_cat = source_sub.Concat(source_sup);
+        var source_cat = source_sub.Concat(source_sup ?? Enumerable.Empty<string>());
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_cat: {source_cat.ToCsvString(this, false, " -> ")}");
 
         var target_sub = GetTargetSubStateCollection(target);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_sub: {target_sub.ToCsvString(this, false, " -> ")}");
 
-        var target_sup = GetSuperStateCollection(target).Reverse();
+        var target_sup = GetSuperStateCollection(target)?.Reverse() ?? Enumerable.Empty<string>();
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_sup: {target_sup.ToCsvString(this, false, " -> ")}");
 
         var target_cat = target_sup.Concat(target_sub);
@@ -647,22 +662,22 @@ public partial class StateMachine
 
         //1.
         var subExitPath = GetSourceSubStateCollection(srcStateName, true);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subExitPath: {subExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subExitPath: {subExitPath?.ToCsvString(this, false, " -> ")}");
 
         var supExitPath = GetSuperStateCollection(srcStateName);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supExitPath: {supExitPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supExitPath: {(supExitPath ?? Enumerable.Empty<string>()).ToCsvString(this, false, " -> ")}");
 
-        var fullExitPath = supExitPath.Reverse().Concat(subExitPath);
+        var fullExitPath = (supExitPath ?? Enumerable.Empty<string>()).Reverse().Concat(subExitPath);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- fullExitPath: {fullExitPath.ToCsvString(this, false, " -> ")}");
 
         //2.
         var supEntryPath = GetSuperStateCollection(tgtStateName);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supEntryPath: {supEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- supEntryPath: {(supEntryPath ?? Enumerable.Empty<string>()).ToCsvString(this, false, " -> ")}");
 
         var subEntryPath = GetTargetSubStateCollection(tgtStateName, true);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subEntryPath: {subEntryPath.ToCsvString(this, false, " -> ")}");
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- subEntryPath: {subEntryPath?.ToCsvString(this, false, " -> ")}");
 
-        var fullEntryPath = supEntryPath.Reverse().Concat(subEntryPath);
+        var fullEntryPath = (supEntryPath ?? Enumerable.Empty<string>()).Reverse().Concat(subEntryPath ?? Enumerable.Empty<string>());
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- fullEntryPath: {fullEntryPath.ToCsvString(this, false, " -> ")}");
 
 
@@ -736,10 +751,13 @@ public partial class StateMachine
             catch (Exception ex)
             {
                 // Store error context
-                ContextMap["_error"] = ex;
-                ContextMap["_lastError"] = ex;  // For backward compatibility
-                ContextMap["_errorType"] = ex.GetType().Name;
-                ContextMap["_errorMessage"] = ex.Message;
+                if(ContextMap is not null)
+                {
+                    ContextMap["_error"] = ex;
+                    ContextMap["_lastError"] = ex;  // For backward compatibility
+                    ContextMap["_errorType"] = ex.GetType().Name;
+                    ContextMap["_errorMessage"] = ex.Message;
+                }
                 
                 // Send onError event to trigger error transitions
                 Send("onError");
@@ -765,10 +783,13 @@ public partial class StateMachine
             catch (Exception ex)
             {
                 // Store error context
-                ContextMap["_error"] = ex;
-                ContextMap["_lastError"] = ex;  // For backward compatibility
-                ContextMap["_errorType"] = ex.GetType().Name;
-                ContextMap["_errorMessage"] = ex.Message;
+                if(ContextMap is not null)
+                {
+                    ContextMap["_error"] = ex;
+                    ContextMap["_lastError"] = ex;  // For backward compatibility
+                    ContextMap["_errorType"] = ex.GetType().Name;
+                    ContextMap["_errorMessage"] = ex.Message;
+                }
                 
                 // Send onError event to trigger error transitions
                 Send("onError");
@@ -972,7 +993,8 @@ public partial class StateMachine
     /// </summary>
     public void Stop()
     {
-        lock (_stateLock)
+        _stateLock.EnterWriteLock();
+        try
         {
             if (machineState == MachineState.Stopped)
             {
@@ -982,6 +1004,10 @@ public partial class StateMachine
             
             machineState = MachineState.Stopped;
             Logger.Info("State machine stopped");
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
         
         // Cleanup resources
@@ -993,7 +1019,8 @@ public partial class StateMachine
     /// </summary>
     public void Pause()
     {
-        lock (_stateLock)
+        _stateLock.EnterWriteLock();
+        try
         {
             if (machineState != MachineState.Running)
             {
@@ -1004,6 +1031,10 @@ public partial class StateMachine
             machineState = MachineState.Paused;
             Logger.Info("State machine paused");
         }
+        finally
+        {
+            _stateLock.ExitWriteLock();
+        }
     }
     
     /// <summary>
@@ -1011,7 +1042,8 @@ public partial class StateMachine
     /// </summary>
     public void Resume()
     {
-        lock (_stateLock)
+        _stateLock.EnterWriteLock();
+        try
         {
             if (machineState != MachineState.Paused)
             {
@@ -1021,6 +1053,10 @@ public partial class StateMachine
             
             machineState = MachineState.Running;
             Logger.Info("State machine resumed");
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
     }
     
@@ -1044,6 +1080,7 @@ public partial class StateMachine
             // Dispose managed resources
             _eventQueue?.Dispose();
             _sync?.Dispose();
+            _stateLock?.Dispose();
             
             // Remove from global instance map
             if (machineId != null)

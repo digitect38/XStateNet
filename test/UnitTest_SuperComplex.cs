@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -29,17 +29,17 @@ namespace SuperComplexStateMachineTests
         [Test]
         public void TestInitialStartupState()
         {
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.startup", currentState);
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.startup"));
         }
 
         [Test]
         public void TestTransitionToInitializing()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.systemCheck.checkingMemory"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
 
         #endregion
@@ -49,51 +49,51 @@ namespace SuperComplexStateMachineTests
         [Test]
         public void TestParallelStateTransitionMemoryOk()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            var currentState = _stateMachine.GetActiveStateString(true);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.systemCheck.checkingCPU"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            var currentState = _stateMachine!.GetActiveStateString(true);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.systemCheck.checkingCPU"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
 
         [Test]
         public void TestParallelStateTransitionCPUOk()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.systemCheck.done"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.systemCheck.done"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
 
         [Test]
         public void TestParallelStateTransitionInputReceived()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("INPUT_RECEIVED");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.validating"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.validating"));
         }
 
         [Test]
         public void TestParallelStateTransitionValidInput()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.authenticated"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.authenticated"));
         }
 
         [Test]
         public void TestParallelStateTransitionInvalidInput()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("INVALID");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("INVALID");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
 
         #endregion
@@ -103,142 +103,142 @@ namespace SuperComplexStateMachineTests
         [Test]
         public void TestTransitionToProcessing()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.processing.taskSelection", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.processing.taskSelection"));
         }
 
         [Test]
         public void TestTaskASelectedStep1()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_A_SELECTED");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.processing.taskA.step1", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_A_SELECTED");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.processing.taskA.step1"));
         }
 
         [Test]
         public void TestTaskANextStep()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_A_SELECTED");
-            _stateMachine.Send("NEXT");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.processing.taskA.step2", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_A_SELECTED");
+            _stateMachine!.Send("NEXT");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.processing.taskA.step2"));
         }
 
         [Test]
         public void TestTaskACompletion()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_A_SELECTED");
-            _stateMachine.Send("NEXT");
-            _stateMachine.Send("NEXT");
-            _stateMachine.Send("COMPLETE");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.ready", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_A_SELECTED");
+            _stateMachine!.Send("NEXT");
+            _stateMachine!.Send("NEXT");
+            _stateMachine!.Send("COMPLETE");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.ready"));
         }
 
         [Test]
         public void TestTaskBSelectedSubtask1()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_B_SELECTED");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.processing.taskB.subtask1", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_B_SELECTED");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.processing.taskB.subtask1"));
         }
 
         [Test]
         public void TestTaskBSubtask2Parallel()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_B_SELECTED");
-            _stateMachine.Send("NEXT");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_B_SELECTED");
+            _stateMachine!.Send("NEXT");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working"));
         }
 
         [Test]
         public void TestTaskBSubtask2ParallelCompleteA()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_B_SELECTED");
-            _stateMachine.Send("NEXT");
-            _stateMachine.Send("COMPLETE_A");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.completed"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_B_SELECTED");
+            _stateMachine!.Send("NEXT");
+            _stateMachine!.Send("COMPLETE_A");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.completed"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working"));
         }
 
         [Test]
         public void TestTaskBSubtask2ParallelCompleteB()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_B_SELECTED");
-            _stateMachine.Send("NEXT");
-            _stateMachine.Send("COMPLETE_B");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.completed"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_B_SELECTED");
+            _stateMachine!.Send("NEXT");
+            _stateMachine!.Send("COMPLETE_B");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.completed"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working"));
         }
 
         [Test]
         public void TestTaskBCompletion()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("START_PROCESS");
-            _stateMachine.Send("TASK_B_SELECTED");
-            _stateMachine.Send("NEXT");
-            _stateMachine.Send("COMPLETE_A");
-            _stateMachine.Send("COMPLETE_B");
-            _stateMachine.Send("COMPLETE");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.ready", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("START_PROCESS");
+            _stateMachine!.Send("TASK_B_SELECTED");
+            _stateMachine!.Send("NEXT");
+            _stateMachine!.Send("COMPLETE_A");
+            _stateMachine!.Send("COMPLETE_B");
+            _stateMachine!.Send("COMPLETE");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.ready"));
         }
 
         #endregion
@@ -248,71 +248,71 @@ namespace SuperComplexStateMachineTests
         [Test]
         public void TestReadyToShuttingDown()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("SHUTDOWN");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.shuttingDown.cleaningUp", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("SHUTDOWN");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.shuttingDown.cleaningUp"));
         }
 
         [Test]
         public void TestCleaningUpToSavingState()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");   // add to original
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("SHUTDOWN");
-            _stateMachine.Send("CLEANUP_DONE");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.shuttingDown.savingState", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");   // add to original
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("SHUTDOWN");
+            _stateMachine!.Send("CLEANUP_DONE");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.shuttingDown.savingState"));
         }
 
         [Test]
         public void TestSavingStateToDone()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("SHUTDOWN");
-            _stateMachine.Send("CLEANUP_DONE");
-            _stateMachine.Send("SAVE_COMPLETE");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.shuttingDown.done", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("SHUTDOWN");
+            _stateMachine!.Send("CLEANUP_DONE");
+            _stateMachine!.Send("SAVE_COMPLETE");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.shuttingDown.done"));
         }
 
         [Test]
         public void TestReady()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            var currentState = _stateMachine.GetActiveStateString();
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            var currentState = _stateMachine!.GetActiveStateString();
             Assert.That("#superComplexFSM.ready" == currentState);
         }
 
         [Test]
         public void TestFinalShutdown()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
-            _stateMachine.Send("SHUTDOWN");
-            _stateMachine.Send("CLEANUP_DONE");
-            _stateMachine.Send("SAVE_COMPLETE");
-            _stateMachine.Send("SHUTDOWN_CONFIRMED");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.shutdownComplete", currentState);
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
+            _stateMachine!.Send("SHUTDOWN");
+            _stateMachine!.Send("CLEANUP_DONE");
+            _stateMachine!.Send("SAVE_COMPLETE");
+            _stateMachine!.Send("SHUTDOWN_CONFIRMED");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.shutdownComplete"));
         }
 
         #endregion
@@ -322,32 +322,32 @@ namespace SuperComplexStateMachineTests
         [Test]
         public void TestInvalidTransitionFromStartup()
         {
-            _stateMachine.Send("START_PROCESS");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.startup", currentState);
+            _stateMachine!.Send("START_PROCESS");
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.startup"));
         }
 
         [Test]
         public void TestInvalidTransitionInParallelState()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("INVALID_EVENT");
-            var currentState = _stateMachine.GetActiveStateString(false);
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory"));
-            Assert.IsTrue(currentState.Contains("#superComplexFSM.initializing.userAuth.awaitingInput"));
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("INVALID_EVENT");
+            var currentState = _stateMachine!.GetActiveStateString(false);
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.systemCheck.checkingMemory"));
+            Assert.That(currentState, Does.Contain("#superComplexFSM.initializing.userAuth.awaitingInput"));
         }
 
         [Test]
         public void TestInvalidEventInReadyState()
         {
-            _stateMachine.Send("INIT_COMPLETE");
-            _stateMachine.Send("MEMORY_OK");
-            _stateMachine.Send("CPU_OK");
-            _stateMachine.Send("INPUT_RECEIVED");
-            _stateMachine.Send("VALID");
+            _stateMachine!.Send("INIT_COMPLETE");
+            _stateMachine!.Send("MEMORY_OK");
+            _stateMachine!.Send("CPU_OK");
+            _stateMachine!.Send("INPUT_RECEIVED");
+            _stateMachine!.Send("VALID");
             //_stateMachine.Send("INVALID_EVENT");
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.AreEqual("#superComplexFSM.ready", currentState);
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#superComplexFSM.ready"));
         }
 
         #endregion

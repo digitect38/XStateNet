@@ -70,14 +70,14 @@ public class UnitTest_ErrorHandling_Debug
         }";
         
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
-        _stateMachine.Start();
+        _stateMachine!.Start();
         
         Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateString()}");
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("idle"));
+        Assert.That(_stateMachine.GetActiveStateString(), Does.Contain("idle"));
         
         try
         {
-            _stateMachine.Send("START");
+            _stateMachine!.Send("START");
         }
         catch (Exception ex)
         {
@@ -101,13 +101,13 @@ public class UnitTest_ErrorHandling_Debug
         
         // Try manually sending onError
         Console.WriteLine("Manually sending onError event");
-        _stateMachine.Send("onError");
+        _stateMachine!.Send("onError");
         
         Console.WriteLine($"State after onError: {_stateMachine.GetActiveStateString()}");
         Console.WriteLine($"Error handled: {_errorHandled}");
         Console.WriteLine($"Action log: {string.Join(", ", _actionLog)}");
         
         // The error should be caught and handled
-        Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("error") || _errorHandled);
+        Assert.That(_stateMachine.GetActiveStateString().Contains("error") || _errorHandled, Is.True);
     }
 }

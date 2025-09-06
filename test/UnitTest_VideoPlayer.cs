@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -78,20 +78,20 @@ namespace VideoPlayerStateMachineTests
             _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
-            Assert.IsFalse(_serviceInvoked);
+            Assert.That(_serviceInvoked, Is.False);
 
             // Trigger the PLAY event to transition from Closed to Opened.Playing
-            _stateMachine.Send("PLAY");
+            _stateMachine!.Send("PLAY");
 
             // Assert the current state
-            var currentState = _stateMachine.GetActiveStateString();
-            Assert.That("#What is a state machine?.Opened.Playing" == currentState);
+            var currentState = _stateMachine!.GetActiveStateString();
+            Assert.That(currentState, Is.EqualTo("#What is a state machine?.Opened.Playing"));
 
             // Wait for the asynchronous service to be invoked
             await Task.Delay(100); // Allow time for the async service to execute
 
             // Check if the startVideo service was invoked
-            Assert.That(_serviceInvoked, "The 'startVideo' service should have been invoked.");
+            Assert.That(_serviceInvoked, Is.True, "The 'startVideo' service should have been invoked.");
         }
     }
 }
