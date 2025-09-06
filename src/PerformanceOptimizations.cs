@@ -154,11 +154,14 @@ public static class PerformanceOptimizations
     /// Optimized logging that only builds strings when needed
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void LogOptimized(Logger.LogLevel requiredLevel, Func<string> messageFactory)
+    public static void LogOptimized(Logger.LogLevel requiredLevel, Func<string> messageFactory,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
     {
         if (Logger.CurrentLevel >= requiredLevel)
         {
-            Logger.Log(messageFactory(), requiredLevel);
+            Logger.Log(messageFactory(), requiredLevel, memberName, filePath, lineNumber);
         }
     }
     

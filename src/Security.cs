@@ -135,6 +135,7 @@ public static class Logger
     
     private static LogLevel _currentLevel = LogLevel.Info;
     private static readonly object _lockObject = new object();
+    private static bool _includeCallerInfo = false;
     
     public static LogLevel CurrentLevel 
     { 
@@ -142,21 +143,67 @@ public static class Logger
         set => _currentLevel = value;
     }
     
-    public static void Log(string message, LogLevel level = LogLevel.Info)
+    public static bool IncludeCallerInfo
+    {
+        get => _includeCallerInfo;
+        set => _includeCallerInfo = value;
+    }
+    
+    public static void Log(string message, LogLevel level = LogLevel.Info,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
     {
         if (level <= _currentLevel)
         {
             lock (_lockObject)
             {
-                var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                Console.WriteLine($"[{timestamp}] [{level}] {message}");
+                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                if (_includeCallerInfo && !string.IsNullOrEmpty(filePath))
+                {
+                    var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+                    // Format: Fixed width for better alignment
+                    // File: 20 chars, Line: 4 chars
+                    var fileInfo = fileName.Length > 20 ? fileName.Substring(0, 20) : fileName.PadRight(20);
+                    var lineInfo = lineNumber.ToString().PadLeft(4);
+                    
+                    Console.WriteLine($"[{timestamp}] [{level,-7}] [{fileInfo}:{lineInfo}] {message}");
+                }
+                else
+                {
+                    Console.WriteLine($"[{timestamp}] [{level,-7}] {message}");
+                }
             }
         }
     }
     
-    public static void Error(string message) => Log(message, LogLevel.Error);
-    public static void Warning(string message) => Log(message, LogLevel.Warning);
-    public static void Info(string message) => Log(message, LogLevel.Info);
-    public static void Debug(string message) => Log(message, LogLevel.Debug);
-    public static void Verbose(string message) => Log(message, LogLevel.Verbose);
+    public static void Error(string message,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0) 
+        => Log(message, LogLevel.Error, memberName, filePath, lineNumber);
+        
+    public static void Warning(string message,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0) 
+        => Log(message, LogLevel.Warning, memberName, filePath, lineNumber);
+        
+    public static void Info(string message,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0) 
+        => Log(message, LogLevel.Info, memberName, filePath, lineNumber);
+        
+    public static void Debug(string message,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0) 
+        => Log(message, LogLevel.Debug, memberName, filePath, lineNumber);
+        
+    public static void Verbose(string message,
+        [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
+        [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0) 
+        => Log(message, LogLevel.Verbose, memberName, filePath, lineNumber);
 }
