@@ -27,6 +27,30 @@ public static class PerformanceOptimizations
     private static readonly ObjectPool<StringBuilder> _stringBuilderPool = new(() => new StringBuilder(256), 10);
     
     /// <summary>
+    /// Pool for transition lists used in state machine transitions
+    /// </summary>
+    private static readonly ObjectPool<List<(CompoundState state, Transition transition, string @event)>> 
+        _transitionListPool = new(() => new List<(CompoundState, Transition, string)>(16), 
+            maxSize: 20, 
+            resetAction: list => list.Clear());
+    
+    /// <summary>
+    /// Pool for string lists used in path calculations
+    /// </summary>
+    private static readonly ObjectPool<List<string>> _stringListPool = 
+        new(() => new List<string>(32), 
+            maxSize: 50, 
+            resetAction: list => list.Clear());
+    
+    /// <summary>
+    /// Pool for HashSet used in transition execution tracking
+    /// </summary>
+    private static readonly ObjectPool<HashSet<(string?, string?)>> _transitionHashSetPool = 
+        new(() => new HashSet<(string?, string?)>(), 
+            maxSize: 20, 
+            resetAction: set => set.Clear());
+    
+    /// <summary>
     /// Get cached transition key
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,6 +138,54 @@ public static class PerformanceOptimizations
     public static bool ShouldUseParallel<T>(ICollection<T> collection, int threshold = 4)
     {
         return collection.Count > threshold && Environment.ProcessorCount > 1;
+    }
+    
+    /// <summary>
+    /// Rent a transition list from the pool
+    /// </summary>
+    public static List<(CompoundState state, Transition transition, string @event)> RentTransitionList()
+    {
+        return _transitionListPool.Rent();
+    }
+    
+    /// <summary>
+    /// Return a transition list to the pool
+    /// </summary>
+    public static void ReturnTransitionList(List<(CompoundState state, Transition transition, string @event)> list)
+    {
+        _transitionListPool.Return(list);
+    }
+    
+    /// <summary>
+    /// Rent a string list from the pool
+    /// </summary>
+    public static List<string> RentStringList()
+    {
+        return _stringListPool.Rent();
+    }
+    
+    /// <summary>
+    /// Return a string list to the pool
+    /// </summary>
+    public static void ReturnStringList(List<string> list)
+    {
+        _stringListPool.Return(list);
+    }
+    
+    /// <summary>
+    /// Rent a HashSet for transition tracking from the pool
+    /// </summary>
+    public static HashSet<(string?, string?)> RentTransitionHashSet()
+    {
+        return _transitionHashSetPool.Rent();
+    }
+    
+    /// <summary>
+    /// Return a HashSet to the pool
+    /// </summary>
+    public static void ReturnTransitionHashSet(HashSet<(string?, string?)> set)
+    {
+        _transitionHashSetPool.Return(set);
     }
 }
 

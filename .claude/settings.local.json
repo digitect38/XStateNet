@@ -8,7 +8,11 @@
       "Bash(dotnet build:*)",
       "Bash(dotnet test:*)",
       "WebSearch",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(dotnet clean:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dir:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": []

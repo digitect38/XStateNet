@@ -305,7 +305,7 @@ public class Parser_NormalState : Parser_RealState
 
         var state = new NormalState(stateName, parentName, machineId)
         {            
-            InitialStateName = (initial != null) ? stateName + "." + initial.ToString() : null,
+            InitialStateName = (initial != null) ? PerformanceOptimizations.BuildPath(stateName, initial.ToString()) : null,
         };
 
         state.InitialStateName = state.InitialStateName != null ? StateMachine.ResolveAbsolutePath(stateName, state.InitialStateName) : null;

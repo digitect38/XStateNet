@@ -60,12 +60,16 @@ public class TransitionExecutor : StateObject
                 }
                 
                 // Get the current active state names in this region
-                var activeStateNamesInRegion = StateMachine.GetSourceSubStateCollection(null)
-                    .Select(name => StateMachine.GetState(name))
-                    .Where(state => state is CompoundState cs && IsInRegion(cs, targetRegion))
-                    .Select(state => state.Name)
-                    .Where(name => name != null)
-                    .ToList();
+                // Optimized: Single loop instead of multiple LINQ iterations
+                var activeStateNamesInRegion = new List<string>();
+                foreach (var name in StateMachine.GetSourceSubStateCollection(null))
+                {
+                    var state = StateMachine.GetState(name);
+                    if (state is CompoundState cs && IsInRegion(cs, targetRegion) && state.Name != null)
+                    {
+                        activeStateNamesInRegion.Add(state.Name);
+                    }
+                }
                 
                 if (activeStateNamesInRegion.Count == 0)
                 {
@@ -140,8 +144,8 @@ public class TransitionExecutor : StateObject
             && (transition.InCondition == null || transition.InCondition()))
         {
 
-            string? sourceName = transition?.SourceName;
-            string? targetName = transition?.TargetName;
+            string? sourceName = transition.SourceName;
+            string? targetName = transition.TargetName;
 
             if (string.IsNullOrWhiteSpace(sourceName)) 
                 throw new InvalidOperationException("Source state name cannot be null or empty");

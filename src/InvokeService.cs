@@ -12,7 +12,7 @@ public class InvokedService
 {
     public string Id { get; set; }
     public string ServiceName { get; set; }
-    public Task ServiceTask { get; set; }
+    public Task ServiceTask { get; set; } = null!;
     public CancellationTokenSource CancellationToken { get; set; }
     public CompoundState InvokingState { get; set; }
     public object? Result { get; set; }
@@ -137,7 +137,7 @@ public class ServiceInvoker : StateObject
         Logger.Error($"Service '{service.ServiceName}' failed: {service.Error?.Message}");
         
         // Store error information in context
-        if (StateMachine != null && service.Error != null)
+        if (StateMachine?.ContextMap != null && service.Error != null)
         {
             StateMachine.ContextMap["_error"] = service.Error;
             StateMachine.ContextMap["_lastError"] = service.Error;  // For backward compatibility

@@ -236,7 +236,8 @@ public class SafeTransitionExecutor : TransitionExecutor
         try
         {
             // Check for deadlock potential
-            if (_sync.CheckDeadlockPotential(transition.SourceName, transition.TargetName, new HashSet<string>()))
+            if (transition.SourceName != null && transition.TargetName != null && 
+                _sync.CheckDeadlockPotential(transition.SourceName, transition.TargetName, new HashSet<string>()))
             {
                 Logger.Error($"Deadlock potential detected, aborting transition: {transitionKey}");
                 return;

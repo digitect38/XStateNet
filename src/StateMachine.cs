@@ -89,8 +89,8 @@ public partial class StateMachine
     public ServiceMap? ServiceMap { set; get; }
     public DelayMap? DelayMap { set; get; }
 
-    public TransitionExecutor transitionExecutor { private set; get; }
-    public ServiceInvoker serviceInvoker { private set; get; }
+    public TransitionExecutor transitionExecutor { private set; get; } = null!;
+    public ServiceInvoker serviceInvoker { private set; get; } = null!;
     private EventQueue? _eventQueue;
     private StateMachineSync? _sync;
     private readonly object _stateLock = new object();
@@ -338,9 +338,12 @@ public partial class StateMachine
     /// <param name="eventName"></param>
     void Transit(string eventName)
     {
-        var transitionList = new List<(CompoundState state, Transition transition, string @event)>();
-
-        RootState?.BuildTransitionList(eventName, transitionList);
+        // Use pooled list to reduce allocations
+        var transitionList = PerformanceOptimizations.RentTransitionList();
+        
+        try
+        {
+            RootState?.BuildTransitionList(eventName, transitionList);
 
 
         //step 1:  build transition list
@@ -360,22 +363,35 @@ public partial class StateMachine
         // For transitions from the same state with the same event (like guarded transitions),
         // only execute the first matching one
         
-        var executedTransitions = new HashSet<(string?, string?)>();
-        
-        
-        foreach (var (state, transition, @event) in transitionList)
+        // Use pooled HashSet to reduce allocations
+        var executedTransitions = PerformanceOptimizations.RentTransitionHashSet();
+        try
         {
-            var key = (transition?.SourceName, @event);
-            
-            // Skip if we've already executed a transition from this state for this event
-            if (executedTransitions.Contains(key))
+            foreach (var (state, transition, @event) in transitionList)
             {
-                Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
-                continue;
+                var key = (transition?.SourceName, @event);
+                
+                // Skip if we've already executed a transition from this state for this event
+                if (executedTransitions.Contains(key))
+                {
+                    Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
+                    continue;
+                }
+                
+                transitionExecutor.Execute(transition, @event);
+                executedTransitions.Add(key);
             }
-            
-            transitionExecutor.Execute(transition, @event);
-            executedTransitions.Add(key);
+        }
+        finally
+        {
+            // Return the HashSet to the pool
+            PerformanceOptimizations.ReturnTransitionHashSet(executedTransitions);
+        }
+        }
+        finally
+        {
+            // Return the list to the pool for reuse
+            PerformanceOptimizations.ReturnTransitionList(transitionList);
         }
     }
 
@@ -418,13 +434,45 @@ public partial class StateMachine
         var target_cat = target_sup.Concat(target_sub);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_cat: {target_cat.ToCsvString(this, false, " -> ")}");
 
-        var source_exit = source_cat.Except(target_cat);    // exclude common ancestors from source
-        var target_entry = target_cat.Except(source_cat);   // exclude common ancestors from source
+        // Optimized with HashSet for O(1) lookups instead of O(n) LINQ Except
+        var targetSet = new HashSet<string>(target_cat);
+        var sourceSet = new HashSet<string>(source_cat);
+        
+        // Use pooled lists to reduce allocations
+        var source_exit = PerformanceOptimizations.RentStringList();
+        var target_entry = PerformanceOptimizations.RentStringList();
+        
+        try
+        {
+            // Build exit path - states in source but not in target
+            foreach (var state in source_cat)
+            {
+                if (!targetSet.Contains(state))
+                    source_exit.Add(state);
+            }
+            
+            // Build entry path - states in target but not in source
+            foreach (var state in target_cat)
+            {
+                if (!sourceSet.Contains(state))
+                    target_entry.Add(state);
+            }
 
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_exit: {source_exit.ToCsvString(this, false, " -> ")}");
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_entry: {target_entry.ToCsvString(this, false, " -> ")}");
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- source_exit: {source_exit.ToCsvString(this, false, " -> ")}");
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- target_entry: {target_entry.ToCsvString(this, false, " -> ")}");
 
-        return (source_exit.ToList(), target_entry.ToList());
+            // Create new lists to return (since we need to return ownership)
+            var exitResult = new List<string>(source_exit);
+            var entryResult = new List<string>(target_entry);
+            
+            return (exitResult, entryResult);
+        }
+        finally
+        {
+            // Return pooled lists
+            PerformanceOptimizations.ReturnStringList(source_exit);
+            PerformanceOptimizations.ReturnStringList(target_entry);
+        }
     }
 
     /// <summary>
@@ -535,9 +583,18 @@ public partial class StateMachine
     /// <returns></returns>
     public string GetActiveStateString(bool leafOnly = true, string separator = ";")
     {
-        List<string> strings = new();
-        RootState?.GetActiveSubStateNames(strings);
-        return strings.ToCsvString(this, leafOnly, separator);
+        // Use pooled list to reduce allocations
+        var strings = PerformanceOptimizations.RentStringList();
+        try
+        {
+            RootState?.GetActiveSubStateNames(strings);
+            return strings.ToCsvString(this, leafOnly, separator);
+        }
+        finally
+        {
+            // Return the list to the pool
+            PerformanceOptimizations.ReturnStringList(strings);
+        }
     }
 
     /// <summary>
@@ -623,13 +680,45 @@ public partial class StateMachine
             return (selfTransitionExitPath, selfTransitionEntryPath);
         }
         
-        var actualExitPath = fullExitPath.Except(fullEntryPath);    // top down
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
+        // Optimized with HashSet for O(1) lookups instead of O(n) LINQ Except
+        var fullEntrySet = new HashSet<string>(fullEntryPath);
+        var fullExitSet = new HashSet<string>(fullExitPath);
+        
+        // Use pooled lists to reduce allocations
+        var actualExitPath = PerformanceOptimizations.RentStringList();
+        var actualEntryPath = PerformanceOptimizations.RentStringList();
+        
+        try
+        {
+            // Build actual exit path - states to exit (in full exit path but not in full entry path)
+            foreach (var state in fullExitPath)
+            {
+                if (!fullEntrySet.Contains(state))
+                    actualExitPath.Add(state);
+            }
+            
+            // Build actual entry path - states to enter (in full entry path but not in full exit path)
+            foreach (var state in fullEntryPath)
+            {
+                if (!fullExitSet.Contains(state))
+                    actualEntryPath.Add(state);
+            }
+            
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
 
-        var actualEntryPath = fullEntryPath.Except(fullExitPath);   // top down
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
-
-        return (actualExitPath.ToList(), actualEntryPath.ToList());
+            // Create new lists to return (since we need to return ownership)
+            var exitResult = new List<string>(actualExitPath);
+            var entryResult = new List<string>(actualEntryPath);
+            
+            return (exitResult, entryResult);
+        }
+        finally
+        {
+            // Return pooled lists
+            PerformanceOptimizations.ReturnStringList(actualExitPath);
+            PerformanceOptimizations.ReturnStringList(actualEntryPath);
+        }
     }
 
     /// <summary>

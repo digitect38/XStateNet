@@ -9,11 +9,10 @@ namespace XStateNet;
 
 public abstract class RealState : StateNode
 {
-    bool onDone = false;
     public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
     public bool IsActive { set; get; }
 
-    public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; }
+    public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; } = new();
 
     public AfterTransition? AfterTransition { get; set; }   // Added for after transitions
     public AlwaysTransition? AlwaysTransition { get; set; } // Added for always transitions
@@ -63,10 +62,13 @@ public abstract class RealState : StateNode
                 catch (Exception ex)
                 {
                     // Store error context and rethrow
-                    StateMachine.ContextMap["_error"] = ex;
-                    StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                    StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                    StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    if (StateMachine?.ContextMap != null)
+                    {
+                        StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
+                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    }
                     throw;  // Rethrow to be handled at higher level
                 }
             }
@@ -101,15 +103,19 @@ public abstract class RealState : StateNode
                 {
                     try
                     {
-                        action.Action(StateMachine);
+                        if (StateMachine != null)
+                            action.Action(StateMachine);
                     }
                     catch (Exception ex)
                     {
                         // Store error context and rethrow for higher level handling
-                        StateMachine.ContextMap["_error"] = ex;
-                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        if (StateMachine?.ContextMap != null)
+                        {
+                            StateMachine.ContextMap["_error"] = ex;
+                            StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
+                            StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                            StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        }
                         throw;  // Rethrow to be handled by TransitDown
                     }
                 }
@@ -228,10 +234,13 @@ public abstract class CompoundState : RealState
                 catch (Exception ex)
                 {
                     // Store error context and rethrow
-                    StateMachine.ContextMap["_error"] = ex;
-                    StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                    StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                    StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    if (StateMachine?.ContextMap != null)
+                    {
+                        StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
+                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    }
                     throw;  // Rethrow to be handled at higher level
                 }
             }
@@ -268,15 +277,19 @@ public abstract class CompoundState : RealState
                 {
                     try
                     {
-                        action.Action(StateMachine);
+                        if (StateMachine != null)
+                            action.Action(StateMachine);
                     }
                     catch (Exception ex)
                     {
                         // Store error context and rethrow for higher level handling
-                        StateMachine.ContextMap["_error"] = ex;
-                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        if (StateMachine?.ContextMap != null)
+                        {
+                            StateMachine.ContextMap["_error"] = ex;
+                            StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
+                            StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
+                            StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                        }
                         throw;  // Rethrow to be handled by TransitDown
                     }
                 }
@@ -309,7 +322,8 @@ public abstract class CompoundState : RealState
         {
             if(StateMachine == null) throw new Exception("StateMachine is null");
             if(StateMachine.DelayMap == null) throw new Exception("DelayMap is null");
-            timer.Interval = StateMachine.DelayMap[AfterTransition?.Delay].DelayFunc.Invoke(StateMachine);
+            if (AfterTransition?.Delay != null)
+                timer.Interval = StateMachine.DelayMap[AfterTransition.Delay].DelayFunc.Invoke(StateMachine);
         }
 
         var now = DateTime.Now;
