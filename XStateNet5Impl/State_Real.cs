@@ -29,6 +29,19 @@ public abstract class RealState : StateNode
         : base(name, parentName, stateMachineId)
     {
     }
+    
+    /// <summary>
+    /// Clean up the after transition timer
+    /// </summary>
+    public void CleanupAfterTimer()
+    {
+        if (_afterTransitionTimer != null)
+        {
+            _afterTransitionTimer.Stop();
+            _afterTransitionTimer.Dispose();
+            _afterTransitionTimer = null;
+        }
+    }
 
     /// <summary>
     /// 
@@ -48,12 +61,7 @@ public abstract class RealState : StateNode
         }
         
         // Cancel any active after transition timer
-        if (_afterTransitionTimer != null)
-        {
-            _afterTransitionTimer.Stop();
-            _afterTransitionTimer.Dispose();
-            _afterTransitionTimer = null;
-        }
+        CleanupAfterTimer();
         
         // Cancel any active services for this state
         if (StateMachine != null && StateMachine.serviceInvoker != null && this is CompoundState compoundState)
@@ -218,6 +226,11 @@ public abstract class CompoundState : RealState
     public override Task ExitState(bool postAction = true, bool recursive = false)
     {
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
+        if (StateMachine == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} during ExitState");
+            return Task.CompletedTask;
+        }
 
         IsActive = false;
         IsDone = false; // for next time
@@ -228,12 +241,7 @@ public abstract class CompoundState : RealState
         }
         
         // Cancel any active after transition timer
-        if (_afterTransitionTimer != null)
-        {
-            _afterTransitionTimer.Stop();
-            _afterTransitionTimer.Dispose();
-            _afterTransitionTimer = null;
-        }
+        CleanupAfterTimer();
         
         // Cancel any active services for this state
         if (StateMachine != null && StateMachine.serviceInvoker != null)
@@ -275,6 +283,11 @@ public abstract class CompoundState : RealState
     public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
+        if (StateMachine == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} during EntryState");
+            return Task.CompletedTask;
+        }
 
         IsDone = false;
 
@@ -393,7 +406,13 @@ public abstract class CompoundState : RealState
 
     public virtual void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
-        if(StateMachine == null) throw new Exception("StateMachine is null");
+        // Defensive null check with more context
+        if(StateMachine == null) 
+        {
+            // Don't throw during cleanup or disposal
+            System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} when processing event {eventName}");
+            return;
+        }
 
         //StateMachine.Log(">>>- State.Real.BuildTransitionList: " + Name);
         // self second

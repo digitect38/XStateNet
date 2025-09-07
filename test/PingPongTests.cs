@@ -22,22 +22,22 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Create Ping machine that sends to Pong after a delay
         var pingJson = @"{
-            ""id"": ""ping"",
-            ""initial"": ""waitingToServe"",
-            ""states"": {
-                ""waitingToServe"": {
-                    ""after"": {
-                        ""500"": {
-                            ""target"": ""served"",
-                            ""actions"": [""serveToPong""]
+            'id': 'ping',
+            'initial': 'waitingToServe',
+            'states': {
+                'waitingToServe': {
+                    'after': {
+                        '500': {
+                            'target': 'served',
+                            'actions': ['serveToPong']
                         }
                     }
                 },
-                ""served"": {
-                    ""on"": {
-                        ""RETURN"": {
-                            ""target"": ""waitingToServe"",
-                            ""actions"": [""logReturn""]
+                'served': {
+                    'on': {
+                        'RETURN': {
+                            'target': 'waitingToServe',
+                            'actions': ['logReturn']
                         }
                     }
                 }
@@ -46,22 +46,22 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Create Pong machine that returns to Ping after receiving
         var pongJson = @"{
-            ""id"": ""pong"",
-            ""initial"": ""waitingForServe"",
-            ""states"": {
-                ""waitingForServe"": {
-                    ""on"": {
-                        ""SERVE"": {
-                            ""target"": ""returning"",
-                            ""actions"": [""logReceive""]
+            'id': 'pong',
+            'initial': 'waitingForServe',
+            'states': {
+                'waitingForServe': {
+                    'on': {
+                        'SERVE': {
+                            'target': 'returning',
+                            'actions': ['logReceive']
                         }
                     }
                 },
-                ""returning"": {
-                    ""after"": {
-                        ""300"": {
-                            ""target"": ""waitingForServe"",
-                            ""actions"": [""returnToPing""]
+                'returning': {
+                    'after': {
+                        '300': {
+                            'target': 'waitingForServe',
+                            'actions': ['returnToPing']
                         }
                     }
                 }
@@ -144,38 +144,38 @@ public class PingPongTests : XStateNet.Tests.TestBase
         StateMachine? pongMachine = null;
         
         var pingJson = @"{
-            ""id"": ""pingPlayer"",
-            ""initial"": ""serving"",
-            ""states"": {
-                ""serving"": {
-                    ""after"": {
-                        ""200"": {
-                            ""target"": ""playing"",
-                            ""actions"": [""serve""]
+            'id': 'pingPlayer',
+            'initial': 'serving',
+            'states': {
+                'serving': {
+                    'after': {
+                        '200': {
+                            'target': 'playing',
+                            'actions': ['serve']
                         }
                     }
                 },
-                ""playing"": {
-                    ""on"": {
-                        ""BALL"": [
+                'playing': {
+                    'on': {
+                        'BALL': [
                             {
-                                ""target"": ""playing"",
-                                ""actions"": [""hitBack""],
-                                ""cond"": ""canReturn""
+                                'target': 'playing',
+                                'actions': ['hitBack'],
+                                'cond': 'canReturn'
                             },
                             {
-                                ""target"": ""missed"",
-                                ""actions"": [""missedBall""]
+                                'target': 'missed',
+                                'actions': ['missedBall']
                             }
                         ],
-                        ""POINT_WON"": ""serving""
+                        'POINT_WON': 'serving'
                     }
                 },
-                ""missed"": {
-                    ""after"": {
-                        ""100"": {
-                            ""target"": ""serving"",
-                            ""actions"": [""resetRally""]
+                'missed': {
+                    'after': {
+                        '100': {
+                            'target': 'serving',
+                            'actions': ['resetRally']
                         }
                     }
                 }
@@ -183,36 +183,36 @@ public class PingPongTests : XStateNet.Tests.TestBase
         }";
         
         var pongJson = @"{
-            ""id"": ""pongPlayer"",
-            ""initial"": ""receiving"",
-            ""states"": {
-                ""receiving"": {
-                    ""on"": {
-                        ""BALL"": [
+            'id': 'pongPlayer',
+            'initial': 'receiving',
+            'states': {
+                'receiving': {
+                    'on': {
+                        'BALL': [
                             {
-                                ""target"": ""returning"",
-                                ""actions"": [""hitBack""],
-                                ""cond"": ""canReturn""
+                                'target': 'returning',
+                                'actions': ['hitBack'],
+                                'cond': 'canReturn'
                             },
                             {
-                                ""target"": ""missed"",
-                                ""actions"": [""missedBall""]
+                                'target': 'missed',
+                                'actions': ['missedBall']
                             }
                         ]
                     }
                 },
-                ""returning"": {
-                    ""after"": {
-                        ""150"": {
-                            ""target"": ""receiving""
+                'returning': {
+                    'after': {
+                        '150': {
+                            'target': 'receiving'
                         }
                     }
                 },
-                ""missed"": {
-                    ""after"": {
-                        ""100"": {
-                            ""target"": ""receiving"",
-                            ""actions"": [""resetRally""]
+                'missed': {
+                    'after': {
+                        '100': {
+                            'target': 'receiving',
+                            'actions': ['resetRally']
                         }
                     }
                 }
@@ -322,23 +322,23 @@ public class PingPongTests : XStateNet.Tests.TestBase
         StateMachine? pong2 = null;
         
         var simplePingPongJson = @"{
-            ""id"": ""player"",
-            ""initial"": ""ready"",
-            ""states"": {
-                ""ready"": {
-                    ""on"": {
-                        ""START"": ""playing"",
-                        ""BALL"": {
-                            ""target"": ""playing"",
-                            ""actions"": [""hit""]
+            'id': 'player',
+            'initial': 'ready',
+            'states': {
+                'ready': {
+                    'on': {
+                        'START': 'playing',
+                        'BALL': {
+                            'target': 'playing',
+                            'actions': ['hit']
                         }
                     }
                 },
-                ""playing"": {
-                    ""on"": {
-                        ""BALL"": {
-                            ""target"": ""playing"",
-                            ""actions"": [""hit""]
+                'playing': {
+                    'on': {
+                        'BALL': {
+                            'target': 'playing',
+                            'actions': ['hit']
                         }
                     }
                 }
@@ -397,17 +397,17 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Create machines
         ping1 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("\"id\": \"player\"", "\"id\": \"ping1\""), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping1'"), 
             ping1Actions);
         pong1 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("\"id\": \"player\"", "\"id\": \"pong1\""), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong1'"), 
             pong1Actions);
         
         ping2 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("\"id\": \"player\"", "\"id\": \"ping2\""), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping2'"), 
             ping2Actions);
         pong2 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("\"id\": \"player\"", "\"id\": \"pong2\""), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong2'"), 
             pong2Actions);
         
         // Start all machines

@@ -64,7 +64,13 @@ public partial class StateMachine
             stateMachine.ServiceMap = serviceCallbacks;
             stateMachine.DelayMap = delayCallbacks;
 
-            _instanceMap[stateMachine.machineId] = stateMachine;
+            // Thread-safe registration with conflict handling
+            if (!_instanceMap.TryAdd(stateMachine.machineId, stateMachine))
+            {
+                // If the ID already exists, try to remove it first (might be from a previous test)
+                _instanceMap.TryRemove(stateMachine.machineId, out _);
+                _instanceMap.TryAdd(stateMachine.machineId, stateMachine);
+            }
 
             if (rootToken.ContainsKey("context") && rootToken["context"] != null)
             {

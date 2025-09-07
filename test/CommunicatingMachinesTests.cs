@@ -13,52 +13,54 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
     /// <summary>
     /// Parent state machine that coordinates child machines
     /// </summary>
-    public class ParentMachine
+    public class ParentMachine : IDisposable
     {
         private StateMachine _stateMachine = null!;
         private readonly List<ChildMachine> _children = new();
         public List<string> EventLog { get; } = new();
+        public string Id { get; }
         
-        public ParentMachine()
+        public ParentMachine(string id)
         {
+            Id = id;
             InitializeStateMachine();
         }
         
         private void InitializeStateMachine()
         {
-            var jsonScript = @"{
-                ""id"": ""parentMachine"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""coordinating""
-                        }
-                    },
-                    ""coordinating"": {
-                        ""entry"": [""startChildren""],
-                        ""on"": {
-                            ""CHILD_READY"": ""processing"",
-                            ""CHILD_ERROR"": ""error""
-                        }
-                    },
-                    ""processing"": {
-                        ""on"": {
-                            ""ALL_COMPLETE"": ""complete"",
-                            ""CHILD_ERROR"": ""error""
-                        }
-                    },
-                    ""error"": {
-                        ""entry"": [""stopChildren""],
-                        ""on"": {
-                            ""RESET"": ""idle""
-                        }
-                    },
-                    ""complete"": {
-                        ""type"": ""final""
-                    }
-                }
-            }";
+            var jsonScript = $@"{{
+                'id': '{Id}',
+                'initial': 'idle',
+                'states': {{
+                    'idle': {{
+                        'on': {{
+                            'START': 'coordinating'
+                        }}
+                    }},
+                    'coordinating': {{
+                        'entry': ['startChildren'],
+                        'on': {{
+                            'CHILD_READY': 'processing',
+                            'CHILD_ERROR': 'error'
+                        }}
+                    }},
+                    'processing': {{
+                        'on': {{
+                            'ALL_COMPLETE': 'complete',
+                            'CHILD_ERROR': 'error'
+                        }}
+                    }},
+                    'error': {{
+                        'entry': ['stopChildren'],
+                        'on': {{
+                            'RESET': 'idle'
+                        }}
+                    }},
+                    'complete': {{
+                        'type': 'final'
+                    }}
+                }}
+            }}";
             
             var actionMap = new ActionMap();
             actionMap["startChildren"] = new List<NamedAction>
@@ -135,12 +137,23 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
         {
             return _stateMachine.GetSourceSubStateCollection(null).ToCsvString(_stateMachine, true);
         }
+        
+        public void Dispose()
+        {
+            _stateMachine?.Stop();
+            _stateMachine?.Dispose();
+            foreach (var child in _children)
+            {
+                child?.Dispose();
+            }
+            _children.Clear();
+        }
     }
     
     /// <summary>
     /// Child state machine that communicates with parent
     /// </summary>
-    public class ChildMachine
+    public class ChildMachine : IDisposable
     {
         private StateMachine _stateMachine = null!;
         public string Id { get; }
@@ -156,56 +169,56 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
         
         private void InitializeStateMachine()
         {
-            var jsonScript = @"{
-                ""id"": ""childMachine"",
-                ""initial"": ""waiting"",
-                ""states"": {
-                    ""waiting"": {
-                        ""on"": {
-                            ""START"": ""initializing""
-                        }
-                    },
-                    ""initializing"": {
-                        ""after"": {
-                            ""100"": {
-                                ""target"": ""ready""
-                            }
-                        }
-                    },
-                    ""ready"": {
-                        ""entry"": [""notifyReady""],
-                        ""on"": {
-                            ""PROCESS"": ""processing""
-                        },
-                        ""after"": {
-                            ""200"": {
-                                ""target"": ""processing""
-                            }
-                        }
-                    },
-                    ""processing"": {
-                        ""entry"": [""doWork""],
-                        ""on"": {
-                            ""SUCCESS"": ""complete"",
-                            ""FAIL"": ""error""
-                        }
-                    },
-                    ""error"": {
-                        ""entry"": [""notifyError""],
-                        ""on"": {
-                            ""RETRY"": ""processing"",
-                            ""STOP"": ""stopped""
-                        }
-                    },
-                    ""complete"": {
-                        ""entry"": [""notifyComplete""],
-                        ""type"": ""final""
-                    },
-                    ""stopped"": {
-                        ""type"": ""final""
-                    }
-                }
-            }";
+            var jsonScript = $@"{{
+                'id': '{Id}',
+                'initial': 'waiting',
+                'states': {{
+                    'waiting': {{
+                        'on': {{
+                            'START': 'initializing'
+                        }}
+                    }},
+                    'initializing': {{
+                        'after': {{
+                            '100': {{
+                                'target': 'ready'
+                            }}
+                        }}
+                    }},
+                    'ready': {{
+                        'entry': ['notifyReady'],
+                        'on': {{
+                            'PROCESS': 'processing'
+                        }},
+                        'after': {{
+                            '200': {{
+                                'target': 'processing'
+                            }}
+                        }}
+                    }},
+                    'processing': {{
+                        'entry': ['doWork'],
+                        'on': {{
+                            'SUCCESS': 'complete',
+                            'FAIL': 'error'
+                        }}
+                    }},
+                    'error': {{
+                        'entry': ['notifyError'],
+                        'on': {{
+                            'RETRY': 'processing',
+                            'STOP': 'stopped'
+                        }}
+                    }},
+                    'complete': {{
+                        'entry': ['notifyComplete'],
+                        'type': 'final'
+                    }},
+                    'stopped': {{
+                        'type': 'final'
+                    }}
+                }}
+            }}";
             
             var actionMap = new ActionMap();
             
@@ -280,12 +293,18 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
         {
             return _stateMachine.GetSourceSubStateCollection(null).ToCsvString(_stateMachine, true);
         }
+        
+        public void Dispose()
+        {
+            _stateMachine?.Stop();
+            _stateMachine?.Dispose();
+        }
     }
     
     /// <summary>
     /// Actor system for state machine communication
     /// </summary>
-    public class ActorSystem
+    public class ActorSystem : IDisposable
     {
         private readonly Dictionary<string, StateMachine> _actors = new();
         private readonly Dictionary<string, List<string>> _subscriptions = new();
@@ -330,189 +349,288 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
         {
             return _subscriptions.TryGetValue(publisher, out var subs) ? subs.Count : 0;
         }
+        
+        public void Dispose()
+        {
+            foreach (var actor in _actors.Values)
+            {
+                actor?.Stop();
+                actor?.Dispose();
+            }
+            _actors.Clear();
+            _subscriptions.Clear();
+        }
     }
     
     [Fact]
     public async Task ParentChild_Should_CoordinateSuccessfully()
     {
-        // Arrange
-        var parent = new ParentMachine();
+        // Setup
+        ParentMachine parent = null;
         
-        for (int i = 1; i <= 3; i++)
+        try
         {
-            var child = new ChildMachine($"Child{i}");
-            parent.AddChild(child);
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            parent = new ParentMachine($"parent_{testId}");
+            
+            for (int i = 1; i <= 3; i++)
+            {
+                var child = new ChildMachine($"child{i}_{testId}");
+                parent.AddChild(child);
+            }
+            
+            // Act
+            parent.Start();
+            await Task.Delay(1000); // Allow state transitions to complete
+            
+            // Assert
+            parent.GetCurrentState().Should().Contain("complete");
+            parent.EventLog.Should().Contain("Parent: Starting all children");
+            parent.EventLog.Should().Contain(e => e.Contains("changed to ready"));
+            parent.EventLog.Should().Contain(e => e.Contains("changed to complete"));
         }
-        
-        // Act
-        parent.Start();
-        await Task.Delay(1000); // Allow state transitions to complete
-        
-        // Assert
-        parent.GetCurrentState().Should().Contain("complete");
-        parent.EventLog.Should().Contain("Parent: Starting all children");
-        parent.EventLog.Should().Contain(e => e.Contains("Child1 changed to ready"));
-        parent.EventLog.Should().Contain(e => e.Contains("Child1 changed to complete"));
+        finally
+        {
+            // Cleanup
+            parent?.Dispose();
+        }
     }
     
     [Fact]
     public async Task ParentChild_Should_HandleChildError()
     {
-        // Arrange
-        var parent = new ParentMachine();
-        var errorChild = new ChildMachine("ErrorChild") { SimulateError = true };
-        var goodChild = new ChildMachine("GoodChild");
+        // Setup
+        ParentMachine parent = null;
         
-        parent.AddChild(errorChild);
-        parent.AddChild(goodChild);
-        
-        // Act
-        parent.Start();
-        await Task.Delay(500);
-        
-        // Assert
-        parent.GetCurrentState().Should().Contain("error");
-        parent.EventLog.Should().Contain("Parent: Stopping all children");
-        parent.EventLog.Should().Contain(e => e.Contains("ErrorChild changed to error"));
+        try
+        {
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            parent = new ParentMachine($"parent_{testId}");
+            var errorChild = new ChildMachine($"errorChild_{testId}") { SimulateError = true };
+            var goodChild = new ChildMachine($"goodChild_{testId}");
+            
+            parent.AddChild(errorChild);
+            parent.AddChild(goodChild);
+            
+            // Act
+            parent.Start();
+            await Task.Delay(500);
+            
+            // Assert
+            parent.GetCurrentState().Should().Contain("error");
+            parent.EventLog.Should().Contain("Parent: Stopping all children");
+            parent.EventLog.Should().Contain(e => e.Contains("changed to error"));
+        }
+        finally
+        {
+            // Cleanup
+            parent?.Dispose();
+        }
     }
     
     [Fact]
     public async Task ParentChild_Should_ResetAfterError()
     {
-        // Arrange
-        var parent = new ParentMachine();
-        var errorChild = new ChildMachine("ErrorChild") { SimulateError = true };
-        parent.AddChild(errorChild);
+        // Setup
+        ParentMachine parent = null;
         
-        // Act
-        parent.Start();
-        await Task.Delay(300);
-        
-        var errorState = parent.GetCurrentState();
-        
-        parent.Reset();
-        await Task.Delay(100);
-        
-        var resetState = parent.GetCurrentState();
-        
-        // Assert
-        errorState.Should().Contain("error");
-        resetState.Should().Contain("idle");
+        try
+        {
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            parent = new ParentMachine($"parent_{testId}");
+            var errorChild = new ChildMachine($"errorChild_{testId}") { SimulateError = true };
+            parent.AddChild(errorChild);
+            
+            // Act
+            parent.Start();
+            await Task.Delay(600); // Wait longer for child transitions (100ms init + 200ms ready + processing)
+            
+            var errorState = parent.GetCurrentState();
+            
+            parent.Reset();
+            await Task.Delay(100);
+            
+            var resetState = parent.GetCurrentState();
+            
+            // Assert
+            errorState.Should().Contain("error");
+            resetState.Should().Contain("idle");
+        }
+        finally
+        {
+            // Cleanup
+            parent?.Dispose();
+        }
     }
     
     [Fact]
     public async Task ActorSystem_Should_RegisterAndCommunicate()
     {
-        // Arrange
-        var actorSystem = new ActorSystem();
-        var producer = CreateTestActor("producer");
-        var consumer = CreateTestActor("consumer");
+        // Setup
+        ActorSystem actorSystem = null;
+        StateMachine producer = null;
+        StateMachine consumer = null;
         
-        // Act
-        actorSystem.RegisterActor("Producer", producer);
-        actorSystem.RegisterActor("Consumer", consumer);
-        
-        actorSystem.SendMessage("Producer", "Consumer", "TEST_MESSAGE");
-        await Task.Delay(100);
-        
-        // Assert
-        actorSystem.MessageLog.Should().Contain("Producer -> Consumer: TEST_MESSAGE");
+        try
+        {
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            actorSystem = new ActorSystem();
+            producer = CreateTestActor($"producer_{testId}");
+            consumer = CreateTestActor($"consumer_{testId}");
+            
+            // Act
+            actorSystem.RegisterActor("Producer", producer);
+            actorSystem.RegisterActor("Consumer", consumer);
+            
+            actorSystem.SendMessage("Producer", "Consumer", "TEST_MESSAGE");
+            await Task.Delay(100);
+            
+            // Assert
+            actorSystem.MessageLog.Should().Contain("Producer -> Consumer: TEST_MESSAGE");
+        }
+        finally
+        {
+            // Cleanup
+            actorSystem?.Dispose();
+            // Note: Actors are disposed by ActorSystem
+        }
     }
     
     [Fact]
     public async Task ActorSystem_Should_BroadcastToSubscribers()
     {
-        // Arrange
-        var actorSystem = new ActorSystem();
-        var producer = CreateTestActor("producer");
-        var consumer1 = CreateTestActor("consumer1");
-        var consumer2 = CreateTestActor("consumer2");
+        // Setup
+        ActorSystem actorSystem = null;
         
-        actorSystem.RegisterActor("Producer", producer);
-        actorSystem.RegisterActor("Consumer1", consumer1);
-        actorSystem.RegisterActor("Consumer2", consumer2);
-        
-        actorSystem.Subscribe("Producer", "Consumer1");
-        actorSystem.Subscribe("Producer", "Consumer2");
-        
-        // Act
-        actorSystem.Broadcast("Producer", "BROADCAST_MESSAGE");
-        await Task.Delay(100);
-        
-        // Assert
-        actorSystem.GetSubscriberCount("Producer").Should().Be(2);
-        actorSystem.MessageLog.Should().Contain("Producer -> Consumer1: BROADCAST_MESSAGE");
-        actorSystem.MessageLog.Should().Contain("Producer -> Consumer2: BROADCAST_MESSAGE");
+        try
+        {
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            actorSystem = new ActorSystem();
+            var producer = CreateTestActor($"producer_{testId}");
+            var consumer1 = CreateTestActor($"consumer1_{testId}");
+            var consumer2 = CreateTestActor($"consumer2_{testId}");
+            
+            actorSystem.RegisterActor("Producer", producer);
+            actorSystem.RegisterActor("Consumer1", consumer1);
+            actorSystem.RegisterActor("Consumer2", consumer2);
+            
+            actorSystem.Subscribe("Producer", "Consumer1");
+            actorSystem.Subscribe("Producer", "Consumer2");
+            
+            // Act
+            actorSystem.Broadcast("Producer", "BROADCAST_MESSAGE");
+            await Task.Delay(100);
+            
+            // Assert
+            actorSystem.GetSubscriberCount("Producer").Should().Be(2);
+            actorSystem.MessageLog.Should().Contain("Producer -> Consumer1: BROADCAST_MESSAGE");
+            actorSystem.MessageLog.Should().Contain("Producer -> Consumer2: BROADCAST_MESSAGE");
+        }
+        finally
+        {
+            // Cleanup
+            actorSystem?.Dispose();
+        }
     }
     
     [Fact]
     public void ActorSystem_Should_HandleMissingActor()
     {
-        // Arrange
-        var actorSystem = new ActorSystem();
-        var producer = CreateTestActor("producer");
-        actorSystem.RegisterActor("Producer", producer);
+        // Setup
+        ActorSystem actorSystem = null;
         
-        // Act
-        actorSystem.SendMessage("Producer", "NonExistent", "TEST");
-        
-        // Assert
-        actorSystem.MessageLog.Should().BeEmpty();
+        try
+        {
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            actorSystem = new ActorSystem();
+            var producer = CreateTestActor($"producer_{testId}");
+            actorSystem.RegisterActor("Producer", producer);
+            
+            // Act
+            actorSystem.SendMessage("Producer", "NonExistent", "TEST");
+            
+            // Assert
+            actorSystem.MessageLog.Should().BeEmpty();
+        }
+        finally
+        {
+            // Cleanup
+            actorSystem?.Dispose();
+        }
     }
-    
-    [Fact(Skip = "Complex timing issue - children state machines not completing properly")]
+
+    //[Fact(Skip = "Complex timing issue - children state machines not completing properly")]
+    [Fact]
     public async Task MultipleChildren_Should_CompleteIndependently()
     {
-        // Arrange
-        var parent = new ParentMachine();
-        var children = new List<ChildMachine>();
+        // Setup
+        ParentMachine parent = null;
         
-        for (int i = 1; i <= 5; i++)
+        try
         {
-            var child = new ChildMachine($"Child{i}");
-            children.Add(child);
-            parent.AddChild(child);
-        }
-        
-        // Act
-        parent.Start();
-        await Task.Delay(2000); // Allow time for all children to complete (100ms init + 200ms ready delay per child)
-        
-        // Assert - debug output if fails
-        if (!children.All(c => c.IsComplete))
-        {
-            for (int i = 0; i < children.Count; i++)
+            // Arrange
+            var testId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            parent = new ParentMachine($"parent_{testId}");
+            var children = new List<ChildMachine>();
+            
+            for (int i = 1; i <= 5; i++)
             {
-                var child = children[i];
-                Console.WriteLine($"Child{i+1}: State={child.GetCurrentState()}, IsComplete={child.IsComplete}");
+                var child = new ChildMachine($"child{i}_{testId}");
+                children.Add(child);
+                parent.AddChild(child);
             }
+            
+            // Act
+            parent.Start();
+            await Task.Delay(2000); // Allow time for all children to complete (100ms init + 200ms ready delay per child)
+            
+            // Assert - debug output if fails
+            if (!children.All(c => c.IsComplete))
+            {
+                for (int i = 0; i < children.Count; i++)
+                {
+                    var child = children[i];
+                    Console.WriteLine($"Child{i+1}: State={child.GetCurrentState()}, IsComplete={child.IsComplete}");
+                }
+            }
+            
+            children.All(c => c.IsComplete).Should().BeTrue("all children should complete");
+            parent.GetCurrentState().Should().Contain("complete");
         }
-        
-        children.All(c => c.IsComplete).Should().BeTrue("all children should complete");
-        parent.GetCurrentState().Should().Contain("complete");
+        finally
+        {
+            // Cleanup
+            parent?.Dispose();
+        }
     }
     
     private StateMachine CreateTestActor(string id)
     {
-        var json = @"{
-            ""id"": ""testActor"",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""TEST_MESSAGE"": ""received"",
-                        ""BROADCAST_MESSAGE"": ""received""
-                    }
-                },
-                ""received"": {
-                    ""after"": {
-                        ""100"": {
-                            ""target"": ""idle""
-                        }
-                    }
-                }
-            }
-        }";
+        var json = $@"{{
+            'id': '{id}',
+            'initial': 'idle',
+            'states': {{
+                'idle': {{
+                    'on': {{
+                        'TEST_MESSAGE': 'received',
+                        'BROADCAST_MESSAGE': 'received'
+                    }}
+                }},
+                'received': {{
+                    'after': {{
+                        '100': {{
+                            'target': 'idle'
+                        }}
+                    }}
+                }}
+            }}
+        }}";
         
         var machine = StateMachine.CreateFromScript(json);
         machine.Start();

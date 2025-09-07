@@ -9,7 +9,7 @@ namespace DelaysTest
 {
     public class SimpleStateMachineTests : XStateNet.Tests.TestBase
     {
-        private StateMachine _stateMachine;
+        private StateMachine? _stateMachine;
         private List<string> _transitionLog;
 
         public SimpleStateMachineTests()
@@ -17,22 +17,23 @@ namespace DelaysTest
             _transitionLog = new List<string>();
 
             // The script provided in the original question
-            string script = @"
-            {
-                'id' : 'machine1',
+            var machineId = UniqueMachineId("machine1");
+            string script = $@"
+            {{
+                'id' : '{machineId}',
                 'initial': 'a',
-                'states': {
-                    'a': {
-                        'after': {
-                            'delay1234': {
+                'states': {{
+                    'a': {{
+                        'after': {{
+                            'delay1234' : {{
                                 'target': 'b',
                                 'actions' : ['transAction']
-                            }
-                        },
-                    },
-                    'b':{}  
-                }
-            }";
+                            }}
+                        }},
+                    }},
+                    'b':{{}}  
+                }}
+            }}";
 
             // Parse the script and create the state machine
 
@@ -58,7 +59,14 @@ namespace DelaysTest
         }
 
         
-        // Dispose method removed - handled by TestBase
+        // Override Dispose to clean up test-specific resources
+        public new void Dispose()
+        {
+            _stateMachine?.Stop();
+            _stateMachine?.Dispose();
+            _stateMachine = null;
+            base.Dispose();
+        }
 
         private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
         {
@@ -68,21 +76,31 @@ namespace DelaysTest
         [Fact]
         public async Task StateMachine_Transitions_From_A_To_B_After_Timeout()
         {
-            // Initially, the state machine should be in state 'a'
-            var activeState = _stateMachine!.GetActiveStateString();
-            _stateMachine.GetActiveStateString().Should().Be("#machine1.a");
+            try
+            {
+                var machineId = UniqueMachineId("machine1");
+                
+                // Initially, the state machine should be in state 'a'
+                var activeState = _stateMachine!.GetActiveStateString();
+                _stateMachine.GetActiveStateString().Should().Be($"#{machineId}.a");
             
-            // Wait for the timeout to trigger the transition
-            await Task.Delay(1500);
+                // Wait for the timeout to trigger the transition
+                await Task.Delay(1500);
 
-            // The state machine should now be in state 'b'
-            _stateMachine.GetActiveStateString().Should().Be("#machine1.b");
+                // The state machine should now be in state 'b'
+                _stateMachine.GetActiveStateString().Should().Be($"#{machineId}.b");
 
-            // Check that the transition action was executed
-            _transitionLog.Should().Contain("transitionAction executed");
+                // Check that the transition action was executed
+                _transitionLog.Should().Contain("transitionAction executed");
 
-            // Check the transition log
-            _transitionLog.Should().Contain("Transitioned from #machine1.a to #machine1.b on event after: 1234");
+                // Check the transition log
+                _transitionLog.Should().Contain($"Transitioned from #{machineId}.a to #{machineId}.b on event after: 1234");
+            }
+            finally
+            {
+                _stateMachine?.Stop();
+                _stateMachine?.Dispose();
+            }
         }
     }
 }

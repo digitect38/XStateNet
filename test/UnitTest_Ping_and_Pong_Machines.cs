@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AdvancedFeatures
 {
-    public class InterMachinePingPongStateMachinesTests : XStateNet.Tests.TestBase
+    public class InterMachinePingPongStateMachinesTests : XStateNet.Tests.TestBase, IDisposable
     {
         private StateMachine _pingStateMachine;
         private StateMachine _pongStateMachine;
@@ -20,6 +20,10 @@ namespace AdvancedFeatures
         private GuardMap _pongGuards;
 
         private List<string> _transitionLog;
+        
+        // Store unique IDs for this test instance
+        private string _pingId;
+        private string _pongId;
 
         void Send(StateMachine sm)
         {
@@ -29,29 +33,42 @@ namespace AdvancedFeatures
         
         public InterMachinePingPongStateMachinesTests()
         {
-            _transitionLog = new();
+            // Constructor should be minimal - actual setup happens in SetupTest()
+        }
 
+        
+        /// <summary>
+        /// Setup method to be called at the beginning of each test
+        /// </summary>
+        private void SetupTest()
+        {
+            // Initialize fresh state for this test
+            _transitionLog = new List<string>();
 
-            // Load state machines from JSON
-            var pingJson = PingPongStateMachine.PingStateMachineScript;
-            var pongJson = PingPongStateMachine.PongStateMachineScript;
+            // Create unique IDs for this test instance
+            _pingId = UniqueMachineId("ping");
+            _pongId = UniqueMachineId("pong");
+
+            // Load state machines from JSON with unique IDs
+            var pingJson = PingPongStateMachine.GetPingStateMachineScript(_pingId);
+            var pongJson = PingPongStateMachine.GetPongStateMachineScript(_pongId);
 
             _pingStateMachine = new StateMachine();
             _pongStateMachine = new StateMachine();
 
             // Ping actions
-            _pingActions = new ActionMap()//new ConcurrentDictionary<string, List<NamedAction>>
+            _pingActions = new ActionMap()
             {
                 ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", (sm) => _pongStateMachine.Send("to_b")) }
             };
-            _pingGuards = new();
+            _pingGuards = new GuardMap();
 
             // Pong actions
-            _pongActions = new ActionMap //ConcurrentDictionary<string, List<NamedAction>>
+            _pongActions = new ActionMap()
             {
                 ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", (sm) => _pingStateMachine.Send("to_a")) }
             };
-            _pongGuards = new GuardMap(); // ConcurrentDictionary<string, NamedGuard>();
+            _pongGuards = new GuardMap();
 
             StateMachine.CreateFromScript(_pingStateMachine, pingJson, _pingActions, _pingGuards);
             StateMachine.CreateFromScript(_pongStateMachine, pongJson, _pongActions, _pongGuards);
@@ -66,16 +83,48 @@ namespace AdvancedFeatures
             _pingStateMachine.OnTransition += LogTransition;
             _pongStateMachine.OnTransition += LogTransition;
 
+            // Start the state machines
             _pingStateMachine.Start();
             _pongStateMachine.Start();
         }
-
         
-        // Dispose handled by TestBase - just remove event handlers
-        protected new void Dispose()
+        /// <summary>
+        /// Cleanup method to be called at the end of each test
+        /// </summary>
+        private void CleanupTest()
         {
-            _pingStateMachine.OnTransition -= LogTransition;
-            _pongStateMachine.OnTransition -= LogTransition;
+            // Unsubscribe from events
+            if (_pingStateMachine != null)
+            {
+                _pingStateMachine.OnTransition -= LogTransition;
+                _pingStateMachine.Stop();
+                _pingStateMachine.Dispose();
+                _pingStateMachine = null;
+            }
+            
+            if (_pongStateMachine != null)
+            {
+                _pongStateMachine.OnTransition -= LogTransition;
+                _pongStateMachine.Stop();
+                _pongStateMachine.Dispose();
+                _pongStateMachine = null;
+            }
+            
+            // Clear any remaining references
+            _transitionLog?.Clear();
+            _transitionLog = null;
+            _pingActions = null;
+            _pongActions = null;
+            _pingGuards = null;
+            _pongGuards = null;
+            _pingId = null;
+            _pongId = null;
+        }
+        
+        // IDisposable implementation
+        public new void Dispose()
+        {
+            CleanupTest();
             base.Dispose();
         }
         private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
@@ -86,24 +135,29 @@ namespace AdvancedFeatures
         [Fact]
         public async Task TestPingPongStateMachines()
         {
-            // Initially, both state machines should be in state 'a'
-            _pingStateMachine.GetActiveStateString().Should().Be("#ping.a");
-            _pongStateMachine.GetActiveStateString().Should().Be("#pong.a");
+            // Setup test environment
+            SetupTest();
+            
+            try
+            {
+                // Initially, both state machines should be in state 'a'
+            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.a");
+            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.a");
 
             // Wait for the ping to send the 'to_b' event to pong
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be("#ping.b");
-            _pongStateMachine.GetActiveStateString().Should().Be("#pong.b");
+            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.b");
+            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.b");
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be("#ping.a");
-            _pongStateMachine.GetActiveStateString().Should().Be("#pong.a");
+            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.a");
+            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.a");
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be("#ping.b");
-            _pongStateMachine.GetActiveStateString().Should().Be("#pong.b");
+            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.b");
+            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.b");
 
             // Check transition log
             foreach (var log in _transitionLog)
@@ -114,64 +168,70 @@ namespace AdvancedFeatures
             _transitionLog.Count.Should().Be(6);
 
 
-            _transitionLog[0].Should().Be("Transitioned from #ping.a to #ping.b on event after: 1000");
-            _transitionLog[1].Should().Be("Transitioned from #pong.a to #pong.b on event to_b");
+            _transitionLog[0].Should().Be($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000");
+            _transitionLog[1].Should().Be($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b");
 
-            _transitionLog[2].Should().Be("Transitioned from #pong.b to #pong.a on event after: 1000");
-            _transitionLog[3].Should().Be("Transitioned from #ping.b to #ping.a on event to_a");
+            _transitionLog[2].Should().Be($"Transitioned from #{_pongId}.b to #{_pongId}.a on event after: 1000");
+            _transitionLog[3].Should().Be($"Transitioned from #{_pingId}.b to #{_pingId}.a on event to_a");
 
-            _transitionLog[4].Should().Be("Transitioned from #ping.a to #ping.b on event after: 1000");
-            _transitionLog[5].Should().Be("Transitioned from #pong.a to #pong.b on event to_b");
+                _transitionLog[4].Should().Be($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000");
+                _transitionLog[5].Should().Be($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b");
+            }
+            finally
+            {
+                // Always cleanup, even if test fails
+                CleanupTest();
+            }
         }
 
 
         public static class PingPongStateMachine
         {
-            public static string PingStateMachineScript => @"
-            {
-                'id': 'ping',
+            public static string GetPingStateMachineScript(string id) => $@"
+            {{
+                'id': '{id}',
                 'initial': 'a',
-                'states': {
-                    'a': {
-                        'after': {
-                            '1000': {
+                'states': {{
+                    'a': {{
+                        'after': {{
+                            '1000': {{
                                 'target': 'b',
                                 'actions': ['sendToPongToB']
-                            }
-                        }
-                    },
-                    'b': {
-                        'on': {
-                            'to_a': {
+                            }}
+                        }}
+                    }},
+                    'b': {{
+                        'on': {{
+                            'to_a': {{
                                 'target': 'a'
-                            }
-                        }
-                    }
-                }
-            }";
+                            }}
+                        }}
+                    }}
+                }}
+            }}";
 
-            public static string PongStateMachineScript => @"
-            {
-                'id': 'pong',
+            public static string GetPongStateMachineScript(string id) => $@"
+            {{
+                'id': '{id}',
                 'initial': 'a',
-                'states': {
-                    'a': {
-                        'on': {
-                            'to_b': {
+                'states': {{
+                    'a': {{
+                        'on': {{
+                            'to_b': {{
                                 'target': 'b'
-                            }
-                        }
-                    },
-                    'b': {
-                        'after': {
-                            '1000': {
+                            }}
+                        }}
+                    }},
+                    'b': {{
+                        'after': {{
+                            '1000': {{
                                 'target': 'a',
                                 'actions': ['sendToPingToA']
-                            }
-                        }
-                    }
-                }
-            }";
+                            }}
+                        }}
+                    }}
+                }}
+            }}";
         }
     }
 }

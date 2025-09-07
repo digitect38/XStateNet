@@ -16,17 +16,17 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""running""
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': 'running'
                         }
                     },
-                    ""running"": {
-                        ""on"": {
-                            ""STOP"": ""idle""
+                    'running': {
+                        'on': {
+                            'STOP': 'idle'
                         }
                     }
                 }
@@ -50,10 +50,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {}
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);
@@ -77,15 +77,15 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""running""
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': 'running'
                         }
                     },
-                    ""running"": {}
+                    'running': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);
@@ -111,15 +111,15 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json1 = @"
             {
-                ""id"": ""machine1"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""REMOTE_EVENT"": ""active""
+                'id': 'machine1',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'REMOTE_EVENT': 'active'
                         }
                     },
-                    ""active"": {}
+                    'active': {}
                 }
             }";
             var baseMachine1 = StateMachine.CreateFromScript(json1);
@@ -132,15 +132,15 @@ namespace XStateNet.Distributed.Tests
             
             var json2 = @"
             {
-                ""id"": ""machine2"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""running""
+                'id': 'machine2',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': 'running'
                         }
                     },
-                    ""running"": {}
+                    'running': {}
                 }
             }";
             var baseMachine2 = StateMachine.CreateFromScript(json2);
@@ -168,10 +168,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {}
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);
@@ -194,10 +194,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {}
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);
@@ -223,10 +223,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {}
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);
@@ -252,10 +252,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var json = @"
             {
-                ""id"": ""simple"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {}
+                'id': 'simple',
+                'initial': 'idle',
+                'states': {
+                    'idle': {}
                 }
             }";
             var baseMachine = StateMachine.CreateFromScript(json);

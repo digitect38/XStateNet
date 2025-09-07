@@ -102,6 +102,14 @@ public partial class StateMachine
 
     private static readonly ConcurrentDictionary<string, StateMachine> _instanceMap = new();
     private readonly ConcurrentDictionary<string, StateNode?> _stateCache = new();
+    
+    /// <summary>
+    /// Clear all static state for test isolation - should only be used in tests
+    /// </summary>
+    public static void ClearAllStaticState()
+    {
+        _instanceMap.Clear();
+    }
 
     // OnTransition delegate definition
     public delegate void TransitionHandler(CompoundState? fromState, StateNode? toState, string eventName);
@@ -989,7 +997,7 @@ public partial class StateMachine
     }
     
     /// <summary>
-    /// Stop the state machine and clean up resources
+    /// Stop the state machine execution
     /// </summary>
     public void Stop()
     {
@@ -1003,15 +1011,62 @@ public partial class StateMachine
             }
             
             machineState = MachineState.Stopped;
+            
+            // Clean up all active states and their timers
+            if (RootState != null)
+            {
+                CleanupStateTimers(RootState);
+            }
+            
+            // Cancel any invoke services
+            serviceInvoker?.CancelAllServices();
+            
             Logger.Info("State machine stopped");
         }
         finally
         {
             _stateLock.ExitWriteLock();
         }
+    }
+    
+    /// <summary>
+    /// Recursively clean up timers in all states
+    /// </summary>
+    private void CleanupStateTimers(StateNode? state)
+    {
+        if (state == null) return;
         
-        // Cleanup resources
-        Dispose();
+        if (state is RealState realState)
+        {
+            try
+            {
+                realState.CleanupAfterTimer();
+            }
+            catch
+            {
+                // Ignore errors during cleanup
+            }
+        }
+        
+        // Recursively clean up child states
+        if (state is CompoundState compoundState && compoundState.SubStateNames != null)
+        {
+            foreach (var childName in compoundState.SubStateNames)
+            {
+                try
+                {
+                    var childState = GetState(childName);
+                    if (childState != null)
+                    {
+                        CleanupStateTimers(childState);
+                    }
+                }
+                catch
+                {
+                    // Ignore errors during cleanup
+                }
+            }
+        }
     }
     
     /// <summary>

@@ -17,41 +17,41 @@ public class MutualExclusionTests : IDisposable
 
         string jsonScript = @"
         {
-            ""id"": ""mutualExclusion"",
-            ""type"": ""parallel"",
-            ""states"": {
-                ""shooter"": {
-                    ""initial"": ""wait"",
-                    ""states"": {
-                        ""wait"": {
-                            ""on"": {
-                                ""SHOOT"": {
-                                    ""target"": ""shoot"",
-                                    ""in"": ""#mutualExclusion.trashCan.open""
+            'id': 'mutualExclusion',
+            'type': 'parallel',
+            'states': {
+                'shooter': {
+                    'initial': 'wait',
+                    'states': {
+                        'wait': {
+                            'on': {
+                                'SHOOT': {
+                                    'target': 'shoot',
+                                    'in': '#mutualExclusion.trashCan.open'
                                 }
                             }
                         },
-                        ""shoot"": {
-                            ""on"": {
-                                ""DONE"": ""wait""
+                        'shoot': {
+                            'on': {
+                                'DONE': 'wait'
                             }
                         }
                     }
                 },
-                ""trashCan"": {
-                    ""initial"": ""closed"",
-                    ""states"": {
-                        ""open"": {
-                            ""on"": {
-                                ""CLOSE"": {
-                                    ""target"": ""closed"",
-                                    ""in"": ""#mutualExclusion.shooter.wait""
+                'trashCan': {
+                    'initial': 'closed',
+                    'states': {
+                        'open': {
+                            'on': {
+                                'CLOSE': {
+                                    'target': 'closed',
+                                    'in': '#mutualExclusion.shooter.wait'
                                 }
                             }
                         },
-                        ""closed"": {
-                            ""on"": {
-                                ""OPEN"": ""open""
+                        'closed': {
+                            'on': {
+                                'OPEN': 'open'
                             }
                         }
                     }

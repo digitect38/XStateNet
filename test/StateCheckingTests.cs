@@ -16,22 +16,22 @@ public class StateCheckingTests
     {
         // Arrange
         var json = @"{
-            ""id"": ""trafficLight"",
-            ""initial"": ""red"",
-            ""states"": {
-                ""red"": {
-                    ""on"": {
-                        ""TIMER"": ""yellow""
+            'id': 'trafficLight',
+            'initial': 'red',
+            'states': {
+                'red': {
+                    'on': {
+                        'TIMER': 'yellow'
                     }
                 },
-                ""yellow"": {
-                    ""on"": {
-                        ""TIMER"": ""green""
+                'yellow': {
+                    'on': {
+                        'TIMER': 'green'
                     }
                 },
-                ""green"": {
-                    ""on"": {
-                        ""TIMER"": ""red""
+                'green': {
+                    'on': {
+                        'TIMER': 'red'
                     }
                 }
             }
@@ -69,30 +69,30 @@ public class StateCheckingTests
     {
         // Arrange
         var json = @"{
-            ""id"": ""hierarchicalMachine"",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""START"": ""working""
+            'id': 'hierarchicalMachine',
+            'initial': 'idle',
+            'states': {
+                'idle': {
+                    'on': {
+                        'START': 'working'
                     }
                 },
-                ""working"": {
-                    ""initial"": ""processing"",
-                    ""states"": {
-                        ""processing"": {
-                            ""on"": {
-                                ""PAUSE"": ""paused""
+                'working': {
+                    'initial': 'processing',
+                    'states': {
+                        'processing': {
+                            'on': {
+                                'PAUSE': 'paused'
                             }
                         },
-                        ""paused"": {
-                            ""on"": {
-                                ""RESUME"": ""processing""
+                        'paused': {
+                            'on': {
+                                'RESUME': 'processing'
                             }
                         }
                     },
-                    ""on"": {
-                        ""STOP"": ""idle""
+                    'on': {
+                        'STOP': 'idle'
                     }
                 }
             }
@@ -124,21 +124,21 @@ public class StateCheckingTests
     {
         // Arrange
         var json = @"{
-            ""id"": ""nestedMachine"",
-            ""initial"": ""level1"",
-            ""states"": {
-                ""level1"": {
-                    ""initial"": ""level2"",
-                    ""states"": {
-                        ""level2"": {
-                            ""initial"": ""level3"",
-                            ""states"": {
-                                ""level3"": {
-                                    ""on"": {
-                                        ""NEXT"": ""level3b""
+            'id': 'nestedMachine',
+            'initial': 'level1',
+            'states': {
+                'level1': {
+                    'initial': 'level2',
+                    'states': {
+                        'level2': {
+                            'initial': 'level3',
+                            'states': {
+                                'level3': {
+                                    'on': {
+                                        'NEXT': 'level3b'
                                     }
                                 },
-                                ""level3b"": {}
+                                'level3b': {}
                             }
                         }
                     }
@@ -170,27 +170,27 @@ public class StateCheckingTests
     {
         // Arrange - Create two independent machines
         var machine1Json = @"{
-            ""id"": ""machine1"",
-            ""initial"": ""on"",
-            ""states"": {
-                ""on"": {
-                    ""on"": { ""TOGGLE"": ""off"" }
+            'id': 'machine1',
+            'initial': 'on',
+            'states': {
+                'on': {
+                    'on': { 'TOGGLE': 'off' }
                 },
-                ""off"": {
-                    ""on"": { ""TOGGLE"": ""on"" }
+                'off': {
+                    'on': { 'TOGGLE': 'on' }
                 }
             }
         }";
         
         var machine2Json = @"{
-            ""id"": ""machine2"",
-            ""initial"": ""inactive"",
-            ""states"": {
-                ""inactive"": {
-                    ""on"": { ""ACTIVATE"": ""active"" }
+            'id': 'machine2',
+            'initial': 'inactive',
+            'states': {
+                'inactive': {
+                    'on': { 'ACTIVATE': 'active' }
                 },
-                ""active"": {
-                    ""on"": { ""DEACTIVATE"": ""inactive"" }
+                'active': {
+                    'on': { 'DEACTIVATE': 'inactive' }
                 }
             }
         }";
@@ -227,17 +227,17 @@ public class StateCheckingTests
     {
         // Arrange
         var json = @"{
-            ""id"": ""door"",
-            ""initial"": ""closed"",
-            ""states"": {
-                ""closed"": {
-                    ""on"": {
-                        ""OPEN"": ""open""
+            'id': 'door',
+            'initial': 'closed',
+            'states': {
+                'closed': {
+                    'on': {
+                        'OPEN': 'open'
                     }
                 },
-                ""open"": {
-                    ""on"": {
-                        ""CLOSE"": ""closed""
+                'open': {
+                    'on': {
+                        'CLOSE': 'closed'
                     }
                 }
             }
@@ -271,28 +271,28 @@ public class StateCheckingTests
     {
         // Arrange - Machine with parallel states
         var json = @"{
-            ""id"": ""parallelMachine"",
-            ""type"": ""parallel"",
-            ""states"": {
-                ""lights"": {
-                    ""initial"": ""off"",
-                    ""states"": {
-                        ""off"": {
-                            ""on"": { ""TURN_ON"": ""on"" }
+            'id': 'parallelMachine',
+            'type': 'parallel',
+            'states': {
+                'lights': {
+                    'initial': 'off',
+                    'states': {
+                        'off': {
+                            'on': { 'TURN_ON': 'on' }
                         },
-                        ""on"": {
-                            ""on"": { ""TURN_OFF"": ""off"" }
+                        'on': {
+                            'on': { 'TURN_OFF': 'off' }
                         }
                     }
                 },
-                ""heating"": {
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""on"": { ""HEAT"": ""heating"" }
+                'heating': {
+                    'initial': 'idle',
+                    'states': {
+                        'idle': {
+                            'on': { 'HEAT': 'heating' }
                         },
-                        ""heating"": {
-                            ""on"": { ""COOL"": ""idle"" }
+                        'heating': {
+                            'on': { 'COOL': 'idle' }
                         }
                     }
                 }

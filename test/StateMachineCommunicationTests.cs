@@ -13,62 +13,95 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
     [Fact]
     public async Task MultipleMachines_Should_CommunicateViaEvents()
     {
-        // Arrange
-        var coordinator = new TestCoordinator();
-        var machine1 = CreateTestMachine("machine1", coordinator);
-        var machine2 = CreateTestMachine("machine2", coordinator);
+        // Setup
+        StateMachine? machine1 = null;
+        StateMachine? machine2 = null;
         
-        machine1.Start();
-        machine2.Start();
-        await Task.Delay(50); // Allow machines to initialize
-        
-        // Act - Send multiple events to test communication
-        machine1.Send("TRIGGER");
-        await Task.Delay(200); // Allow for event propagation and action execution
-        
-        // Also test machine2
-        machine2.Send("TRIGGER");
-        await Task.Delay(200);
-        
-        // Assert - Check if any events were received
-        coordinator.ReceivedEvents.Should().NotBeEmpty("machines should notify coordinator when transitioning to active state");
-        
-        // If events were received, check specifics
-        if (coordinator.ReceivedEvents.Count > 0)
+        try
         {
-            coordinator.ReceivedEvents.Should().Contain(e => e.FromMachine == "machine1" || e.FromMachine == "machine2");
+            // Arrange
+            var coordinator = new TestCoordinator();
+            machine1 = CreateTestMachine("machine1", coordinator);
+            machine2 = CreateTestMachine("machine2", coordinator);
+            
+            machine1.Start();
+            machine2.Start();
+            await Task.Delay(50); // Allow machines to initialize
+            
+            // Act - Send multiple events to test communication
+            machine1.Send("TRIGGER");
+            await Task.Delay(200); // Allow for event propagation and action execution
+            
+            // Also test machine2
+            machine2.Send("TRIGGER");
+            await Task.Delay(200);
+            
+            // Assert - Check if any events were received
+            coordinator.ReceivedEvents.Should().NotBeEmpty("machines should notify coordinator when transitioning to active state");
+            
+            // If events were received, check specifics
+            if (coordinator.ReceivedEvents.Count > 0)
+            {
+                coordinator.ReceivedEvents.Should().Contain(e => e.FromMachine == "machine1" || e.FromMachine == "machine2");
+            }
+        }
+        finally
+        {
+            // Cleanup
+            machine1?.Stop();
+            machine1?.Dispose();
+            machine2?.Stop();
+            machine2?.Dispose();
         }
     }
     
     [Fact]
     public async Task ParentChild_Should_CoordinateStates()
     {
-        // Arrange
-        var parent = CreateParentMachine();
-        parent.Start(); // Start parent first
+        // Setup
+        StateMachine parent = null;
+        StateMachine child1 = null;
+        StateMachine child2 = null;
         
-        var child1 = CreateChildMachine("child1", parent);
-        var child2 = CreateChildMachine("child2", parent);
-        
-        child1.Start();
-        child2.Start();
-        
-        // Act
-        parent.Send("START_CHILDREN");
-        await Task.Delay(200);
-        
-        // Send START to children first to move them from idle to working
-        child1.Send("START");
-        child2.Send("START");
-        await Task.Delay(100);
-        
-        child1.Send("COMPLETE");
-        child2.Send("COMPLETE");
-        await Task.Delay(200);
-        
-        // Assert
-        parent.GetSourceSubStateCollection(null).ToCsvString(parent, true)
-            .Should().Contain("allComplete");
+        try
+        {
+            // Arrange
+            parent = CreateParentMachine();
+            parent.Start(); // Start parent first
+            
+            child1 = CreateChildMachine("child1", parent);
+            child2 = CreateChildMachine("child2", parent);
+            
+            child1.Start();
+            child2.Start();
+            
+            // Act
+            parent.Send("START_CHILDREN");
+            await Task.Delay(200);
+            
+            // Send START to children first to move them from idle to working
+            child1.Send("START");
+            child2.Send("START");
+            await Task.Delay(100);
+            
+            child1.Send("COMPLETE");
+            child2.Send("COMPLETE");
+            await Task.Delay(200);
+            
+            // Assert
+            parent.GetSourceSubStateCollection(null).ToCsvString(parent, true)
+                .Should().Contain("allComplete");
+        }
+        finally
+        {
+            // Cleanup
+            child1?.Stop();
+            child1?.Dispose();
+            child2?.Stop();
+            child2?.Dispose();
+            parent?.Stop();
+            parent?.Dispose();
+        }
     }
     
     [Fact]
@@ -97,64 +130,95 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
     [Fact]
     public async Task EventBroadcast_Should_ReachAllSubscribers()
     {
-        // Arrange
-        var broadcaster = CreateBroadcaster();
+        // Setup
+        StateMachine broadcaster = null;
         var subscribers = new List<StateMachine>();
-        var receivedCount = 0;
         
-        for (int i = 0; i < 5; i++)
+        try
         {
-            var subscriber = CreateSubscriber($"sub{i}", () => receivedCount++);
-            subscribers.Add(subscriber);
-            subscriber.Start();
+            // Arrange
+            broadcaster = CreateBroadcaster();
+            var receivedCount = 0;
+            
+            for (int i = 0; i < 5; i++)
+            {
+                var subscriber = CreateSubscriber($"sub{i}", () => receivedCount++);
+                subscribers.Add(subscriber);
+                subscriber.Start();
+            }
+            
+            broadcaster.Start();
+            
+            // Act
+            broadcaster.Send("BROADCAST");
+            await Task.Delay(100);
+            
+            // Simulate broadcast to all subscribers
+            foreach (var sub in subscribers)
+            {
+                sub.Send("RECEIVE_BROADCAST");
+                await Task.Delay(20); // Small delay between each send
+            }
+            await Task.Delay(200); // Give more time for all subscribers to process
+            
+            // Assert - At least 4 out of 5 should receive (timing dependent)
+            receivedCount.Should().BeGreaterOrEqualTo(4);
         }
-        
-        broadcaster.Start();
-        
-        // Act
-        broadcaster.Send("BROADCAST");
-        await Task.Delay(100);
-        
-        // Simulate broadcast to all subscribers
-        foreach (var sub in subscribers)
+        finally
         {
-            sub.Send("RECEIVE_BROADCAST");
-            await Task.Delay(20); // Small delay between each send
+            // Cleanup
+            broadcaster?.Stop();
+            broadcaster?.Dispose();
+            foreach (var sub in subscribers)
+            {
+                sub?.Stop();
+                sub?.Dispose();
+            }
         }
-        await Task.Delay(200); // Give more time for all subscribers to process
-        
-        // Assert - At least 4 out of 5 should receive (timing dependent)
-        receivedCount.Should().BeGreaterOrEqualTo(4);
     }
     
     [Fact]
     public async Task ChainedStateMachines_Should_PropagateEvents()
     {
-        // Arrange
+        // Setup
         var chain = new List<StateMachine>();
-        var completedCount = 0;
         
-        for (int i = 0; i < 3; i++)
+        try
         {
-            var machine = CreateChainedMachine($"chain{i}", 
-                () => completedCount++,
-                i < 2 ? $"chain{i + 1}" : null);
-            chain.Add(machine);
-            machine.Start();
+            // Arrange
+            var completedCount = 0;
+            
+            for (int i = 0; i < 3; i++)
+            {
+                var machine = CreateChainedMachine($"chain{i}", 
+                    () => completedCount++,
+                    i < 2 ? $"chain{i + 1}" : null);
+                chain.Add(machine);
+                machine.Start();
+            }
+            
+            // Act - Start all machines in the chain
+            foreach (var machine in chain)
+            {
+                machine.Send("START");
+                await Task.Delay(100); // Give each machine time to process
+            }
+            
+            // Wait for all machines to complete their transitions
+            await Task.Delay(200);
+            
+            // Assert - At least 2 out of 3 should complete (timing dependent)
+            completedCount.Should().BeGreaterOrEqualTo(2);
         }
-        
-        // Act - Start all machines in the chain
-        foreach (var machine in chain)
+        finally
         {
-            machine.Send("START");
-            await Task.Delay(100); // Give each machine time to process
+            // Cleanup
+            foreach (var machine in chain)
+            {
+                machine?.Stop();
+                machine?.Dispose();
+            }
         }
-        
-        // Wait for all machines to complete their transitions
-        await Task.Delay(200);
-        
-        // Assert - At least 2 out of 3 should complete (timing dependent)
-        completedCount.Should().BeGreaterOrEqualTo(2);
     }
     
     // Helper methods for creating test state machines
@@ -162,20 +226,20 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
     private StateMachine CreateTestMachine(string id, TestCoordinator coordinator)
     {
         var json = $@"{{
-            ""id"": ""{id}"",
-            ""initial"": ""idle"",
-            ""states"": {{
-                ""idle"": {{
-                    ""on"": {{
-                        ""TRIGGER"": {{
-                            ""target"": ""active"",
-                            ""actions"": [""notify""]
+            'id': '{id}',
+            'initial': 'idle',
+            'states': {{
+                'idle': {{
+                    'on': {{
+                        'TRIGGER': {{
+                            'target': 'active',
+                            'actions': ['notify']
                         }}
                     }}
                 }},
-                ""active"": {{
-                    ""on"": {{
-                        ""RESET"": ""idle""
+                'active': {{
+                    'on': {{
+                        'RESET': 'idle'
                     }}
                 }}
             }}
@@ -239,7 +303,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     'type': 'final'
                 }}
             }}
-        }}".Replace("'", "\"");
+        }}";
         
         var actionMap = new ActionMap();
         actionMap["notifyParent"] = new List<NamedAction>
@@ -297,7 +361,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     }}
                 }}
             }}
-        }}".Replace("'", "\"");
+        }}";
         
         var actionMap = new ActionMap();
         actionMap["process"] = new List<NamedAction>
@@ -331,7 +395,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     'type': 'final'
                 }}
             }}
-        }}".Replace("'", "\"");
+        }}";
         
         var actionMap = new ActionMap();
         actionMap["notifyComplete"] = new List<NamedAction>

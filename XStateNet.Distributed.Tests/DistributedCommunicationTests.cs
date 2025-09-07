@@ -38,30 +38,30 @@ namespace XStateNet.Distributed.Tests
             // Machine 1 - Traffic Light
             var machine1Json = @"
             {
-                ""id"": ""trafficLight1"",
-                ""initial"": ""red"",
-                ""states"": {
-                    ""red"": {
-                        ""on"": {
-                            ""TIMER"": ""green"",
-                            ""SYNC_REQUEST"": {
-                                ""target"": ""red"",
-                                ""actions"": [""notifySync""]
+                'id': 'trafficLight1',
+                'initial': 'red',
+                'states': {
+                    'red': {
+                        'on': {
+                            'TIMER': 'green',
+                            'SYNC_REQUEST': {
+                                'target': 'red',
+                                'actions': ['notifySync']
                             }
                         }
                     },
-                    ""green"": {
-                        ""on"": {
-                            ""TIMER"": ""yellow"",
-                            ""SYNC_REQUEST"": {
-                                ""target"": ""green"",
-                                ""actions"": [""notifySync""]
+                    'green': {
+                        'on': {
+                            'TIMER': 'yellow',
+                            'SYNC_REQUEST': {
+                                'target': 'green',
+                                'actions': ['notifySync']
                             }
                         }
                     },
-                    ""yellow"": {
-                        ""on"": {
-                            ""TIMER"": ""red""
+                    'yellow': {
+                        'on': {
+                            'TIMER': 'red'
                         }
                     }
                 }
@@ -84,26 +84,26 @@ namespace XStateNet.Distributed.Tests
             // Machine 2 - Traffic Light
             var machine2Json = @"
             {
-                ""id"": ""trafficLight2"",
-                ""initial"": ""green"",
-                ""states"": {
-                    ""red"": {
-                        ""on"": {
-                            ""TIMER"": ""green""
+                'id': 'trafficLight2',
+                'initial': 'green',
+                'states': {
+                    'red': {
+                        'on': {
+                            'TIMER': 'green'
                         }
                     },
-                    ""green"": {
-                        ""on"": {
-                            ""TIMER"": ""yellow"",
-                            ""REQUEST_SYNC"": {
-                                ""target"": ""green"",
-                                ""actions"": [""sendSyncRequest""]
+                    'green': {
+                        'on': {
+                            'TIMER': 'yellow',
+                            'REQUEST_SYNC': {
+                                'target': 'green',
+                                'actions': ['sendSyncRequest']
                             }
                         }
                     },
-                    ""yellow"": {
-                        ""on"": {
-                            ""TIMER"": ""red""
+                    'yellow': {
+                        'on': {
+                            'TIMER': 'red'
                         }
                     }
                 }
@@ -179,36 +179,36 @@ namespace XStateNet.Distributed.Tests
             // Parent machine
             var parentJson = @"
             {
-                ""id"": ""parent"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""coordinating""
+                'id': 'parent',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': 'coordinating'
                         }
                     },
-                    ""coordinating"": {
-                        ""entry"": [""startChildren""],
-                        ""on"": {
-                            ""CHILD_COMPLETE"": {
-                                ""target"": ""checking"",
-                                ""actions"": [""checkAllComplete""]
+                    'coordinating': {
+                        'entry': ['startChildren'],
+                        'on': {
+                            'CHILD_COMPLETE': {
+                                'target': 'checking',
+                                'actions': ['checkAllComplete']
                             }
                         }
                     },
-                    ""checking"": {
-                        ""always"": [
+                    'checking': {
+                        'always': [
                             {
-                                ""target"": ""completed"",
-                                ""cond"": ""allChildrenComplete""
+                                'target': 'completed',
+                                'cond': 'allChildrenComplete'
                             },
                             {
-                                ""target"": ""coordinating""
+                                'target': 'coordinating'
                             }
                         ]
                     },
-                    ""completed"": {
-                        ""type"": ""final""
+                    'completed': {
+                        'type': 'final'
                     }
                 }
             }";
@@ -254,17 +254,17 @@ namespace XStateNet.Distributed.Tests
                 var childId = $"child{i}";
                 var childJson = $@"
                 {{
-                    ""id"": ""{childId}"",
-                    ""initial"": ""working"",
-                    ""states"": {{
-                        ""working"": {{
-                            ""after"": {{
-                                ""{100 * i}"": ""done""
+                    'id': '{childId}',
+                    'initial': 'working',
+                    'states': {{
+                        'working': {{
+                            'after': {{
+                                '{100 * i}': 'done'
                             }}
                         }},
-                        ""done"": {{
-                            ""entry"": [""notifyParent""],
-                            ""type"": ""final""
+                        'done': {{
+                            'entry': ['notifyParent'],
+                            'type': 'final'
                         }}
                     }}
                 }}";
@@ -318,20 +318,20 @@ namespace XStateNet.Distributed.Tests
                 var workerId = $"worker{i}";
                 var workerJson = @"
                 {
-                    ""id"": ""worker"",
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""on"": {
-                                ""WORK"": ""processing""
+                    'id': 'worker',
+                    'initial': 'idle',
+                    'states': {
+                        'idle': {
+                            'on': {
+                                'WORK': 'processing'
                             }
                         },
-                        ""processing"": {
-                            ""entry"": [""processWork""],
-                            ""after"": {
-                                ""100"": ""idle""
+                        'processing': {
+                            'entry': ['processWork'],
+                            'after': {
+                                '100': 'idle'
                             },
-                            ""exit"": [""completeWork""]
+                            'exit': ['completeWork']
                         }
                     }
                 }";
@@ -435,44 +435,44 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var circuitBreakerJson = @"
             {
-                ""id"": ""circuitBreaker"",
-                ""initial"": ""closed"",
-                ""states"": {
-                    ""closed"": {
-                        ""on"": {
-                            ""REQUEST"": [
+                'id': 'circuitBreaker',
+                'initial': 'closed',
+                'states': {
+                    'closed': {
+                        'on': {
+                            'REQUEST': [
                                 {
-                                    ""target"": ""closed"",
-                                    ""cond"": ""isHealthy"",
-                                    ""actions"": [""handleRequest""]
+                                    'target': 'closed',
+                                    'cond': 'isHealthy',
+                                    'actions': ['handleRequest']
                                 },
                                 {
-                                    ""target"": ""open"",
-                                    ""actions"": [""tripBreaker""]
+                                    'target': 'open',
+                                    'actions': ['tripBreaker']
                                 }
                             ]
                         }
                     },
-                    ""open"": {
-                        ""on"": {
-                            ""REQUEST"": {
-                                ""actions"": [""rejectRequest""]
+                    'open': {
+                        'on': {
+                            'REQUEST': {
+                                'actions': ['rejectRequest']
                             }
                         },
-                        ""after"": {
-                            ""5000"": ""halfOpen""
+                        'after': {
+                            '5000': 'halfOpen'
                         }
                     },
-                    ""halfOpen"": {
-                        ""on"": {
-                            ""REQUEST"": [
+                    'halfOpen': {
+                        'on': {
+                            'REQUEST': [
                                 {
-                                    ""target"": ""closed"",
-                                    ""cond"": ""isHealthy"",
-                                    ""actions"": [""resetBreaker""]
+                                    'target': 'closed',
+                                    'cond': 'isHealthy',
+                                    'actions': ['resetBreaker']
                                 },
                                 {
-                                    ""target"": ""open""
+                                    'target': 'open'
                                 }
                             ]
                         }
@@ -551,17 +551,17 @@ namespace XStateNet.Distributed.Tests
         {
             var json = $@"
             {{
-                ""id"": ""{id}"",
-                ""initial"": ""idle"",
-                ""states"": {{
-                    ""idle"": {{
-                        ""on"": {{
-                            ""START"": ""active""
+                'id': '{id}',
+                'initial': 'idle',
+                'states': {{
+                    'idle': {{
+                        'on': {{
+                            'START': 'active'
                         }}
                     }},
-                    ""active"": {{
-                        ""on"": {{
-                            ""STOP"": ""idle""
+                    'active': {{
+                        'on': {{
+                            'STOP': 'idle'
                         }}
                     }}
                 }}

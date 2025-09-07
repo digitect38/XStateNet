@@ -335,17 +335,17 @@ public class StateMachineIntegrationTests
     private StateMachine CreateTestMachine(string id)
     {
         var json = @"{
-            ""id"": ""testMachine"",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""TRIGGER"": ""active""
+            'id': 'testMachine',
+            'initial': 'idle',
+            'states': {
+                'idle': {
+                    'on': {
+                        'TRIGGER': 'active'
                     }
                 },
-                ""active"": {
-                    ""on"": {
-                        ""RESET"": ""idle""
+                'active': {
+                    'on': {
+                        'RESET': 'idle'
                     }
                 }
             }
