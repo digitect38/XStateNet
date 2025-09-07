@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemiStandard.Tests", "SemiS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet.Distributed", "XStateNet.Distributed\XStateNet.Distributed.csproj", "{01BC5E66-8500-4920-94E2-BC278AEA6330}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet.Distributed.Tests", "XStateNet.Distributed.Tests\XStateNet.Distributed.Tests.csproj", "{42368218-99DF-4E90-B504-4B691F5585C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{01BC5E66-8500-4920-94E2-BC278AEA6330}.Release|x64.Build.0 = Release|Any CPU
 		{01BC5E66-8500-4920-94E2-BC278AEA6330}.Release|x86.ActiveCfg = Release|Any CPU
 		{01BC5E66-8500-4920-94E2-BC278AEA6330}.Release|x86.Build.0 = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|x64.Build.0 = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Debug|x86.Build.0 = Debug|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|x64.ActiveCfg = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|x64.Build.0 = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|x86.ActiveCfg = Release|Any CPU
+		{42368218-99DF-4E90-B504-4B691F5585C2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
