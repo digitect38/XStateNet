@@ -18,7 +18,7 @@ namespace XStateNet.Distributed.Transports
     public class RabbitMQTransport : IStateMachineTransport
     {
         private IConnection? _connection;
-        private IModel? _channel;
+        private IChannel? _channel;
         private string _queueName = string.Empty;
         private string _exchangeName = "xstatenet.exchange";
         private string _address = string.Empty;
@@ -26,7 +26,7 @@ namespace XStateNet.Distributed.Transports
         
         private readonly ConcurrentDictionary<string, TaskCompletionSource<StateMachineMessage>> _pendingRequests = new();
         private readonly ConcurrentBag<StateMachineMessage> _receivedMessages = new();
-        private EventingBasicConsumer? _consumer;
+        private AsyncEventingBasicConsumer? _consumer;
 
         public string TransportId { get; } = Guid.NewGuid().ToString();
         public TransportType Type => TransportType.RabbitMQ;
@@ -59,11 +59,11 @@ namespace XStateNet.Distributed.Transports
                 factory.NetworkRecoveryInterval = TimeSpan.FromSeconds(10);
 
                 // Create connection and channel
-                _connection = factory.CreateConnection($"XStateNet-{TransportId}");
-                _channel = _connection.CreateModel();
+                _connection = await factory.CreateConnectionAsync($"XStateNet-{TransportId}");
+                _channel = await _connection.CreateChannelAsync();
 
                 // Declare exchange
-                _channel.ExchangeDeclare(
+                await _channel.ExchangeDeclareAsync(
                     exchange: _exchangeName,
                     type: ExchangeType.Topic,
                     durable: true,
@@ -71,7 +71,7 @@ namespace XStateNet.Distributed.Transports
 
                 // Create unique queue for this transport
                 _queueName = $"xstatenet.{Environment.MachineName}.{TransportId}";
-                _channel.QueueDeclare(
+                await _channel.QueueDeclareAsync(
                     queue: _queueName,
                     durable: false,
                     exclusive: true,
@@ -79,18 +79,16 @@ namespace XStateNet.Distributed.Transports
                     arguments: null);
 
                 // Setup consumer
-                _consumer = new EventingBasicConsumer(_channel);
-                _consumer.Received += OnMessageReceived;
+                _consumer = new AsyncEventingBasicConsumer(_channel);
+                _consumer.ReceivedAsync += OnMessageReceivedAsync;
                 
-                _channel.BasicConsume(
+                await _channel.BasicConsumeAsync(
                     queue: _queueName,
                     autoAck: false,
                     consumer: _consumer);
 
                 _isConnected = true;
                 ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs { IsConnected = true });
-
-                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
@@ -103,36 +101,40 @@ namespace XStateNet.Distributed.Transports
             }
         }
 
-        public Task DisconnectAsync(CancellationToken cancellationToken = default)
+        public async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             if (!_isConnected)
-                return Task.CompletedTask;
+                return;
 
             try
             {
                 _isConnected = false;
                 
-                _channel?.Close();
-                _channel?.Dispose();
+                if (_channel != null)
+                {
+                    await _channel.CloseAsync();
+                    _channel.Dispose();
+                }
                 
-                _connection?.Close();
-                _connection?.Dispose();
+                if (_connection != null)
+                {
+                    await _connection.CloseAsync();
+                    _connection.Dispose();
+                }
 
                 ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs { IsConnected = false });
             }
             catch { }
-
-            return Task.CompletedTask;
         }
 
-        public Task<bool> SendAsync(StateMachineMessage message, CancellationToken cancellationToken = default)
+        public async Task<bool> SendAsync(StateMachineMessage message, CancellationToken cancellationToken = default)
         {
             if (!IsConnected || _channel == null)
-                return Task.FromResult(false);
+                return false;
 
             try
             {
-                var properties = _channel.CreateBasicProperties();
+                var properties = new BasicProperties();
                 properties.Persistent = false;
                 properties.ContentType = "application/octet-stream";
                 properties.MessageId = message.Id;
@@ -154,17 +156,18 @@ namespace XStateNet.Distributed.Transports
                 var body = MessageSerializer.SerializeMessage(message);
                 var routingKey = message.To;
 
-                _channel.BasicPublish(
+                await _channel.BasicPublishAsync(
                     exchange: _exchangeName,
                     routingKey: routingKey,
+                    mandatory: false,
                     basicProperties: properties,
                     body: body);
 
-                return Task.FromResult(true);
+                return true;
             }
             catch
             {
-                return Task.FromResult(false);
+                return false;
             }
         }
 
@@ -196,7 +199,7 @@ namespace XStateNet.Distributed.Transports
             try
             {
                 var routingKey = pattern.Replace("*", "#");
-                _channel.QueueBind(
+                await _channel.QueueBindAsync(
                     queue: _queueName,
                     exchange: _exchangeName,
                     routingKey: routingKey);
@@ -241,14 +244,14 @@ namespace XStateNet.Distributed.Transports
                 var replyQueue = $"{_queueName}.reply.{correlationId}";
                 if (_channel != null)
                 {
-                    _channel.QueueDeclare(
+                    await _channel.QueueDeclareAsync(
                         queue: replyQueue,
                         durable: false,
                         exclusive: true,
                         autoDelete: true);
 
                     // Bind reply queue
-                    _channel.QueueBind(
+                    await _channel.QueueBindAsync(
                         queue: replyQueue,
                         exchange: _exchangeName,
                         routingKey: replyQueue);
@@ -302,14 +305,14 @@ namespace XStateNet.Distributed.Transports
             try
             {
                 // Create discovery queue
-                var discoveryQueue = _channel.QueueDeclare(
+                var discoveryQueue = await _channel.QueueDeclareAsync(
                     queue: "",
                     durable: false,
                     exclusive: true,
                     autoDelete: true);
 
                 // Bind to discovery exchange
-                _channel.QueueBind(
+                await _channel.QueueBindAsync(
                     queue: discoveryQueue.QueueName,
                     exchange: _exchangeName,
                     routingKey: "discovery.announce");
@@ -327,10 +330,10 @@ namespace XStateNet.Distributed.Transports
 
                 // Collect responses
                 var endTime = DateTime.UtcNow.Add(timeout == default ? TimeSpan.FromSeconds(3) : timeout);
-                var consumer = new EventingBasicConsumer(_channel);
+                var consumer = new AsyncEventingBasicConsumer(_channel);
                 var receivedEndpoints = new ConcurrentBag<StateMachineEndpoint>();
                 
-                consumer.Received += (sender, args) =>
+                consumer.ReceivedAsync += async (sender, args) =>
                 {
                     try
                     {
@@ -345,9 +348,10 @@ namespace XStateNet.Distributed.Transports
                         }
                     }
                     catch { }
+                    await Task.CompletedTask;
                 };
 
-                _channel.BasicConsume(
+                await _channel.BasicConsumeAsync(
                     queue: discoveryQueue.QueueName,
                     autoAck: true,
                     consumer: consumer);
@@ -411,7 +415,7 @@ namespace XStateNet.Distributed.Transports
             });
         }
 
-        private void OnMessageReceived(object? sender, BasicDeliverEventArgs e)
+        private async Task OnMessageReceivedAsync(object? sender, BasicDeliverEventArgs e)
         {
             try
             {
@@ -431,13 +435,15 @@ namespace XStateNet.Distributed.Transports
                     }
                     
                     // Acknowledge message
-                    _channel?.BasicAck(e.DeliveryTag, false);
+                    if (_channel != null)
+                        await _channel.BasicAckAsync(e.DeliveryTag, false);
                 }
             }
             catch
             {
                 // Reject message
-                _channel?.BasicNack(e.DeliveryTag, false, true);
+                if (_channel != null)
+                    await _channel.BasicNackAsync(e.DeliveryTag, false, true);
             }
         }
 
