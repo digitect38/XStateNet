@@ -1,15 +1,22 @@
 using FluentAssertions;
 using XStateNet.Distributed.Core;
 using Xunit;
+using MessagePack;
 
 namespace XStateNet.Distributed.Tests
 {
     public class MessageSerializerTests
     {
-        private class TestData
+        [MessagePackObject]
+        internal class TestData
         {
+            [Key(0)]
             public string Name { get; set; } = "";
+            
+            [Key(1)]
             public int Value { get; set; }
+            
+            [Key(2)]
             public List<string> Items { get; set; } = new();
         }
 
@@ -92,7 +99,7 @@ namespace XStateNet.Distributed.Tests
         public void Serialize_NullObject_Should_ReturnEmptyArray()
         {
             // Act
-            var result = MessageSerializer.Serialize<string>(null);
+            var result = MessageSerializer.Serialize<string>(null!);
             
             // Assert
             result.Should().BeEmpty();

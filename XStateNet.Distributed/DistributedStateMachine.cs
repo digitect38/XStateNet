@@ -185,7 +185,7 @@ namespace XStateNet.Distributed
         /// <summary>
         /// Subscribe to events from other machines
         /// </summary>
-        public async IAsyncEnumerable<StateMachineMessage> SubscribeAsync(string pattern, CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<StateMachineMessage> SubscribeAsync(string pattern, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             if (_transport == null)
                 yield break;

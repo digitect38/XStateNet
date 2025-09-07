@@ -145,6 +145,7 @@ namespace XStateNet.Distributed.Tests
         public async Task Discover_Should_FindRegisteredEndpoints()
         {
             // Arrange
+            InMemoryTransport.ClearRegistry(); // Clear any previous registrations
             using var transport1 = new InMemoryTransport();
             using var transport2 = new InMemoryTransport();
             

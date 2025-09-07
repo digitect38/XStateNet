@@ -15,7 +15,7 @@ public class CommunicatingMachinesTests
     /// </summary>
     public class ParentMachine
     {
-        private StateMachine _stateMachine;
+        private StateMachine _stateMachine = null!;
         private readonly List<ChildMachine> _children = new();
         public List<string> EventLog { get; } = new();
         
@@ -142,7 +142,7 @@ public class CommunicatingMachinesTests
     /// </summary>
     public class ChildMachine
     {
-        private StateMachine _stateMachine;
+        private StateMachine _stateMachine = null!;
         public string Id { get; }
         public bool IsComplete { get; private set; }
         public bool SimulateError { get; set; }

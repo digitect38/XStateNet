@@ -29,6 +29,15 @@ namespace XStateNet.Distributed.Transports
 
         public event EventHandler<ConnectionStatusChangedEventArgs>? ConnectionStatusChanged;
         public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
+        
+        /// <summary>
+        /// Clear all registered endpoints - for testing purposes
+        /// </summary>
+        public static void ClearRegistry()
+        {
+            _registry.Clear();
+            _channels.Clear();
+        }
 
         public Task ConnectAsync(string address, CancellationToken cancellationToken = default)
         {

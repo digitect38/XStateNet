@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using MessagePack;
 
 namespace XStateNet.Distributed.Core
 {
@@ -104,33 +105,71 @@ namespace XStateNet.Distributed.Core
     /// <summary>
     /// Message format for state machine communication
     /// </summary>
+    [MessagePackObject]
     public class StateMachineMessage
     {
+        [Key(0)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
+        
+        [Key(1)]
         public string From { get; set; } = string.Empty;
+        
+        [Key(2)]
         public string To { get; set; } = string.Empty;
+        
+        [Key(3)]
         public string EventName { get; set; } = string.Empty;
+        
+        [Key(4)]
         public byte[]? Payload { get; set; }
+        
+        [Key(5)]
         public string? PayloadType { get; set; }
+        
+        [Key(6)]
         public Dictionary<string, string> Headers { get; set; } = new();
+        
+        [Key(7)]
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        
+        [Key(8)]
         public int Priority { get; set; } = 0;
+        
+        [Key(9)]
         public string? CorrelationId { get; set; }
+        
+        [Key(10)]
         public string? ReplyTo { get; set; }
+        
+        [Key(11)]
         public TimeSpan? Expiry { get; set; }
     }
 
     /// <summary>
     /// Represents a state machine endpoint
     /// </summary>
+    [MessagePackObject]
     public class StateMachineEndpoint
     {
+        [Key(0)]
         public string Id { get; set; } = string.Empty;
+        
+        [Key(1)]
         public string Address { get; set; } = string.Empty;
+        
+        [Key(2)]
         public MachineLocation Location { get; set; }
+        
+        [Key(3)]
         public DateTime LastHeartbeat { get; set; } = DateTime.UtcNow;
+        
+        [Key(4)]
         public Dictionary<string, string> Metadata { get; set; } = new();
+        
+        [Key(5)]
         public string[]? SupportedEvents { get; set; }
+        
+        [Key(6)]
         public string? Version { get; set; }
     }
 
