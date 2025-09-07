@@ -639,6 +639,13 @@ namespace XStateNet.Distributed.Orchestration
                     
                     try
                     {
+                        // Verify machine exists before executing step
+                        var machineInfo = await _registry.GetAsync(step.MachineId);
+                        if (machineInfo == null)
+                        {
+                            throw new InvalidOperationException($"Machine {step.MachineId} not found in registry");
+                        }
+                        
                         // Execute step
                         await _eventBus.PublishEventAsync(step.MachineId, step.Action, step.Payload);
                         execution.CompletedSteps.Add(step.StepId);
@@ -1035,7 +1042,8 @@ namespace XStateNet.Distributed.Orchestration
             public List<string> CompensatedSteps { get; set; } = new();
         }
         
-        private class StateSnapshot
+        // Made public for testing purposes
+        public class StateSnapshot
         {
             public string CurrentState { get; set; } = string.Empty;
             public Dictionary<string, object> Context { get; set; } = new();

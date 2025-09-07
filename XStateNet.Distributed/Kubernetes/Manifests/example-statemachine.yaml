@@ -1,0 +1,217 @@
+# Example StateMachine Custom Resource
+apiVersion: xstatenet.io/v1
+kind: StateMachine
+metadata:
+  name: ping-pong-machine
+  namespace: default
+spec:
+  # Number of replicas for this state machine
+  replicas: 3
+  
+  # State machine definition (XState JSON)
+  definition: |
+    {
+      "id": "ping-pong",
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "START": "ping"
+          }
+        },
+        "ping": {
+          "entry": ["sendPing"],
+          "on": {
+            "PONG": "pong"
+          },
+          "after": {
+            "1000": "timeout"
+          }
+        },
+        "pong": {
+          "entry": ["sendPong"],
+          "on": {
+            "PING": "ping"
+          },
+          "after": {
+            "1000": "timeout"
+          }
+        },
+        "timeout": {
+          "type": "final"
+        }
+      }
+    }
+  
+  # Configuration for the state machine
+  config:
+    maxRetries: 3
+    timeout: 30000
+    logLevel: "info"
+    metrics:
+      enabled: true
+      interval: 10000
+  
+  # Resource requirements
+  resources:
+    cpu: "200m"
+    memory: "256Mi"
+  
+  # Transport layer (zeromq, rabbitmq, or kafka)
+  transport: "rabbitmq"
+  
+  # Persistence configuration
+  persistence:
+    enabled: true
+    storageClass: "standard"
+    size: "5Gi"
+
+---
+# Example of a workflow state machine
+apiVersion: xstatenet.io/v1
+kind: StateMachine
+metadata:
+  name: order-processing
+  namespace: default
+spec:
+  replicas: 5
+  
+  definition: |
+    {
+      "id": "order-processing",
+      "initial": "pending",
+      "states": {
+        "pending": {
+          "on": {
+            "VALIDATE": "validating"
+          }
+        },
+        "validating": {
+          "invoke": {
+            "src": "validateOrder",
+            "onDone": "processing",
+            "onError": "failed"
+          }
+        },
+        "processing": {
+          "type": "parallel",
+          "states": {
+            "payment": {
+              "initial": "charging",
+              "states": {
+                "charging": {
+                  "invoke": {
+                    "src": "chargePayment",
+                    "onDone": "charged",
+                    "onError": "paymentFailed"
+                  }
+                },
+                "charged": {
+                  "type": "final"
+                },
+                "paymentFailed": {
+                  "type": "final"
+                }
+              }
+            },
+            "inventory": {
+              "initial": "reserving",
+              "states": {
+                "reserving": {
+                  "invoke": {
+                    "src": "reserveInventory",
+                    "onDone": "reserved",
+                    "onError": "inventoryFailed"
+                  }
+                },
+                "reserved": {
+                  "type": "final"
+                },
+                "inventoryFailed": {
+                  "type": "final"
+                }
+              }
+            }
+          },
+          "onDone": "shipping"
+        },
+        "shipping": {
+          "invoke": {
+            "src": "scheduleShipping",
+            "onDone": "completed",
+            "onError": "failed"
+          }
+        },
+        "completed": {
+          "type": "final"
+        },
+        "failed": {
+          "entry": ["notifyFailure"],
+          "type": "final"
+        }
+      }
+    }
+  
+  config:
+    services:
+      validateOrder: "http://validation-service/validate"
+      chargePayment: "http://payment-service/charge"
+      reserveInventory: "http://inventory-service/reserve"
+      scheduleShipping: "http://shipping-service/schedule"
+    
+    saga:
+      enabled: true
+      compensations:
+        chargePayment: "refundPayment"
+        reserveInventory: "releaseInventory"
+    
+    monitoring:
+      enabled: true
+      alerts:
+        failureThreshold: 5
+        latencyThreshold: 5000
+  
+  resources:
+    cpu: "500m"
+    memory: "512Mi"
+  
+  transport: "kafka"
+  
+  persistence:
+    enabled: true
+    storageClass: "fast-ssd"
+    size: "10Gi"
+
+---
+# HorizontalPodAutoscaler for automatic scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-processing-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: xstatenet.io/v1
+    kind: StateMachine
+    name: order-processing
+  minReplicas: 5
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: events_per_second
+      target:
+        type: AverageValue
+        averageValue: "1000"

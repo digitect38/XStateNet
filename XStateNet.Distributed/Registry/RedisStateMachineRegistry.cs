@@ -85,7 +85,7 @@ namespace XStateNet.Distributed.Registry
                 if (info.Metadata?.Any() == true)
                 {
                     var metadataJson = JsonSerializer.Serialize(info.Metadata);
-                    transaction.StringSetAsync(MetadataKey(machineId), metadataJson);
+                    _ = transaction.StringSetAsync(MetadataKey(machineId), metadataJson);
                 }
                 
                 var committed = await transaction.ExecuteAsync();
@@ -130,16 +130,16 @@ namespace XStateNet.Distributed.Registry
                 var transaction = _db.CreateTransaction();
                 
                 // Remove from machines hash
-                transaction.HashDeleteAsync(MachinesKey, machineId);
+                _ = transaction.HashDeleteAsync(MachinesKey, machineId);
                 
                 // Remove heartbeat
-                transaction.KeyDeleteAsync(HeartbeatKey(machineId));
+                _ = transaction.KeyDeleteAsync(HeartbeatKey(machineId));
                 
                 // Remove status
-                transaction.KeyDeleteAsync(StatusKey(machineId));
+                _ = transaction.KeyDeleteAsync(StatusKey(machineId));
                 
                 // Remove metadata
-                transaction.KeyDeleteAsync(MetadataKey(machineId));
+                _ = transaction.KeyDeleteAsync(MetadataKey(machineId));
                 
                 // Remove from any groups
                 await RemoveFromAllGroupsAsync(machineId);
@@ -385,7 +385,7 @@ namespace XStateNet.Distributed.Registry
         private void SubscribeToRedisEvents()
         {
             // Subscribe to registry events channel
-            _subscriber.Subscribe($"{_keyPrefix}:events", (channel, message) =>
+            _subscriber.Subscribe(RedisChannel.Literal($"{_keyPrefix}:events"), (channel, message) =>
             {
                 try
                 {
@@ -402,7 +402,7 @@ namespace XStateNet.Distributed.Registry
             });
             
             // Subscribe to Redis keyspace notifications for expired keys (heartbeat timeout)
-            _subscriber.Subscribe("__keyevent@0__:expired", async (channel, key) =>
+            _subscriber.Subscribe(RedisChannel.Literal("__keyevent@0__:expired"), async (channel, key) =>
             {
                 var keyStr = key.ToString();
                 if (keyStr.StartsWith($"{_keyPrefix}:heartbeat:"))
@@ -419,7 +419,7 @@ namespace XStateNet.Distributed.Registry
         private async Task PublishEventAsync(RegistryChangeEvent evt)
         {
             var json = JsonSerializer.Serialize(evt);
-            await _subscriber.PublishAsync($"{_keyPrefix}:events", json);
+            await _subscriber.PublishAsync(RedisChannel.Literal($"{_keyPrefix}:events"), json);
         }
         
         private void NotifyChangeHandlers(RegistryChangeEvent evt)

@@ -1,0 +1,242 @@
+# Default values for xstatenet
+replicaCount: 1
+
+image:
+  operator:
+    repository: xstatenet/operator
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  runtime:
+    repository: xstatenet/runtime
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Operator configuration
+operator:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Reconciliation settings
+  reconcileInterval: 30s
+  metricsPort: 8080
+  healthPort: 8081
+  
+  # Logging
+  logLevel: info
+  logFormat: json
+
+# Registry backend
+registry:
+  type: redis  # Options: redis, etcd, consul
+  
+  # Redis configuration
+  redis:
+    enabled: true
+    architecture: standalone
+    auth:
+      enabled: false
+    master:
+      persistence:
+        enabled: true
+        size: 10Gi
+    replica:
+      replicaCount: 0
+
+# Event bus backend
+eventBus:
+  type: rabbitmq  # Options: rabbitmq, kafka, nats
+  
+  # RabbitMQ configuration
+  rabbitmq:
+    enabled: true
+    auth:
+      username: xstatenet
+      password: changeme
+    persistence:
+      enabled: true
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+
+# State persistence
+persistence:
+  enabled: true
+  type: postgresql  # Options: postgresql, mongodb, cassandra
+  
+  postgresql:
+    enabled: true
+    auth:
+      database: xstatenet
+      username: xstatenet
+      password: changeme
+    persistence:
+      enabled: true
+      size: 50Gi
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+    rules:
+      enabled: true
+      
+  # Grafana dashboards
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+      
+  # Distributed tracing
+  tracing:
+    enabled: true
+    backend: jaeger  # Options: jaeger, zipkin
+    samplingRate: 0.1
+    
+  # Logging
+  logging:
+    enabled: true
+    backend: elasticsearch  # Options: elasticsearch, loki
+    level: info
+
+# High availability settings
+ha:
+  enabled: false
+  replicas: 3
+  
+  # Anti-affinity rules
+  antiAffinity: soft  # Options: soft, hard
+  
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# Security settings
+security:
+  # RBAC
+  rbac:
+    create: true
+  
+  # Pod security policy
+  podSecurityPolicy:
+    enabled: false
+  
+  # Network policies
+  networkPolicy:
+    enabled: false
+    
+  # TLS/SSL
+  tls:
+    enabled: false
+    certManager:
+      enabled: false
+      issuer: letsencrypt-staging
+
+# Resource quotas
+resourceQuota:
+  enabled: false
+  limits:
+    cpu: "10"
+    memory: "10Gi"
+    persistentvolumeclaims: "10"
+
+# Default state machine settings
+stateMachineDefaults:
+  # Default resource limits for state machines
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Default transport
+  transport: rabbitmq
+  
+  # Default persistence
+  persistence:
+    enabled: true
+    storageClass: standard
+    size: 1Gi
+  
+  # Auto-scaling
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: xstatenet.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    api: 5000
+    metrics: 9090
+    health: 8080
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Additional environment variables
+env: []
+# - name: CUSTOM_VAR
+#   value: "custom_value"
+
+# Additional volumes
+volumes: []
+# - name: custom-config
+#   configMap:
+#     name: custom-config
+
+# Additional volume mounts
+volumeMounts: []
+# - name: custom-config
+#   mountPath: /etc/custom-config
+#   readOnly: true

@@ -1,0 +1,284 @@
+# Namespace for XStateNet operator
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: xstatenet-system
+
+---
+# ServiceAccount for the operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: xstatenet-operator
+  namespace: xstatenet-system
+
+---
+# ClusterRole with necessary permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: xstatenet-operator
+rules:
+# Manage StateMachine custom resources
+- apiGroups: ["xstatenet.io"]
+  resources: ["statemachines"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["xstatenet.io"]
+  resources: ["statemachines/status"]
+  verbs: ["get", "update", "patch"]
+# Manage Deployments
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Manage Services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Manage ConfigMaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Manage PVCs
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Manage Pods (for monitoring)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+# Manage Events
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+# Manage CRDs
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: xstatenet-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: xstatenet-operator
+subjects:
+- kind: ServiceAccount
+  name: xstatenet-operator
+  namespace: xstatenet-system
+
+---
+# Operator Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xstatenet-operator
+  namespace: xstatenet-system
+  labels:
+    app: xstatenet-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: xstatenet-operator
+  template:
+    metadata:
+      labels:
+        app: xstatenet-operator
+    spec:
+      serviceAccountName: xstatenet-operator
+      containers:
+      - name: operator
+        image: xstatenet/operator:latest
+        imagePullPolicy: Always
+        env:
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: REDIS_URL
+          value: "redis://redis.xstatenet-system.svc.cluster.local:6379"
+        - name: RABBITMQ_URL
+          value: "amqp://rabbitmq.xstatenet-system.svc.cluster.local:5672"
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Redis deployment for distributed registry
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: xstatenet-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: xstatenet-system
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+
+---
+# Redis PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: xstatenet-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# RabbitMQ deployment for event bus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: xstatenet-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management-alpine
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: xstatenet
+        - name: RABBITMQ_DEFAULT_PASS
+          value: xstatenet123
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc
+
+---
+# RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: xstatenet-system
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+  - port: 5672
+    targetPort: 5672
+    name: amqp
+  - port: 15672
+    targetPort: 15672
+    name: management
+
+---
+# RabbitMQ PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: xstatenet-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+# Prometheus ServiceMonitor for metrics collection
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: xstatenet-metrics
+  namespace: xstatenet-system
+spec:
+  selector:
+    matchLabels:
+      app: xstatenet
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
