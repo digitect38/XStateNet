@@ -161,25 +161,25 @@ public class StateMachineCommunicationTests
     
     private StateMachine CreateTestMachine(string id, TestCoordinator coordinator)
     {
-        var json = @"{
-            ""id"": ""testMachine"",
+        var json = $@"{{
+            ""id"": ""{id}"",
             ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""TRIGGER"": {
+            ""states"": {{
+                ""idle"": {{
+                    ""on"": {{
+                        ""TRIGGER"": {{
                             ""target"": ""active"",
                             ""actions"": [""notify""]
-                        }
-                    }
-                },
-                ""active"": {
-                    ""on"": {
+                        }}
+                    }}
+                }},
+                ""active"": {{
+                    ""on"": {{
                         ""RESET"": ""idle""
-                    }
-                }
-            }
-        }";
+                    }}
+                }}
+            }}
+        }}";
         
         var actionMap = new ActionMap();
         actionMap["notify"] = new List<NamedAction>
@@ -220,26 +220,26 @@ public class StateMachineCommunicationTests
     
     private StateMachine CreateChildMachine(string id, StateMachine parent)
     {
-        var json = @"{
-            'id': 'childMachine',
+        var json = $@"{{
+            'id': '{id}',
             'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
+            'states': {{
+                'idle': {{
+                    'on': {{
                         'START': 'working'
-                    }
-                },
-                'working': {
-                    'on': {
+                    }}
+                }},
+                'working': {{
+                    'on': {{
                         'COMPLETE': 'done'
-                    }
-                },
-                'done': {
+                    }}
+                }},
+                'done': {{
                     'entry': ['notifyParent'],
                     'type': 'final'
-                }
-            }
-        }".Replace("'", "\"");
+                }}
+            }}
+        }}".Replace("'", "\"");
         
         var actionMap = new ActionMap();
         actionMap["notifyParent"] = new List<NamedAction>
@@ -279,25 +279,25 @@ public class StateMachineCommunicationTests
     
     private StateMachine CreateSubscriber(string id, Action onReceive)
     {
-        var json = @"{
-            'id': 'subscriber',
+        var json = $@"{{
+            'id': '{id}',
             'initial': 'listening',
-            'states': {
-                'listening': {
-                    'on': {
+            'states': {{
+                'listening': {{
+                    'on': {{
                         'RECEIVE_BROADCAST': 'processing'
-                    }
-                },
-                'processing': {
+                    }}
+                }},
+                'processing': {{
                     'entry': ['process'],
-                    'after': {
-                        '50': {
+                    'after': {{
+                        '50': {{
                             'target': 'listening'
-                        }
-                    }
-                }
-            }
-        }".Replace("'", "\"");
+                        }}
+                    }}
+                }}
+            }}
+        }}".Replace("'", "\"");
         
         var actionMap = new ActionMap();
         actionMap["process"] = new List<NamedAction>
@@ -310,28 +310,28 @@ public class StateMachineCommunicationTests
     
     private StateMachine CreateChainedMachine(string id, Action onComplete, string? nextId)
     {
-        var json = @"{
-            'id': 'chainedMachine',
+        var json = $@"{{
+            'id': '{id}',
             'initial': 'waiting',
-            'states': {
-                'waiting': {
-                    'on': {
+            'states': {{
+                'waiting': {{
+                    'on': {{
                         'START': 'processing'
-                    }
-                },
-                'processing': {
-                    'after': {
-                        '50': {
+                    }}
+                }},
+                'processing': {{
+                    'after': {{
+                        '50': {{
                             'target': 'complete'
-                        }
-                    }
-                },
-                'complete': {
+                        }}
+                    }}
+                }},
+                'complete': {{
                     'entry': ['notifyComplete'],
                     'type': 'final'
-                }
-            }
-        }".Replace("'", "\"");
+                }}
+            }}
+        }}".Replace("'", "\"");
         
         var actionMap = new ActionMap();
         actionMap["notifyComplete"] = new List<NamedAction>
