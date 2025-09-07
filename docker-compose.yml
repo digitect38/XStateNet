@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # RabbitMQ broker for distributed messaging
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: xstatenet-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - xstatenet-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Example distributed state machine node 1
+  xstatenet-node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xstatenet-node1
+    environment:
+      NODE_ID: node1
+      NODE_ADDRESS: "amqp://admin:admin123@rabbitmq:5672"
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - xstatenet-network
+    volumes:
+      - ./logs/node1:/app/logs
+
+  # Example distributed state machine node 2
+  xstatenet-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xstatenet-node2
+    environment:
+      NODE_ID: node2
+      NODE_ADDRESS: "amqp://admin:admin123@rabbitmq:5672"
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - xstatenet-network
+    volumes:
+      - ./logs/node2:/app/logs
+
+  # Example distributed state machine node 3
+  xstatenet-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xstatenet-node3
+    environment:
+      NODE_ID: node3
+      NODE_ADDRESS: "amqp://admin:admin123@rabbitmq:5672"
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - xstatenet-network
+    volumes:
+      - ./logs/node3:/app/logs
+
+networks:
+  xstatenet-network:
+    driver: bridge
+
+volumes:
+  rabbitmq-data:
