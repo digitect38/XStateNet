@@ -1,4 +1,7 @@
 
+using Xunit;
+using FluentAssertions;
+
 namespace XStateNet.UnitTest;
 public static class Helper
 {
@@ -8,11 +11,11 @@ public static class Helper
         
         toBeList = toBe.Split(';').ToList();
 
-        Assert.That(asIs.Length, Is.EqualTo(toBe.Length));
+        asIs.Length.Should().Be(toBe.Length);
 
         foreach (var item in toBeList)
         {
-            Assert.That(asIs.Contains(item.Trim()), Is.True);
+            asIs.Should().Contain(item.Trim());
         }
     }
 }

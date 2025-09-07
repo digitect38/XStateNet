@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -6,8 +7,7 @@ using System.Threading.Tasks;
 
 namespace AdvancedFeatures
 {
-    [TestFixture]
-    public class LeaderFollowerStateMachinesTests
+    public class LeaderFollowerStateMachinesTests : IDisposable
     {
         private StateMachine _followerStateMachine;
         private StateMachine _leaderStateMachine;
@@ -18,8 +18,7 @@ namespace AdvancedFeatures
         private ActionMap _leaderActions;
         private GuardMap _leaderGuards;
 
-        [SetUp]
-        public void Setup()
+        public LeaderFollowerStateMachinesTests()
         {
             // Follower actions
             _followerActions = new ();
@@ -41,23 +40,29 @@ namespace AdvancedFeatures
             _leaderStateMachine = StateMachine.CreateFromScript(leaderJson, _leaderActions, _leaderGuards).Start();
         }
 
-        [Test]
+        [Fact]
         public async Task TestLeaderFollowerStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.a");
-            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.a");
+            _followerStateMachine.GetActiveStateString().Should().Be("#follower.a");
+            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.a");
 
             // Wait for the leader to send the 'to_b' event to the follower
             await Task.Delay(1100);
-            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.b");
-            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.b");
+            _followerStateMachine.GetActiveStateString().Should().Be("#follower.b");
+            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.b");
 
             // Wait for the leader to send the 'to_a' event to the follower
             await Task.Delay(1100);
-            Assert.That(_followerStateMachine.GetActiveStateString() == "#follower.a");
-            Assert.That(_leaderStateMachine.GetActiveStateString() == "#leader.a");
+            _followerStateMachine.GetActiveStateString().Should().Be("#follower.a");
+            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.a");
         }
+        
+        public void Dispose()
+        {
+            // Cleanup if needed
+        }
+        
         public static class LeaderFollowerStateMachine
         {
             public static string FollowerStateMachineScript => @"
@@ -108,3 +113,5 @@ namespace AdvancedFeatures
         }
     }
 }
+
+

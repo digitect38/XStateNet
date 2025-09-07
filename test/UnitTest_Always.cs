@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -8,12 +9,11 @@ using System.Threading;
 
 namespace AdvancedFeatures;
 
-[TestFixture]
 public class StateMachine_AlwaysTests
 {
     private StateMachine? _stateMachine;
        
-    [Test]
+    [Fact]
     public void TestAlwaysTransition()
     {
         var stateMachineJson = @"{
@@ -92,7 +92,7 @@ public class StateMachine_AlwaysTests
         _stateMachine!.ContextMap!["count"] = 0;
 
         var currentState = _stateMachine!.GetActiveStateString();
-        Assert.That(currentState, Is.EqualTo("#counter.smallNumber"));
+        currentState.Should().Be("#counter.smallNumber");
 
         // Test incrementing to trigger always transition
         _stateMachine!.Send("INCREMENT");
@@ -104,7 +104,7 @@ public class StateMachine_AlwaysTests
         currentState = _stateMachine!.GetActiveStateString();
 
         StateMachine.Log(">>>>> _stateMachine!.ContextMap![\"count\"] = " + _stateMachine!.ContextMap!["count"]);
-        Assert.That(currentState, Is.EqualTo("#counter.bigNumber"));
+        currentState.Should().Be("#counter.bigNumber");
 
         _stateMachine!.Send("DECREMENT");
         _stateMachine!.Send("DECREMENT");

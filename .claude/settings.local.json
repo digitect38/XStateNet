@@ -15,7 +15,10 @@
       "Bash(cmd /c:*)",
       "Read(//c/Users/digit/OneDrive/사진/Screenshots/**)",
       "Bash(git checkout:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"Processing $file\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

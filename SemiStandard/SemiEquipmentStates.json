@@ -1,0 +1,69 @@
+{
+  "id": "SemiEquipmentStateMachine",
+  "initial": "offline",
+  "states": {
+    "offline": {
+      "on": {
+        "goLocal": "local",
+        "goRemote": "remote"
+      },
+      "entry": ["offlineEntry"],
+      "exit": ["offlineExit"]
+    },
+    "local": {
+      "on": {
+        "goOffline": "offline",
+        "goRemote": "remote"
+      },
+      "entry": ["localEntry"],
+      "exit": ["localExit"]
+    },
+    "remote": {
+      "initial": "init",
+      "on": {
+        "goOffline": "offline",
+        "goLocal": "local"
+      },
+      "entry": ["remoteEntry"],
+      "exit": ["remoteExit"],
+      "states": {
+        "init": {
+          "on": {
+            "initialized": "idle"
+          }
+        },
+        "idle": {
+          "on": {
+            "setup": "setup"
+          }
+        },
+        "setup": {
+          "on": {
+            "ready": "ready",
+            "abort": "idle"
+          }
+        },
+        "ready": {
+          "on": {
+            "start": "executing",
+            "abort": "idle"
+          }
+        },
+        "executing": {
+          "on": {
+            "complete": "completing",
+            "abort": "idle"
+          },
+          "entry": ["executingEntry"],
+          "exit": ["executingExit"]
+        },
+        "completing": {
+          "on": {
+            "done": "idle",
+            "abort": "idle"
+          }
+        }
+      }
+    }
+  }
+}

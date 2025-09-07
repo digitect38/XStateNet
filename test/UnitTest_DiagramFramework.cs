@@ -1,40 +1,40 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 namespace AdvancedFeatures;
-public class DiagrammingFrameworkTests
+public class DiagrammingFrameworkTests : IDisposable
 {
     private StateMachine _stateMachine;
-    private ContextMap _context = new ();
+    private ContextMap _context = new();
 
     ActionMap actionMap = new();
     GuardMap guardMap = new();
 
-    [SetUp]
-    public void Setup()
+    public DiagrammingFrameworkTests()
     {
 
         // �׼� �߰�
-        actionMap["setLButtonDown"]     = [new ("setLButtonDown",   SetLButtonDown  )];
-        actionMap["startSelection"]     = [new ("startSelection",   StartSelection  )];
-        actionMap["updateSelection"]    = [new ("updateSelection",  UpdateSelection )];
-        actionMap["endSelection"]       = [ new ("endSelection",    EndSelection    )];
+        actionMap["setLButtonDown"] = [new("setLButtonDown", SetLButtonDown)];
+        actionMap["startSelection"] = [new("startSelection", StartSelection)];
+        actionMap["updateSelection"] = [new("updateSelection", UpdateSelection)];
+        actionMap["endSelection"] = [new("endSelection", EndSelection)];
 
-        actionMap["startMoving"]        = [new ("startMoving",      StartMoving     )];
-        actionMap["endMoving"]          = [new ("endMoving",        EndMoving       )];
-        actionMap["updateMoving"]       = [new ("updateMoving",     UpdateMoving    )];
+        actionMap["startMoving"] = [new("startMoving", StartMoving)];
+        actionMap["endMoving"] = [new("endMoving", EndMoving)];
+        actionMap["updateMoving"] = [new("updateMoving", UpdateMoving)];
 
-        actionMap["startConnecting"]    = [new ("startConnecting",  StartConnecting )];
-        actionMap["endConnecting"]      = [new ("endConnecting",    EndConnecting   )];
+        actionMap["startConnecting"] = [new("startConnecting", StartConnecting)];
+        actionMap["endConnecting"] = [new("endConnecting", EndConnecting)];
 
-        actionMap["startResizing"]      = [new("startResizing",     StartResizing   )];
-        actionMap["endResizing"]        = [new("endResizing",       EndResizing     )];
+        actionMap["startResizing"] = [new("startResizing", StartResizing)];
+        actionMap["endResizing"] = [new("endResizing", EndResizing)];
 
         // ���� �߰�
-        guardMap["onShapeBody"]         = new NamedGuard("onShapeBody", OnShapeBody);
-        guardMap["onCanvas"]            = new NamedGuard("onCanvas", OnCanvas);
+        guardMap["onShapeBody"] = new NamedGuard("onShapeBody", OnShapeBody);
+        guardMap["onCanvas"] = new NamedGuard("onCanvas", OnCanvas);
 
         guardMap["onResizePadWithoutButton"] = new NamedGuard("onResizePadWithoutButton", onResizePadWithoutButton);
         guardMap["onConnectionPinWithoutButton"] = new NamedGuard("onConnectionPinWithoutButton", onConnectionPinWithoutButton);
@@ -58,14 +58,14 @@ public class DiagrammingFrameworkTests
 
 
     // ���� �׽�Ʈ �޼���
-    [Test]
+    [Fact]
     public void TestInitialState()
     {
         var states = _stateMachine!.GetActiveStateString();
         states.AssertEquivalence("#stateMachine.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestLButtonDownOnShapeBody()
     {
         _context["onShapeBody"] = true;
@@ -75,7 +75,7 @@ public class DiagrammingFrameworkTests
         states.AssertEquivalence("#stateMachine.selected.moving.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestLButtonDownOnCanvas()
     {
         _context["onShapeBody"] = false;
@@ -85,7 +85,7 @@ public class DiagrammingFrameworkTests
         states.AssertEquivalence("#stateMachine.selecting");
     }
 
-    [Test]
+    [Fact]
     public void TestSelectionToIdle()
     {
         _context["onShapeBody"] = false;
@@ -98,7 +98,7 @@ public class DiagrammingFrameworkTests
         states.Equals("#stateMachine.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestSelectionToSelected()
     {
         _context["onShapeBody"] = false;
@@ -111,7 +111,7 @@ public class DiagrammingFrameworkTests
         states.Equals("#stateMachine.selecting");
     }
 
-    [Test]
+    [Fact]
     public void TestMovingState()
     {
         _context["onShapeBody"] = true;
@@ -132,7 +132,7 @@ public class DiagrammingFrameworkTests
         states.Equals("#stateMachine.selected.moving.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestResizingState()
     {
         _context["onShapeBody"] = true;
@@ -196,12 +196,12 @@ public class DiagrammingFrameworkTests
 
     private void StartConnecting(StateMachine sm)
     {
-        
+
     }
 
     private void EndConnecting(StateMachine sm)
     {
-        
+
     }
 
     private void StartResizing(StateMachine sm)
@@ -251,194 +251,197 @@ public class DiagrammingFrameworkTests
         return val;
     }
 
-
-
     private static string script =
         @"   {
-    'context': {
-        'onCanvas': false,
-        'onResizePad': false,
-        'onShapeBody': false,
-        'onConnectionPin': false,
-        'onTheOtherPin': false,
-        'mouse_move': false,
-        'l_button_down': false,
-        'r_button_down': false,
-        'selectionCount': 0
-    },
-    'id': 'stateMachine',
-    'initial': 'idle',
-    'on': {
-        'RESET': {
-            'target': 'idle',
-            'actions': ['resetContext', 'logStateAfterUpdate']
+        'context': {
+            'onCanvas': false,
+            'onResizePad': false,
+            'onShapeBody': false,
+            'onConnectionPin': false,
+            'onTheOtherPin': false,
+            'mouse_move': false,
+            'l_button_down': false,
+            'r_button_down': false,
+            'selectionCount': 0
         },
-        'UPDATE_CONTEXT_FROM_REQUEST': {
-            'actions': ['updateContextFromRequest']
-        }
-    },
-    'states': {
-        'idle': {
-            'on': {
-                'L_BUTTON_DOWN': [
-                    {
-                        'target': '#stateMachine.selected.moving',
-                        'cond': 'onShapeBody',
-                        'actions': ['setLButtonDown']
-                    },
-                    {
-                        'target': 'selecting',
-                        'cond': 'onCanvas',
-                        'actions': ['setLButtonDown', 'startSelection']
-                    },
-                    {
-                        'actions': ['setLButtonDown']
-                    }
-                ]
-                    
+        'id': 'stateMachine',
+        'initial': 'idle',
+        'on': {
+            'RESET': {
+                'target': 'idle',
+                'actions': ['resetContext', 'logStateAfterUpdate']
+            },
+            'UPDATE_CONTEXT_FROM_REQUEST': {
+                'actions': ['updateContextFromRequest']
             }
         },
-        'selecting': {
-            'on': {
-                'MOUSE_MOVE': {
-                    'actions': ['updateSelection']
-                },
-                'L_BUTTON_UP':
-                    {
-                        'target': 'idle',
-                        'cond': 'noShapeSelected',
-                        'actions': ['setLButtonUp']
-                    },
-            }
-        },
-        'selected': {
-            'initial': 'moving',
-
-            // original position
-            
-            'on': {
-                'MOUSE_MOVE': 
-                    {
-                        'target': '.resizing',
-                        'cond': 'onResizePadWithoutButton'
-                    },
+        'states': {
+            'idle': {
+                'on': {
+                    'L_BUTTON_DOWN': [
+                        {
+                            'target': '#stateMachine.selected.moving',
+                            'cond': 'onShapeBody',
+                            'actions': ['setLButtonDown']
+                        },
+                        {
+                            'target': 'selecting',
+                            'cond': 'onCanvas',
+                            'actions': ['setLButtonDown', 'startSelection']
+                        },
+                        {
+                            'actions': ['setLButtonDown']
+                        }
+                    ]
                     
-            }, 
-            // original end
-            
-            'states': {
-                'moving': {
-                    'initial': 'idle',
-                    
-                    // debug tricky trial start
-/*
-					on : {
-						'MOUSE_MOVE': 
-								{
-										'target': 'resizing',
-										'cond': 'onResizePadWithoutButton'
-								},
-											
-					},
-*/
-                    // trial end
-
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'L_BUTTON_DOWN': {
-                                    'target': 'moving',
-                                    'actions': ['setLButtonDown', 'activateResizePad']
-                                },                                
-														}
-                        },
-                        'moving': {
-                            'entry': ['startMoving'],
-                            'exit': ['endMoving'],
-                            'on': {
-                                'L_BUTTON_UP': {
-                                    'target': 'idle',
-                                    'actions': ['setLButtonUp']
-                                },
-                                'MOUSE_MOVE': {
-                                    'actions': ['updateMoving']
-                                }
-                            }
-                        }
-                    }
-                },
-                'connecting': {
-                    'initial': 'idle',
-                    'entry': ['startConnecting'],
-                    'exit': ['endConnecting'],
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'L_BUTTON_DOWN': {
-                                    'target': 'startConnecting',
-                                    'actions': ['setLButtonDown']
-                                }
-                            }
-                        },
-                        'startConnecting': {
-                            'on': {
-                                'L_BUTTON_UP': {
-                                    'target': 'findingEndPin',
-                                    'actions': ['setLButtonUp']
-                                }
-                            }
-                        },
-                        'findingEndPin': {
-                            'on': {
-                                'MOUSE_MOVE':
-                                    {
-                                        'target': 'endPinFound',
-                                        'cond': 'onTheOtherPin'
-                                    },
-                            }
-                        },
-                        'endPinFound': {
-                            'on': {
-                                'L_BUTTON_DOWN': {
-                                    'target': 'idle',
-                                    'actions': ['setLButtonDown']
-                                }
-                            }
-                        }
-                    }
-                },
-                'resizing': {
-                    'initial': 'idle',
-                    'entry': ['startResizing'],
-                    'exit': ['endResizing'],
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'L_BUTTON_DOWN': {
-                                    'target': 'resizing',
-                                    'actions': ['setLButtonDown']
-                                }
-                            }
-                        },
-                        'resizing': {
-                            'on': {
-                                'MOUSE_MOVE': {
-                                    'actions': ['updateResizing']
-                                },
-                                'L_BUTTON_UP': {
-                                    'target': 'idle',
-                                    'actions': ['setLButtonUp']
-                                }
-                            }
-                        }
-                    }
                 }
-            },            
+            },
+            'selecting': {
+                'on': {
+                    'MOUSE_MOVE': {
+                        'actions': ['updateSelection']
+                    },
+                    'L_BUTTON_UP':
+                        {
+                            'target': 'idle',
+                            'cond': 'noShapeSelected',
+                            'actions': ['setLButtonUp']
+                        },
+                }
+            },
+            'selected': {
+                'initial': 'moving',
+
+                // original position
+            
+                'on': {
+                    'MOUSE_MOVE': 
+                        {
+                            'target': '.resizing',
+                            'cond': 'onResizePadWithoutButton'
+                        },
+                    
+                }, 
+                // original end
+            
+                'states': {
+                    'moving': {
+                        'initial': 'idle',
+                    
+                        // debug tricky trial start
+    /*
+					    on : {
+						    'MOUSE_MOVE': 
+								    {
+										    'target': 'resizing',
+										    'cond': 'onResizePadWithoutButton'
+								    },
+											
+					    },
+    */
+                        // trial end
+
+                        'states': {
+                            'idle': {
+                                'on': {
+                                    'L_BUTTON_DOWN': {
+                                        'target': 'moving',
+                                        'actions': ['setLButtonDown', 'activateResizePad']
+                                    },                                
+														    }
+                            },
+                            'moving': {
+                                'entry': ['startMoving'],
+                                'exit': ['endMoving'],
+                                'on': {
+                                    'L_BUTTON_UP': {
+                                        'target': 'idle',
+                                        'actions': ['setLButtonUp']
+                                    },
+                                    'MOUSE_MOVE': {
+                                        'actions': ['updateMoving']
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    'connecting': {
+                        'initial': 'idle',
+                        'entry': ['startConnecting'],
+                        'exit': ['endConnecting'],
+                        'states': {
+                            'idle': {
+                                'on': {
+                                    'L_BUTTON_DOWN': {
+                                        'target': 'startConnecting',
+                                        'actions': ['setLButtonDown']
+                                    }
+                                }
+                            },
+                            'startConnecting': {
+                                'on': {
+                                    'L_BUTTON_UP': {
+                                        'target': 'findingEndPin',
+                                        'actions': ['setLButtonUp']
+                                    }
+                                }
+                            },
+                            'findingEndPin': {
+                                'on': {
+                                    'MOUSE_MOVE':
+                                        {
+                                            'target': 'endPinFound',
+                                            'cond': 'onTheOtherPin'
+                                        },
+                                }
+                            },
+                            'endPinFound': {
+                                'on': {
+                                    'L_BUTTON_DOWN': {
+                                        'target': 'idle',
+                                        'actions': ['setLButtonDown']
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    'resizing': {
+                        'initial': 'idle',
+                        'entry': ['startResizing'],
+                        'exit': ['endResizing'],
+                        'states': {
+                            'idle': {
+                                'on': {
+                                    'L_BUTTON_DOWN': {
+                                        'target': 'resizing',
+                                        'actions': ['setLButtonDown']
+                                    }
+                                }
+                            },
+                            'resizing': {
+                                'on': {
+                                    'MOUSE_MOVE': {
+                                        'actions': ['updateResizing']
+                                    },
+                                    'L_BUTTON_UP': {
+                                        'target': 'idle',
+                                        'actions': ['setLButtonUp']
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }            
+            }
         }
-		  }    
-	}
+    }";
 
 
-        ";
-
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
 }
+
+
+

@@ -5,14 +5,16 @@
     "WaitingForHost": {
       "on": {
         "ACQUIRE": "InCarrier",
-        "PLACED_IN_CARRIER": "InCarrier"
+        "PLACED_IN_CARRIER": "InCarrier",
+        "REMOVE": "Removed"
       }
     },
     "InCarrier": {
       "on": {
         "SELECT_FOR_PROCESS": "NeedsProcessing",
         "SKIP": "Skipped",
-        "REJECT": "Rejected"
+        "REJECT": "Rejected",
+        "REMOVE": "Removed"
       }
     },
     "NeedsProcessing": {

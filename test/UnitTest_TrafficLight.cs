@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -9,8 +10,7 @@ using System.Transactions;
 
 namespace BigStateMachine;
 
-[TestFixture]
-public class TrafficMachine
+public class TrafficMachine : IDisposable
 {
     private StateMachine? _stateMachine;
 
@@ -22,8 +22,8 @@ public class TrafficMachine
     ActionMap _actions2;
     GuardMap _guards;
 
-    [SetUp]
-    public void Setup()
+    
+    public TrafficMachine()
     {
         _actions1 = new ()
         {
@@ -125,7 +125,7 @@ public class TrafficMachine
     }
     */
 
-    [Test]
+    [Fact]
     public void TestInitialState()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -135,7 +135,7 @@ public class TrafficMachine
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
-    [Test]
+    [Fact]
     public void TestTransitionRedToGreen()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -146,7 +146,7 @@ public class TrafficMachine
         currentState.AssertEquivalence("#trafficLight.light.green.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
-    [Test]
+    [Fact]
     public void TestGuardCondition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -158,7 +158,7 @@ public class TrafficMachine
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
-    [Test]
+    [Fact]
     public void TestEntryAndExitActions()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
@@ -168,24 +168,24 @@ public class TrafficMachine
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateString();
 
-        Assert.That(exitActions, Does.Contain("Exiting red.bright"));
-        Assert.That(exitActions, Does.Contain("Exiting red"));
-        Assert.That(tranActions, Does.Contain("TransitionAction: red --> green"));
-        Assert.That(entryActions, Does.Contain("Entering green"));
-        Assert.That(entryActions, Does.Contain("Entering green.bright"));
+        exitActions.Should().Contain("Exiting red.bright");
+        exitActions.Should().Contain("Exiting red");
+        tranActions.Should().Contain("TransitionAction: red --> green");
+        entryActions.Should().Contain("Entering green");
+        entryActions.Should().Contain("Entering green.bright");
     }
 
-    [Test]
+    [Fact]
     public void TestParallelStates()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine!.Send("PUSH_BUTTON");
         var currentState = _stateMachine!.GetActiveStateString();
-        Assert.That(currentState, Does.Contain("canWalk"));
-        Assert.That(currentState, Does.Contain("red"));
+        currentState.Should().Contain("canWalk");
+        currentState.Should().Contain("red");
     }
 
-    [Test]
+    [Fact]
     public void TestNestedStates()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -197,7 +197,7 @@ public class TrafficMachine
         //currentState.AssertEquivalence("#trafficLight.light.green.dark;#trafficLight.pedestrian.cannotWalk");
     }
 
-    [Test]
+    [Fact]
     public void TestInvalidTransition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -206,7 +206,7 @@ public class TrafficMachine
         currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
     }
 
-    [Test]
+    [Fact]
     public void TestNoTargetEvent()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions2, _guards).Start();
@@ -215,10 +215,10 @@ public class TrafficMachine
 
         _stateMachine!.Send("NO_TARGET");
 
-        Assert.That(noTargetActions, Does.Contain("No target action executed"));
+        noTargetActions.Should().Contain("No target action executed");
 
     }
-    [Test]
+    [Fact]
     public void TestImplicitTargetTransition()
     {
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
@@ -229,7 +229,7 @@ public class TrafficMachine
         _stateMachine!.Send("IMPLICIT_TARGET");
 
         var currentState = _stateMachine!.GetActiveStateString();
-        Assert.That(currentState, Does.Contain("yellow"), "Current state should contain 'yellow'");
+        currentState.Should().Contain("yellow", "Current state should contain 'yellow'");
     }
     
 
@@ -358,7 +358,15 @@ public class TrafficMachine
           }
         }
       }
+    }";
+    
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
-
-";
 }
+
+
+
+

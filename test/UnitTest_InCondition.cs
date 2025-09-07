@@ -1,20 +1,19 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 namespace AdvancedFeatures;
 
-[TestFixture]
-public class InConditionTests
+public class InConditionTests : IDisposable
 {
     private StateMachine _stateMachine;
 
     private ActionMap _actions;
     private GuardMap _guards;
 
-    [SetUp]
-    public void Setup()
+    public InConditionTests()
     {
         _actions = new ();
         _guards = new ();
@@ -24,7 +23,7 @@ public class InConditionTests
         _stateMachine = StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
     }
 
-    [Test]
+    [Fact]
     public void TestInConditionWithParallelStateMet()
     {
         // Check initial states
@@ -47,7 +46,7 @@ public class InConditionTests
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.finalState");
         }
 
-    [Test]
+    [Fact]
     public void TestInConditionWithParallelStateNotMet()
     {
         // Check initial states
@@ -63,6 +62,11 @@ public class InConditionTests
         _stateMachine!.Send("CHECK_IN_CONDITION");
         currentState = _stateMachine!.GetActiveStateString();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA1;#inConditionMachine.stateB.subStateB2");
+    }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
 }
 
@@ -103,4 +107,6 @@ public static class InConditionStateMachineWithParallel
             }
         }";
 }
+
+
 

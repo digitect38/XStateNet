@@ -11,9 +11,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HistoryTestApp", "HistoryTe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet5", "XStateNet5Impl\XStateNet5.csproj", "{D516EE4F-2957-1FA1-EFBD-811E401661DA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{0A1E64AE-D0ED-E6EE-0445-2888C87C6BF3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet.Tests", "Test\XStateNet.Tests.csproj", "{0A1E64AE-D0ED-E6EE-0445-2888C87C6BF3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemiStandard", "SemiStandard\SemiStandard.csproj", "{B1234567-89AB-CDEF-0123-456789ABCDEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemiStandard.Tests", "SemiStandard.Tests\SemiStandard.Tests.csproj", "{53602BE3-B2F0-A0BF-E324-AE0B97635E1E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{B1234567-89AB-CDEF-0123-456789ABCDEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1234567-89AB-CDEF-0123-456789ABCDEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1234567-89AB-CDEF-0123-456789ABCDEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53602BE3-B2F0-A0BF-E324-AE0B97635E1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53602BE3-B2F0-A0BF-E324-AE0B97635E1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53602BE3-B2F0-A0BF-E324-AE0B97635E1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53602BE3-B2F0-A0BF-E324-AE0B97635E1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

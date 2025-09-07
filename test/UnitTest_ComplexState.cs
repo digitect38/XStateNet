@@ -1,47 +1,46 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using System.Collections.Generic;
 
 
 namespace AdvancedFeatures
 {
-    [TestFixture]
-    public class ComplexStateTests
+    public class ComplexStateTests : IDisposable
     {
         StateMachine? stateMachine = null;
-        [SetUp]
-        public void Setup()
+        public ComplexStateTests()
         {
             stateMachine = StateMachine.CreateFromScript(script2, new ActionMap(), new GuardMap());
             stateMachine.Start();
         }
 
-        [Test]
+        [Fact]
         public void GetCurrentSubStatesTest1()
         {
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine, true);
-            Assert.That(currentState, Is.EqualTo("#fsm.A.A1.A1a;#fsm.A.A2"));
+            currentState.Should().Be("#fsm.A.A1.A1a;#fsm.A.A2");
         }
 
-        [Test]
+        [Fact]
         public void GetCurrentSubStatesTest2()
         {
             stateMachine!.Send("TO_A1b");
 
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
-            Assert.That(currentState, Is.EqualTo("#fsm.A.A1.A1b;#fsm.A.A2"));
+            currentState.Should().Be("#fsm.A.A1.A1b;#fsm.A.A2");
         }
 
-        [Test]
+        [Fact]
         public void GetCurrentSubStatesTest3()
         {
             stateMachine!.Send("TO_B");
 
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
-            Assert.That(currentState, Is.EqualTo("#fsm.B.B1"));
+            currentState.Should().Be("#fsm.B.B1");
         }
 
-        
+
 
         static string script2 = @"
             {
@@ -85,5 +84,12 @@ namespace AdvancedFeatures
                     }
                 }
             }";
+
+
+        public void Dispose()
+        {
+            // Cleanup if needed
+        }
     }
 }
+

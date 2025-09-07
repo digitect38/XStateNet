@@ -2,11 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Reflection;
 
 namespace XStateNet.Semi;
 
 /// <summary>
 /// E87 Carrier Management System implementation using XStateNet state machines
+/// Uses JSON scripts to define state machines as intended by XStateNet design
 /// </summary>
 public class E87CarrierManagement
 {
@@ -14,13 +17,86 @@ public class E87CarrierManagement
     private readonly ConcurrentDictionary<string, LoadPortStateMachine> _loadPorts = new();
     private readonly ConcurrentDictionary<string, CarrierHistory> _carrierHistory = new();
     private readonly object _updateLock = new();
+    private static string? _carrierJsonScript;
+    private static string? _loadPortJsonScript;
+    
+    /// <summary>
+    /// Load the E87 state machine JSON scripts
+    /// </summary>
+    static E87CarrierManagement()
+    {
+        // Load embedded JSON resources or from files
+        var assembly = typeof(E87CarrierManagement).Assembly;
+        
+        // Load carrier state machine JSON
+        var carrierResourceName = "SemiStandard.E87CarrierStates.json";
+        using (var stream = assembly.GetManifestResourceStream(carrierResourceName))
+        {
+            if (stream != null)
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    _carrierJsonScript = reader.ReadToEnd();
+                }
+            }
+        }
+        
+        // If not embedded, try to load from file
+        if (string.IsNullOrEmpty(_carrierJsonScript))
+        {
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "E87CarrierStates.json");
+            if (File.Exists(jsonPath))
+            {
+                _carrierJsonScript = File.ReadAllText(jsonPath);
+            }
+            else
+            {
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E87CarrierStates.json");
+                if (File.Exists(jsonPath))
+                {
+                    _carrierJsonScript = File.ReadAllText(jsonPath);
+                }
+            }
+        }
+        
+        // Load load port state machine JSON
+        var loadPortResourceName = "SemiStandard.E87LoadPortStates.json";
+        using (var stream = assembly.GetManifestResourceStream(loadPortResourceName))
+        {
+            if (stream != null)
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    _loadPortJsonScript = reader.ReadToEnd();
+                }
+            }
+        }
+        
+        // If not embedded, try to load from file
+        if (string.IsNullOrEmpty(_loadPortJsonScript))
+        {
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "E87LoadPortStates.json");
+            if (File.Exists(jsonPath))
+            {
+                _loadPortJsonScript = File.ReadAllText(jsonPath);
+            }
+            else
+            {
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E87LoadPortStates.json");
+                if (File.Exists(jsonPath))
+                {
+                    _loadPortJsonScript = File.ReadAllText(jsonPath);
+                }
+            }
+        }
+    }
     
     /// <summary>
     /// Register a load port with its own state machine
     /// </summary>
     public void RegisterLoadPort(string portId, string portName, int capacity = 25)
     {
-        _loadPorts[portId] = new LoadPortStateMachine(portId, portName, capacity);
+        _loadPorts[portId] = new LoadPortStateMachine(portId, portName, capacity, _loadPortJsonScript);
     }
     
     /// <summary>
@@ -31,7 +107,7 @@ public class E87CarrierManagement
         if (!_loadPorts.TryGetValue(portId, out var loadPort))
             return null;
             
-        var carrier = new CarrierStateMachine(carrierId, portId, slotCount);
+        var carrier = new CarrierStateMachine(carrierId, portId, slotCount, _carrierJsonScript);
         
         lock (_updateLock)
         {
@@ -190,6 +266,62 @@ public class E87CarrierManagement
     }
     
     /// <summary>
+    /// Start carrier processing
+    /// </summary>
+    public bool StartCarrierProcessing(string carrierId)
+    {
+        if (_carriers.TryGetValue(carrierId, out var carrier))
+        {
+            carrier.StateMachine.Send("HOST_PROCEED");
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Complete carrier processing
+    /// </summary>
+    public bool CompleteCarrierProcessing(string carrierId)
+    {
+        if (_carriers.TryGetValue(carrierId, out var carrier))
+        {
+            carrier.StateMachine.Send("ACCESS_COMPLETE");
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Remove carrier from system
+    /// </summary>
+    public bool RemoveCarrier(string carrierId)
+    {
+        if (_carriers.TryRemove(carrierId, out var carrier))
+        {
+            carrier.StateMachine.Send("CARRIER_REMOVED");
+            carrier.DepartedTime = DateTime.UtcNow;
+            
+            // Clear from load port
+            if (_loadPorts.TryGetValue(carrier.LoadPortId, out var loadPort))
+            {
+                loadPort.CurrentCarrierId = null;
+            }
+            
+            AddCarrierHistory(carrierId, "Removed", "Carrier removed from system");
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Get carrier history
+    /// </summary>
+    public CarrierHistory? GetCarrierHistory(string carrierId)
+    {
+        return _carrierHistory.TryGetValue(carrierId, out var history) ? history : null;
+    }
+    
+    /// <summary>
     /// Add carrier history
     /// </summary>
     private void AddCarrierHistory(string carrierId, string state, string description)
@@ -225,7 +357,7 @@ public class CarrierStateMachine
     public DateTime? DepartedTime { get; set; }
     public Dictionary<string, object> Properties { get; }
     
-    public CarrierStateMachine(string id, string loadPortId, int slotCount = 25)
+    public CarrierStateMachine(string id, string loadPortId, int slotCount = 25, string? jsonScript = null)
     {
         Id = id;
         LoadPortId = loadPortId;
@@ -241,114 +373,40 @@ public class CarrierStateMachine
             SlotMap[i] = SlotState.Unknown;
         }
         
-        // Create E87 carrier state machine
-        StateMachine = CreateE87StateMachine(id);
+        // Create E87 carrier state machine from JSON script
+        StateMachine = CreateE87StateMachine(id, jsonScript);
         StateMachine.Start();
     }
     
     /// <summary>
-    /// Creates the E87-compliant carrier state machine
+    /// Creates the E87-compliant carrier state machine from JSON script
     /// </summary>
-    private StateMachine CreateE87StateMachine(string carrierId)
+    private StateMachine CreateE87StateMachine(string carrierId, string? jsonScript)
     {
-        var config = new Dictionary<string, object>
-        {
-            ["id"] = $"carrier_{carrierId}",
-            ["initial"] = "NotPresent",
-            ["states"] = new Dictionary<string, object>
-            {
-                ["NotPresent"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CARRIER_DETECTED"] = "WaitingForHost"
-                    }
-                },
-                ["WaitingForHost"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["HOST_PROCEED"] = "Mapping",
-                        ["HOST_CANCEL"] = "CarrierOut"
-                    }
-                },
-                ["Mapping"] = new Dictionary<string, object>
-                {
-                    ["entry"] = new[] { "startMapping" },
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["MAPPING_COMPLETE"] = "MappingVerification",
-                        ["MAPPING_ERROR"] = "WaitingForHost"
-                    }
-                },
-                ["MappingVerification"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["VERIFY_OK"] = "ReadyToAccess",
-                        ["VERIFY_FAIL"] = "Mapping"
-                    },
-                    ["after"] = new Dictionary<string, object>
-                    {
-                        ["500"] = new Dictionary<string, object>
-                        {
-                            ["target"] = "ReadyToAccess"
-                        }
-                    }
-                },
-                ["ReadyToAccess"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["START_ACCESS"] = "InAccess",
-                        ["HOST_CANCEL"] = "Complete"
-                    }
-                },
-                ["InAccess"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["ACCESS_COMPLETE"] = "Complete",
-                        ["ACCESS_ERROR"] = "AccessPaused"
-                    }
-                },
-                ["AccessPaused"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["RESUME_ACCESS"] = "InAccess",
-                        ["ABORT_ACCESS"] = "Complete"
-                    }
-                },
-                ["Complete"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CARRIER_REMOVED"] = "CarrierOut"
-                    }
-                },
-                ["CarrierOut"] = new Dictionary<string, object>
-                {
-                    ["type"] = "final"
-                }
-            }
-        };
-        
-        // Create action callbacks
+        // Define action callbacks for the state machine
         var actionMap = new ActionMap();
+        
         actionMap["startMapping"] = new List<NamedAction>
         {
             new NamedAction("startMapping", (sm) => 
             {
-                // In real implementation, this would trigger the mapping hardware
+                MappingCompleteTime = DateTime.UtcNow;
                 Logger.Info($"Starting slot mapping for carrier {carrierId}");
             })
         };
         
-        var json = System.Text.Json.JsonSerializer.Serialize(config);
-        var stateMachine = new StateMachine();
-        stateMachine.machineId = $"carrier_{carrierId}";
-        return StateMachine.CreateFromScript(stateMachine, json, actionMap);
+        // Use the provided JSON script
+        if (string.IsNullOrEmpty(jsonScript))
+        {
+            throw new InvalidOperationException("E87CarrierStates.json file not found. Please ensure the JSON file is included as an embedded resource or available in the application directory.");
+        }
+        
+        // Update the id in the JSON to be unique for this carrier
+        jsonScript = jsonScript.Replace("\"id\": \"E87CarrierStateMachine\"", 
+                                      $"\"id\": \"carrier_{carrierId}\"");
+        
+        // Create state machine from JSON script using XStateNet's intended API
+        return StateMachine.CreateFromScript(jsonScript, actionMap);
     }
     
     /// <summary>
@@ -373,129 +431,35 @@ public class LoadPortStateMachine
     public bool IsReserved { get; set; }
     public Dictionary<string, object> Properties { get; }
     
-    public LoadPortStateMachine(string id, string name, int capacity = 25)
+    public LoadPortStateMachine(string id, string name, int capacity = 25, string? jsonScript = null)
     {
         Id = id;
         Name = name;
         Capacity = capacity;
         Properties = new Dictionary<string, object>();
         
-        // Create load port state machine
-        StateMachine = CreateLoadPortStateMachine(id);
+        // Create load port state machine from JSON script
+        StateMachine = CreateLoadPortStateMachine(id, jsonScript);
         StateMachine.Start();
     }
     
     /// <summary>
-    /// Creates the load port state machine
+    /// Creates the load port state machine from JSON script
     /// </summary>
-    private StateMachine CreateLoadPortStateMachine(string portId)
+    private StateMachine CreateLoadPortStateMachine(string portId, string? jsonScript)
     {
-        var config = new Dictionary<string, object>
+        // Use the provided JSON script
+        if (string.IsNullOrEmpty(jsonScript))
         {
-            ["id"] = $"loadport_{portId}",
-            ["initial"] = "Empty",
-            ["states"] = new Dictionary<string, object>
-            {
-                ["Empty"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CARRIER_PLACED"] = "Loading",
-                        ["RESERVE"] = "Reserved"
-                    }
-                },
-                ["Reserved"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CARRIER_PLACED"] = "Loading",
-                        ["UNRESERVE"] = "Empty"
-                    }
-                },
-                ["Loading"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["LOAD_COMPLETE"] = "Loaded",
-                        ["LOAD_ERROR"] = "Error"
-                    },
-                    ["after"] = new Dictionary<string, object>
-                    {
-                        ["1000"] = new Dictionary<string, object>
-                        {
-                            ["target"] = "Loaded"
-                        }
-                    }
-                },
-                ["Loaded"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["START_MAPPING"] = "Mapping",
-                        ["CARRIER_REMOVED"] = "Unloading"
-                    }
-                },
-                ["Mapping"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["MAPPING_COMPLETE"] = "Ready",
-                        ["MAPPING_ERROR"] = "Error"
-                    }
-                },
-                ["Ready"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["START_ACCESS"] = "InAccess",
-                        ["CARRIER_REMOVED"] = "Unloading"
-                    }
-                },
-                ["InAccess"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["ACCESS_COMPLETE"] = "ReadyToUnload",
-                        ["ACCESS_ERROR"] = "Error"
-                    }
-                },
-                ["ReadyToUnload"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CARRIER_REMOVED"] = "Unloading"
-                    }
-                },
-                ["Unloading"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["UNLOAD_COMPLETE"] = "Empty",
-                        ["UNLOAD_ERROR"] = "Error"
-                    },
-                    ["after"] = new Dictionary<string, object>
-                    {
-                        ["500"] = new Dictionary<string, object>
-                        {
-                            ["target"] = "Empty"
-                        }
-                    }
-                },
-                ["Error"] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["CLEAR_ERROR"] = "Empty",
-                        ["RECOVER"] = "Loaded"
-                    }
-                }
-            }
-        };
+            throw new InvalidOperationException("E87LoadPortStates.json file not found. Please ensure the JSON file is included as an embedded resource or available in the application directory.");
+        }
         
-        var json = System.Text.Json.JsonSerializer.Serialize(config);
-        var stateMachine = new StateMachine();
-        stateMachine.machineId = $"loadport_{portId}";
-        return StateMachine.CreateFromScript(stateMachine, json);
+        // Update the id in the JSON to be unique for this load port
+        jsonScript = jsonScript.Replace("\"id\": \"E87LoadPortStateMachine\"", 
+                                      $"\"id\": \"loadport_{portId}\"");
+        
+        // Create state machine from JSON script using XStateNet's intended API
+        return StateMachine.CreateFromScript(jsonScript);
     }
     
     /// <summary>

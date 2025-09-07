@@ -1,12 +1,12 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 
 namespace XStateNet.UnitTest
 {
-    [TestFixture]
     public class LoggerCallerInfoTests
     {
-        [Test]
+        [Fact]
         public void TestLoggerWithCallerInfo()
         {
             // Store original settings
@@ -35,7 +35,7 @@ namespace XStateNet.UnitTest
                 Logger.IncludeCallerInfo = originalCallerInfo;
             }
             
-            Assert.Pass("Logger with caller info works correctly");
+            // Test passed: Logger with caller info works correctly
         }
         
         private void TestMethodOne()

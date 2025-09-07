@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using System;
 using System.Collections.Concurrent;
@@ -7,8 +8,7 @@ using System.Threading.Tasks;
 
 namespace AdvancedFeatures
 {
-    [TestFixture]
-    public class InterMachinePingPongStateMachinesTests
+    public class InterMachinePingPongStateMachinesTests : IDisposable
     {
         private StateMachine _pingStateMachine;
         private StateMachine _pongStateMachine;
@@ -26,8 +26,8 @@ namespace AdvancedFeatures
             _pingStateMachine.Send("to_a");
         }
 
-        [SetUp]
-        public void Setup()
+        
+        public InterMachinePingPongStateMachinesTests()
         {
             _transitionLog = new();
 
@@ -70,8 +70,8 @@ namespace AdvancedFeatures
             _pongStateMachine.Start();
         }
 
-        [TearDown]
-        public void TearDown()
+        
+        public void Dispose()
         {
             _pingStateMachine.OnTransition -= LogTransition;
             _pongStateMachine.OnTransition -= LogTransition;
@@ -81,27 +81,27 @@ namespace AdvancedFeatures
             _transitionLog.Add($"Transitioned from {fromState?.Name} to {toState?.Name} on event {eventName}");
         }
 
-        [Test]
+        [Fact]
         public async Task TestPingPongStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.That(_pingStateMachine.GetActiveStateString() == "#ping.a");
-            Assert.That(_pongStateMachine.GetActiveStateString() == "#pong.a");
+            _pingStateMachine.GetActiveStateString().Should().Be("#ping.a");
+            _pongStateMachine.GetActiveStateString().Should().Be("#pong.a");
 
             // Wait for the ping to send the 'to_b' event to pong
             await Task.Delay(1100);
-            Assert.That(_pingStateMachine.GetActiveStateString() == "#ping.b");
-            Assert.That(_pongStateMachine.GetActiveStateString() == "#pong.b");
+            _pingStateMachine.GetActiveStateString().Should().Be("#ping.b");
+            _pongStateMachine.GetActiveStateString().Should().Be("#pong.b");
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            Assert.That(_pingStateMachine.GetActiveStateString() == "#ping.a");
-            Assert.That(_pongStateMachine.GetActiveStateString() == "#pong.a");
+            _pingStateMachine.GetActiveStateString().Should().Be("#ping.a");
+            _pongStateMachine.GetActiveStateString().Should().Be("#pong.a");
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            Assert.That(_pingStateMachine.GetActiveStateString() == "#ping.b");
-            Assert.That(_pongStateMachine.GetActiveStateString() == "#pong.b");
+            _pingStateMachine.GetActiveStateString().Should().Be("#ping.b");
+            _pongStateMachine.GetActiveStateString().Should().Be("#pong.b");
 
             // Check transition log
             foreach (var log in _transitionLog)
@@ -109,17 +109,17 @@ namespace AdvancedFeatures
                 StateMachine.Log($"log:{log}");
             }
 
-            Assert.That(6 == _transitionLog.Count);
+            _transitionLog.Count.Should().Be(6);
 
 
-            Assert.That("Transitioned from #ping.a to #ping.b on event after: 1000" == _transitionLog[0]);
-            Assert.That("Transitioned from #pong.a to #pong.b on event to_b" == _transitionLog[1]);
+            _transitionLog[0].Should().Be("Transitioned from #ping.a to #ping.b on event after: 1000");
+            _transitionLog[1].Should().Be("Transitioned from #pong.a to #pong.b on event to_b");
 
-            Assert.That("Transitioned from #pong.b to #pong.a on event after: 1000" == _transitionLog[2]);
-            Assert.That("Transitioned from #ping.b to #ping.a on event to_a" == _transitionLog[3]);
+            _transitionLog[2].Should().Be("Transitioned from #pong.b to #pong.a on event after: 1000");
+            _transitionLog[3].Should().Be("Transitioned from #ping.b to #ping.a on event to_a");
 
-            Assert.That("Transitioned from #ping.a to #ping.b on event after: 1000" == _transitionLog[4]);
-            Assert.That("Transitioned from #pong.a to #pong.b on event to_b" == _transitionLog[5]);
+            _transitionLog[4].Should().Be("Transitioned from #ping.a to #ping.b on event after: 1000");
+            _transitionLog[5].Should().Be("Transitioned from #pong.a to #pong.b on event to_b");
         }
 
 
@@ -173,3 +173,6 @@ namespace AdvancedFeatures
         }
     }
 }
+
+
+

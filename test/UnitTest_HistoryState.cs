@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -9,12 +10,11 @@ using System.Transactions;
 
 namespace AdvancedFeatures;
 
-[TestFixture]
-public class HistoryState
+public class HistoryState : IDisposable
 {
     StateMachine? _stateMachine;
 
-    [Test]
+    [Fact]
     public void ShallowHistory()
     {
         var stateMachineJson = @"{
@@ -52,15 +52,15 @@ public class HistoryState
         _stateMachine!.Send("TO_B");
 
         var currentState = _stateMachine!.GetActiveStateString();
-        Assert.That(currentState, Is.EqualTo("#testMachine.B"));
+        currentState.Should().Be("#testMachine.B");
 
         _stateMachine!.Send("TO_A");
 
         currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
-        Assert.That(currentState, Is.EqualTo("#testMachine.A;#testMachine.A.A2"));
+        currentState.Should().Be("#testMachine.A;#testMachine.A.A2");
     }
 
-    [Test]
+    [Fact]
     public void DeepHistory()
     {
         var stateMachineJson = @" {
@@ -111,10 +111,16 @@ public class HistoryState
         currentState = _stateMachine!.GetActiveStateString();
         _stateMachine!.Send("TO_B");
         currentState = _stateMachine!.GetActiveStateString(leafOnly : false);
-        Assert.That(currentState, Is.EqualTo("#testMachine.B;#testMachine.B.B1"));
+        currentState.Should().Be("#testMachine.B;#testMachine.B.B1");
         _stateMachine!.Send("TO_A");
         currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
 
         currentState.AssertEquivalence("#testMachine.A;#testMachine.A.A1;#testMachine.A.A1.A1b");
     }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
 }
+

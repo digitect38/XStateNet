@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -6,15 +7,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 namespace ComplexMachine;
 
-[TestFixture]
-public class AtmStateMachineTests
+public class AtmStateMachineTests : IDisposable
 {
     private StateMachine _stateMachine;
     private ActionMap _actions;
     private GuardMap _guards;
 
-    [SetUp]
-    public void Setup()
+    public AtmStateMachineTests()
     {
         // Define actions
         _actions = new ()
@@ -30,14 +29,19 @@ public class AtmStateMachineTests
         _stateMachine = StateMachine.CreateFromScript(json, _actions, _guards).Start();
     }
 
-    [Test]
+    public void Dispose()
+    {
+        // Cleanup resources if needed
+    }
+
+    [Fact]
     public void TestInitialState()
     {
         var initialState = _stateMachine!.GetActiveStateString();
         initialState.AssertEquivalence("#atm.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestCardInserted()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -45,7 +49,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.authenticating.enteringPin");
     }
 
-    [Test]
+    [Fact]
     public void TestPinEnteredCorrectly()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -55,7 +59,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestPinEnteredIncorrectly()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -65,7 +69,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.authenticating.enteringPin");
     }
 
-    [Test]
+    [Fact]
     public void TestWithdrawTransactionSuccess()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -78,7 +82,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestDepositTransactionFailure()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -91,7 +95,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestCancelDuringTransaction()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -103,7 +107,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestRequestReceipt()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -114,7 +118,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.printingReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestReceiptPrinted()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -126,7 +130,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestBalanceCheck()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -138,7 +142,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestNestedCancelDuringTransaction()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -150,7 +154,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
     }
 
-    [Test]
+    [Fact]
     public void TestInvalidTransition()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -159,7 +163,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.authenticating.enteringPin"); // Should remain in the same state
     }
 
-    [Test]
+    [Fact]
     public void TestCancelAfterCardInserted()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -168,7 +172,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestWithdrawFailureAndRetry()
     {
         _stateMachine!.Send("CARD_INSERTED");
@@ -186,7 +190,7 @@ public class AtmStateMachineTests
         currentState.AssertEquivalence("#atm.idle");
     }
 
-    [Test]
+    [Fact]
     public void TestDepositFailureAndRetry()
     {
         _stateMachine!.Send("CARD_INSERTED");

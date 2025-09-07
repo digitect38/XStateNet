@@ -1,11 +1,11 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using System;
 using System.Threading.Tasks;
 using System.Threading;
 using XStateNet;
 namespace ActorModelTests;
-[TestFixture]
-public class UnitTest_InvokeServices
+public class UnitTest_InvokeServices : IDisposable
 {
     private StateMachine? _stateMachine;
     private ActionMap _actions;
@@ -16,8 +16,7 @@ public class UnitTest_InvokeServices
     private bool _errorOccurred;
     private string? _lastErrorMessage;
     
-    [SetUp]
-    public void Setup()
+    public UnitTest_InvokeServices()
     {
         _serviceCallCount = 0;
         _serviceCompleted = false;
@@ -54,7 +53,7 @@ public class UnitTest_InvokeServices
         };
     }
     
-    [Test]
+    [Fact]
     public async Task TestBasicInvokeService()
     {
         const string script = @"
@@ -92,22 +91,22 @@ public class UnitTest_InvokeServices
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
         _stateMachine!.Start();
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("idle"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("idle").Should().BeTrue();
         
         _stateMachine!.Send("START");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("fetching"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("fetching").Should().BeTrue();
         
         // Wait for service to complete
         await Task.Delay(200);
         _stateMachine!.Send("onDone");
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("success"), Is.True);
-        Assert.That(_serviceCompleted, Is.True);
-        Assert.That(_serviceCallCount, Is.EqualTo(1));
-        Assert.That(_stateMachine.ContextMap!["data"], Is.EqualTo("fetched data"));
+        _stateMachine.GetActiveStateString().Contains("success").Should().BeTrue();
+        _serviceCompleted.Should().BeTrue();
+        _serviceCallCount.Should().Be(1);
+        _stateMachine.ContextMap!["data"].Should().Be("fetched data");
     }
     
-    [Test]
+    [Fact]
     public async Task TestInvokeServiceWithError()
     {
         const string script = @"
@@ -145,18 +144,18 @@ public class UnitTest_InvokeServices
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("processing"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("processing").Should().BeTrue();
         
         // Wait for service to fail
         await Task.Delay(150);
         _stateMachine!.Send("onError");
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("error"), Is.True);
-        Assert.That(_errorOccurred, Is.True);
-        Assert.That(_lastErrorMessage, Is.EqualTo("Service failed intentionally"));
+        _stateMachine.GetActiveStateString().Contains("error").Should().BeTrue();
+        _errorOccurred.Should().BeTrue();
+        _lastErrorMessage.Should().Be("Service failed intentionally");
     }
     
-    [Test]
+    [Fact]
     public async Task TestMultipleInvokedServices()
     {
         const string script = @"
@@ -217,8 +216,8 @@ public class UnitTest_InvokeServices
         
         // Both services should be running
         var activeStates = _stateMachine!.GetActiveStateString();
-        Assert.That(activeStates.Contains("serviceA.running"), Is.True);
-        Assert.That(activeStates.Contains("serviceB.running"), Is.True);
+        activeStates.Contains("serviceA.running").Should().BeTrue();
+        activeStates.Contains("serviceB.running").Should().BeTrue();
         
         // Wait for shorter service
         await Task.Delay(200);
@@ -226,7 +225,7 @@ public class UnitTest_InvokeServices
         
         // Service A should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        Assert.That(activeStates.Contains("serviceA.complete"), Is.True);
+        activeStates.Contains("serviceA.complete").Should().BeTrue();
         
         // Wait for longer service
         await Task.Delay(400);
@@ -234,11 +233,11 @@ public class UnitTest_InvokeServices
         
         // Both services should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        Assert.That(activeStates.Contains("serviceA.complete"), Is.True);
-        Assert.That(activeStates.Contains("serviceB.complete"), Is.True);
+        activeStates.Contains("serviceA.complete").Should().BeTrue();
+        activeStates.Contains("serviceB.complete").Should().BeTrue();
     }
     
-    [Test]
+    [Fact]
     public void TestServiceCancellationOnStateExit()
     {
         var cancellableService = new ServiceMap
@@ -283,13 +282,19 @@ public class UnitTest_InvokeServices
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("processing"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("processing").Should().BeTrue();
         
         // Cancel should exit the state and cancel the service
         _stateMachine!.Send("CANCEL");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("cancelled"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("cancelled").Should().BeTrue();
         
         // Note: In a real implementation, we'd need to verify the service was actually cancelled
         // This would require more sophisticated service management in the StateMachine
     }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
 }
+

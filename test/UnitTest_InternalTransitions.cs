@@ -1,11 +1,11 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using XStateNet;
 namespace ActorModelTests;
 
-[TestFixture]
-public class UnitTest_InternalTransitions
+public class UnitTest_InternalTransitions : IDisposable
 {
     private StateMachine? _stateMachine;
     private ActionMap _actions;
@@ -16,8 +16,7 @@ public class UnitTest_InternalTransitions
     private List<string> _actionLog;
     private Dictionary<string, int> _contextValues;
     
-    [SetUp]
-    public void Setup()
+    public UnitTest_InternalTransitions()
     {
         _entryCount = 0;
         _exitCount = 0;
@@ -80,7 +79,7 @@ public class UnitTest_InternalTransitions
         };
     }
     
-    [Test]
+    [Fact]
     public void TestBasicInternalTransition()
     {
         const string script = @"
@@ -111,8 +110,8 @@ public class UnitTest_InternalTransitions
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         _stateMachine!.Start();
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("active"), Is.True);
-        Assert.That(_entryCount, Is.EqualTo(1)); // Entry called once on start
+        _stateMachine.GetActiveStateString().Contains("active").Should().BeTrue();
+        _entryCount.Should().Be(1); // Entry called once on start
         
         // Send internal transition event multiple times
         _stateMachine!.Send("INCREMENT");
@@ -120,19 +119,19 @@ public class UnitTest_InternalTransitions
         _stateMachine!.Send("INCREMENT");
         
         // State should not change, entry/exit should not be called again
-        Assert.That(_stateMachine.GetActiveStateString().Contains("active"), Is.True);
-        Assert.That(_entryCount, Is.EqualTo(1)); // Still only once
-        Assert.That(_exitCount, Is.EqualTo(0)); // Never called for internal
-        Assert.That(_actionCount, Is.EqualTo(3)); // Action called 3 times
-        Assert.That(_contextValues["counter"], Is.EqualTo(3));
+        _stateMachine.GetActiveStateString().Contains("active").Should().BeTrue();
+        _entryCount.Should().Be(1); // Still only once
+        _exitCount.Should().Be(0); // Never called for internal
+        _actionCount.Should().Be(3); // Action called 3 times
+        _contextValues["counter"].Should().Be(3);
         
         // Now do external transition
         _stateMachine!.Send("EXTERNAL");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("done"), Is.True);
-        Assert.That(_exitCount, Is.EqualTo(1)); // Exit called on external transition
+        _stateMachine.GetActiveStateString().Contains("done").Should().BeTrue();
+        _exitCount.Should().Be(1); // Exit called on external transition
     }
     
-    [Test]
+    [Fact]
     public void TestInternalTransitionWithNullTarget()
     {
         const string script = @"
@@ -159,20 +158,20 @@ public class UnitTest_InternalTransitions
         _stateMachine.ContextMap!["counter"] = 0;
         _stateMachine!.Start();
         
-        Assert.That(_entryCount, Is.EqualTo(1));
+        _entryCount.Should().Be(1);
         
         // Null target with actions should be internal
         _stateMachine!.Send("UPDATE");
         _stateMachine!.Send("UPDATE");
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("counting"), Is.True);
-        Assert.That(_entryCount, Is.EqualTo(1)); // No re-entry
-        Assert.That(_actionCount, Is.EqualTo(2));
+        _stateMachine.GetActiveStateString().Contains("counting").Should().BeTrue();
+        _entryCount.Should().Be(1); // No re-entry
+        _actionCount.Should().Be(2);
         var counterVal = _stateMachine!.ContextMap!["counter"];
-        Assert.That(counterVal is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(counterVal ?? 0), Is.EqualTo(2));
+        (counterVal is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(counterVal ?? 0)).Should().Be(2);
     }
     
-    [Test]
+    [Fact]
     public void TestInternalTransitionInNestedStates()
     {
         const string script = @"
@@ -207,23 +206,23 @@ public class UnitTest_InternalTransitions
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         _stateMachine!.Start();
         
-        Assert.That(_entryCount, Is.EqualTo(2)); // Parent and child entry
+        _entryCount.Should().Be(2); // Parent and child entry
         
         _stateMachine!.Send("INTERNAL_UPDATE");
         
         // Should update context without re-entering states
-        Assert.That(_entryCount, Is.EqualTo(2)); // No additional entries
-        Assert.That(_stateMachine.ContextMap!["value"], Is.EqualTo("updated"));
-        Assert.That(_stateMachine.GetActiveStateString().Contains("child"), Is.True);
+        _entryCount.Should().Be(2); // No additional entries
+        _stateMachine.ContextMap!["value"].Should().Be("updated");
+        _stateMachine.GetActiveStateString().Contains("child").Should().BeTrue();
         
         _stateMachine!.Send("EXTERNAL_UPDATE");
         
         // External transition should trigger exit/entry
-        Assert.That(_stateMachine.GetActiveStateString().Contains("sibling"), Is.True);
-        Assert.That(_exitCount, Is.EqualTo(1)); // Child exit
+        _stateMachine.GetActiveStateString().Contains("sibling").Should().BeTrue();
+        _exitCount.Should().Be(1); // Child exit
     }
     
-    [Test]
+    [Fact]
     public void TestInternalTransitionWithGuards()
     {
         const string script = @"
@@ -262,26 +261,26 @@ public class UnitTest_InternalTransitions
         for (int i = 0; i < 4; i++)
         {
             _stateMachine!.Send("INCREMENT");
-            Assert.That(_stateMachine.GetActiveStateString().Contains("counting"), Is.True);
+            _stateMachine.GetActiveStateString().Contains("counting").Should().BeTrue();
         }
         
-        Assert.That(_actionCount, Is.EqualTo(4));
+        _actionCount.Should().Be(4);
         var counter1 = _stateMachine.ContextMap!["counter"];
-        Assert.That(counter1 is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : (int)(counter1 ?? 0), Is.EqualTo(4));
+        (counter1 is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : (int)(counter1 ?? 0)).Should().Be(4);
         
         // One more increment should reach 5 and transition externally
         _stateMachine!.Send("INCREMENT");
-        Assert.That(_actionCount, Is.EqualTo(5));
+        _actionCount.Should().Be(5);
         var counter2 = _stateMachine.ContextMap!["counter"];
-        Assert.That(counter2 is Newtonsoft.Json.Linq.JValue jv2 ? jv2.ToObject<int>() : (int)(counter2 ?? 0), Is.EqualTo(5));
+        (counter2 is Newtonsoft.Json.Linq.JValue jv2 ? jv2.ToObject<int>() : (int)(counter2 ?? 0)).Should().Be(5);
         
         // Next increment should trigger external transition
         _stateMachine!.Send("INCREMENT");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("maxReached"), Is.True);
-        Assert.That(_actionLog, Does.Contain("log:#guardedInternal.maxReached"));
+        _stateMachine.GetActiveStateString().Contains("maxReached").Should().BeTrue();
+        _actionLog.Should().Contain("log:#guardedInternal.maxReached");
     }
     
-    [Test]
+    [Fact]
     public void TestInternalTransitionInParallelStates()
     {
         const string script = @"
@@ -328,22 +327,22 @@ public class UnitTest_InternalTransitions
         
         // Update region A internally
         _stateMachine!.Send("UPDATE_A");
-        Assert.That(_entryCount, Is.EqualTo(initialEntries)); // No re-entry
+        _entryCount.Should().Be(initialEntries); // No re-entry
         var counterValue = _stateMachine.ContextMap!["counter"];
-        Assert.That(counterValue is Newtonsoft.Json.Linq.JValue jv3 ? jv3.ToObject<int>() : (int)(counterValue ?? 0), Is.EqualTo(1));
+        (counterValue is Newtonsoft.Json.Linq.JValue jv3 ? jv3.ToObject<int>() : (int)(counterValue ?? 0)).Should().Be(1);
         
         // Update region B internally
         _stateMachine!.Send("UPDATE_B");
-        Assert.That(_entryCount, Is.EqualTo(initialEntries)); // Still no re-entry
-        Assert.That(_stateMachine.ContextMap["value"], Is.EqualTo("updated"));
+        _entryCount.Should().Be(initialEntries); // Still no re-entry
+        _stateMachine.ContextMap["value"].Should().Be("updated");
         
         // Both regions should still be in their original states
         var activeStates = _stateMachine!.GetActiveStateString();
-        Assert.That(activeStates.Contains("regionA.stateA"), Is.True);
-        Assert.That(activeStates.Contains("regionB.stateB"), Is.True);
+        activeStates.Contains("regionA.stateA").Should().BeTrue();
+        activeStates.Contains("regionB.stateB").Should().BeTrue();
     }
     
-    [Test]
+    [Fact]
     public void TestMixedInternalAndExternalTransitions()
     {
         const string script = @"
@@ -392,25 +391,31 @@ public class UnitTest_InternalTransitions
         _stateMachine!.Send("INTERNAL");
         _stateMachine!.Send("INTERNAL");
         
-        Assert.That(_entryCount, Is.EqualTo(initialEntries));
-        Assert.That(_exitCount, Is.EqualTo(initialExits));
+        _entryCount.Should().Be(initialEntries);
+        _exitCount.Should().Be(initialExits);
         var internalCount1 = _stateMachine.ContextMap!["internalCount"];
         var externalCount1 = _stateMachine.ContextMap!["externalCount"];
-        Assert.That(internalCount1 is Newtonsoft.Json.Linq.JValue jvi1 ? jvi1.ToObject<int>() : (int)(internalCount1 ?? 0), Is.EqualTo(2));
-        Assert.That(externalCount1 is Newtonsoft.Json.Linq.JValue jve1 ? jve1.ToObject<int>() : (int)(externalCount1 ?? 0), Is.EqualTo(0));
+        (internalCount1 is Newtonsoft.Json.Linq.JValue jvi1 ? jvi1.ToObject<int>() : (int)(internalCount1 ?? 0)).Should().Be(2);
+        (externalCount1 is Newtonsoft.Json.Linq.JValue jve1 ? jve1.ToObject<int>() : (int)(externalCount1 ?? 0)).Should().Be(0);
         
         // External self-transitions
         _stateMachine!.Send("EXTERNAL");
         _stateMachine!.Send("EXTERNAL");
         
-        Assert.That(_entryCount, Is.EqualTo(initialEntries + 2)); // Re-entered twice
-        Assert.That(_exitCount, Is.EqualTo(initialExits + 2)); // Exited twice
+        _entryCount.Should().Be(initialEntries + 2); // Re-entered twice
+        _exitCount.Should().Be(initialExits + 2); // Exited twice
         var internalCount2 = _stateMachine.ContextMap!["internalCount"];
         var externalCount2 = _stateMachine.ContextMap!["externalCount"];
-        Assert.That(internalCount2 is Newtonsoft.Json.Linq.JValue jvi2 ? jvi2.ToObject<int>() : (int)(internalCount2 ?? 0), Is.EqualTo(2));
-        Assert.That(externalCount2 is Newtonsoft.Json.Linq.JValue jve2 ? jve2.ToObject<int>() : (int)(externalCount2 ?? 0), Is.EqualTo(2));
+        (internalCount2 is Newtonsoft.Json.Linq.JValue jvi2 ? jvi2.ToObject<int>() : (int)(internalCount2 ?? 0)).Should().Be(2);
+        (externalCount2 is Newtonsoft.Json.Linq.JValue jve2 ? jve2.ToObject<int>() : (int)(externalCount2 ?? 0)).Should().Be(2);
         
         _stateMachine!.Send("DONE");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("complete"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("complete").Should().BeTrue();
+    }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
 }
+

@@ -11,9 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="E90SubstrateStates.json" />
-    <EmbeddedResource Include="E87CarrierStates.json" />
-    <EmbeddedResource Include="E87LoadPortStates.json" />
+    <EmbeddedResource Include="*.json" />
+    <Content Include="*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

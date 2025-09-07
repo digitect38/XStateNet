@@ -1,14 +1,14 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
-using XStateNet.UnitTest;
+using XStateNet.Semi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SemiIntegratedTests
+namespace SemiStandard.Tests
 {
-    [TestFixture]
-    public class SemiIntegratedMachineTests
+    public class SemiIntegratedMachineTests : IDisposable
     {
         private StateMachine? _stateMachine;
         private ActionMap _actions;
@@ -17,8 +17,7 @@ namespace SemiIntegratedTests
         // Context variables
         private Dictionary<string, object?> _context;
         
-        [SetUp]
-        public void Setup()
+        public SemiIntegratedMachineTests()
         {
             _context = new Dictionary<string, object?>
             {
@@ -287,7 +286,7 @@ namespace SemiIntegratedTests
             };
         }
         
-        [Test]
+        [Fact]
         public void TestInitialState()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -298,16 +297,16 @@ namespace SemiIntegratedTests
             _stateMachine!.Start();
             
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.INIT"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
-            Assert.IsTrue(currentState.Contains("processJob.NO_PROCESS"));
-            Assert.IsTrue(currentState.Contains("recipeManagement.NO_RECIPE"));
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("equipment.INIT");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain("processJob.NO_PROCESS");
+            currentState.Should().Contain("recipeManagement.NO_RECIPE");
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
         }
         
-        [Test]
+        [Fact]
         public void TestEquipmentInitialization()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -319,12 +318,12 @@ namespace SemiIntegratedTests
             
             _stateMachine!.Send("INIT_COMPLETE");
             
-            Assert.That(_stateMachine.ContextMap!["equipmentState"], Is.EqualTo("IDLE"));
-            Assert.That((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false), Is.True);
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("COMMUNICATING"));
+            _stateMachine.ContextMap!["equipmentState"].Should().Be("IDLE");
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
+            _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
         }
         
-        [Test]
+        [Fact]
         public void TestCarrierArrival()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -339,10 +338,10 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("CARRIER_ARRIVED");
             
             List<object?>? carriers = _stateMachine.ContextMap!["activeCarriers"] as List<object?>;
-            Assert.IsTrue(carriers?.Count > 0);
+            carriers?.Count.Should().BeGreaterThan(0);
         }
         
-        [Test]
+        [Fact]
         public void TestProductionStart()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -356,10 +355,10 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("START_PRODUCTION");
             
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.PRODUCTIVE"));
+            currentState.Should().Contain("equipment.PRODUCTIVE");
         }
         
-        [Test]
+        [Fact]
         public void TestEmergencyStop()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -376,17 +375,17 @@ namespace SemiIntegratedTests
             
             // Check that equipment moved to FAULT state
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.FAULT"));
+            currentState.Should().Contain("equipment.FAULT");
             
             // Check that the emergency stop actions were executed
             // Note: equipmentState will be "FAULT" because the FAULT state's entry action sets it
             var equipmentState = _stateMachine.ContextMap!["equipmentState"] as string;
-            Assert.IsTrue(equipmentState == "FAULT" || equipmentState == "EMERGENCY_STOP");
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["processActive"] ?? false));
+            (equipmentState == "FAULT" || equipmentState == "EMERGENCY_STOP").Should().BeTrue();
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
+            ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
         
-        [Test]
+        [Fact]
         public void TestSystemReset()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -408,18 +407,18 @@ namespace SemiIntegratedTests
             
             // Check that system reset to INIT state
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.INIT"));
+            currentState.Should().Contain("equipment.INIT");
             
             // Check that the reset actions were executed
-            Assert.That(_stateMachine.ContextMap!["totalProcessed"], Is.EqualTo(0));
-            Assert.That(_stateMachine.ContextMap!["totalErrors"], Is.EqualTo(0));
+            _stateMachine.ContextMap!["totalProcessed"].Should().Be(0);
+            _stateMachine.ContextMap!["totalErrors"].Should().Be(0);
             List<object?>? carriers = _stateMachine.ContextMap!["activeCarriers"] as List<object?>;
-            Assert.That(carriers?.Count ?? 0, Is.EqualTo(0));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["processActive"] ?? false));
+            (carriers?.Count ?? 0).Should().Be(0);
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
+            ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
         
-        [Test]
+        [Fact]
         public void TestCarrierManagementWorkflow()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -431,43 +430,43 @@ namespace SemiIntegratedTests
             
             // Initialize equipment
             _stateMachine!.Send("INIT_COMPLETE");
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
             
             // Carrier arrives
             _stateMachine!.Send("CARRIER_DETECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.CARRIER_ARRIVING"));
+            currentState.Should().Contain("carrierManagement.CARRIER_ARRIVING");
             
             _stateMachine!.Send("CARRIER_ARRIVED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.WAITING_FOR_HOST"));
+            currentState.Should().Contain("carrierManagement.WAITING_FOR_HOST");
             
             // Proceed with carrier
             _stateMachine!.Send("PROCEED_WITH_CARRIER");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.ID_VERIFICATION.READING_ID"));
+            currentState.Should().Contain("carrierManagement.ID_VERIFICATION.READING_ID");
             
             // ID verification flow
             _stateMachine!.Send("ID_READ_SUCCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.ID_VERIFICATION.VERIFYING_ID"));
+            currentState.Should().Contain("carrierManagement.ID_VERIFICATION.VERIFYING_ID");
             
             _stateMachine!.Send("ID_VERIFIED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.SLOT_MAP_VERIFICATION.READING_SLOT_MAP"));
+            currentState.Should().Contain("carrierManagement.SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
             
             // Slot map verification
             _stateMachine!.Send("SLOT_MAP_READ");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP"));
+            currentState.Should().Contain("carrierManagement.SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
             
             _stateMachine!.Send("SLOT_MAP_VERIFIED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.READY_FOR_PROCESSING"));
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false));
+            currentState.Should().Contain("carrierManagement.READY_FOR_PROCESSING");
+            ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeTrue();
         }
         
-        [Test]
+        [Fact]
         public void TestSubstrateTrackingWorkflow()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -485,37 +484,37 @@ namespace SemiIntegratedTests
             // Substrate arrives
             _stateMachine!.Send("SUBSTRATE_DETECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_AT_SOURCE"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_SOURCE");
             
             // Substrate needs processing
             _stateMachine!.Send("SUBSTRATE_NEEDS_PROCESSING");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_PROCESSING.WAITING"));
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["substrateReady"] ?? false));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.WAITING");
+            ((bool)(_stateMachine.ContextMap!["substrateReady"] ?? false)).Should().BeTrue();
             
             // Start processing (requires processActive)
             _stateMachine.ContextMap!["processActive"] = true;
             _stateMachine!.Send("START_SUBSTRATE_PROCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS");
             
             // Complete processing
             _stateMachine!.Send("SUBSTRATE_PROCESS_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_PROCESSING.PROCESSED"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.PROCESSED");
             
             // Move to destination
             _stateMachine!.Send("SUBSTRATE_MOVE_TO_DESTINATION");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_AT_DESTINATION"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
             
             // Substrate departs
             _stateMachine!.Send("SUBSTRATE_DEPARTED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
         }
         
-        [Test]
+        [Fact]
         public void TestControlJobWorkflow()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -532,40 +531,40 @@ namespace SemiIntegratedTests
             // Create job
             _stateMachine!.Send("CREATE_JOB");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_QUEUED"));
+            currentState.Should().Contain("controlJob.JOB_QUEUED");
             
             // Select job
             _stateMachine!.Send("SELECT_JOB");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_SELECTED"));
+            currentState.Should().Contain("controlJob.JOB_SELECTED");
             
             // Start job (requires equipment ready and carrier available)
             _stateMachine!.Send("START_JOB");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_EXECUTING.ACTIVE"));
+            currentState.Should().Contain("controlJob.JOB_EXECUTING.ACTIVE");
             
             // Pause job
             _stateMachine!.Send("PAUSE_JOB");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_EXECUTING.PAUSED"));
+            currentState.Should().Contain("controlJob.JOB_EXECUTING.PAUSED");
             
             // Resume job
             _stateMachine!.Send("RESUME_JOB");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_EXECUTING.ACTIVE"));
+            currentState.Should().Contain("controlJob.JOB_EXECUTING.ACTIVE");
             
             // Complete job
             _stateMachine!.Send("JOB_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_COMPLETED"));
+            currentState.Should().Contain("controlJob.JOB_COMPLETED");
             
             // Remove job
             _stateMachine!.Send("REMOVE_JOB");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
+            currentState.Should().Contain("controlJob.NO_JOBS");
         }
         
-        [Test]
+        [Fact]
         public void TestRecipeManagementWorkflow()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -578,38 +577,38 @@ namespace SemiIntegratedTests
             // Load recipe
             _stateMachine!.Send("LOAD_RECIPE");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.UNVERIFIED"));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false));
+            currentState.Should().Contain("recipeManagement.UNVERIFIED");
+            ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeFalse();
             
             // Verify recipe
             _stateMachine!.Send("VERIFY_RECIPE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.VERIFYING"));
+            currentState.Should().Contain("recipeManagement.VERIFYING");
             
             // Verification passes
             _stateMachine!.Send("VERIFICATION_PASS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.VERIFIED"));
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false));
+            currentState.Should().Contain("recipeManagement.VERIFIED");
+            ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeTrue();
             
             // Select recipe
             _stateMachine!.Send("SELECT_RECIPE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.SELECTED"));
+            currentState.Should().Contain("recipeManagement.SELECTED");
             
             // Start recipe process (requires process active)
             _stateMachine.ContextMap!["processActive"] = true;
             _stateMachine!.Send("START_RECIPE_PROCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.ACTIVE"));
+            currentState.Should().Contain("recipeManagement.ACTIVE");
             
             // Complete recipe process
             _stateMachine!.Send("RECIPE_PROCESS_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("recipeManagement.VERIFIED"));
+            currentState.Should().Contain("recipeManagement.VERIFIED");
         }
         
-        [Test]
+        [Fact]
         public void TestProcessJobWorkflow()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -627,47 +626,47 @@ namespace SemiIntegratedTests
             // Create process
             _stateMachine!.Send("CREATE_PROCESS");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.SETTING_UP"));
+            currentState.Should().Contain("processJob.SETTING_UP");
             
             // Setup complete
             _stateMachine!.Send("SETUP_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.WAITING_FOR_START"));
+            currentState.Should().Contain("processJob.WAITING_FOR_START");
             
             // Start process
             _stateMachine!.Send("START_PROCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESSING.EXECUTING"));
+            currentState.Should().Contain("processJob.PROCESSING.EXECUTING");
             
             // Pause process
             _stateMachine!.Send("PAUSE_PROCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESSING.PAUSING"));
+            currentState.Should().Contain("processJob.PROCESSING.PAUSING");
             
             _stateMachine!.Send("PROCESS_PAUSED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESSING.PAUSED"));
+            currentState.Should().Contain("processJob.PROCESSING.PAUSED");
             
             // Resume process
             _stateMachine!.Send("RESUME_PROCESS");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESSING.RESUMING"));
+            currentState.Should().Contain("processJob.PROCESSING.RESUMING");
             
             _stateMachine!.Send("PROCESS_RESUMED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESSING.EXECUTING"));
+            currentState.Should().Contain("processJob.PROCESSING.EXECUTING");
             
             // Complete process
             _stateMachine!.Send("PROCESS_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESS_COMPLETE"));
+            currentState.Should().Contain("processJob.PROCESS_COMPLETE");
             
             _stateMachine!.Send("VERIFY_PROCESS_OK");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("processJob.PROCESS_COMPLETED"));
+            currentState.Should().Contain("processJob.PROCESS_COMPLETED");
         }
         
-        [Test]
+        [Fact]
         public void TestParallelStateCoordination()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -679,19 +678,19 @@ namespace SemiIntegratedTests
             
             // Verify all parallel regions start correctly
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.INIT"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
-            Assert.IsTrue(currentState.Contains("processJob.NO_PROCESS"));
-            Assert.IsTrue(currentState.Contains("recipeManagement.NO_RECIPE"));
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("equipment.INIT");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain("processJob.NO_PROCESS");
+            currentState.Should().Contain("recipeManagement.NO_RECIPE");
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
             
             // Initialize equipment and verify it doesn't affect other regions
             _stateMachine!.Send("INIT_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.IDLE"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
+            currentState.Should().Contain("equipment.IDLE");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
             
             // Start multiple workflows in parallel
             _stateMachine!.Send("CARRIER_DETECTED");
@@ -699,19 +698,19 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("CREATE_JOB");
             
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.IDLE"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.CARRIER_ARRIVING"));
-            Assert.IsTrue(currentState.Contains("recipeManagement.UNVERIFIED"));
-            Assert.IsTrue(currentState.Contains("controlJob.JOB_QUEUED"));
+            currentState.Should().Contain("equipment.IDLE");
+            currentState.Should().Contain("carrierManagement.CARRIER_ARRIVING");
+            currentState.Should().Contain("recipeManagement.UNVERIFIED");
+            currentState.Should().Contain("controlJob.JOB_QUEUED");
             
             // Test that process coordination flags work correctly
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeFalse();
+            ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeFalse();
             
             // Verify recipe and check flag
             _stateMachine!.Send("VERIFY_RECIPE");
             _stateMachine!.Send("VERIFICATION_PASS");
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeTrue();
             
             // Test multiple target transition (EMERGENCY_STOP)
             _stateMachine!.Send("START_PRODUCTION");
@@ -719,14 +718,14 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("EMERGENCY_STOP");
             
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.FAULT"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
-            Assert.IsTrue(currentState.Contains("processJob.PROCESS_ABORTING"));
+            currentState.Should().Contain("equipment.FAULT");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain("processJob.PROCESS_ABORTING");
         }
         
-        [Test]
+        [Fact]
         public void TestProductionCycle()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -738,13 +737,13 @@ namespace SemiIntegratedTests
             
             // Initialize system
             _stateMachine!.Send("INIT_COMPLETE");
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
             
             // Load and verify recipe
             _stateMachine!.Send("LOAD_RECIPE");
             _stateMachine!.Send("VERIFY_RECIPE");
             _stateMachine!.Send("VERIFICATION_PASS");
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeTrue();
             
             // Carrier arrives and is verified
             _stateMachine!.Send("CARRIER_DETECTED");
@@ -754,30 +753,30 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("ID_VERIFIED");
             _stateMachine!.Send("SLOT_MAP_READ");
             _stateMachine!.Send("SLOT_MAP_VERIFIED");
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeTrue();
             
             // Start production
             _stateMachine!.Send("START_PRODUCTION");
             _stateMachine!.Send("STARTUP_COMPLETE");
             
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.PRODUCTIVE.STANDBY"));
+            currentState.Should().Contain("equipment.PRODUCTIVE.STANDBY");
             
             // Run production
             _stateMachine!.Send("RUN");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.PRODUCTIVE.PRODUCTIVE_RUN"));
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["processActive"] ?? false));
+            currentState.Should().Contain("equipment.PRODUCTIVE.PRODUCTIVE_RUN");
+            ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeTrue();
             
             // Complete production
             _stateMachine!.Send("PROCESS_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.PRODUCTIVE.STANDBY"));
-            Assert.That(_stateMachine.ContextMap!["totalProcessed"], Is.EqualTo(1));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["processActive"] ?? false));
+            currentState.Should().Contain("equipment.PRODUCTIVE.STANDBY");
+            _stateMachine.ContextMap!["totalProcessed"].Should().Be(1);
+            ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
         
-        [Test]
+        [Fact]
         public void TestFaultRecovery()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -795,23 +794,23 @@ namespace SemiIntegratedTests
             // Simulate fault
             _stateMachine!.Send("FAULT_DETECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.FAULT"));
-            Assert.IsFalse((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
-            Assert.IsTrue((int)(_stateMachine.ContextMap!["totalErrors"] ?? 0) > 0);
+            currentState.Should().Contain("equipment.FAULT");
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
+            ((int)(_stateMachine.ContextMap!["totalErrors"] ?? 0)).Should().BeGreaterThan(0);
             
             // Clear fault
             _stateMachine!.Send("FAULT_CLEARED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.IDLE"));
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
+            currentState.Should().Contain("equipment.IDLE");
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
             
             // Verify system can restart production
             _stateMachine!.Send("START_PRODUCTION");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.PRODUCTIVE"));
+            currentState.Should().Contain("equipment.PRODUCTIVE");
         }
         
-        [Test]
+        [Fact]
         public void TestPerformanceMonitoring()
         {
             _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
@@ -823,7 +822,7 @@ namespace SemiIntegratedTests
             
             // Verify monitoring starts active
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
             
             // Update metrics
             _stateMachine!.Send("UPDATE_METRICS");
@@ -835,26 +834,26 @@ namespace SemiIntegratedTests
             
             _stateMachine!.Send("PERFORMANCE_ALERT");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.ALERT_STATE"));
+            currentState.Should().Contain("performanceMonitoring.ALERT_STATE");
             
             // Acknowledge alert
             _stateMachine!.Send("ACKNOWLEDGE_ALERT");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
             
             // Test investigate flow
             _stateMachine.ContextMap!["availability"] = 0.5;
             _stateMachine!.Send("PERFORMANCE_ALERT");
             _stateMachine!.Send("INVESTIGATE_ISSUE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.ANALYZING"));
+            currentState.Should().Contain("performanceMonitoring.ANALYZING");
             
             _stateMachine!.Send("ANALYSIS_COMPLETE");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
         }
         
-        [Test]
+        [Fact]
         public void TestE10StateTracking()
         {
             // SEMI E10 - Equipment Events and State Definitions
@@ -870,7 +869,7 @@ namespace SemiIntegratedTests
             
             // Non-scheduled downtime
             var initialState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(initialState.Contains("equipment.INIT"));
+            initialState.Should().Contain("equipment.INIT");
             stateHistory.Add(("INIT", DateTime.Now));
             
             // Productive time
@@ -883,29 +882,29 @@ namespace SemiIntegratedTests
             // Engineering time
             _stateMachine!.Send("STARTUP_FAIL");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.FAULT"));
+            currentState.Should().Contain("equipment.FAULT");
             stateHistory.Add(("FAULT", DateTime.Now));
             
             _stateMachine!.Send("ENTER_REPAIR");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.ENGINEERING"));
+            currentState.Should().Contain("equipment.ENGINEERING");
             stateHistory.Add(("ENGINEERING", DateTime.Now));
             
             // Scheduled downtime
             _stateMachine!.Send("ENGINEERING_COMPLETE");
             _stateMachine!.Send("ENTER_SETUP");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.SETUP"));
+            currentState.Should().Contain("equipment.SETUP");
             stateHistory.Add(("SETUP", DateTime.Now));
             
             // Verify we can track all E10 state categories
-            Assert.IsTrue(stateHistory.Any(s => s.state == "PRODUCTIVE"));
-            Assert.IsTrue(stateHistory.Any(s => s.state == "IDLE"));
-            Assert.IsTrue(stateHistory.Any(s => s.state == "ENGINEERING"));
-            Assert.IsTrue(stateHistory.Any(s => s.state == "SETUP"));
+            stateHistory.Any(s  => s.state == "PRODUCTIVE").Should().BeTrue();
+            stateHistory.Any(s  => s.state == "IDLE").Should().BeTrue();
+            stateHistory.Any(s  => s.state == "ENGINEERING").Should().BeTrue();
+            stateHistory.Any(s  => s.state == "SETUP").Should().BeTrue();
         }
         
-        [Test]
+        [Fact]
         public void TestE84LoadPortHandshake()
         {
             // SEMI E84 - Enhanced Carrier Handoff
@@ -921,17 +920,17 @@ namespace SemiIntegratedTests
             // Simulate E84 handshake sequence
             // CS_0: Carrier not detected
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
             
             // VALID signal on - carrier detected
             _stateMachine!.Send("CARRIER_DETECTED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.CARRIER_ARRIVING"));
+            currentState.Should().Contain("carrierManagement.CARRIER_ARRIVING");
             
             // CS_1: Transfer blocked (waiting for handshake)
             _stateMachine!.Send("CARRIER_ARRIVED");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("carrierManagement.WAITING_FOR_HOST"));
+            currentState.Should().Contain("carrierManagement.WAITING_FOR_HOST");
             
             // L_REQ signal - Load request from host
             _stateMachine!.Send("PROCEED_WITH_CARRIER");
@@ -940,7 +939,7 @@ namespace SemiIntegratedTests
             // This tests the bidirectional handshake of E84
         }
         
-        [Test]
+        [Fact]
         public void TestE142SubstrateMapping()
         {
             // SEMI E142 - Substrate Mapping
@@ -977,24 +976,24 @@ namespace SemiIntegratedTests
             // Slot map verification - E142 standard
             _stateMachine!.Send("SLOT_MAP_READ");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP"));
+            currentState.Should().Contain("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
             
             // Check slot map for errors
             var slotMap = _stateMachine.ContextMap!["slotMap"] as Dictionary<int, string>;
-            Assert.IsNotNull(slotMap);
+            slotMap.Should().NotBeNull();
             
             // Verify error detection
             var hasDoubleSlot = slotMap.Any(s => s.Value == "DOUBLE_SLOT");
             var hasCrossSlot = slotMap.Any(s => s.Value == "CROSS_SLOT");
-            Assert.IsTrue(hasDoubleSlot, "Should detect double-slotted wafer");
-            Assert.IsTrue(hasCrossSlot, "Should detect cross-slotted wafer");
+            hasDoubleSlot.Should().BeTrue("Should detect double-slotted wafer");
+            hasCrossSlot.Should().BeTrue("Should detect cross-slotted wafer");
             
             // Count valid substrates
             var validSubstrates = slotMap.Count(s => s.Value == "PRESENT");
-            Assert.That(validSubstrates, Is.EqualTo(6));
+            validSubstrates.Should().Be(6);
         }
         
-        [Test]
+        [Fact]
         public void TestCommunicationStates()
         {
             // SEMI E5/E37 - Communication States (SECS/HSMS)
@@ -1006,30 +1005,30 @@ namespace SemiIntegratedTests
             _stateMachine!.Start();
             
             // Initial state - not communicating
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("NOT_COMMUNICATING"));
+            _stateMachine.ContextMap!["communicationState"].Should().Be("NOT_COMMUNICATING");
             
             // Establish communication
             _stateMachine!.Send("INIT_COMPLETE");
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("COMMUNICATING"));
+            _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
             
             // Communication should persist through state changes
             _stateMachine!.Send("START_PRODUCTION");
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("COMMUNICATING"));
+            _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
             
             // Verify communication state tracking works
             // Since equipment has complex nested states, let's just verify the key states
-            Assert.IsTrue((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false));
+            ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
             
             // Manually set communication state to test tracking
             _stateMachine.ContextMap!["communicationState"] = "DISABLED";
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("DISABLED"));
+            _stateMachine.ContextMap!["communicationState"].Should().Be("DISABLED");
             
             // Reset and verify
             _stateMachine.ContextMap!["communicationState"] = "COMMUNICATING";
-            Assert.That(_stateMachine.ContextMap!["communicationState"], Is.EqualTo("COMMUNICATING"));
+            _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
         }
         
-        [Test]
+        [Fact]
         public void TestModuleProcessTracking()
         {
             // SEMI E157 - Module Process Tracking (simplified)
@@ -1053,7 +1052,7 @@ namespace SemiIntegratedTests
             // Start substrate processing in module
             _stateMachine!.Send("SUBSTRATE_DETECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_AT_SOURCE"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_SOURCE");
             
             // Track substrate through multiple modules
             _stateMachine!.Send("SUBSTRATE_NEEDS_PROCESSING");
@@ -1061,15 +1060,15 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("START_SUBSTRATE_PROCESS");
             
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS"));
+            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS");
             
             // Verify module tracking capability exists
             var modules = _stateMachine.ContextMap!["processModules"] as List<object>;
-            Assert.IsNotNull(modules);
-            Assert.That(((dynamic)modules).Count, Is.EqualTo(3));
+            modules.Should().NotBeNull();
+            modules!.Count.Should().Be(3);
         }
         
-        [Test]
+        [Fact]
         public void TestDataAcquisition()
         {
             // SEMI E164 - EDA (Equipment Data Acquisition) concepts
@@ -1106,17 +1105,17 @@ namespace SemiIntegratedTests
             dataPoints.Add(("TotalProcessed", _stateMachine.ContextMap!["totalProcessed"] ?? (object)0!, DateTime.Now));
             
             // Verify data collection
-            Assert.IsTrue(dataPoints.Count > 0);
-            Assert.IsTrue(dataPoints.Any(d => d.parameter == "EquipmentState"));
-            Assert.IsTrue(dataPoints.Any(d => d.parameter == "ProcessActive"));
-            Assert.IsTrue(dataPoints.Any(d => d.parameter == "TotalProcessed"));
+            dataPoints.Count.Should().BeGreaterThan(0);
+            dataPoints.Any(d  => d.parameter == "EquipmentState").Should().BeTrue();
+            dataPoints.Any(d  => d.parameter == "ProcessActive").Should().BeTrue();
+            dataPoints.Any(d  => d.parameter == "TotalProcessed").Should().BeTrue();
             
             // Verify we can track state changes over time
             var stateChanges = dataPoints.Where(d => d.parameter == "EquipmentState").ToList();
-            Assert.IsTrue(stateChanges.Count >= 2);
+            stateChanges.Count.Should().BeGreaterThanOrEqualTo(2);
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_Equipment()
         {
             // Test ALL states and transitions in equipment region
@@ -1130,60 +1129,60 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // INIT -> IDLE
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.INIT"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.INIT");
             visitedStates.Add("INIT");
             
             // Test INIT_FAIL path
             _stateMachine!.Send("INIT_FAIL");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.FAULT"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.FAULT");
             visitedStates.Add("FAULT");
             
             _stateMachine!.Send("FAULT_CLEARED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.IDLE"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.IDLE");
             visitedStates.Add("IDLE");
             
             // Test SHUTDOWN path
             _stateMachine!.Send("SHUTDOWN_REQUEST");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.SHUTDOWN"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.SHUTDOWN");
             visitedStates.Add("SHUTDOWN");
             
             // Test SHUTDOWN_ABORT
             _stateMachine!.Send("SHUTDOWN_ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.IDLE"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.IDLE");
             
             // Test SETUP path
             _stateMachine!.Send("ENTER_SETUP");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.SETUP"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.SETUP");
             visitedStates.Add("SETUP");
             
             // Test SETUP_ABORT
             _stateMachine!.Send("SETUP_ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.IDLE"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.IDLE");
             
             // Test ENGINEERING path through FAULT
             _stateMachine!.Send("FAULT_DETECTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.FAULT"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.FAULT");
             
             _stateMachine!.Send("ENTER_REPAIR");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.ENGINEERING"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.ENGINEERING");
             visitedStates.Add("ENGINEERING");
             
             // Test TEST_RUN from ENGINEERING
             _stateMachine!.Send("TEST_RUN");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.PRODUCTIVE"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.PRODUCTIVE");
             visitedStates.Add("PRODUCTIVE");
             
             // Test all PRODUCTIVE substates
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.START_UP"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.START_UP");
             visitedStates.Add("PRODUCTIVE.START_UP");
             
             _stateMachine!.Send("STARTUP_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.STANDBY"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.STANDBY");
             visitedStates.Add("PRODUCTIVE.STANDBY");
             
             // Test SETUP_REQUEST from STANDBY
             _stateMachine!.Send("SETUP_REQUEST");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("equipment.SETUP"));
+            _stateMachine.GetActiveStateString().Should().Contain("equipment.SETUP");
             
             _stateMachine!.Send("SETUP_COMPLETE");
             _stateMachine!.Send("START_PRODUCTION");
@@ -1194,39 +1193,39 @@ namespace SemiIntegratedTests
             _stateMachine.ContextMap!["recipeVerified"] = true;
             
             _stateMachine!.Send("RUN");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.PRODUCTIVE_RUN"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.PRODUCTIVE_RUN");
             visitedStates.Add("PRODUCTIVE.PRODUCTIVE_RUN");
             
             // Test PAUSE
             _stateMachine!.Send("PAUSE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.PAUSE"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.PAUSE");
             visitedStates.Add("PRODUCTIVE.PAUSE");
             
             // Test ABORT from PAUSE
             _stateMachine!.Send("ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.STANDBY"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.STANDBY");
             
             // Test RESUME from PAUSE
             _stateMachine!.Send("RUN");
             _stateMachine!.Send("PAUSE");
             _stateMachine!.Send("RESUME");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PRODUCTIVE.PRODUCTIVE_RUN"));
+            _stateMachine.GetActiveStateString().Should().Contain("PRODUCTIVE.PRODUCTIVE_RUN");
             
             // Verify we visited all major equipment states
-            Assert.IsTrue(visitedStates.Contains("INIT"));
-            Assert.IsTrue(visitedStates.Contains("IDLE"));
-            Assert.IsTrue(visitedStates.Contains("FAULT"));
-            Assert.IsTrue(visitedStates.Contains("SHUTDOWN"));
-            Assert.IsTrue(visitedStates.Contains("SETUP"));
-            Assert.IsTrue(visitedStates.Contains("ENGINEERING"));
-            Assert.IsTrue(visitedStates.Contains("PRODUCTIVE"));
-            Assert.IsTrue(visitedStates.Contains("PRODUCTIVE.START_UP"));
-            Assert.IsTrue(visitedStates.Contains("PRODUCTIVE.STANDBY"));
-            Assert.IsTrue(visitedStates.Contains("PRODUCTIVE.PRODUCTIVE_RUN"));
-            Assert.IsTrue(visitedStates.Contains("PRODUCTIVE.PAUSE"));
+            visitedStates.Should().Contain("INIT");
+            visitedStates.Should().Contain("IDLE");
+            visitedStates.Should().Contain("FAULT");
+            visitedStates.Should().Contain("SHUTDOWN");
+            visitedStates.Should().Contain("SETUP");
+            visitedStates.Should().Contain("ENGINEERING");
+            visitedStates.Should().Contain("PRODUCTIVE");
+            visitedStates.Should().Contain("PRODUCTIVE.START_UP");
+            visitedStates.Should().Contain("PRODUCTIVE.STANDBY");
+            visitedStates.Should().Contain("PRODUCTIVE.PRODUCTIVE_RUN");
+            visitedStates.Should().Contain("PRODUCTIVE.PAUSE");
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_CarrierManagement()
         {
             // Test ALL states and transitions in carrier management
@@ -1241,50 +1240,50 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // NO_CARRIERS
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.NO_CARRIERS"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.NO_CARRIERS");
             visitedStates.Add("NO_CARRIERS");
             
             // Test carrier arrival
             _stateMachine!.Send("CARRIER_DETECTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.CARRIER_ARRIVING"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.CARRIER_ARRIVING");
             visitedStates.Add("CARRIER_ARRIVING");
             
             _stateMachine!.Send("CARRIER_ARRIVED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.WAITING_FOR_HOST"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.WAITING_FOR_HOST");
             visitedStates.Add("WAITING_FOR_HOST");
             
             // Test REJECT_CARRIER path
             _stateMachine!.Send("REJECT_CARRIER");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.NO_CARRIERS"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.NO_CARRIERS");
             
             // Test ID verification failures
             _stateMachine!.Send("CARRIER_DETECTED");
             _stateMachine!.Send("CARRIER_ARRIVED");
             _stateMachine!.Send("PROCEED_WITH_CARRIER");
             
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("ID_VERIFICATION.READING_ID"));
+            _stateMachine.GetActiveStateString().Should().Contain("ID_VERIFICATION.READING_ID");
             visitedStates.Add("ID_VERIFICATION.READING_ID");
             
             // Test ID_READ_FAIL path
             _stateMachine!.Send("ID_READ_FAIL");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("ID_VERIFICATION.ID_FAILED"));
+            _stateMachine.GetActiveStateString().Should().Contain("ID_VERIFICATION.ID_FAILED");
             visitedStates.Add("ID_VERIFICATION.ID_FAILED");
             
             // Test RETRY_ID
             _stateMachine!.Send("RETRY_ID");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("ID_VERIFICATION.READING_ID"));
+            _stateMachine.GetActiveStateString().Should().Contain("ID_VERIFICATION.READING_ID");
             
             // Test ID_REJECTED path
             _stateMachine!.Send("ID_READ_SUCCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("ID_VERIFICATION.VERIFYING_ID"));
+            _stateMachine.GetActiveStateString().Should().Contain("ID_VERIFICATION.VERIFYING_ID");
             visitedStates.Add("ID_VERIFICATION.VERIFYING_ID");
             
             _stateMachine!.Send("ID_REJECTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("ID_VERIFICATION.ID_FAILED"));
+            _stateMachine.GetActiveStateString().Should().Contain("ID_VERIFICATION.ID_FAILED");
             
             // Test REMOVE_CARRIER from ID_FAILED
             _stateMachine!.Send("REMOVE_CARRIER");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.NO_CARRIERS"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.NO_CARRIERS");
             
             // Test slot map failures
             _stateMachine!.Send("CARRIER_DETECTED");
@@ -1293,58 +1292,58 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("ID_READ_SUCCESS");
             _stateMachine!.Send("ID_VERIFIED");
             
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SLOT_MAP_VERIFICATION.READING_SLOT_MAP"));
+            _stateMachine.GetActiveStateString().Should().Contain("SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
             visitedStates.Add("SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
             
             // Test SLOT_MAP_FAIL path
             _stateMachine!.Send("SLOT_MAP_FAIL");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SLOT_MAP_VERIFICATION.SLOT_MAP_FAILED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SLOT_MAP_VERIFICATION.SLOT_MAP_FAILED");
             visitedStates.Add("SLOT_MAP_VERIFICATION.SLOT_MAP_FAILED");
             
             // Test RETRY_SLOT_MAP
             _stateMachine!.Send("RETRY_SLOT_MAP");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SLOT_MAP_VERIFICATION.READING_SLOT_MAP"));
+            _stateMachine.GetActiveStateString().Should().Contain("SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
             
             // Test SLOT_MAP_REJECTED path
             _stateMachine!.Send("SLOT_MAP_READ");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP"));
+            _stateMachine.GetActiveStateString().Should().Contain("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
             visitedStates.Add("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
             
             _stateMachine!.Send("SLOT_MAP_REJECTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SLOT_MAP_VERIFICATION.SLOT_MAP_FAILED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SLOT_MAP_VERIFICATION.SLOT_MAP_FAILED");
             
             // Complete carrier flow
             _stateMachine!.Send("RETRY_SLOT_MAP");
             _stateMachine!.Send("SLOT_MAP_READ");
             _stateMachine!.Send("SLOT_MAP_VERIFIED");
             
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.READY_FOR_PROCESSING"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.READY_FOR_PROCESSING");
             visitedStates.Add("READY_FOR_PROCESSING");
             
             // Test START_CARRIER_PROCESSING
             _stateMachine.ContextMap!["processActive"] = true;
             _stateMachine!.Send("START_CARRIER_PROCESSING");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.PROCESSING_CARRIER"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.PROCESSING_CARRIER");
             visitedStates.Add("PROCESSING_CARRIER");
             
             // Test CARRIER_PROCESSING_STOPPED
             _stateMachine!.Send("CARRIER_PROCESSING_STOPPED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.READY_FOR_PROCESSING"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.READY_FOR_PROCESSING");
             
             // Test completion path
             _stateMachine!.Send("START_CARRIER_PROCESSING");
             _stateMachine!.Send("CARRIER_PROCESSING_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.CARRIER_COMPLETE"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.CARRIER_COMPLETE");
             visitedStates.Add("CARRIER_COMPLETE");
             
             _stateMachine!.Send("REMOVE_CARRIER");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("carrierManagement.NO_CARRIERS"));
+            _stateMachine.GetActiveStateString().Should().Contain("carrierManagement.NO_CARRIERS");
             
             // Verify all carrier states visited (12 unique states)
-            Assert.That(visitedStates.Count, Is.EqualTo(12));
+            visitedStates.Count.Should().Be(12);
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_SubstrateTracking()
         {
             // Test ALL states and transitions in substrate tracking
@@ -1358,44 +1357,44 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // NO_SUBSTRATES
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.NO_SUBSTRATES"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.NO_SUBSTRATES");
             visitedStates.Add("NO_SUBSTRATES");
             
             _stateMachine!.Send("SUBSTRATE_DETECTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.SUBSTRATE_AT_SOURCE"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.SUBSTRATE_AT_SOURCE");
             visitedStates.Add("SUBSTRATE_AT_SOURCE");
             
             // Test SUBSTRATE_SKIP_PROCESSING path
             _stateMachine!.Send("SUBSTRATE_SKIP_PROCESSING");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.SUBSTRATE_AT_DESTINATION"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
             visitedStates.Add("SUBSTRATE_AT_DESTINATION");
             
             _stateMachine!.Send("SUBSTRATE_DEPARTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.NO_SUBSTRATES"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.NO_SUBSTRATES");
             
             // Test processing path with pause/abort
             _stateMachine!.Send("SUBSTRATE_DETECTED");
             _stateMachine!.Send("SUBSTRATE_NEEDS_PROCESSING");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.WAITING"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.WAITING");
             visitedStates.Add("SUBSTRATE_PROCESSING.WAITING");
             
             _stateMachine.ContextMap!["processActive"] = true;
             _stateMachine!.Send("START_SUBSTRATE_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.IN_PROCESS"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.IN_PROCESS");
             visitedStates.Add("SUBSTRATE_PROCESSING.IN_PROCESS");
             
             // Test PAUSE path
             _stateMachine!.Send("SUBSTRATE_PROCESS_PAUSE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.PAUSED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.PAUSED");
             visitedStates.Add("SUBSTRATE_PROCESSING.PAUSED");
             
             // Test ABORT from PAUSED
             _stateMachine!.Send("SUBSTRATE_PROCESS_ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.ABORTED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.ABORTED");
             visitedStates.Add("SUBSTRATE_PROCESSING.ABORTED");
             
             _stateMachine!.Send("SUBSTRATE_REMOVE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.SUBSTRATE_AT_DESTINATION"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
             
             // Test RESUME path
             _stateMachine!.Send("SUBSTRATE_DEPARTED");
@@ -1404,11 +1403,11 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("START_SUBSTRATE_PROCESS");
             _stateMachine!.Send("SUBSTRATE_PROCESS_PAUSE");
             _stateMachine!.Send("SUBSTRATE_PROCESS_RESUME");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.IN_PROCESS"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.IN_PROCESS");
             
             // Test direct ABORT from IN_PROCESS
             _stateMachine!.Send("SUBSTRATE_PROCESS_ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.ABORTED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.ABORTED");
             
             // Test normal completion
             _stateMachine!.Send("SUBSTRATE_REMOVE");
@@ -1417,16 +1416,16 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("SUBSTRATE_NEEDS_PROCESSING");
             _stateMachine!.Send("START_SUBSTRATE_PROCESS");
             _stateMachine!.Send("SUBSTRATE_PROCESS_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("SUBSTRATE_PROCESSING.PROCESSED"));
+            _stateMachine.GetActiveStateString().Should().Contain("SUBSTRATE_PROCESSING.PROCESSED");
             visitedStates.Add("SUBSTRATE_PROCESSING.PROCESSED");
             
             _stateMachine!.Send("SUBSTRATE_MOVE_TO_DESTINATION");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("substrateTracking.SUBSTRATE_AT_DESTINATION"));
+            _stateMachine.GetActiveStateString().Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
             
-            Assert.That(visitedStates.Count, Is.EqualTo(8));
+            visitedStates.Count.Should().Be(8);
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_ControlJob()
         {
             // Test ALL states and transitions in control job
@@ -1441,40 +1440,40 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // NO_JOBS
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.NO_JOBS"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.NO_JOBS");
             visitedStates.Add("NO_JOBS");
             
             _stateMachine!.Send("CREATE_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.JOB_QUEUED"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.JOB_QUEUED");
             visitedStates.Add("JOB_QUEUED");
             
             // Test DELETE_JOB from QUEUED
             _stateMachine!.Send("DELETE_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.NO_JOBS"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.NO_JOBS");
             
             // Test DESELECT_JOB
             _stateMachine!.Send("CREATE_JOB");
             _stateMachine!.Send("SELECT_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.JOB_SELECTED"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.JOB_SELECTED");
             visitedStates.Add("JOB_SELECTED");
             
             _stateMachine!.Send("DESELECT_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.JOB_QUEUED"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.JOB_QUEUED");
             
             // Test job execution with all substates
             _stateMachine!.Send("SELECT_JOB");
             _stateMachine.ContextMap!["carrierAvailable"] = true;
             _stateMachine!.Send("START_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.ACTIVE"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.ACTIVE");
             visitedStates.Add("JOB_EXECUTING.ACTIVE");
             
             // Test ABORT_JOB
             _stateMachine!.Send("ABORT_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.ABORTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.ABORTING");
             visitedStates.Add("JOB_EXECUTING.ABORTING");
             
             _stateMachine!.Send("JOB_ABORTED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.JOB_COMPLETED"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.JOB_COMPLETED");
             visitedStates.Add("JOB_COMPLETED");
             
             _stateMachine!.Send("REMOVE_JOB");
@@ -1484,15 +1483,15 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("SELECT_JOB");
             _stateMachine!.Send("START_JOB");
             _stateMachine!.Send("PAUSE_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.PAUSED"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.PAUSED");
             visitedStates.Add("JOB_EXECUTING.PAUSED");
             
             _stateMachine!.Send("STOP_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.STOPPING"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.STOPPING");
             visitedStates.Add("JOB_EXECUTING.STOPPING");
             
             _stateMachine!.Send("JOB_STOPPED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("controlJob.JOB_COMPLETED"));
+            _stateMachine.GetActiveStateString().Should().Contain("controlJob.JOB_COMPLETED");
             
             // Test RESUME_JOB
             _stateMachine!.Send("REMOVE_JOB");
@@ -1501,16 +1500,16 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("START_JOB");
             _stateMachine!.Send("PAUSE_JOB");
             _stateMachine!.Send("RESUME_JOB");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.ACTIVE"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.ACTIVE");
             
             // Test SUBSTRATE_COMPLETED (internal transition)
             _stateMachine!.Send("SUBSTRATE_COMPLETED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("JOB_EXECUTING.ACTIVE"));
+            _stateMachine.GetActiveStateString().Should().Contain("JOB_EXECUTING.ACTIVE");
             
-            Assert.That(visitedStates.Count, Is.EqualTo(8));
+            visitedStates.Count.Should().Be(8);
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_ProcessJob()
         {
             // Test ALL states and transitions in process job
@@ -1525,20 +1524,20 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // NO_PROCESS
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.NO_PROCESS"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.NO_PROCESS");
             visitedStates.Add("NO_PROCESS");
             
             _stateMachine!.Send("CREATE_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.SETTING_UP"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.SETTING_UP");
             visitedStates.Add("SETTING_UP");
             
             // Test SETUP_FAILED path
             _stateMachine!.Send("SETUP_FAILED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_ABORTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_ABORTING");
             visitedStates.Add("PROCESS_ABORTING");
             
             _stateMachine!.Send("ABORT_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_ABORTED"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_ABORTED");
             visitedStates.Add("PROCESS_ABORTED");
             
             _stateMachine!.Send("REMOVE_PROCESS");
@@ -1546,11 +1545,11 @@ namespace SemiIntegratedTests
             // Test normal setup and abort from waiting
             _stateMachine!.Send("CREATE_PROCESS");
             _stateMachine!.Send("SETUP_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.WAITING_FOR_START"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.WAITING_FOR_START");
             visitedStates.Add("WAITING_FOR_START");
             
             _stateMachine!.Send("ABORT_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_ABORTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_ABORTING");
             
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
@@ -1561,47 +1560,47 @@ namespace SemiIntegratedTests
             _stateMachine.ContextMap!["carrierAvailable"] = true;
             _stateMachine.ContextMap!["recipeVerified"] = true;
             _stateMachine!.Send("START_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.EXECUTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.EXECUTING");
             visitedStates.Add("PROCESSING.EXECUTING");
             
             // Test PAUSE_FAILED path
             _stateMachine!.Send("PAUSE_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.PAUSING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.PAUSING");
             visitedStates.Add("PROCESSING.PAUSING");
             
             _stateMachine!.Send("PAUSE_FAILED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.EXECUTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.EXECUTING");
             
             // Test successful pause
             _stateMachine!.Send("PAUSE_PROCESS");
             _stateMachine!.Send("PROCESS_PAUSED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.PAUSED"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.PAUSED");
             visitedStates.Add("PROCESSING.PAUSED");
             
             // Test RESUME_FAILED path
             _stateMachine!.Send("RESUME_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.RESUMING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.RESUMING");
             visitedStates.Add("PROCESSING.RESUMING");
             
             _stateMachine!.Send("RESUME_FAILED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.PAUSED"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.PAUSED");
             
             // Test successful resume
             _stateMachine!.Send("RESUME_PROCESS");
             _stateMachine!.Send("PROCESS_RESUMED");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.EXECUTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.EXECUTING");
             
             // Test STEP_COMPLETE and NEXT_STEP
             _stateMachine!.Send("STEP_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.NEXT_STEP"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.NEXT_STEP");
             visitedStates.Add("PROCESSING.NEXT_STEP");
             
             _stateMachine!.Send("CONTINUE_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("PROCESSING.EXECUTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("PROCESSING.EXECUTING");
             
             // Test PROCESS_ERROR path
             _stateMachine!.Send("PROCESS_ERROR");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_ABORTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_ABORTING");
             
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
@@ -1611,12 +1610,12 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("SETUP_COMPLETE");
             _stateMachine!.Send("START_PROCESS");
             _stateMachine!.Send("PROCESS_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_COMPLETE"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_COMPLETE");
             visitedStates.Add("PROCESS_COMPLETE");
             
             // Test VERIFY_PROCESS_FAIL
             _stateMachine!.Send("VERIFY_PROCESS_FAIL");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_ABORTING"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_ABORTING");
             
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
@@ -1627,13 +1626,13 @@ namespace SemiIntegratedTests
             _stateMachine!.Send("START_PROCESS");
             _stateMachine!.Send("PROCESS_COMPLETE");
             _stateMachine!.Send("VERIFY_PROCESS_OK");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("processJob.PROCESS_COMPLETED"));
+            _stateMachine.GetActiveStateString().Should().Contain("processJob.PROCESS_COMPLETED");
             visitedStates.Add("PROCESS_COMPLETED");
             
-            Assert.That(visitedStates.Count, Is.EqualTo(12));
+            visitedStates.Count.Should().Be(12);
         }
         
-        [Test]
+        [Fact]
         public void TestFullStateVisitingCoverage_RecipeManagement()
         {
             // Test ALL states and transitions in recipe management
@@ -1647,80 +1646,80 @@ namespace SemiIntegratedTests
             var visitedStates = new HashSet<string>();
             
             // NO_RECIPE
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.NO_RECIPE"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.NO_RECIPE");
             visitedStates.Add("NO_RECIPE");
             
             _stateMachine!.Send("LOAD_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.UNVERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.UNVERIFIED");
             visitedStates.Add("UNVERIFIED");
             
             _stateMachine!.Send("VERIFY_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFYING"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFYING");
             visitedStates.Add("VERIFYING");
             
             // Test VERIFICATION_FAIL path
             _stateMachine!.Send("VERIFICATION_FAIL");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFICATION_FAILED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFICATION_FAILED");
             visitedStates.Add("VERIFICATION_FAILED");
             
             // Test RETRY_VERIFICATION
             _stateMachine!.Send("RETRY_VERIFICATION");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFYING"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFYING");
             
             // Test EDIT_RECIPE from VERIFICATION_FAILED
             _stateMachine!.Send("VERIFICATION_FAIL");
             _stateMachine!.Send("EDIT_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.EDITING"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.EDITING");
             visitedStates.Add("EDITING");
             
             // Test CANCEL_EDIT (requires going to VERIFIED first)
             _stateMachine!.Send("SAVE_RECIPE");
             _stateMachine!.Send("VERIFY_RECIPE");
             _stateMachine!.Send("VERIFICATION_PASS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFIED");
             visitedStates.Add("VERIFIED");
             
             _stateMachine!.Send("EDIT_RECIPE");
             _stateMachine!.Send("CANCEL_EDIT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFIED");
             
             // Test DELETE_RECIPE
             _stateMachine!.Send("DELETE_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.NO_RECIPE"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.NO_RECIPE");
             
             // Test SELECTED and ACTIVE states
             _stateMachine!.Send("LOAD_RECIPE");
             _stateMachine!.Send("VERIFY_RECIPE");
             _stateMachine!.Send("VERIFICATION_PASS");
             _stateMachine!.Send("SELECT_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.SELECTED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.SELECTED");
             visitedStates.Add("SELECTED");
             
             // Test DESELECT_RECIPE
             _stateMachine!.Send("DESELECT_RECIPE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFIED");
             
             // Test START_RECIPE_PROCESS
             _stateMachine!.Send("SELECT_RECIPE");
             _stateMachine.ContextMap!["processActive"] = true;
             _stateMachine!.Send("START_RECIPE_PROCESS");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.ACTIVE"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.ACTIVE");
             visitedStates.Add("ACTIVE");
             
             // Test RECIPE_PROCESS_ABORT
             _stateMachine!.Send("RECIPE_PROCESS_ABORT");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFIED");
             
             // Test RECIPE_PROCESS_COMPLETE
             _stateMachine!.Send("SELECT_RECIPE");
             _stateMachine!.Send("START_RECIPE_PROCESS");
             _stateMachine!.Send("RECIPE_PROCESS_COMPLETE");
-            Assert.IsTrue(_stateMachine.GetActiveStateString().Contains("recipeManagement.VERIFIED"));
+            _stateMachine.GetActiveStateString().Should().Contain("recipeManagement.VERIFIED");
             
-            Assert.That(visitedStates.Count, Is.EqualTo(8));
+            visitedStates.Count.Should().Be(8);
         }
         
-        [Test]
+        [Fact]
         public void TestSystemLevelTransitions()
         {
             // Test SYSTEM_INITIALIZE and global transitions
@@ -1733,7 +1732,7 @@ namespace SemiIntegratedTests
             
             // Test SYSTEM_INITIALIZE (actions only, no transition)
             _stateMachine!.Send("SYSTEM_INITIALIZE");
-            Assert.IsNotNull(_stateMachine.ContextMap!["systemStartTime"]);
+            _stateMachine.ContextMap!["systemStartTime"].Should().NotBeNull();
             
             // Setup complex state
             _stateMachine!.Send("INIT_COMPLETE");
@@ -1746,11 +1745,11 @@ namespace SemiIntegratedTests
             // Test EMERGENCY_STOP with multiple targets
             _stateMachine!.Send("EMERGENCY_STOP");
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.FAULT"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
-            Assert.IsTrue(currentState.Contains("processJob.PROCESS_ABORTING"));
+            currentState.Should().Contain("equipment.FAULT");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain("processJob.PROCESS_ABORTING");
             
             // Clear emergency state
             _stateMachine!.Send("ABORT_COMPLETE");
@@ -1766,17 +1765,17 @@ namespace SemiIntegratedTests
             // Test SYSTEM_RESET with multiple targets
             _stateMachine!.Send("SYSTEM_RESET");
             currentState = _stateMachine!.GetActiveStateString();
-            Assert.IsTrue(currentState.Contains("equipment.INIT"));
-            Assert.IsTrue(currentState.Contains("carrierManagement.NO_CARRIERS"));
-            Assert.IsTrue(currentState.Contains("substrateTracking.NO_SUBSTRATES"));
-            Assert.IsTrue(currentState.Contains("controlJob.NO_JOBS"));
-            Assert.IsTrue(currentState.Contains("processJob.NO_PROCESS"));
-            Assert.IsTrue(currentState.Contains("recipeManagement.NO_RECIPE"));
-            Assert.IsTrue(currentState.Contains("performanceMonitoring.MONITORING"));
+            currentState.Should().Contain("equipment.INIT");
+            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain("processJob.NO_PROCESS");
+            currentState.Should().Contain("recipeManagement.NO_RECIPE");
+            currentState.Should().Contain("performanceMonitoring.MONITORING");
             
             // Verify context was reset
-            Assert.That(_stateMachine.ContextMap!["totalProcessed"], Is.EqualTo(0));
-            Assert.That(_stateMachine.ContextMap!["totalErrors"], Is.EqualTo(0));
+            _stateMachine.ContextMap!["totalProcessed"].Should().Be(0);
+            _stateMachine.ContextMap!["totalErrors"].Should().Be(0);
         }
         
         // The SEMI Integrated State Machine Script
@@ -2351,5 +2350,18 @@ namespace SemiIntegratedTests
                 }
             }
         }";
-    }
+    
+
+        public void Dispose()
+        {
+            // Cleanup if needed
+        }}
 }
+
+
+
+
+
+
+
+

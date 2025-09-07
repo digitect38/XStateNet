@@ -25,8 +25,8 @@ public class E90SubstrateTracking
     static E90SubstrateTracking()
     {
         // Load embedded JSON resource or from file
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = "XStateNet.Semi.E90SubstrateStates.json";
+        var assembly = typeof(E90SubstrateTracking).Assembly;
+        var resourceName = "SemiStandard.E90SubstrateStates.json";
         
         // First try to load from embedded resource
         using (var stream = assembly.GetManifestResourceStream(resourceName))
@@ -86,11 +86,17 @@ public class E90SubstrateTracking
         
         lock (_updateLock)
         {
-            // Record previous location in history
+            // Record location change in history
             if (_locations.TryGetValue(substrateid, out var prevLocation))
             {
-                AddHistory(substrateid, null, prevLocation.LocationId, 
+                AddHistory(substrateid, null, locationId, 
                     $"Moved from {prevLocation.LocationId} to {locationId}");
+            }
+            else
+            {
+                // First location update
+                AddHistory(substrateid, null, locationId, 
+                    $"Located at {locationId}");
             }
             
             _locations[substrateid] = location;
@@ -274,106 +280,15 @@ public class SubstrateStateMachine
             })
         };
         
-        // Use the JSON script if provided, otherwise use default E90 states
+        // Use the provided JSON script
         if (string.IsNullOrEmpty(jsonScript))
         {
-            // Fallback to inline JSON if external file not found
-            jsonScript = @"{
-                ""id"": ""substrate_" + substrateid + @""",
-                ""initial"": ""WaitingForHost"",
-                ""states"": {
-                    ""WaitingForHost"": {
-                        ""on"": {
-                            ""ACQUIRE"": ""InCarrier"",
-                            ""PLACED_IN_CARRIER"": ""InCarrier""
-                        }
-                    },
-                    ""InCarrier"": {
-                        ""on"": {
-                            ""SELECT_FOR_PROCESS"": ""NeedsProcessing"",
-                            ""SKIP"": ""Skipped"",
-                            ""REJECT"": ""Rejected""
-                        }
-                    },
-                    ""NeedsProcessing"": {
-                        ""on"": {
-                            ""PLACED_IN_PROCESS_MODULE"": ""ReadyToProcess"",
-                            ""PLACED_IN_ALIGNER"": ""Aligning"",
-                            ""ABORT"": ""Aborted""
-                        }
-                    },
-                    ""Aligning"": {
-                        ""on"": {
-                            ""ALIGN_COMPLETE"": ""ReadyToProcess"",
-                            ""ALIGN_FAIL"": ""Rejected""
-                        }
-                    },
-                    ""ReadyToProcess"": {
-                        ""on"": {
-                            ""START_PROCESS"": ""InProcess"",
-                            ""ABORT"": ""Aborted""
-                        }
-                    },
-                    ""InProcess"": {
-                        ""entry"": [""recordProcessStart""],
-                        ""exit"": [""recordProcessEnd""],
-                        ""on"": {
-                            ""PROCESS_COMPLETE"": ""Processed"",
-                            ""PROCESS_ABORT"": ""Aborted"",
-                            ""PROCESS_STOP"": ""Stopped"",
-                            ""PROCESS_ERROR"": ""Rejected""
-                        }
-                    },
-                    ""Processed"": {
-                        ""on"": {
-                            ""PLACED_IN_CARRIER"": ""Complete"",
-                            ""REMOVE"": ""Removed""
-                        }
-                    },
-                    ""Aborted"": {
-                        ""on"": {
-                            ""PLACED_IN_CARRIER"": ""Complete"",
-                            ""REMOVE"": ""Removed""
-                        }
-                    },
-                    ""Stopped"": {
-                        ""on"": {
-                            ""RESUME"": ""InProcess"",
-                            ""ABORT"": ""Aborted""
-                        }
-                    },
-                    ""Rejected"": {
-                        ""on"": {
-                            ""PLACED_IN_CARRIER"": ""Complete"",
-                            ""REMOVE"": ""Removed""
-                        }
-                    },
-                    ""Lost"": {
-                        ""type"": ""final""
-                    },
-                    ""Skipped"": {
-                        ""on"": {
-                            ""PLACED_IN_CARRIER"": ""Complete"",
-                            ""REMOVE"": ""Removed""
-                        }
-                    },
-                    ""Complete"": {
-                        ""on"": {
-                            ""REMOVE"": ""Removed""
-                        }
-                    },
-                    ""Removed"": {
-                        ""type"": ""final""
-                    }
-                }
-            }";
+            throw new InvalidOperationException("E90SubstrateStates.json file not found. Please ensure the JSON file is included as an embedded resource or available in the application directory.");
         }
-        else
-        {
-            // Update the id in the JSON to be unique for this substrate
-            jsonScript = jsonScript.Replace("\"id\": \"E90SubstrateStateMachine\"", 
-                                          $"\"id\": \"substrate_{substrateid}\"");
-        }
+        
+        // Update the id in the JSON to be unique for this substrate
+        jsonScript = jsonScript.Replace("\"id\": \"E90SubstrateStateMachine\"", 
+                                      $"\"id\": \"substrate_{substrateid}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
         return StateMachine.CreateFromScript(jsonScript, actionMap);

@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
@@ -6,14 +7,12 @@ using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 namespace AdvancedFeatures;
 
-[TestFixture]
-public class AfterTests
+public class AfterTests : IDisposable
 {
     private ActionMap actions;
     private GuardMap guards;
 
-    [SetUp]
-    public void Setup()
+    public AfterTests()
     {
 
         actions = new ActionMap
@@ -64,7 +63,13 @@ public class AfterTests
             })
         };
     }
-    [Test]
+
+    public void Dispose()
+    {
+        // Cleanup resources if needed
+    }
+
+    [Fact]
     public void TestAfterTransition()
     {
         // Arrange
@@ -95,7 +100,7 @@ public class AfterTests
         // Initial state should be 'red'
         var cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
-        Assert.That(cxtlog, Is.EqualTo("Entering red; "));
+        cxtlog.Should().Be("Entering red; ");
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
@@ -103,7 +108,7 @@ public class AfterTests
         System.Threading.Thread.Sleep(450);
 
         // Assert that the 'after' transition has not occurred yet
-        Assert.That(cxtlog, Is.EqualTo("Entering red; "));
+        cxtlog.Should().Be("Entering red; ");
 
         // Wait longer than the 'after' delay
         System.Threading.Thread.Sleep(100);
@@ -114,13 +119,13 @@ public class AfterTests
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
         // Assert
-        Assert.That(currentStates, Is.EqualTo("#trafficLight.green"));
-        Assert.That(cxtlog, Is.EqualTo("Entering red; Exiting red; After transition to green; Entering green; "));
+        currentStates.Should().Be("#trafficLight.green");
+        cxtlog.Should().Be("Entering red; Exiting red; After transition to green; Entering green; ");
     }
 
     StateMachine? _stateMachine = null;
 
-    [Test]
+    [Fact]
     public void TestGuardedAfterTransition_FailsGuard()
     {
         // Arrange
@@ -155,6 +160,6 @@ public class AfterTests
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
         currentState.AssertEquivalence("#trafficLight.red");
-        Assert.That(log, Is.EqualTo("Entering red; "));
+        log.Should().Be("Entering red; ");
     }
 }

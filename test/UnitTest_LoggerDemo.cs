@@ -1,13 +1,13 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using System.Collections.Generic;
 
 namespace XStateNet.UnitTest
 {
-    [TestFixture]
     public class LoggerDemoTests
     {
-        [Test]
+        [Fact]
         public void DemoLoggerWithStateMachine()
         {
             // Enable caller info for better debugging

@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -8,16 +9,14 @@ using System.Threading.Tasks;
 
 namespace AdvancedFeatures;
 
-[TestFixture]
-public class IntraMachinePingPongStateMachinesTests
+public class IntraMachinePingPongStateMachinesTests : IDisposable
 {
     private StateMachine _pingPongStateMachine;
 
     private ActionMap _actions;
     private GuardMap _guards;
 
-    [SetUp]
-    public void Setup()
+    public IntraMachinePingPongStateMachinesTests()
     {
         _actions = new ()
         {
@@ -35,7 +34,7 @@ public class IntraMachinePingPongStateMachinesTests
     Action<StateMachine> send_to_b = (sm) => sm.Send("to_b");
 
 
-    [Test]
+    [Fact]
     public async Task TestPingPongStateMachines()
     {
         // Initial states
@@ -48,7 +47,13 @@ public class IntraMachinePingPongStateMachinesTests
         await Task.Delay(1100);
         _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
     }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
 }
+
 public static class PingPongMachine
 {
     public static string PingPongStateMachineScript => @"
@@ -99,4 +104,6 @@ public static class PingPongMachine
         }
     }";
 }
+
+
 

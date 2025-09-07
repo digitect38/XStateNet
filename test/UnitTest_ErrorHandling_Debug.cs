@@ -1,10 +1,10 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using XStateNet;
 namespace XStateV5Features;
-[TestFixture]
-public class UnitTest_ErrorHandling_Debug
+public class UnitTest_ErrorHandling_Debug : IDisposable
 {
     private StateMachine? _stateMachine;
     private ActionMap _actions;
@@ -14,8 +14,7 @@ public class UnitTest_ErrorHandling_Debug
     private string? _errorType;
     private List<string> _actionLog;
     
-    [SetUp]
-    public void Setup()
+    public UnitTest_ErrorHandling_Debug()
     {
         _errorHandled = false;
         _errorMessage = null;
@@ -41,7 +40,7 @@ public class UnitTest_ErrorHandling_Debug
         _guards = new GuardMap();
     }
     
-    [Test]
+    [Fact]
     public void TestErrorHandlingDebug()
     {
         const string script = @"
@@ -73,7 +72,7 @@ public class UnitTest_ErrorHandling_Debug
         _stateMachine!.Start();
         
         Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateString()}");
-        Assert.That(_stateMachine.GetActiveStateString(), Does.Contain("idle"));
+        _stateMachine.GetActiveStateString().Should().Contain("idle");
         
         try
         {
@@ -108,6 +107,12 @@ public class UnitTest_ErrorHandling_Debug
         Console.WriteLine($"Action log: {string.Join(", ", _actionLog)}");
         
         // The error should be caught and handled
-        Assert.That(_stateMachine.GetActiveStateString().Contains("error") || _errorHandled, Is.True);
+        (_stateMachine.GetActiveStateString().Contains("error") || _errorHandled).Should().BeTrue();
+    }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
 }
+

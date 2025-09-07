@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -9,13 +10,12 @@ using System.Threading.Tasks;
 
 namespace VideoPlayerStateMachineTests
 {
-    [TestFixture]
-    public class VideoPlayerStateMachineTests
+    public class VideoPlayerStateMachineTests : IDisposable
     {
         private StateMachine? _stateMachine;
         private bool _serviceInvoked;
 
-        [Test]
+        [Fact]
         public async Task TestInvokeStartVideoService()
         {
             var stateMachineJson = @"{
@@ -67,7 +67,7 @@ namespace VideoPlayerStateMachineTests
             // ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
             var services = new ServiceMap
             {
-                ["startVideo"] = new ("startVideo", (sm) =>
+                ["startVideo"] = new("startVideo", (sm) =>
                 {
                     _serviceInvoked = true;
                     StateMachine.Log("startVideo service invoked");
@@ -78,20 +78,29 @@ namespace VideoPlayerStateMachineTests
             _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
-            Assert.That(_serviceInvoked, Is.False);
+            _serviceInvoked.Should().BeFalse();
 
             // Trigger the PLAY event to transition from Closed to Opened.Playing
             _stateMachine!.Send("PLAY");
 
             // Assert the current state
             var currentState = _stateMachine!.GetActiveStateString();
-            Assert.That(currentState, Is.EqualTo("#What is a state machine?.Opened.Playing"));
+            currentState.Should().Be("#What is a state machine?.Opened.Playing");
 
             // Wait for the asynchronous service to be invoked
             await Task.Delay(100); // Allow time for the async service to execute
 
             // Check if the startVideo service was invoked
-            Assert.That(_serviceInvoked, Is.True, "The 'startVideo' service should have been invoked.");
+            _serviceInvoked.Should().BeTrue("The 'startVideo' service should have been invoked.");
+        }
+
+
+        public void Dispose()
+        {
+            // Cleanup if needed
         }
     }
 }
+
+
+

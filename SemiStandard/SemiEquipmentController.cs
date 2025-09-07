@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.IO;
+using System.Reflection;
 
 namespace XStateNet.Semi;
 
@@ -9,11 +11,51 @@ namespace XStateNet.Semi;
 /// </summary>
 public class SemiEquipmentController
 {
-    private readonly StateMachine _stateMachine;
+    private StateMachine _stateMachine = null!;
     private readonly SemiVariableCollection _variables;
     private readonly E90SubstrateTracking _substrateTracking;
     private readonly E87CarrierManagement _carrierManagement;
     private ISemiCommunication? _communication;
+    private static string? _equipmentJsonScript;
+    
+    /// <summary>
+    /// Load the equipment state machine JSON script
+    /// </summary>
+    static SemiEquipmentController()
+    {
+        // Load embedded JSON resource or from file
+        var assembly = typeof(SemiEquipmentController).Assembly;
+        var resourceName = "SemiStandard.SemiEquipmentStates.json";
+        
+        using (var stream = assembly.GetManifestResourceStream(resourceName))
+        {
+            if (stream != null)
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    _equipmentJsonScript = reader.ReadToEnd();
+                }
+            }
+        }
+        
+        // If not embedded, try to load from file
+        if (string.IsNullOrEmpty(_equipmentJsonScript))
+        {
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SemiEquipmentStates.json");
+            if (File.Exists(jsonPath))
+            {
+                _equipmentJsonScript = File.ReadAllText(jsonPath);
+            }
+            else
+            {
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "SemiEquipmentStates.json");
+                if (File.Exists(jsonPath))
+                {
+                    _equipmentJsonScript = File.ReadAllText(jsonPath);
+                }
+            }
+        }
+    }
     
     /// <summary>
     /// Equipment state machine states
@@ -30,112 +72,28 @@ public class SemiEquipmentController
     
     public SemiEquipmentController(string equipmentId)
     {
-        _stateMachine = new StateMachine();
-        _stateMachine.machineId = equipmentId;
         _variables = new SemiVariableCollection();
         _substrateTracking = new E90SubstrateTracking();
         _carrierManagement = new E87CarrierManagement();
         
-        InitializeStateMachine();
+        InitializeStateMachine(equipmentId);
         InitializeSemiVariables();
     }
     
     /// <summary>
-    /// Initialize the equipment state machine using Parser
+    /// Initialize the equipment state machine using JSON script
     /// </summary>
-    private void InitializeStateMachine()
+    private void InitializeStateMachine(string equipmentId)
     {
-        // Define the state machine configuration
-        var config = new Dictionary<string, object>
+        // Use the loaded JSON script
+        if (string.IsNullOrEmpty(_equipmentJsonScript))
         {
-            ["id"] = _stateMachine.machineId ?? "semi-equipment",
-            ["initial"] = StateOffline,
-            ["states"] = new Dictionary<string, object>
-            {
-                [StateOffline] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["goLocal"] = StateLocal,
-                        ["goRemote"] = StateRemote
-                    },
-                    ["entry"] = new[] { "offlineEntry" },
-                    ["exit"] = new[] { "offlineExit" }
-                },
-                [StateLocal] = new Dictionary<string, object>
-                {
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["goOffline"] = StateOffline,
-                        ["goRemote"] = StateRemote
-                    },
-                    ["entry"] = new[] { "localEntry" },
-                    ["exit"] = new[] { "localExit" }
-                },
-                [StateRemote] = new Dictionary<string, object>
-                {
-                    ["initial"] = StateInit,
-                    ["on"] = new Dictionary<string, object>
-                    {
-                        ["goOffline"] = StateOffline,
-                        ["goLocal"] = StateLocal
-                    },
-                    ["entry"] = new[] { "remoteEntry" },
-                    ["exit"] = new[] { "remoteExit" },
-                    ["states"] = new Dictionary<string, object>
-                    {
-                        [StateInit] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["initialized"] = StateIdle
-                            }
-                        },
-                        [StateIdle] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["setup"] = StateSetup
-                            }
-                        },
-                        [StateSetup] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["ready"] = StateReady,
-                                ["abort"] = StateIdle
-                            }
-                        },
-                        [StateReady] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["start"] = StateExecuting,
-                                ["abort"] = StateIdle
-                            }
-                        },
-                        [StateExecuting] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["complete"] = StateCompleting,
-                                ["abort"] = StateIdle
-                            },
-                            ["entry"] = new[] { "executingEntry" },
-                            ["exit"] = new[] { "executingExit" }
-                        },
-                        [StateCompleting] = new Dictionary<string, object>
-                        {
-                            ["on"] = new Dictionary<string, object>
-                            {
-                                ["done"] = StateIdle,
-                                ["abort"] = StateIdle
-                            }
-                        }
-                    }
-                }
-            }
-        };
+            throw new InvalidOperationException("SemiEquipmentStates.json file not found. Please ensure the JSON file is included as an embedded resource or available in the application directory.");
+        }
+        
+        // Update the id in the JSON to be unique for this equipment
+        var jsonScript = _equipmentJsonScript.Replace("\"id\": \"SemiEquipmentStateMachine\"", 
+                                      $"\"id\": \"{equipmentId}\"");
         
         // Register actions
         var actionMap = new ActionMap();
@@ -148,6 +106,14 @@ public class SemiEquipmentController
             })
         };
         
+        actionMap["offlineExit"] = new List<NamedAction>
+        {
+            new NamedAction("offlineExit", (sm) => 
+            {
+                // Action when exiting offline state
+            })
+        };
+        
         actionMap["localEntry"] = new List<NamedAction>
         {
             new NamedAction("localEntry", (sm) => 
@@ -157,12 +123,28 @@ public class SemiEquipmentController
             })
         };
         
+        actionMap["localExit"] = new List<NamedAction>
+        {
+            new NamedAction("localExit", (sm) => 
+            {
+                // Action when exiting local state
+            })
+        };
+        
         actionMap["remoteEntry"] = new List<NamedAction>
         {
             new NamedAction("remoteEntry", (sm) => 
             {
                 _variables.UpdateStatusVariable(5, 2); // ControlState = Remote
                 ReportEvent(3); // EquipmentRemote
+            })
+        };
+        
+        actionMap["remoteExit"] = new List<NamedAction>
+        {
+            new NamedAction("remoteExit", (sm) => 
+            {
+                // Action when exiting remote state
             })
         };
         
@@ -183,10 +165,9 @@ public class SemiEquipmentController
             })
         };
         
-        // Parse and initialize state machine from JSON
-        var json = System.Text.Json.JsonSerializer.Serialize(config);
-        var newStateMachine = StateMachine.CreateFromScript(_stateMachine, json, actionMap);
-        newStateMachine.Start();
+        // Create state machine from JSON script using XStateNet's intended API
+        _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
+        _stateMachine.Start();
     }
     
     /// <summary>
@@ -287,11 +268,14 @@ public class SemiEquipmentController
         if (carrier == null) return false;
         
         // Report carrier arrived event
-        await _communication?.ReportEvent(100, new Dictionary<int, object> 
-        { 
-            { 1000, carrierId }, 
-            { 1001, portId } 
-        })!;
+        if (_communication != null)
+        {
+            await _communication.ReportEvent(100, new Dictionary<int, object> 
+            { 
+                { 1000, carrierId }, 
+                { 1001, portId } 
+            });
+        }
         
         // Simulate slot mapping
         var slotMap = new Dictionary<int, SlotState>();
@@ -333,11 +317,14 @@ public class SemiEquipmentController
             return false;
         
         // Report process started
-        await _communication?.ReportEvent(200, new Dictionary<int, object>
+        if (_communication != null)
         {
-            { 2000, substrateid },
-            { 2001, recipeId }
-        })!;
+            await _communication.ReportEvent(200, new Dictionary<int, object>
+            {
+                { 2000, substrateid },
+                { 2001, recipeId }
+            });
+        }
         
         // Simulate processing
         await Task.Delay(5000);
@@ -346,10 +333,13 @@ public class SemiEquipmentController
         _substrateTracking.CompleteProcessing(substrateid, true);
         
         // Report process completed
-        await _communication?.ReportEvent(201, new Dictionary<int, object>
+        if (_communication != null)
         {
-            { 2000, substrateid }
-        })!;
+            await _communication.ReportEvent(201, new Dictionary<int, object>
+            {
+                { 2000, substrateid }
+            });
+        }
         
         return true;
     }

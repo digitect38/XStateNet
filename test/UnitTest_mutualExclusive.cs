@@ -1,17 +1,16 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 namespace AdvancedFeatures;
 
-[TestFixture]
-public class MutualExclusionTests
+public class MutualExclusionTests : IDisposable
 {
     private StateMachine _stateMachine;
 
-    [SetUp]
-    public void Setup()
+    public MutualExclusionTests()
     {
         var actionCallbacks = new ActionMap();
         var guardCallbacks = new GuardMap();
@@ -64,13 +63,13 @@ public class MutualExclusionTests
         _stateMachine!.Start();
     }
 
-    [Test]
+    [Fact]
     public void TestInitialState()
     {
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
-    [Test]
+    [Fact]
     public void TestTransitionShoot()
     {
         _stateMachine!.Send("OPEN");
@@ -79,7 +78,7 @@ public class MutualExclusionTests
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
-    [Test]
+    [Fact]
     public void TestTransitionCannotShoot()
     {
         _stateMachine!.Send("SHOOT");
@@ -88,7 +87,7 @@ public class MutualExclusionTests
     }
 
 
-    [Test]
+    [Fact]
     public void TestTransitionCannotClose()
     {
         // trashcan should not be closed while shooting!
@@ -99,7 +98,7 @@ public class MutualExclusionTests
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
     }
 
-    [Test]
+    [Fact]
     public void TestTransitionCanClose()
     {
         // trashcan can be closed after if shooting is done!
@@ -111,7 +110,7 @@ public class MutualExclusionTests
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
 
-    [Test]
+    [Fact]
     public void TestShootAndDoneTransition()
     {
         _stateMachine!.Send("OPEN");
@@ -121,7 +120,7 @@ public class MutualExclusionTests
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
     }
 
-    [Test]
+    [Fact]
     public void TestOpenAndCloseTransition()
     {
         _stateMachine!.Send("OPEN");
@@ -129,4 +128,10 @@ public class MutualExclusionTests
         var stateString = _stateMachine!.GetActiveStateString();
         _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
     }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
 }
+

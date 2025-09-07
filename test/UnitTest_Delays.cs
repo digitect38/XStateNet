@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using XStateNet;
 using System;
 using System.Collections.Generic;
@@ -6,14 +7,12 @@ using System.Threading.Tasks;
 
 namespace DelaysTest
 {
-    [TestFixture]
-    public class SimpleStateMachineTests
+    public class SimpleStateMachineTests : IDisposable
     {
         private StateMachine _stateMachine;
         private List<string> _transitionLog;
 
-        [SetUp]
-        public void Setup()
+        public SimpleStateMachineTests()
         {
             _transitionLog = new List<string>();
 
@@ -58,8 +57,8 @@ namespace DelaysTest
             _stateMachine!.Start();
         }
 
-        [TearDown]
-        public void TearDown()
+        
+        public void Dispose()
         {
             //_stateMachine.OnTransition -= LogTransition;
         }
@@ -69,24 +68,25 @@ namespace DelaysTest
             _transitionLog.Add($"Transitioned from {fromState?.Name} to {toState?.Name} on event {eventName}");
         }
 
-        [Test]
+        [Fact]
         public async Task StateMachine_Transitions_From_A_To_B_After_Timeout()
         {
             // Initially, the state machine should be in state 'a'
             var activeState = _stateMachine!.GetActiveStateString();
-            Assert.That(_stateMachine.GetActiveStateString() == "#machine1.a");
+            _stateMachine.GetActiveStateString().Should().Be("#machine1.a");
             
             // Wait for the timeout to trigger the transition
             await Task.Delay(1500);
 
             // The state machine should now be in state 'b'
-            Assert.That(_stateMachine.GetActiveStateString() == "#machine1.b");
+            _stateMachine.GetActiveStateString().Should().Be("#machine1.b");
 
             // Check that the transition action was executed
-            Assert.That(_transitionLog.Contains("transitionAction executed"));
+            _transitionLog.Should().Contain("transitionAction executed");
 
             // Check the transition log
-            Assert.That(_transitionLog.Contains("Transitioned from #machine1.a to #machine1.b on event after: 1234"));
+            _transitionLog.Should().Contain("Transitioned from #machine1.a to #machine1.b on event after: 1234");
         }
     }
 }
+

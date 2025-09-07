@@ -1,12 +1,12 @@
-using NUnit.Framework;
+using Xunit;
+using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using XStateNet;
 
 namespace XSateV5_Test.AdvancedFeatures;
 
-[TestFixture]
-public class UnitTest_ErrorHandling
+public class UnitTest_ErrorHandling : IDisposable
 {
     private StateMachine? _stateMachine;
     private ActionMap _actions;
@@ -16,8 +16,7 @@ public class UnitTest_ErrorHandling
     private string? _errorType;
     private List<string> _actionLog;
     
-    [SetUp]
-    public void Setup()
+    public UnitTest_ErrorHandling()
     {
         _errorHandled = false;
         _errorMessage = null;
@@ -58,7 +57,7 @@ public class UnitTest_ErrorHandling
         };
     }
     
-    [Test]
+    [Fact]
     public void TestBasicErrorHandling()
     {
         const string script = @"
@@ -87,20 +86,20 @@ public class UnitTest_ErrorHandling
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         _stateMachine!.Start();
         
-        Assert.That(_stateMachine.GetActiveStateString().Contains("idle"), Is.True);
+        _stateMachine.GetActiveStateString().Contains("idle").Should().BeTrue();
         
         _stateMachine!.Send("START");
         
         // The error should be caught and handled
-        Assert.That(_stateMachine.GetActiveStateString().Contains("error"), Is.True);
-        Assert.That(_errorHandled, Is.True);
-        Assert.That(_errorMessage, Is.EqualTo("Test error"));
-        Assert.That(_errorType, Is.EqualTo("InvalidOperationException"));
-        Assert.That(_actionLog, Does.Contain("throwError"));
-        Assert.That(_actionLog, Does.Contain("handleError"));
+        _stateMachine.GetActiveStateString().Contains("error").Should().BeTrue();
+        _errorHandled.Should().BeTrue();
+        _errorMessage.Should().Be("Test error");
+        _errorType.Should().Be("InvalidOperationException");
+        _actionLog.Should().Contain("throwError");
+        _actionLog.Should().Contain("handleError");
     }
     
-    [Test]
+    [Fact]
     public void TestSpecificErrorTypeHandling()
     {
         const string script = @"
@@ -157,22 +156,25 @@ public class UnitTest_ErrorHandling
         
         // Test InvalidOperationException handling
         _stateMachine!.Send("THROW_INVALID");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("handledInvalid"), Is.True);
-        Assert.That(_errorHandled, Is.True);
-        Assert.That(_errorType, Is.EqualTo("InvalidOperationException"));
+        _stateMachine.GetActiveStateString().Contains("handledInvalid").Should().BeTrue();
+        _errorHandled.Should().BeTrue();
+        _errorType.Should().Be("InvalidOperationException");
         
         // Reset and test ArgumentException handling
-        Setup();
+        _errorHandled = false;
+        _errorMessage = null;
+        _errorType = null;
+        _actionLog.Clear();
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         _stateMachine!.Start();
         
         _stateMachine!.Send("THROW_ARGUMENT");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("handledArgument"), Is.True);
-        Assert.That(_errorHandled, Is.True);
-        Assert.That(_errorType, Is.EqualTo("ArgumentException"));
+        _stateMachine.GetActiveStateString().Contains("handledArgument").Should().BeTrue();
+        _errorHandled.Should().BeTrue();
+        _errorType.Should().Be("ArgumentException");
     }
     
-    [Test]
+    [Fact]
     public void TestErrorHandlingWithGuards()
     {
         const string script = @"
@@ -213,12 +215,12 @@ public class UnitTest_ErrorHandling
         _stateMachine!.Send("START");
         
         // Should recover because InvalidOperationException is recoverable
-        Assert.That(_stateMachine.GetActiveStateString().Contains("recovered"), Is.True);
-        Assert.That(_actionLog, Does.Contain("recover"));
-        Assert.That(_stateMachine.ContextMap!["recovered"], Is.Not.Null);
+        _stateMachine.GetActiveStateString().Contains("recovered").Should().BeTrue();
+        _actionLog.Should().Contain("recover");
+        _stateMachine.ContextMap!["recovered"].Should().NotBeNull();
     }
     
-    [Test]
+    [Fact]
     public void TestNestedErrorHandling()
     {
         const string script = @"
@@ -266,11 +268,11 @@ public class UnitTest_ErrorHandling
         _stateMachine!.Send("START");
         
         // Error should be caught at level2 and transition to localError
-        Assert.That(_stateMachine.GetActiveStateString().Contains("localError"), Is.True);
-        Assert.That(_errorHandled, Is.True);
+        _stateMachine.GetActiveStateString().Contains("localError").Should().BeTrue();
+        _errorHandled.Should().BeTrue();
     }
     
-    [Test]
+    [Fact]
     public void TestErrorContextPreservation()
     {
         const string script = @"
@@ -313,19 +315,19 @@ public class UnitTest_ErrorHandling
         _stateMachine!.Send("START");
         
         // Error context should be preserved
-        Assert.That(_stateMachine.GetActiveStateString().Contains("retry"), Is.True);
-        Assert.That(_stateMachine.ContextMap["_lastError"], Is.Not.Null);
-        Assert.That(_errorMessage, Is.EqualTo("Test error"));
+        _stateMachine.GetActiveStateString().Contains("retry").Should().BeTrue();
+        _stateMachine.ContextMap["_lastError"].Should().NotBeNull();
+        _errorMessage.Should().Be("Test error");
         
         // Update attempts
         _stateMachine.ContextMap!["attempts"] = (int)(_stateMachine.ContextMap!["attempts"] ?? 0) + 1;
         
         _stateMachine!.Send("GIVE_UP");
-        Assert.That(_stateMachine.GetActiveStateString().Contains("failed"), Is.True);
-        Assert.That(_stateMachine.ContextMap["attempts"], Is.EqualTo(1));
+        _stateMachine.GetActiveStateString().Contains("failed").Should().BeTrue();
+        _stateMachine.ContextMap["attempts"].Should().Be(1);
     }
     
-    [Test]
+    [Fact]
     public void TestParallelStateErrorHandling()
     {
         const string script = @"
@@ -375,15 +377,22 @@ public class UnitTest_ErrorHandling
         _stateMachine!.Start();
         
         var initialState = _stateMachine!.GetActiveStateString();
-        Assert.That(initialState.Contains("regionA.idle"), Is.True);
-        Assert.That(initialState.Contains("regionB.working"), Is.True);
+        initialState.Contains("regionA.idle").Should().BeTrue();
+        initialState.Contains("regionB.working").Should().BeTrue();
         
         _stateMachine!.Send("ERROR_A");
         
         // Region A should handle its error locally
         var afterError = _stateMachine!.GetActiveStateString();
-        Assert.That(afterError.Contains("regionA.failed"), Is.True);
-        Assert.That(afterError.Contains("regionB.working"), Is.True); // Region B continues
-        Assert.That(_errorHandled, Is.True);
+        afterError.Contains("regionA.failed").Should().BeTrue();
+        afterError.Contains("regionB.working").Should().BeTrue(); // Region B continues
+        _errorHandled.Should().BeTrue();
+    }
+    
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
 }
+
+
