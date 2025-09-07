@@ -21,7 +21,9 @@
       "Bash(done)",
       "Bash(dotnet restore:*)",
       "Bash(dotnet sln add:*)",
-      "Bash(dotnet sln:*)"
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet add:*)"
     ],
     "deny": [],
     "ask": []
