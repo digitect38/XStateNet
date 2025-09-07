@@ -8,7 +8,7 @@ using XStateNet;
 
 namespace InterMachineTests;
 
-public class CommunicatingMachinesTests
+public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
 {
     /// <summary>
     /// Parent state machine that coordinates child machines

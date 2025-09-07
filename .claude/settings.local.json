@@ -20,7 +20,8 @@
       "Bash(do echo \"Processing $file\")",
       "Bash(done)",
       "Bash(dotnet restore:*)",
-      "Bash(dotnet sln add:*)"
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet sln:*)"
     ],
     "deny": [],
     "ask": []

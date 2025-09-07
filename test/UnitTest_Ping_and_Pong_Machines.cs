@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AdvancedFeatures
 {
-    public class InterMachinePingPongStateMachinesTests : IDisposable
+    public class InterMachinePingPongStateMachinesTests : XStateNet.Tests.TestBase
     {
         private StateMachine _pingStateMachine;
         private StateMachine _pongStateMachine;
@@ -71,10 +71,12 @@ namespace AdvancedFeatures
         }
 
         
-        public void Dispose()
+        // Dispose handled by TestBase - just remove event handlers
+        protected new void Dispose()
         {
             _pingStateMachine.OnTransition -= LogTransition;
             _pongStateMachine.OnTransition -= LogTransition;
+            base.Dispose();
         }
         private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
         {

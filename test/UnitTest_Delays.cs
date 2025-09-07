@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DelaysTest
 {
-    public class SimpleStateMachineTests : IDisposable
+    public class SimpleStateMachineTests : XStateNet.Tests.TestBase
     {
         private StateMachine _stateMachine;
         private List<string> _transitionLog;
@@ -58,10 +58,7 @@ namespace DelaysTest
         }
 
         
-        public void Dispose()
-        {
-            //_stateMachine.OnTransition -= LogTransition;
-        }
+        // Dispose method removed - handled by TestBase
 
         private void LogTransition(StateNode? fromState, StateNode? toState, string eventName)
         {

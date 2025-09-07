@@ -8,7 +8,7 @@ using XStateNet.Semi;
 
 namespace InterMachineTests;
 
-public class StateMachineCommunicationTests
+public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
 {
     [Fact]
     public async Task MultipleMachines_Should_CommunicateViaEvents()

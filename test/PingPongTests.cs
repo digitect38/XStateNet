@@ -10,7 +10,7 @@ namespace InterMachineTests;
 /// <summary>
 /// Tests demonstrating ping-pong communication between state machines
 /// </summary>
-public class PingPongTests
+public class PingPongTests : XStateNet.Tests.TestBase
 {
     [Fact]
     public async Task TwoMachines_Should_PingPongBetweenEachOther()
