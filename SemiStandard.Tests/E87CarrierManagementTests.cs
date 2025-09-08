@@ -7,25 +7,42 @@ using XStateNet.Semi;
 
 namespace SemiStandard.Tests;
 
-public class E87CarrierManagementTests
+public class E87CarrierManagementTests : IDisposable
 {
-    private readonly E87CarrierManagement _management;
+    private E87CarrierManagement _management;
+    private readonly string _testInstanceId;
     
     public E87CarrierManagementTests()
     {
+        _testInstanceId = Guid.NewGuid().ToString("N")[..8];
         _management = new E87CarrierManagement();
+    }
+    
+    public void Dispose()
+    {
+        // Clean up any active carriers
+        var activeCarriers = _management.GetActiveCarriers().ToList();
+        foreach (var carrier in activeCarriers)
+        {
+            _management.RemoveCarrier(carrier.Id);
+        }
+        
+        _management = null!;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
     
     [Fact]
     public void RegisterLoadPort_Should_CreateNewLoadPort()
     {
         // Arrange & Act
-        _management.RegisterLoadPort("LP1", "Load Port 1", 25);
-        var loadPort = _management.GetLoadPort("LP1");
+        var portId = $"LP1_{_testInstanceId}";
+        _management.RegisterLoadPort(portId, "Load Port 1", 25);
+        var loadPort = _management.GetLoadPort(portId);
         
         // Assert
         loadPort.Should().NotBeNull();
-        loadPort.Id.Should().Be("LP1");
+        loadPort.Id.Should().Be(portId);
         loadPort.Name.Should().Be("Load Port 1");
         loadPort.Capacity.Should().Be(25);
         loadPort.GetCurrentState().Should().Contain("Empty");

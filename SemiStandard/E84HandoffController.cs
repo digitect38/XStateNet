@@ -73,8 +73,8 @@ public class E84HandoffController
             throw new InvalidOperationException("E84HandoffStates.json file not found.");
         }
         
-        // Update the id in the JSON to be unique
-        var jsonScript = _jsonScript.Replace("\"id\": \"E84HandoffStateMachine\"", $"\"id\": \"e84_{portId}\"");
+        // Create a copy of the JSON script with unique ID
+        var jsonScript = _jsonScript.Replace("\"id\": \"E84HandoffStateMachine\"", $"\"id\": \"E84Handoff_{portId}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create action map for E84 signals
         var actionMap = new ActionMap();

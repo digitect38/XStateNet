@@ -288,7 +288,7 @@ public class SubstrateStateMachine
         
         // Update the id in the JSON to be unique for this substrate
         jsonScript = jsonScript.Replace("\"id\": \"E90SubstrateStateMachine\"", 
-                                      $"\"id\": \"substrate_{substrateid}\"");
+                                      $"\"id\": \"E90Substrate_{substrateid}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
         return StateMachine.CreateFromScript(jsonScript, actionMap);

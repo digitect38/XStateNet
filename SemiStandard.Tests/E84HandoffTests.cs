@@ -6,13 +6,23 @@ using XStateNet.Semi;
 
 namespace SemiStandard.Tests;
 
-public class E84HandoffTests
+public class E84HandoffTests : IDisposable
 {
-    private readonly E84HandoffController _handoff;
+    private E84HandoffController _handoff;
+    private readonly string _testInstanceId;
     
     public E84HandoffTests()
     {
-        _handoff = new E84HandoffController("LP1");
+        _testInstanceId = Guid.NewGuid().ToString("N")[..8];
+        _handoff = new E84HandoffController($"LP1_Test_{_testInstanceId}");
+    }
+    
+    public void Dispose()
+    {
+        _handoff?.Reset();
+        _handoff = null!;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
     
     [Fact]
@@ -175,9 +185,10 @@ public class E84HandoffTests
     public async Task ParallelHandoffControllers_Should_OperateIndependently()
     {
         // Arrange
-        var handoff1 = new E84HandoffController("LP1");
-        var handoff2 = new E84HandoffController("LP2");
-        var handoff3 = new E84HandoffController("LP3");
+        var testId = Guid.NewGuid().ToString("N")[..8];
+        var handoff1 = new E84HandoffController($"LP1_Parallel_{testId}");
+        var handoff2 = new E84HandoffController($"LP2_Parallel_{testId}");
+        var handoff3 = new E84HandoffController($"LP3_Parallel_{testId}");
         
         // Act - Run different sequences in parallel
         var task1 = Task.Run(() =>
@@ -216,5 +227,10 @@ public class E84HandoffTests
         state3.Should().Contain("idle");
         // States should be independent
         state1.Should().NotBe(state2);
+        
+        // Cleanup
+        handoff1.Reset();
+        handoff2.Reset();
+        handoff3.Reset();
     }
 }

@@ -403,7 +403,7 @@ public class CarrierStateMachine
         
         // Update the id in the JSON to be unique for this carrier
         jsonScript = jsonScript.Replace("\"id\": \"E87CarrierStateMachine\"", 
-                                      $"\"id\": \"carrier_{carrierId}\"");
+                                      $"\"id\": \"E87Carrier_{carrierId}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
         return StateMachine.CreateFromScript(jsonScript, actionMap);
@@ -456,7 +456,7 @@ public class LoadPortStateMachine
         
         // Update the id in the JSON to be unique for this load port
         jsonScript = jsonScript.Replace("\"id\": \"E87LoadPortStateMachine\"", 
-                                      $"\"id\": \"loadport_{portId}\"");
+                                      $"\"id\": \"E87LoadPort_{portId}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
         return StateMachine.CreateFromScript(jsonScript);
