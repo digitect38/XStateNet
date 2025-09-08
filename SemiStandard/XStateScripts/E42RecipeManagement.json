@@ -1,0 +1,125 @@
+{
+    "id": "E42_RecipeManagement",
+    "initial": "NoRecipe",
+    "context": {
+        "recipeId": null,
+        "recipeBody": null,
+        "version": null,
+        "downloadTime": null,
+        "verificationTime": null,
+        "validationResult": null
+    },
+    "states": {
+        "NoRecipe": {
+            "on": {
+                "DOWNLOAD_REQUEST": {
+                    "target": "Downloading",
+                    "actions": "prepareDownload"
+                }
+            }
+        },
+        "Downloading": {
+            "on": {
+                "DOWNLOAD_SUCCESS": {
+                    "target": "Downloaded",
+                    "actions": ["storeRecipe", "recordDownloadTime"]
+                },
+                "DOWNLOAD_FAILED": {
+                    "target": "NoRecipe",
+                    "actions": "notifyDownloadError"
+                }
+            }
+        },
+        "Downloaded": {
+            "on": {
+                "VERIFY": {
+                    "target": "Verifying",
+                    "actions": "startVerification"
+                },
+                "DELETE": {
+                    "target": "NoRecipe",
+                    "actions": "deleteRecipe"
+                },
+                "DOWNLOAD_REQUEST": [
+                    {
+                        "target": "Downloading",
+                        "cond": "isDifferentRecipe",
+                        "actions": "prepareDownload"
+                    },
+                    {
+                        "target": "Downloaded",
+                        "actions": "notifyAlreadyDownloaded"
+                    }
+                ]
+            }
+        },
+        "Verifying": {
+            "on": {
+                "VERIFY_SUCCESS": {
+                    "target": "Verified",
+                    "actions": ["recordVerificationTime", "notifyVerifySuccess"]
+                },
+                "VERIFY_FAILED": {
+                    "target": "Downloaded",
+                    "actions": "notifyVerifyError"
+                }
+            }
+        },
+        "Verified": {
+            "on": {
+                "SELECT": {
+                    "target": "Selected",
+                    "actions": "activateRecipe"
+                },
+                "MODIFY": {
+                    "target": "Downloaded",
+                    "actions": "modifyRecipe"
+                },
+                "DELETE": {
+                    "target": "NoRecipe",
+                    "actions": "deleteRecipe"
+                },
+                "REVERIFY": {
+                    "target": "Verifying",
+                    "actions": "startVerification"
+                }
+            }
+        },
+        "Selected": {
+            "entry": "logSelected",
+            "on": {
+                "DESELECT": {
+                    "target": "Verified",
+                    "actions": "deactivateRecipe"
+                },
+                "PROCESS_START": {
+                    "target": "Processing",
+                    "actions": "startProcessing"
+                },
+                "DELETE": [
+                    {
+                        "target": "NoRecipe",
+                        "cond": "canDeleteSelected",
+                        "actions": ["deactivateRecipe", "deleteRecipe"]
+                    },
+                    {
+                        "target": "Selected",
+                        "actions": "notifyCannotDelete"
+                    }
+                ]
+            }
+        },
+        "Processing": {
+            "on": {
+                "PROCESS_COMPLETE": {
+                    "target": "Selected",
+                    "actions": "completeProcessing"
+                },
+                "PROCESS_ABORT": {
+                    "target": "Selected",
+                    "actions": "abortProcessing"
+                }
+            }
+        }
+    }
+}

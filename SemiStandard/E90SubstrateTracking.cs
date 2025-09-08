@@ -26,7 +26,7 @@ public class E90SubstrateTracking
     {
         // Load embedded JSON resource or from file
         var assembly = typeof(E90SubstrateTracking).Assembly;
-        var resourceName = "SemiStandard.E90SubstrateStates.json";
+        var resourceName = "SemiStandard.XStateScripts.E90SubstrateStates.json";
         
         // First try to load from embedded resource
         using (var stream = assembly.GetManifestResourceStream(resourceName))
@@ -43,7 +43,7 @@ public class E90SubstrateTracking
         // If not embedded, try to load from file
         if (string.IsNullOrEmpty(_jsonScript))
         {
-            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "E90SubstrateStates.json");
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "XStateScripts", "E90SubstrateStates.json");
             if (File.Exists(jsonPath))
             {
                 _jsonScript = File.ReadAllText(jsonPath);
@@ -51,7 +51,7 @@ public class E90SubstrateTracking
             else
             {
                 // If file doesn't exist in base directory, try the SemiStandard directory
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E90SubstrateStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "XStateScripts", "E90SubstrateStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _jsonScript = File.ReadAllText(jsonPath);

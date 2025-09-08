@@ -196,7 +196,7 @@ namespace AdvancedFeatures
                         'after': {{
                             '1000': {{
                                 'target': 'b',
-                                'actions': ['sendToPongToB']
+                                'actions': 'sendToPongToB'
                             }}
                         }}
                     }},
@@ -226,7 +226,7 @@ namespace AdvancedFeatures
                         'after': {{
                             '1000': {{
                                 'target': 'a',
-                                'actions': ['sendToPingToA']
+                                'actions': 'sendToPingToA'
                             }}
                         }}
                     }}

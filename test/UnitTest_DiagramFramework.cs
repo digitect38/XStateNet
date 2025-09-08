@@ -272,7 +272,7 @@ public class DiagrammingFrameworkTests : IDisposable
                 'actions': ['resetContext', 'logStateAfterUpdate']
             },
             'UPDATE_CONTEXT_FROM_REQUEST': {
-                'actions': ['updateContextFromRequest']
+                'actions': 'updateContextFromRequest'
             }
         },
         'states': {
@@ -282,7 +282,7 @@ public class DiagrammingFrameworkTests : IDisposable
                         {
                             'target': '#stateMachine.selected.moving',
                             'cond': 'onShapeBody',
-                            'actions': ['setLButtonDown']
+                            'actions': 'setLButtonDown'
                         },
                         {
                             'target': 'selecting',
@@ -290,7 +290,7 @@ public class DiagrammingFrameworkTests : IDisposable
                             'actions': ['setLButtonDown', 'startSelection']
                         },
                         {
-                            'actions': ['setLButtonDown']
+                            'actions': 'setLButtonDown'
                         }
                     ]
                     
@@ -299,13 +299,13 @@ public class DiagrammingFrameworkTests : IDisposable
             'selecting': {
                 'on': {
                     'MOUSE_MOVE': {
-                        'actions': ['updateSelection']
+                        'actions': 'updateSelection'
                     },
                     'L_BUTTON_UP':
                         {
                             'target': 'idle',
                             'cond': 'noShapeSelected',
-                            'actions': ['setLButtonUp']
+                            'actions': 'setLButtonUp'
                         },
                 }
             },
@@ -351,15 +351,15 @@ public class DiagrammingFrameworkTests : IDisposable
 														    }
                             },
                             'moving': {
-                                'entry': ['startMoving'],
-                                'exit': ['endMoving'],
+                                'entry': 'startMoving',
+                                'exit': 'endMoving',
                                 'on': {
                                     'L_BUTTON_UP': {
                                         'target': 'idle',
-                                        'actions': ['setLButtonUp']
+                                        'actions': 'setLButtonUp'
                                     },
                                     'MOUSE_MOVE': {
-                                        'actions': ['updateMoving']
+                                        'actions': 'updateMoving'
                                     }
                                 }
                             }
@@ -367,14 +367,14 @@ public class DiagrammingFrameworkTests : IDisposable
                     },
                     'connecting': {
                         'initial': 'idle',
-                        'entry': ['startConnecting'],
-                        'exit': ['endConnecting'],
+                        'entry': 'startConnecting',
+                        'exit': 'endConnecting',
                         'states': {
                             'idle': {
                                 'on': {
                                     'L_BUTTON_DOWN': {
                                         'target': 'startConnecting',
-                                        'actions': ['setLButtonDown']
+                                        'actions': 'setLButtonDown'
                                     }
                                 }
                             },
@@ -382,7 +382,7 @@ public class DiagrammingFrameworkTests : IDisposable
                                 'on': {
                                     'L_BUTTON_UP': {
                                         'target': 'findingEndPin',
-                                        'actions': ['setLButtonUp']
+                                        'actions': 'setLButtonUp'
                                     }
                                 }
                             },
@@ -399,7 +399,7 @@ public class DiagrammingFrameworkTests : IDisposable
                                 'on': {
                                     'L_BUTTON_DOWN': {
                                         'target': 'idle',
-                                        'actions': ['setLButtonDown']
+                                        'actions': 'setLButtonDown'
                                     }
                                 }
                             }
@@ -407,25 +407,25 @@ public class DiagrammingFrameworkTests : IDisposable
                     },
                     'resizing': {
                         'initial': 'idle',
-                        'entry': ['startResizing'],
-                        'exit': ['endResizing'],
+                        'entry': 'startResizing',
+                        'exit': 'endResizing',
                         'states': {
                             'idle': {
                                 'on': {
                                     'L_BUTTON_DOWN': {
                                         'target': 'resizing',
-                                        'actions': ['setLButtonDown']
+                                        'actions': 'setLButtonDown'
                                     }
                                 }
                             },
                             'resizing': {
                                 'on': {
                                     'MOUSE_MOVE': {
-                                        'actions': ['updateResizing']
+                                        'actions': 'updateResizing'
                                     },
                                     'L_BUTTON_UP': {
                                         'target': 'idle',
-                                        'actions': ['setLButtonUp']
+                                        'actions': 'setLButtonUp'
                                     }
                                 }
                             }

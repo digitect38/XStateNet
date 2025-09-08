@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\XStateNet5Impl\XStateNet5.csproj" />
+    <ProjectReference Include="..\XStateNet5Impl\XStateNet.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="*.json" />
-    <Content Include="*.json">
+    <EmbeddedResource Include="XStateScripts\*.json" />
+    <Content Include="XStateScripts\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

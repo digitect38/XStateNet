@@ -91,12 +91,12 @@ public class UnitTest_InternalTransitions : IDisposable
             },
             'states': {
                 'active': {
-                    'entry': ['entryAction'],
-                    'exit': ['exitAction'],
+                    'entry': 'entryAction',
+                    'exit': 'exitAction',
                     'on': {
                         'INCREMENT': {
                             'target': '.',
-                            'actions': ['incrementCounter']
+                            'actions': 'incrementCounter'
                         },
                         'EXTERNAL': 'done'
                     }
@@ -140,10 +140,10 @@ public class UnitTest_InternalTransitions : IDisposable
             'initial': 'counting',
             'states': {
                 'counting': {
-                    'entry': ['entryAction'],
+                    'entry': 'entryAction',
                     'on': {
                         'UPDATE': {
-                            'actions': ['incrementCounter']
+                            'actions': 'incrementCounter'
                         },
                         'FINISH': 'complete'
                     }
@@ -181,16 +181,16 @@ public class UnitTest_InternalTransitions : IDisposable
             'states': {
                 'parent': {
                     'initial': 'child',
-                    'entry': ['entryAction'],
-                    'exit': ['exitAction'],
+                    'entry': 'entryAction',
+                    'exit': 'exitAction',
                     'states': {
                         'child': {
-                            'entry': ['entryAction'],
-                            'exit': ['exitAction'],
+                            'entry': 'entryAction',
+                            'exit': 'exitAction',
                             'on': {
                                 'INTERNAL_UPDATE': {
                                     'target': '.',
-                                    'actions': ['updateValue']
+                                    'actions': 'updateValue'
                                 },
                                 'EXTERNAL_UPDATE': 'sibling'
                             }
@@ -239,7 +239,7 @@ public class UnitTest_InternalTransitions : IDisposable
                             {
                                 'target': '.',
                                 'cond': 'lessThanFive',
-                                'actions': ['incrementCounter']
+                                'actions': 'incrementCounter'
                             },
                             {
                                 'target': 'maxReached'
@@ -248,7 +248,7 @@ public class UnitTest_InternalTransitions : IDisposable
                     }
                 },
                 'maxReached': {
-                    'entry': ['log'],
+                    'entry': 'log',
                     'type': 'final'
                 }
             }
@@ -292,11 +292,11 @@ public class UnitTest_InternalTransitions : IDisposable
                     'initial': 'stateA',
                     'states': {
                         'stateA': {
-                            'entry': ['entryAction'],
+                            'entry': 'entryAction',
                             'on': {
                                 'UPDATE_A': {
                                     'target': '.',
-                                    'actions': ['incrementCounter']
+                                    'actions': 'incrementCounter'
                                 }
                             }
                         }
@@ -306,11 +306,11 @@ public class UnitTest_InternalTransitions : IDisposable
                     'initial': 'stateB',
                     'states': {
                         'stateB': {
-                            'entry': ['entryAction'],
+                            'entry': 'entryAction',
                             'on': {
                                 'UPDATE_B': {
                                     'target': '.',
-                                    'actions': ['updateValue']
+                                    'actions': 'updateValue'
                                 }
                             }
                         }
@@ -360,16 +360,16 @@ public class UnitTest_InternalTransitions : IDisposable
                     }
                 },
                 'active': {
-                    'entry': ['entryAction'],
-                    'exit': ['exitAction'],
+                    'entry': 'entryAction',
+                    'exit': 'exitAction',
                     'on': {
                         'INTERNAL': {
                             'target': '.',
-                            'actions': ['incrementInternal']
+                            'actions': 'incrementInternal'
                         },
                         'EXTERNAL': {
                             'target': 'active',
-                            'actions': ['incrementExternal']
+                            'actions': 'incrementExternal'
                         },
                         'DONE': 'complete'
                     }

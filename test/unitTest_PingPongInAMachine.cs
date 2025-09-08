@@ -68,7 +68,7 @@ public static class PingPongMachine
                         'after': {
                             '1000': {
                                 'target': 'b',
-                                'actions': ['sendToB']
+                                'actions': 'sendToB'
                             }
                         }
                     },
@@ -95,7 +95,7 @@ public static class PingPongMachine
                         'after': {
                             '1000': {
                                 'target': 'a',
-                                'actions': ['sendToA']
+                                'actions': 'sendToA'
                             }
                         }
                     }

@@ -1,0 +1,242 @@
+{
+    "id": "E39_E116_E10_EquipmentMetrics",
+    "type": "parallel",
+    "states": {
+        "E10_State": {
+            "initial": "Offline",
+            "states": {
+                "Offline": {
+                    "on": {
+                        "GO_ONLINE": "EquipmentOffline"
+                    }
+                },
+                "EquipmentOffline": {
+                    "on": {
+                        "HOST_ONLINE": "HostOffline",
+                        "GO_OFFLINE": "Offline"
+                    }
+                },
+                "HostOffline": {
+                    "on": {
+                        "HOST_ONLINE": "Local",
+                        "GO_OFFLINE": "EquipmentOffline"
+                    }
+                },
+                "Local": {
+                    "on": {
+                        "REMOTE": "Remote",
+                        "HOST_OFFLINE": "HostOffline"
+                    }
+                },
+                "Remote": {
+                    "on": {
+                        "LOCAL": "Local",
+                        "HOST_OFFLINE": "HostOffline"
+                    }
+                }
+            }
+        },
+        "E116_State": {
+            "initial": "Init",
+            "states": {
+                "Init": {
+                    "on": {
+                        "COMPLETE_INIT": "Idle"
+                    }
+                },
+                "Idle": {
+                    "on": {
+                        "START_PRODUCTIVE": "Productive",
+                        "START_STANDBY": "Standby",
+                        "START_ENGINEERING": "Engineering",
+                        "SCHEDULED_DOWN": "ScheduledDowntime",
+                        "UNSCHEDULED_DOWN": "UnscheduledDowntime"
+                    }
+                },
+                "Productive": {
+                    "on": {
+                        "PAUSE": "Standby",
+                        "COMPLETE": "Idle",
+                        "ERROR": "UnscheduledDowntime",
+                        "PROCESS_MATERIAL": {
+                            "target": "Productive",
+                            "actions": "recordWaferComplete"
+                        }
+                    }
+                },
+                "Standby": {
+                    "on": {
+                        "RESUME": "Productive",
+                        "IDLE": "Idle",
+                        "ERROR": "UnscheduledDowntime"
+                    }
+                },
+                "Engineering": {
+                    "on": {
+                        "COMPLETE": "Idle",
+                        "ERROR": "UnscheduledDowntime"
+                    }
+                },
+                "ScheduledDowntime": {
+                    "entry": "notifyScheduledMaintenance",
+                    "on": {
+                        "MAINTENANCE_COMPLETE": "Idle"
+                    }
+                },
+                "UnscheduledDowntime": {
+                    "entry": "logError",
+                    "on": {
+                        "REPAIR_COMPLETE": "Idle",
+                        "ERROR_CLEARED": "Idle"
+                    }
+                }
+            }
+        },
+        "OEE_Tracking": {
+            "initial": "Monitoring",
+            "states": {
+                "Monitoring": {
+                    "on": {
+                        "CALCULATE_OEE": {
+                            "target": "Monitoring",
+                            "actions": "calculateMetrics"
+                        },
+                        "UPDATE_AVAILABILITY": {
+                            "target": "Monitoring",
+                            "actions": "updateAvailability"
+                        },
+                        "UPDATE_PERFORMANCE": {
+                            "target": "Monitoring",
+                            "actions": "updatePerformance"
+                        },
+                        "UPDATE_QUALITY": {
+                            "target": "Monitoring",
+                            "actions": "updateQuality"
+                        },
+                        "GENERATE_REPORT": {
+                            "target": "Monitoring",
+                            "actions": "generateOEEReport"
+                        }
+                    }
+                }
+            }
+        },
+        "ProcessStateTracking": {
+            "initial": "NoProcess",
+            "states": {
+                "NoProcess": {
+                    "on": {
+                        "START_PROCESS": "Setup"
+                    }
+                },
+                "Setup": {
+                    "on": {
+                        "SETUP_COMPLETE": "Ready",
+                        "SETUP_FAILED": "NoProcess"
+                    }
+                },
+                "Ready": {
+                    "on": {
+                        "EXECUTE": "Executing",
+                        "ABORT": "Aborting"
+                    }
+                },
+                "Executing": {
+                    "on": {
+                        "COMPLETE": "Completed",
+                        "ERROR": {
+                            "target": "Error",
+                            "actions": "notifyError"
+                        },
+                        "ABORT": "Aborting"
+                    }
+                },
+                "Completed": {
+                    "on": {
+                        "RESET": "NoProcess",
+                        "RESTART": "Setup"
+                    }
+                },
+                "Error": {
+                    "on": {
+                        "RECOVER": "Ready",
+                        "ABORT": "Aborting"
+                    }
+                },
+                "Aborting": {
+                    "entry": "abortProcessing",
+                    "on": {
+                        "ABORT_COMPLETE": "Aborted"
+                    }
+                },
+                "Aborted": {
+                    "on": {
+                        "RESET": "NoProcess"
+                    }
+                }
+            }
+        },
+        "RecipeTracking": {
+            "initial": "NoRecipe",
+            "states": {
+                "NoRecipe": {
+                    "on": {
+                        "LOAD_RECIPE": "RecipeLoaded"
+                    }
+                },
+                "RecipeLoaded": {
+                    "on": {
+                        "VALIDATE_RECIPE": "RecipeValidated",
+                        "INVALID_RECIPE": "NoRecipe"
+                    }
+                },
+                "RecipeValidated": {
+                    "on": {
+                        "SELECT_RECIPE": "RecipeSelected",
+                        "UNLOAD_RECIPE": "NoRecipe"
+                    }
+                },
+                "RecipeSelected": {
+                    "on": {
+                        "EXECUTE_RECIPE": "RecipeExecuting",
+                        "DESELECT_RECIPE": "RecipeValidated"
+                    }
+                },
+                "RecipeExecuting": {
+                    "on": {
+                        "RECIPE_COMPLETE": "RecipeSelected",
+                        "RECIPE_ERROR": "RecipeSelected"
+                    }
+                }
+            }
+        },
+        "IdleReasonTracking": {
+            "initial": "NotIdle",
+            "states": {
+                "NotIdle": {
+                    "on": {
+                        "ENTER_IDLE": "IdleNoReason"
+                    }
+                },
+                "IdleNoReason": {
+                    "on": {
+                        "SET_IDLE_REASON": {
+                            "target": "IdleWithReason",
+                            "actions": "recordIdleReason"
+                        },
+                        "EXIT_IDLE": "NotIdle"
+                    }
+                },
+                "IdleWithReason": {
+                    "on": {
+                        "CHANGE_IDLE_REASON": {
+                            "target": "IdleWithReason",
+                            "actions": "recordIdleReason"
+                        },
+                        "EXIT_IDLE": "NotIdle"
+                    }
+                }
+            }
+        }
+    }
+}

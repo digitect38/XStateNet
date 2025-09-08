@@ -71,10 +71,10 @@ public class UnitTest_ErrorHandling : IDisposable
                     }
                 },
                 'processing': {
-                    'entry': ['throwError'],
+                    'entry': 'throwError',
                     'onError': {
                         'target': 'error',
-                        'actions': ['handleError']
+                        'actions': 'handleError'
                     }
                 },
                 'error': {
@@ -114,12 +114,12 @@ public class UnitTest_ErrorHandling : IDisposable
                     }
                 },
                 'invalidOp': {
-                    'entry': ['throwError'],
+                    'entry': 'throwError',
                     'onError': [
                         {
                             'errorType': 'InvalidOperationException',
                             'target': 'handledInvalid',
-                            'actions': ['handleError']
+                            'actions': 'handleError'
                         },
                         {
                             'target': 'genericError'
@@ -127,12 +127,12 @@ public class UnitTest_ErrorHandling : IDisposable
                     ]
                 },
                 'argumentErr': {
-                    'entry': ['throwCustomError'],
+                    'entry': 'throwCustomError',
                     'onError': [
                         {
                             'errorType': 'ArgumentException',
                             'target': 'handledArgument',
-                            'actions': ['handleError']
+                            'actions': 'handleError'
                         },
                         {
                             'target': 'genericError'
@@ -188,12 +188,12 @@ public class UnitTest_ErrorHandling : IDisposable
                     }
                 },
                 'processing': {
-                    'entry': ['throwError'],
+                    'entry': 'throwError',
                     'onError': [
                         {
                             'target': 'recovered',
                             'cond': 'isRecoverable',
-                            'actions': ['recover']
+                            'actions': 'recover'
                         },
                         {
                             'target': 'failed'
@@ -240,12 +240,12 @@ public class UnitTest_ErrorHandling : IDisposable
                             'initial': 'processing',
                             'states': {
                                 'processing': {
-                                    'entry': ['throwError']
+                                    'entry': 'throwError'
                                 }
                             },
                             'onError': {
                                 'target': '#nestedErrorTest.level1.localError',
-                                'actions': ['handleError']
+                                'actions': 'handleError'
                             }
                         },
                         'localError': {
@@ -289,14 +289,14 @@ public class UnitTest_ErrorHandling : IDisposable
                     }
                 },
                 'processing': {
-                    'entry': ['throwError'],
+                    'entry': 'throwError',
                     'onError': {
                         'target': 'retry',
-                        'actions': ['handleError']
+                        'actions': 'handleError'
                     }
                 },
                 'retry': {
-                    'entry': ['logAction'],
+                    'entry': 'logAction',
                     'on': {
                         'RETRY': 'processing',
                         'GIVE_UP': 'failed'
@@ -344,7 +344,7 @@ public class UnitTest_ErrorHandling : IDisposable
                             }
                         },
                         'error': {
-                            'entry': ['throwError']
+                            'entry': 'throwError'
                         },
                         'failed': {
                             'type': 'final'
@@ -369,7 +369,7 @@ public class UnitTest_ErrorHandling : IDisposable
                 }
             },
             'onError': {
-                'actions': ['handleError']
+                'actions': 'handleError'
             }
         }";
         

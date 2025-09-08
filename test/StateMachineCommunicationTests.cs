@@ -233,7 +233,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     'on': {{
                         'TRIGGER': {{
                             'target': 'active',
-                            'actions': ['notify']
+                            'actions': 'notify'
                         }}
                     }}
                 }},
@@ -299,7 +299,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     }}
                 }},
                 'done': {{
-                    'entry': ['notifyParent'],
+                    'entry': 'notifyParent',
                     'type': 'final'
                 }}
             }}
@@ -353,7 +353,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     }}
                 }},
                 'processing': {{
-                    'entry': ['process'],
+                    'entry': 'process',
                     'after': {{
                         '50': {{
                             'target': 'listening'
@@ -391,7 +391,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     }}
                 }},
                 'complete': {{
-                    'entry': ['notifyComplete'],
+                    'entry': 'notifyComplete',
                     'type': 'final'
                 }}
             }}

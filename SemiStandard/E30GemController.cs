@@ -20,7 +20,7 @@ public class E30GemController
     {
         // Load embedded JSON resource or from file
         var assembly = typeof(E30GemController).Assembly;
-        var resourceName = "SemiStandard.E30GemStates.json";
+        var resourceName = "SemiStandard.XStates.E30GemStates.json";
         
         using (var stream = assembly.GetManifestResourceStream(resourceName))
         {
@@ -43,7 +43,7 @@ public class E30GemController
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E30GemStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard.XStates", "E30GemStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _jsonScript = File.ReadAllText(jsonPath);

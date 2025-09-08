@@ -79,14 +79,14 @@ public class AfterTests : IDisposable
             'context': { 'isReady': true, 'log': '' },
             'states': {
                 'red': {
-                    'entry': ['logEntryRed'],
-                    'exit': ['logExitRed'],
+                    'entry': 'logEntryRed',
+                    'exit': 'logExitRed',
                     'after': {
-                        '500': { 'target': 'green', 'actions': [ 'logTransitionAfterRedToGreen' ] }
+                        '500': { 'target': 'green', 'actions': 'logTransitionAfterRedToGreen' }
                     }
                 },
                 'green': {
-                    'entry': ['logEntryGreen'],
+                    'entry': 'logEntryGreen',
                     'exit': []
                 }
             },
@@ -135,10 +135,10 @@ public class AfterTests : IDisposable
             'context': { 'isReady': false, 'log': '' },
             'states': {
                 'red': {
-                    'entry': [ 'logEntryRed' ],
-                    'exit': [ 'logExitRed' ],
+                    'entry': 'logEntryRed',
+                    'exit': 'logExitRed',
                     'after': {
-                        '500': { 'target': 'green', 'guard': 'isReady', 'actions': [ 'logTransitionAfterRedToGreen' ] }
+                        '500': { 'target': 'green', 'guard': 'isReady', 'actions': 'logTransitionAfterRedToGreen' }
                     }
                 },
                 'green': {

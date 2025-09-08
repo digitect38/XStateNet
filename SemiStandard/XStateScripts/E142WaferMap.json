@@ -1,0 +1,102 @@
+{
+    "id": "E142_WaferMap",
+    "initial": "NoMap",
+    "context": {
+        "mapId": "",
+        "mapVersion": null,
+        "loadTime": null,
+        "applyTime": null,
+        "updateCount": 0
+    },
+    "states": {
+        "NoMap": {
+            "on": {
+                "LOAD": {
+                    "target": "Loaded",
+                    "actions": ["validateMapData", "storeMapData", "recordLoadTime"]
+                }
+            }
+        },
+        "Loaded": {
+            "entry": "logLoaded",
+            "on": {
+                "APPLY": {
+                    "target": "Applied",
+                    "actions": ["applyMapToProcess", "recordApplyTime"]
+                },
+                "UNLOAD": {
+                    "target": "Unloading"
+                },
+                "UPDATE": [
+                    {
+                        "target": "Updating",
+                        "cond": "isValidUpdate",
+                        "actions": "prepareUpdate"
+                    },
+                    {
+                        "target": "Loaded",
+                        "actions": "rejectUpdate"
+                    }
+                ]
+            }
+        },
+        "Applied": {
+            "entry": "logApplied",
+            "on": {
+                "UPDATE": {
+                    "target": "Updating",
+                    "actions": "prepareUpdate"
+                },
+                "RELEASE": {
+                    "target": "Loaded",
+                    "actions": "releaseFromProcess"
+                },
+                "UNLOAD": {
+                    "target": "Unloading",
+                    "actions": "releaseFromProcess"
+                },
+                "DIE_TESTED": {
+                    "target": "Applied",
+                    "actions": "updateDieResult"
+                },
+                "GET_DIE_INFO": {
+                    "target": "Applied",
+                    "actions": "provideDieInfo"
+                }
+            }
+        },
+        "Updating": {
+            "on": {
+                "UPDATE_COMPLETE": [
+                    {
+                        "target": "Applied",
+                        "cond": "wasApplied",
+                        "actions": ["applyUpdate", "incrementUpdateCount"]
+                    },
+                    {
+                        "target": "Loaded",
+                        "actions": ["applyUpdate", "incrementUpdateCount"]
+                    }
+                ],
+                "UPDATE_FAILED": [
+                    {
+                        "target": "Applied",
+                        "cond": "wasApplied"
+                    },
+                    {
+                        "target": "Loaded"
+                    }
+                ]
+            }
+        },
+        "Unloading": {
+            "entry": "cleanupResources",
+            "on": {
+                "UNLOAD_COMPLETE": {
+                    "target": "NoMap",
+                    "actions": "clearMapData"
+                }
+            }
+        }
+    }
+}

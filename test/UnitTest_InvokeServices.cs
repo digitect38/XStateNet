@@ -71,11 +71,11 @@ public class UnitTest_InvokeServices : IDisposable
                         'src': 'fetchData',
                         'onDone': {
                             'target': 'success',
-                            'actions': ['handleSuccess']
+                            'actions': 'handleSuccess'
                         },
                         'onError': {
                             'target': 'failure',
-                            'actions': ['handleError']
+                            'actions': 'handleError'
                         }
                     }
                 },
@@ -127,7 +127,7 @@ public class UnitTest_InvokeServices : IDisposable
                         },
                         'onError': {
                             'target': 'error',
-                            'actions': ['handleError']
+                            'actions': 'handleError'
                         }
                     }
                 },

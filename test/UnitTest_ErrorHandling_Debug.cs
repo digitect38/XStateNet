@@ -54,11 +54,11 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
                     }
                 },
                 'processing': {
-                    'entry': ['throwError'],
+                    'entry': 'throwError',
                     'on': {
                         'onError': {
                             'target': 'error',
-                            'actions': ['handleError']
+                            'actions': 'handleError'
                         }
                     }
                 },

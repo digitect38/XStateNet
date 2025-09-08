@@ -29,7 +29,7 @@ public class E87CarrierManagement
         var assembly = typeof(E87CarrierManagement).Assembly;
         
         // Load carrier state machine JSON
-        var carrierResourceName = "SemiStandard.E87CarrierStates.json";
+        var carrierResourceName = "SemiStandard.XStateScripts.E87CarrierStates.json";
         using (var stream = assembly.GetManifestResourceStream(carrierResourceName))
         {
             if (stream != null)
@@ -51,7 +51,7 @@ public class E87CarrierManagement
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E87CarrierStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard.XStateScripts", "E87CarrierStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _carrierJsonScript = File.ReadAllText(jsonPath);
@@ -60,7 +60,7 @@ public class E87CarrierManagement
         }
         
         // Load load port state machine JSON
-        var loadPortResourceName = "SemiStandard.E87LoadPortStates.json";
+        var loadPortResourceName = "SemiStandard.XStateScripts.E87LoadPortStates.json";
         using (var stream = assembly.GetManifestResourceStream(loadPortResourceName))
         {
             if (stream != null)
@@ -82,7 +82,7 @@ public class E87CarrierManagement
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E87LoadPortStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard.XStateScripts", "E87LoadPortStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _loadPortJsonScript = File.ReadAllText(jsonPath);

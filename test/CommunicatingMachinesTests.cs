@@ -38,7 +38,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                         }}
                     }},
                     'coordinating': {{
-                        'entry': ['startChildren'],
+                        'entry': 'startChildren',
                         'on': {{
                             'CHILD_READY': 'processing',
                             'CHILD_ERROR': 'error'
@@ -51,7 +51,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                         }}
                     }},
                     'error': {{
-                        'entry': ['stopChildren'],
+                        'entry': 'stopChildren',
                         'on': {{
                             'RESET': 'idle'
                         }}
@@ -186,7 +186,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                         }}
                     }},
                     'ready': {{
-                        'entry': ['notifyReady'],
+                        'entry': 'notifyReady',
                         'on': {{
                             'PROCESS': 'processing'
                         }},
@@ -197,21 +197,21 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                         }}
                     }},
                     'processing': {{
-                        'entry': ['doWork'],
+                        'entry': 'doWork',
                         'on': {{
                             'SUCCESS': 'complete',
                             'FAIL': 'error'
                         }}
                     }},
                     'error': {{
-                        'entry': ['notifyError'],
+                        'entry': 'notifyError',
                         'on': {{
                             'RETRY': 'processing',
                             'STOP': 'stopped'
                         }}
                     }},
                     'complete': {{
-                        'entry': ['notifyComplete'],
+                        'entry': 'notifyComplete',
                         'type': 'final'
                     }},
                     'stopped': {{

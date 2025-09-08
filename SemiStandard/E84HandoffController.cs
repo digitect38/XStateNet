@@ -26,7 +26,7 @@ public class E84HandoffController
     {
         // Load embedded JSON resource or from file
         var assembly = typeof(E84HandoffController).Assembly;
-        var resourceName = "SemiStandard.E84HandoffStates.json";
+        var resourceName = "SemiStandard.XStateScripts.E84HandoffStates.json";
         
         using (var stream = assembly.GetManifestResourceStream(resourceName))
         {
@@ -49,7 +49,7 @@ public class E84HandoffController
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E84HandoffStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "XStateScripts.SemiStandard", "E84HandoffStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _jsonScript = File.ReadAllText(jsonPath);

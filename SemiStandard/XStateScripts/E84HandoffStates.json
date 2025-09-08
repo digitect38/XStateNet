@@ -15,7 +15,7 @@
       }
     },
     "readyToLoad": {
-      "entry": ["setLoadRequest"],
+      "entry": "setLoadRequest",
       "on": {
         "CS_0_OFF": "idle",
         "TR_REQ_ON": "transferReady",
@@ -28,7 +28,7 @@
       }
     },
     "transferReady": {
-      "entry": ["setReady"],
+      "entry": "setReady",
       "on": {
         "BUSY_ON": "transferring",
         "TR_REQ_OFF": "readyToLoad",
@@ -47,8 +47,8 @@
       }
     },
     "transferComplete": {
-      "entry": ["clearLoadRequest"],
-      "exit": ["clearReady"],
+      "entry": "clearLoadRequest",
+      "exit": "clearReady",
       "on": {
         "COMPT_OFF": "idle",
         "TR_REQ_OFF": "idle"
@@ -61,7 +61,7 @@
       }
     },
     "readyToUnload": {
-      "entry": ["setUnloadRequest"],
+      "entry": "setUnloadRequest",
       "on": {
         "VALID_OFF": "idle",
         "BUSY_ON": "unloading",
@@ -80,7 +80,7 @@
       }
     },
     "unloadComplete": {
-      "entry": ["clearUnloadRequest"],
+      "entry": "clearUnloadRequest",
       "on": {
         "COMPT_OFF": "idle",
         "TR_REQ_OFF": "idle",
@@ -88,8 +88,8 @@
       }
     },
     "transferBlocked": {
-      "entry": ["setAlarm"],
-      "exit": ["clearAlarm"],
+      "entry": "setAlarm",
+      "exit": "clearAlarm",
       "on": {
         "RESET": "idle",
         "CS_0_OFF": "idle"

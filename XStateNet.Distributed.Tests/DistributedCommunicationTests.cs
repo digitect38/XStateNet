@@ -46,7 +46,7 @@ namespace XStateNet.Distributed.Tests
                             'TIMER': 'green',
                             'SYNC_REQUEST': {
                                 'target': 'red',
-                                'actions': ['notifySync']
+                                'actions': 'notifySync'
                             }
                         }
                     },
@@ -55,7 +55,7 @@ namespace XStateNet.Distributed.Tests
                             'TIMER': 'yellow',
                             'SYNC_REQUEST': {
                                 'target': 'green',
-                                'actions': ['notifySync']
+                                'actions': 'notifySync'
                             }
                         }
                     },
@@ -97,7 +97,7 @@ namespace XStateNet.Distributed.Tests
                             'TIMER': 'yellow',
                             'REQUEST_SYNC': {
                                 'target': 'green',
-                                'actions': ['sendSyncRequest']
+                                'actions': 'sendSyncRequest'
                             }
                         }
                     },
@@ -188,11 +188,11 @@ namespace XStateNet.Distributed.Tests
                         }
                     },
                     'coordinating': {
-                        'entry': ['startChildren'],
+                        'entry': 'startChildren',
                         'on': {
                             'CHILD_COMPLETE': {
                                 'target': 'checking',
-                                'actions': ['checkAllComplete']
+                                'actions': 'checkAllComplete'
                             }
                         }
                     },
@@ -263,7 +263,7 @@ namespace XStateNet.Distributed.Tests
                             }}
                         }},
                         'done': {{
-                            'entry': ['notifyParent'],
+                            'entry': 'notifyParent',
                             'type': 'final'
                         }}
                     }}
@@ -327,11 +327,11 @@ namespace XStateNet.Distributed.Tests
                             }
                         },
                         'processing': {
-                            'entry': ['processWork'],
+                            'entry': 'processWork',
                             'after': {
                                 '100': 'idle'
                             },
-                            'exit': ['completeWork']
+                            'exit': 'completeWork'
                         }
                     }
                 }";
@@ -444,11 +444,11 @@ namespace XStateNet.Distributed.Tests
                                 {
                                     'target': 'closed',
                                     'cond': 'isHealthy',
-                                    'actions': ['handleRequest']
+                                    'actions': 'handleRequest'
                                 },
                                 {
                                     'target': 'open',
-                                    'actions': ['tripBreaker']
+                                    'actions': 'tripBreaker'
                                 }
                             ]
                         }
@@ -456,7 +456,7 @@ namespace XStateNet.Distributed.Tests
                     'open': {
                         'on': {
                             'REQUEST': {
-                                'actions': ['rejectRequest']
+                                'actions': 'rejectRequest'
                             }
                         },
                         'after': {
@@ -469,7 +469,7 @@ namespace XStateNet.Distributed.Tests
                                 {
                                     'target': 'closed',
                                     'cond': 'isHealthy',
-                                    'actions': ['resetBreaker']
+                                    'actions': 'resetBreaker'
                                 },
                                 {
                                     'target': 'open'

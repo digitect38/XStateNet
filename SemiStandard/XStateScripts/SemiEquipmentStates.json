@@ -7,16 +7,16 @@
         "goLocal": "local",
         "goRemote": "remote"
       },
-      "entry": ["offlineEntry"],
-      "exit": ["offlineExit"]
+      "entry": "offlineEntry",
+      "exit": "offlineExit"
     },
     "local": {
       "on": {
         "goOffline": "offline",
         "goRemote": "remote"
       },
-      "entry": ["localEntry"],
-      "exit": ["localExit"]
+      "entry": "localEntry",
+      "exit": "localExit"
     },
     "remote": {
       "initial": "init",
@@ -24,8 +24,8 @@
         "goOffline": "offline",
         "goLocal": "local"
       },
-      "entry": ["remoteEntry"],
-      "exit": ["remoteExit"],
+      "entry": "remoteEntry",
+      "exit": "remoteExit",
       "states": {
         "init": {
           "on": {
@@ -54,8 +54,8 @@
             "complete": "completing",
             "abort": "idle"
           },
-          "entry": ["executingEntry"],
-          "exit": ["executingExit"]
+          "entry": "executingEntry",
+          "exit": "executingExit"
         },
         "completing": {
           "on": {

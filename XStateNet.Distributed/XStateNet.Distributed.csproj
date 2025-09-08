@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\XStateNet5Impl\XStateNet5.csproj" />
+    <ProjectReference Include="..\XStateNet5Impl\XStateNet.csproj" />
   </ItemGroup>
 
   <ItemGroup>

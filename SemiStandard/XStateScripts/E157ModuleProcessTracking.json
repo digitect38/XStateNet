@@ -1,0 +1,122 @@
+{
+    "id": "E157_ModuleProcessTracking",
+    "initial": "ModuleIdle",
+    "context": {
+        "moduleId": "",
+        "materialId": null,
+        "processStartTime": null,
+        "processEndTime": null,
+        "stepCount": 0,
+        "currentStep": null,
+        "errorCount": 0
+    },
+    "states": {
+        "ModuleIdle": {
+            "on": {
+                "MATERIAL_ARRIVE": {
+                    "target": "MaterialArrived",
+                    "actions": ["assignMaterial", "notifyMaterialArrive"]
+                }
+            }
+        },
+        "MaterialArrived": {
+            "on": {
+                "START_PROCESS": {
+                    "target": "ProcessExecuting",
+                    "actions": ["recordProcessStart", "initializeSteps"]
+                },
+                "MATERIAL_REMOVE": {
+                    "target": "ModuleIdle",
+                    "actions": "clearMaterial"
+                }
+            }
+        },
+        "ProcessExecuting": {
+            "initial": "StepReady",
+            "states": {
+                "StepReady": {
+                    "on": {
+                        "EXECUTE_STEP": {
+                            "target": "StepExecuting",
+                            "actions": "startStep"
+                        }
+                    }
+                },
+                "StepExecuting": {
+                    "on": {
+                        "STEP_COMPLETE": [
+                            {
+                                "target": "StepReady",
+                                "cond": "hasMoreSteps",
+                                "actions": ["completeStep", "incrementStepCount"]
+                            },
+                            {
+                                "target": "AllStepsComplete",
+                                "actions": ["completeStep", "incrementStepCount"]
+                            }
+                        ],
+                        "STEP_ERROR": {
+                            "target": "StepError",
+                            "actions": ["logError", "incrementErrorCount"]
+                        }
+                    }
+                },
+                "StepError": {
+                    "on": {
+                        "RETRY_STEP": "StepExecuting",
+                        "SKIP_STEP": [
+                            {
+                                "target": "StepReady",
+                                "cond": "hasMoreSteps",
+                                "actions": "incrementStepCount"
+                            },
+                            {
+                                "target": "AllStepsComplete"
+                            }
+                        ],
+                        "ABORT_PROCESS": {
+                            "target": "ProcessAborted"
+                        }
+                    }
+                },
+                "AllStepsComplete": {
+                    "type": "final"
+                },
+                "ProcessAborted": {
+                    "type": "final"
+                }
+            },
+            "onDone": [
+                {
+                    "target": "ProcessComplete",
+                    "cond": "isProcessSuccess"
+                },
+                {
+                    "target": "ProcessFailed"
+                }
+            ]
+        },
+        "ProcessComplete": {
+            "entry": "recordProcessEnd",
+            "on": {
+                "MATERIAL_REMOVE": {
+                    "target": "ModuleIdle",
+                    "actions": ["notifyProcessComplete", "clearMaterial"]
+                }
+            }
+        },
+        "ProcessFailed": {
+            "entry": ["recordProcessEnd", "notifyError"],
+            "on": {
+                "MATERIAL_REMOVE": {
+                    "target": "ModuleIdle",
+                    "actions": "clearMaterial"
+                },
+                "RETRY_PROCESS": {
+                    "target": "ProcessExecuting",
+                    "actions": ["resetProcess", "recordProcessStart"]
+                }
+            }
+        }
+    }
+}

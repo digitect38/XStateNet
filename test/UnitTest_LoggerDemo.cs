@@ -33,13 +33,13 @@ namespace XStateNet.UnitTest
                 'initial': 'idle',
                 'states': {
                     'idle': {
-                        'entry': ['logAction'],
+                        'entry': 'logAction',
                         'on': {
                             'START': 'running'
                         }
                     },
                     'running': {
-                        'entry': ['logAction'],
+                        'entry': 'logAction',
                         'on': {
                             'STOP': 'idle'
                         }

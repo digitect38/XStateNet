@@ -21,7 +21,7 @@ public class E94ControlJobManager
     {
         // Load embedded JSON resource or from file
         var assembly = typeof(E94ControlJobManager).Assembly;
-        var resourceName = "SemiStandard.E94ControlJobStates.json";
+        var resourceName = "SemiStandard.XStateScripts.E94ControlJobStates.json";
         
         using (var stream = assembly.GetManifestResourceStream(resourceName))
         {
@@ -44,7 +44,7 @@ public class E94ControlJobManager
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "E94ControlJobStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard.XStateScripts", "E94ControlJobStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _jsonScript = File.ReadAllText(jsonPath);

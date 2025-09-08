@@ -23,7 +23,11 @@
       "Bash(dotnet sln add:*)",
       "Bash(dotnet sln:*)",
       "Bash(dotnet add package:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(dotnet new:*)",
+      "Bash(git restore:*)",
+      "Bash(csc:*)",
+      "Bash(test_json.exe)"
     ],
     "deny": [],
     "ask": []

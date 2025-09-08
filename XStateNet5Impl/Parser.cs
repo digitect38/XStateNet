@@ -444,13 +444,23 @@ public partial class StateMachine
 
                 if (token["actions"] != null)
                 {
-                    if (token["actions"] is JArray)
+                    var actionsToken = token["actions"];
+                    if (actionsToken is JArray)
                     {
-                        actionNames = token["actions"]?.ToObject<List<string>>();
+                        actionNames = actionsToken.ToObject<List<string>>();
+                    }
+                    else if (actionsToken?.Type == JTokenType.String)
+                    {
+                        // Handle single action as string
+                        var singleAction = actionsToken.ToString();
+                        if (!string.IsNullOrEmpty(singleAction))
+                        {
+                            actionNames = new List<string> { singleAction };
+                        }
                     }
                     else
                     {
-                        throw new Exception("Actions that non-array type is not yet supported!");
+                        throw new Exception("Actions must be either a string or an array of strings!");
                     }
                 }
 

@@ -1816,10 +1816,10 @@ namespace SemiStandard.Tests
                         '.controlJob.NO_JOBS',
                         '.processJob.PROCESS_ABORTING'
                     ],
-                    'actions': ['emergencyStop']
+                    'actions': 'emergencyStop'
                 },
                 'SYSTEM_INITIALIZE': {
-                    'actions': ['setSystemStartTime']
+                    'actions': 'setSystemStartTime'
                 },
                 'SYSTEM_RESET': {
                     'target': [
@@ -1831,7 +1831,7 @@ namespace SemiStandard.Tests
                         '.recipeManagement.NO_RECIPE',
                         '.performanceMonitoring.MONITORING'
                     ],
-                    'actions': ['systemReset']
+                    'actions': 'systemReset'
                 }
             },
             'states': {
@@ -1839,15 +1839,15 @@ namespace SemiStandard.Tests
                     'initial': 'INIT',
                     'states': {
                         'INIT': {
-                            'entry': ['setSystemStartTime'],
+                            'entry': 'setSystemStartTime',
                             'on': {
                                 'INIT_COMPLETE': {
                                     'target': 'IDLE',
-                                    'actions': ['setEquipmentIdle']
+                                    'actions': 'setEquipmentIdle'
                                 },
                                 'INIT_FAIL': {
                                     'target': 'FAULT',
-                                    'actions': ['setEquipmentFault']
+                                    'actions': 'setEquipmentFault'
                                 }
                             }
                         },
@@ -1855,13 +1855,13 @@ namespace SemiStandard.Tests
                             'on': {
                                 'START_PRODUCTION': {
                                     'target': 'PRODUCTIVE',
-                                    'actions': ['setEquipmentProductive']
+                                    'actions': 'setEquipmentProductive'
                                 },
                                 'ENTER_SETUP': 'SETUP',
                                 'SHUTDOWN_REQUEST': 'SHUTDOWN',
                                 'FAULT_DETECTED': {
                                     'target': 'FAULT',
-                                    'actions': ['setEquipmentFault']
+                                    'actions': 'setEquipmentFault'
                                 }
                             }
                         },
@@ -1872,7 +1872,7 @@ namespace SemiStandard.Tests
                                     'on': {
                                         'STARTUP_COMPLETE': {
                                             'target': 'STANDBY',
-                                            'actions': ['setProductiveStandby']
+                                            'actions': 'setProductiveStandby'
                                         },
                                         'STARTUP_FAIL': '#SEMI_Integrated_System.equipment.FAULT'
                                     }
@@ -1882,7 +1882,7 @@ namespace SemiStandard.Tests
                                         'RUN': {
                                             'target': 'PRODUCTIVE_RUN',
                                             'guard': 'canStartProcess',
-                                            'actions': ['setProductiveRun']
+                                            'actions': 'setProductiveRun'
                                         },
                                         'SETUP_REQUEST': '#SEMI_Integrated_System.equipment.SETUP',
                                         'FAULT_DETECTED': '#SEMI_Integrated_System.equipment.FAULT'
@@ -1903,7 +1903,7 @@ namespace SemiStandard.Tests
                                         'RESUME': 'PRODUCTIVE_RUN',
                                         'ABORT': {
                                             'target': 'STANDBY',
-                                            'actions': ['setProductiveStandby']
+                                            'actions': 'setProductiveStandby'
                                         }
                                     }
                                 }
@@ -1913,7 +1913,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'SETUP_COMPLETE': {
                                     'target': 'IDLE',
-                                    'actions': ['setEquipmentIdle']
+                                    'actions': 'setEquipmentIdle'
                                 },
                                 'SETUP_ABORT': 'IDLE'
                             }
@@ -1928,17 +1928,17 @@ namespace SemiStandard.Tests
                             'on': {
                                 'SHUTDOWN_COMPLETE': {
                                     'target': 'OFF',
-                                    'actions': ['setEquipmentOff']
+                                    'actions': 'setEquipmentOff'
                                 },
                                 'SHUTDOWN_ABORT': 'IDLE'
                             }
                         },
                         'FAULT': {
-                            'entry': ['setEquipmentFault'],
+                            'entry': 'setEquipmentFault',
                             'on': {
                                 'FAULT_CLEARED': {
                                     'target': 'IDLE',
-                                    'actions': ['setEquipmentIdle']
+                                    'actions': 'setEquipmentIdle'
                                 },
                                 'ENTER_REPAIR': 'ENGINEERING'
                             }
@@ -1952,7 +1952,7 @@ namespace SemiStandard.Tests
                     'initial': 'NO_CARRIERS',
                     'states': {
                         'NO_CARRIERS': {
-                            'entry': ['setCarrierUnavailable'],
+                            'entry': 'setCarrierUnavailable',
                             'on': {
                                 'CARRIER_DETECTED': 'CARRIER_ARRIVING'
                             }
@@ -1961,7 +1961,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'CARRIER_ARRIVED': {
                                     'target': 'WAITING_FOR_HOST',
-                                    'actions': ['addCarrier']
+                                    'actions': 'addCarrier'
                                 }
                             }
                         },
@@ -2010,7 +2010,7 @@ namespace SemiStandard.Tests
                                     'on': {
                                         'SLOT_MAP_VERIFIED': {
                                             'target': '#SEMI_Integrated_System.carrierManagement.READY_FOR_PROCESSING',
-                                            'actions': ['setCarrierAvailable']
+                                            'actions': 'setCarrierAvailable'
                                         },
                                         'SLOT_MAP_REJECTED': 'SLOT_MAP_FAILED'
                                     }
@@ -2049,11 +2049,11 @@ namespace SemiStandard.Tests
                     'initial': 'NO_SUBSTRATES',
                     'states': {
                         'NO_SUBSTRATES': {
-                            'entry': ['setSubstrateUnavailable'],
+                            'entry': 'setSubstrateUnavailable',
                             'on': {
                                 'SUBSTRATE_DETECTED': {
                                     'target': 'SUBSTRATE_AT_SOURCE',
-                                    'actions': ['addSubstrate']
+                                    'actions': 'addSubstrate'
                                 }
                             }
                         },
@@ -2061,7 +2061,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'SUBSTRATE_NEEDS_PROCESSING': {
                                     'target': 'SUBSTRATE_PROCESSING',
-                                    'actions': ['setSubstrateReady']
+                                    'actions': 'setSubstrateReady'
                                 },
                                 'SUBSTRATE_SKIP_PROCESSING': 'SUBSTRATE_AT_DESTINATION'
                             }
@@ -2116,7 +2116,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'CREATE_JOB': {
                                     'target': 'JOB_QUEUED',
-                                    'actions': ['addJob']
+                                    'actions': 'addJob'
                                 }
                             }
                         },
@@ -2178,7 +2178,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'CREATE_PROCESS': {
                                     'target': 'SETTING_UP',
-                                    'actions': ['addProcess']
+                                    'actions': 'addProcess'
                                 }
                             }
                         },
@@ -2260,11 +2260,11 @@ namespace SemiStandard.Tests
                     'initial': 'NO_RECIPE',
                     'states': {
                         'NO_RECIPE': {
-                            'entry': ['setRecipeUnverified'],
+                            'entry': 'setRecipeUnverified',
                             'on': {
                                 'LOAD_RECIPE': {
                                     'target': 'UNVERIFIED',
-                                    'actions': ['addRecipe']
+                                    'actions': 'addRecipe'
                                 }
                             }
                         },
@@ -2277,7 +2277,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'VERIFICATION_PASS': {
                                     'target': 'VERIFIED',
-                                    'actions': ['setRecipeVerified']
+                                    'actions': 'setRecipeVerified'
                                 },
                                 'VERIFICATION_FAIL': 'VERIFICATION_FAILED'
                             }
@@ -2299,7 +2299,7 @@ namespace SemiStandard.Tests
                             'on': {
                                 'SAVE_RECIPE': {
                                     'target': 'UNVERIFIED',
-                                    'actions': ['setRecipeUnverified']
+                                    'actions': 'setRecipeUnverified'
                                 },
                                 'CANCEL_EDIT': 'VERIFIED'
                             }
@@ -2327,7 +2327,7 @@ namespace SemiStandard.Tests
                         'MONITORING': {
                             'on': {
                                 'UPDATE_METRICS': {
-                                    'actions': ['updateMetrics']
+                                    'actions': 'updateMetrics'
                                 },
                                 'PERFORMANCE_ALERT': {
                                     'target': 'ALERT_STATE',

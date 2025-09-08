@@ -27,7 +27,7 @@ namespace DelaysTest
                         'after': {{
                             'delay1234' : {{
                                 'target': 'b',
-                                'actions' : ['transAction']
+                                'actions' : 'transAction'
                             }}
                         }},
                     }},

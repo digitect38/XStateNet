@@ -96,7 +96,7 @@ namespace AdvancedFeatures
                         'after': {
                             '1000': {
                                 'target': 'b',
-                                'actions': ['sendToFollowerToB']
+                                'actions': 'sendToFollowerToB'
                             }
                         }
                     },
@@ -104,7 +104,7 @@ namespace AdvancedFeatures
                         'after': {
                             '1000': {
                                 'target': 'a',
-                                'actions': ['sendToFollowerToA']
+                                'actions': 'sendToFollowerToA'
                             }
                         }
                     }

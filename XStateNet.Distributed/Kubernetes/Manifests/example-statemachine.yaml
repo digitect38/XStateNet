@@ -20,7 +20,7 @@ spec:
           }
         },
         "ping": {
-          "entry": ["sendPing"],
+          "entry": "sendPing",
           "on": {
             "PONG": "pong"
           },
@@ -29,7 +29,7 @@ spec:
           }
         },
         "pong": {
-          "entry": ["sendPong"],
+          "entry": "sendPong",
           "on": {
             "PING": "ping"
           },
@@ -146,7 +146,7 @@ spec:
           "type": "final"
         },
         "failed": {
-          "entry": ["notifyFailure"],
+          "entry": "notifyFailure",
           "type": "final"
         }
       }

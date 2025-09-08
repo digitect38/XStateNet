@@ -25,7 +25,7 @@ public class SemiEquipmentController
     {
         // Load embedded JSON resource or from file
         var assembly = typeof(SemiEquipmentController).Assembly;
-        var resourceName = "SemiStandard.SemiEquipmentStates.json";
+        var resourceName = "SemiStandard.XStateScripts.SemiEquipmentStates.json";
         
         using (var stream = assembly.GetManifestResourceStream(resourceName))
         {
@@ -41,14 +41,14 @@ public class SemiEquipmentController
         // If not embedded, try to load from file
         if (string.IsNullOrEmpty(_equipmentJsonScript))
         {
-            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SemiEquipmentStates.json");
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "XStateScripts", "SemiEquipmentStates.json");
             if (File.Exists(jsonPath))
             {
                 _equipmentJsonScript = File.ReadAllText(jsonPath);
             }
             else
             {
-                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "SemiEquipmentStates.json");
+                jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "SemiStandard", "XStateScripts", "SemiEquipmentStates.json");
                 if (File.Exists(jsonPath))
                 {
                     _equipmentJsonScript = File.ReadAllText(jsonPath);

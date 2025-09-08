@@ -29,7 +29,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'after': {
                         '500': {
                             'target': 'served',
-                            'actions': ['serveToPong']
+                            'actions': 'serveToPong'
                         }
                     }
                 },
@@ -37,7 +37,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'on': {
                         'RETURN': {
                             'target': 'waitingToServe',
-                            'actions': ['logReturn']
+                            'actions': 'logReturn'
                         }
                     }
                 }
@@ -53,7 +53,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'on': {
                         'SERVE': {
                             'target': 'returning',
-                            'actions': ['logReceive']
+                            'actions': 'logReceive'
                         }
                     }
                 },
@@ -61,7 +61,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'after': {
                         '300': {
                             'target': 'waitingForServe',
-                            'actions': ['returnToPing']
+                            'actions': 'returnToPing'
                         }
                     }
                 }
@@ -151,7 +151,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'after': {
                         '200': {
                             'target': 'playing',
-                            'actions': ['serve']
+                            'actions': 'serve'
                         }
                     }
                 },
@@ -160,12 +160,12 @@ public class PingPongTests : XStateNet.Tests.TestBase
                         'BALL': [
                             {
                                 'target': 'playing',
-                                'actions': ['hitBack'],
+                                'actions': 'hitBack',
                                 'cond': 'canReturn'
                             },
                             {
                                 'target': 'missed',
-                                'actions': ['missedBall']
+                                'actions': 'missedBall'
                             }
                         ],
                         'POINT_WON': 'serving'
@@ -175,7 +175,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'after': {
                         '100': {
                             'target': 'serving',
-                            'actions': ['resetRally']
+                            'actions': 'resetRally'
                         }
                     }
                 }
@@ -191,12 +191,12 @@ public class PingPongTests : XStateNet.Tests.TestBase
                         'BALL': [
                             {
                                 'target': 'returning',
-                                'actions': ['hitBack'],
+                                'actions': 'hitBack',
                                 'cond': 'canReturn'
                             },
                             {
                                 'target': 'missed',
-                                'actions': ['missedBall']
+                                'actions': 'missedBall'
                             }
                         ]
                     }
@@ -212,7 +212,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'after': {
                         '100': {
                             'target': 'receiving',
-                            'actions': ['resetRally']
+                            'actions': 'resetRally'
                         }
                     }
                 }
@@ -330,7 +330,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                         'START': 'playing',
                         'BALL': {
                             'target': 'playing',
-                            'actions': ['hit']
+                            'actions': 'hit'
                         }
                     }
                 },
@@ -338,7 +338,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
                     'on': {
                         'BALL': {
                             'target': 'playing',
-                            'actions': ['hit']
+                            'actions': 'hit'
                         }
                     }
                 }

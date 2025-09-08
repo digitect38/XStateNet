@@ -82,7 +82,7 @@ public class UnitTest_ActorModel : IDisposable
                     }
                 },
                 'pinging': {
-                    'entry': ['sendPong'],
+                    'entry': 'sendPong',
                     'on': {
                         'PONG_RECEIVED': 'waiting'
                     }
@@ -101,7 +101,7 @@ public class UnitTest_ActorModel : IDisposable
                     }
                 },
                 'ponging': {
-                    'entry': ['sendPing'],
+                    'entry': 'sendPing',
                     'on': {
                         'DONE': 'waiting'
                     }
@@ -215,7 +215,7 @@ public class UnitTest_ActorModel : IDisposable
                     }
                 },
                 'error': {
-                    'entry': ['throwError']
+                    'entry': 'throwError'
                 }
             }
         }";
@@ -259,7 +259,7 @@ public class UnitTest_ActorModel : IDisposable
                     'on': {
                         'INCREMENT': {
                             'target': 'counting',
-                            'actions': ['count']
+                            'actions': 'count'
                         }
                     }
                 }
@@ -303,7 +303,7 @@ public class UnitTest_ActorModel : IDisposable
                     'on': {
                         'RECEIVE_DATA': {
                             'target': 'received',
-                            'actions': ['storeData']
+                            'actions': 'storeData'
                         }
                     }
                 },

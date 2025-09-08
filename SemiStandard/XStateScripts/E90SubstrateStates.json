@@ -37,8 +37,8 @@
       }
     },
     "InProcess": {
-      "entry": ["recordProcessStart"],
-      "exit": ["recordProcessEnd"],
+      "entry": "recordProcessStart",
+      "exit": "recordProcessEnd",
       "on": {
         "PROCESS_COMPLETE": "Processed",
         "PROCESS_ABORT": "Aborted",

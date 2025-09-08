@@ -52,7 +52,7 @@ namespace MultipleTargetsTests
                                 'on': {
                                     'EVENT': {
                                         'target': 'state2',
-                                        'actions': ['actionA']
+                                        'actions': 'actionA'
                                     }
                                 }
                             },
@@ -101,7 +101,7 @@ namespace MultipleTargetsTests
                             '.region2.stateA',
                             '.region3.initial'
                         ],
-                        'actions': ['resetAction']
+                        'actions': 'resetAction'
                     }
                 },
                 'states': {

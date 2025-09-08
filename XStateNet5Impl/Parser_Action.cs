@@ -110,7 +110,24 @@ public partial class StateMachine
             return null;
         }
 
-        var actionNames = token[key]?.ToObject<List<string>>();
+        // Handle both string and array formats
+        List<string>? actionNames = null;
+        var actionToken = token[key];
+        
+        if (actionToken?.Type == JTokenType.String)
+        {
+            // Single action as string
+            var singleAction = actionToken.ToObject<string>();
+            if (singleAction != null)
+            {
+                actionNames = new List<string> { singleAction };
+            }
+        }
+        else if (actionToken?.Type == JTokenType.Array)
+        {
+            // Multiple actions as array
+            actionNames = actionToken.ToObject<List<string>>();
+        }
 
         if (actionNames == null)
         {

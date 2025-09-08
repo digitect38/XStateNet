@@ -35,7 +35,7 @@ public class CommunicatingMachinesExample
                         }
                     },
                     'coordinating': {
-                        'entry': ['startChildren'],
+                        'entry': 'startChildren',
                         'on': {
                             'CHILD_READY': 'processing',
                             'CHILD_ERROR': 'error'
@@ -48,7 +48,7 @@ public class CommunicatingMachinesExample
                         }
                     },
                     'error': {
-                        'entry': ['stopChildren'],
+                        'entry': 'stopChildren',
                         'on': {
                             'RESET': 'idle'
                         }
@@ -161,27 +161,27 @@ public class CommunicatingMachinesExample
                         }
                     },
                     'ready': {
-                        'entry': ['notifyReady'],
+                        'entry': 'notifyReady',
                         'on': {
                             'PROCESS': 'processing'
                         }
                     },
                     'processing': {
-                        'entry': ['doWork'],
+                        'entry': 'doWork',
                         'on': {
                             'SUCCESS': 'complete',
                             'FAIL': 'error'
                         }
                     },
                     'error': {
-                        'entry': ['notifyError'],
+                        'entry': 'notifyError',
                         'on': {
                             'RETRY': 'processing',
                             'STOP': 'stopped'
                         }
                     },
                     'complete': {
-                        'entry': ['notifyComplete'],
+                        'entry': 'notifyComplete',
                         'type': 'final'
                     },
                     'stopped': {
@@ -390,7 +390,7 @@ public class CommunicatingMachinesExample
                     }
                 },
                 'producing': {
-                    'entry': ['produce'],
+                    'entry': 'produce',
                     'on': {
                         'NEW_DATA': 'broadcasting'
                     }
@@ -429,7 +429,7 @@ public class CommunicatingMachinesExample
                     }
                 },
                 'processing': {
-                    'entry': ['process'],
+                    'entry': 'process',
                     'after': {
                         '1000': {
                             'target': 'waiting'
@@ -437,7 +437,7 @@ public class CommunicatingMachinesExample
                     }
                 },
                 'syncing': {
-                    'entry': ['sync'],
+                    'entry': 'sync',
                     'after': {
                         '500': {
                             'target': 'waiting'
