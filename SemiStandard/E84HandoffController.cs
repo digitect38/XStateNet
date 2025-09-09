@@ -73,9 +73,6 @@ public class E84HandoffController
             throw new InvalidOperationException("E84HandoffStates.json file not found.");
         }
         
-        // Create a copy of the JSON script with unique ID
-        var jsonScript = _jsonScript.Replace("\"id\": \"E84HandoffStateMachine\"", $"\"id\": \"E84Handoff_{portId}_{Guid.NewGuid().ToString("N")[..8]}\"");
-        
         // Create action map for E84 signals
         var actionMap = new ActionMap();
         
@@ -153,9 +150,15 @@ public class E84HandoffController
             })
         };
         
-        // Create state machine from JSON script
-        _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
-        _stateMachine.Start();
+        // Create state machine using the new builder pattern with automatic isolation
+        _stateMachine = new StateMachineBuilder()
+            .WithJsonScript(_jsonScript)
+            .WithBaseId("E84HandoffStateMachine")
+            .WithIsolation(StateMachineBuilder.IsolationMode.Guid)
+            .WithActionMap(actionMap)
+            .WithContext("portId", portId)
+            .WithAutoStart(true)
+            .Build($"E84Handoff_{portId}");
     }
     
     /// <summary>

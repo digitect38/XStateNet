@@ -3,26 +3,26 @@ using System.Threading.Tasks;
 using Xunit;
 using FluentAssertions;
 using XStateNet.Semi;
+using XStateNet.Testing;
 
 namespace SemiStandard.Tests;
 
-public class E84HandoffTests : IDisposable
+public class E84HandoffTests : StateMachineTestBase
 {
     private E84HandoffController _handoff;
-    private readonly string _testInstanceId;
     
     public E84HandoffTests()
     {
-        _testInstanceId = Guid.NewGuid().ToString("N")[..8];
-        _handoff = new E84HandoffController($"LP1_Test_{_testInstanceId}");
+        // The base class handles test isolation automatically
+        var testId = StateMachineTestUtils.CreateTestId("E84Test");
+        _handoff = new E84HandoffController($"LP1_{testId}");
     }
     
-    public void Dispose()
+    public override void Dispose()
     {
         _handoff?.Reset();
         _handoff = null!;
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        base.Dispose();
     }
     
     [Fact]
