@@ -107,7 +107,7 @@ namespace XStateNet
             // Apply context
             foreach (var kvp in _context)
             {
-                stateMachine.Context[kvp.Key] = kvp.Value;
+                stateMachine.ContextMap[kvp.Key] = kvp.Value;
             }
 
             if (_autoStart)
