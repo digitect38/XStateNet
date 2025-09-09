@@ -176,7 +176,18 @@ namespace XStateNet.Semi.Transport
                 }
                 
                 // Create new connection
-                _connection = new HsmsConnection(_endpoint, _mode, _logger as ILogger<HsmsConnection>);
+                // Note: Can't cast logger type, so create a new one or pass null
+                ILogger<HsmsConnection>? hsmsLogger = null;
+                if (_logger != null)
+                {
+                    var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => 
+                    {
+                        builder.AddConsole();
+                        builder.SetMinimumLevel(LogLevel.Debug);
+                    });
+                    hsmsLogger = loggerFactory.CreateLogger<HsmsConnection>();
+                }
+                _connection = new HsmsConnection(_endpoint, _mode, hsmsLogger);
                 _connection.T5Timeout = T5Timeout;
                 _connection.T6Timeout = T6Timeout;
                 _connection.T7Timeout = T7Timeout;
@@ -224,6 +235,8 @@ namespace XStateNet.Semi.Transport
             {
                 try
                 {
+                    _logger?.LogDebug("Sending message via ResilientHsmsConnection: Type={Type}, Stream={Stream}, Function={Function}", 
+                        message.MessageType, message.Stream, message.Function);
                     await _connection!.SendMessageAsync(message, ct);
                     _healthMonitor.RecordSuccess();
                     return true;

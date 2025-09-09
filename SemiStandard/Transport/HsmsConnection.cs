@@ -63,6 +63,15 @@ namespace XStateNet.Semi.Transport
             _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
             _mode = mode;
             _logger = logger;
+            
+            // Add mode to log context for identification
+            if (_logger != null)
+            {
+                using (_logger.BeginScope(new Dictionary<string, object> { ["Mode"] = mode.ToString() }))
+                {
+                    _logger.LogDebug("HsmsConnection created in {Mode} mode", mode);
+                }
+            }
         }
         
         /// <summary>
@@ -105,15 +114,17 @@ namespace XStateNet.Semi.Transport
         {
             _tcpClient = new TcpClient();
             _tcpClient.NoDelay = true; // Disable Nagle's algorithm for low latency
-            _tcpClient.ReceiveTimeout = T8Timeout;
-            _tcpClient.SendTimeout = T8Timeout;
+            // Don't set timeouts on TcpClient as they don't work well with async operations
+            // We'll handle timeouts with CancellationTokens instead
+            // _tcpClient.ReceiveTimeout = T8Timeout;
+            // _tcpClient.SendTimeout = T8Timeout;
             
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(T5Timeout);
             
             await _tcpClient.ConnectAsync(_endpoint.Address, _endpoint.Port, cts.Token);
             _stream = _tcpClient.GetStream();
-            _logger?.LogInformation("Connected to {Endpoint} in Active mode", _endpoint);
+            _logger?.LogInformation("[ACTIVE] Connected to {Endpoint} in Active mode, Stream: {StreamHash}", _endpoint, _stream?.GetHashCode());
         }
         
         private async Task ConnectPassiveAsync(CancellationToken cancellationToken)
@@ -123,17 +134,42 @@ namespace XStateNet.Semi.Transport
             
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(T5Timeout);
+                _logger?.LogInformation("Listening on {Endpoint} in Passive mode", _endpoint);
                 
-                _tcpClient = await listener.AcceptTcpClientAsync(cts.Token);
+                // Don't apply T5 timeout if we're explicitly cancelled
+                Task<TcpClient> acceptTask;
+                if (cancellationToken.CanBeCanceled)
+                {
+                    acceptTask = listener.AcceptTcpClientAsync(cancellationToken).AsTask();
+                }
+                else
+                {
+                    using var cts = new CancellationTokenSource(T5Timeout);
+                    acceptTask = listener.AcceptTcpClientAsync(cts.Token).AsTask();
+                }
+                
+                _tcpClient = await acceptTask;
                 _tcpClient.NoDelay = true;
-                _tcpClient.ReceiveTimeout = T8Timeout;
-                _tcpClient.SendTimeout = T8Timeout;
+                // Don't set timeouts on TcpClient as they don't work well with async operations
+                // _tcpClient.ReceiveTimeout = T8Timeout;
+                // _tcpClient.SendTimeout = T8Timeout;
                 
                 _stream = _tcpClient.GetStream();
-                _logger?.LogInformation("Accepted connection from {RemoteEndPoint} in Passive mode", 
-                    _tcpClient.Client.RemoteEndPoint);
+                
+                // Flush any pending data in the stream
+                while (_stream.DataAvailable)
+                {
+                    var dummy = new byte[1024];
+                    _stream.Read(dummy, 0, dummy.Length);
+                    _logger?.LogWarning("[PASSIVE] Flushed {Bytes} bytes of unexpected data from stream", dummy.Length);
+                }
+                _logger?.LogInformation("[PASSIVE] Accepted connection from {RemoteEndPoint} in Passive mode, Stream: {StreamHash}", 
+                    _tcpClient.Client.RemoteEndPoint, _stream?.GetHashCode());
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger?.LogWarning("Connection timeout after {Timeout}ms waiting for client", T5Timeout);
+                throw new TimeoutException($"No connection received within {T5Timeout}ms");
             }
             finally
             {
@@ -153,18 +189,25 @@ namespace XStateNet.Semi.Transport
             try
             {
                 var buffer = _bufferPool.Rent(message.Length + 14); // 14 bytes for HSMS header
+                Array.Clear(buffer, 0, Math.Min(buffer.Length, message.Length + 14)); // Clear buffer before use
                 try
                 {
                     var length = EncodeMessage(message, buffer);
+                    _logger?.LogDebug("[{Mode}] About to send HSMS message: Type={Type}, Stream={Stream}, Function={Function}, SystemBytes={SystemBytes}, DataLength={DataLength}, BufferLength={BufferLength}", 
+                        _mode, message.MessageType, message.Stream, message.Function, message.SystemBytes, message.Data?.Length ?? 0, length);
+                    
+                    // Log hex dump of header
+                    var headerHex = BitConverter.ToString(buffer, 0, Math.Min(14, length));
+                    _logger?.LogDebug("HSMS Header (hex): {HeaderHex}", headerHex);
+                    
                     await _stream.WriteAsync(buffer.AsMemory(0, length), cancellationToken);
                     await _stream.FlushAsync(cancellationToken);
                     
-                    _logger?.LogDebug("Sent HSMS message: Type={Type}, Stream={Stream}, Function={Function}", 
-                        message.MessageType, message.Stream, message.Function);
+                    _logger?.LogDebug("Successfully sent HSMS message");
                 }
                 finally
                 {
-                    _bufferPool.Return(buffer);
+                    _bufferPool.Return(buffer, clearArray: true); // Clear buffer before returning to pool
                 }
             }
             finally
@@ -189,6 +232,7 @@ namespace XStateNet.Semi.Transport
                     {
                         try
                         {
+                            _logger?.LogDebug("[{Mode}] Waiting for next HSMS message... DataAvailable: {Available}", _mode, _stream?.DataAvailable ?? false);
                             // Read HSMS header (14 bytes)
                             var bytesRead = 0;
                             while (bytesRead < 14)
@@ -201,6 +245,11 @@ namespace XStateNet.Semi.Transport
                                     throw new EndOfStreamException("Connection closed by remote");
                                     
                                 bytesRead += read;
+                                
+                                if (read < 14 - (bytesRead - read))
+                                {
+                                    _logger?.LogDebug("[{Mode}] Partial header read: {Read} bytes, total: {Total}/14", _mode, read, bytesRead);
+                                }
                             }
                             
                             // Parse header to get message length
@@ -208,6 +257,10 @@ namespace XStateNet.Semi.Transport
                                               (headerBuffer[1] << 16) | 
                                               (headerBuffer[2] << 8) | 
                                               headerBuffer[3];
+                            
+                            // Log received header
+                            var headerHex = BitConverter.ToString(headerBuffer);
+                            _logger?.LogDebug("[{Mode}] Received HSMS Header (hex): {HeaderHex}, Length: {Length}", _mode, headerHex, messageLength);
                                               
                             // Read message body
                             if (messageLength > 0)
@@ -237,8 +290,9 @@ namespace XStateNet.Semi.Transport
                             _receiveQueue.Enqueue(message);
                             MessageReceived?.Invoke(this, message);
                             
-                            _logger?.LogDebug("Received HSMS message: Type={Type}, Stream={Stream}, Function={Function}", 
-                                message.MessageType, message.Stream, message.Function);
+                            _logger?.LogDebug("Received HSMS message: Type={Type}, Stream={Stream}, Function={Function}, SystemBytes={SystemBytes}, DataLength={DataLength}", 
+                                message.MessageType, message.Stream, message.Function, message.SystemBytes, message.Data?.Length ?? 0);
+                            _logger?.LogDebug("Continuing receive loop...");
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
@@ -249,7 +303,7 @@ namespace XStateNet.Semi.Transport
                 }
                 finally
                 {
-                    _bufferPool.Return(buffer);
+                    _bufferPool.Return(buffer, clearArray: true); // Clear buffer before returning to pool
                 }
             }, _cancellationTokenSource!.Token);
         }
@@ -281,14 +335,14 @@ namespace XStateNet.Semi.Transport
             // Header Byte 4: P-Type and S-Type
             buffer[8] = (byte)message.MessageType;
             
-            // Header Byte 5: System Bytes
-            buffer[9] = (byte)(message.SystemBytes >> 24);
-            buffer[10] = (byte)(message.SystemBytes >> 16);
-            buffer[11] = (byte)(message.SystemBytes >> 8);
-            buffer[12] = (byte)message.SystemBytes;
+            // Header Byte 5: Reserved (SType upper bits)
+            buffer[9] = 0;
             
-            // Header Byte 6-10: System bytes continued (already set above)
-            buffer[13] = 0; // Reserved
+            // System Bytes (4 bytes)
+            buffer[10] = (byte)(message.SystemBytes >> 24);
+            buffer[11] = (byte)(message.SystemBytes >> 16);
+            buffer[12] = (byte)(message.SystemBytes >> 8);
+            buffer[13] = (byte)message.SystemBytes;
             
             // Copy data if present
             if (message.Data != null && dataLength > 0)
@@ -310,7 +364,7 @@ namespace XStateNet.Semi.Transport
                 Stream = header[6],
                 Function = header[7],
                 MessageType = (HsmsMessageType)header[8],
-                SystemBytes = (uint)((header[9] << 24) | (header[10] << 16) | (header[11] << 8) | header[12]),
+                SystemBytes = (uint)((header[10] << 24) | (header[11] << 16) | (header[12] << 8) | header[13]),
                 Data = dataLength > 0 ? data[..dataLength] : null
             };
         }

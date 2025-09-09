@@ -49,7 +49,7 @@ namespace XStateNet.Semi.Testing
         // Equipment configuration
         public string ModelName { get; set; } = "XStateNet Simulator";
         public string SoftwareRevision { get; set; } = "1.0.0";
-        public EquipmentState State { get; set; } = EquipmentState.Idle;
+        public EquipmentStateEnum EquipmentState { get; set; } = EquipmentStateEnum.Idle;
         public CommunicationStateEnum CommunicationState { get; set; } = CommunicationStateEnum.NotCommunicating;
         public ControlStateEnum ControlState { get; set; } = ControlStateEnum.EquipmentOffline;
         
@@ -62,7 +62,7 @@ namespace XStateNet.Semi.Testing
         public event EventHandler<SecsMessage>? MessageSent;
         public event EventHandler<string>? StateChanged;
         
-        public enum EquipmentState
+        public enum EquipmentStateEnum
         {
             Idle,
             Setup,
@@ -108,7 +108,17 @@ namespace XStateNet.Semi.Testing
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
             // Create passive connection (equipment typically acts as server)
-            _connection = new HsmsConnection(_endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
+            ILogger<HsmsConnection>? hsmsLogger = null;
+            if (_logger != null)
+            {
+                var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => 
+                {
+                    builder.AddConsole();
+                    builder.SetMinimumLevel(LogLevel.Debug);
+                });
+                hsmsLogger = loggerFactory.CreateLogger<HsmsConnection>();
+            }
+            _connection = new HsmsConnection(_endpoint, HsmsConnection.HsmsConnectionMode.Passive, hsmsLogger);
             _connection.MessageReceived += OnMessageReceived;
             
             await _connection.ConnectAsync(_cancellationTokenSource.Token);
@@ -302,7 +312,7 @@ namespace XStateNet.Semi.Testing
         private void InitializeDefaultVariables()
         {
             // Common status variables
-            SetStatusVariable(1, (byte)State);
+            SetStatusVariable(1, (byte)EquipmentState);
             SetStatusVariable(2, DateTime.Now.ToString("yyyyMMddHHmmss"));
             SetStatusVariable(3, (byte)CommunicationState);
             SetStatusVariable(4, (byte)ControlState);
@@ -319,7 +329,20 @@ namespace XStateNet.Semi.Testing
         {
             try
             {
-                // Convert HSMS message to SECS message
+                // Debug log the raw HSMS message
+                _logger?.LogDebug("Raw HSMS received - Stream: {Stream}, Function: {Function}, Type: {Type}, SystemBytes: {SystemBytes}", 
+                    hsmsMessage.Stream, hsmsMessage.Function, hsmsMessage.MessageType, hsmsMessage.SystemBytes);
+                
+                // Handle HSMS control messages
+                if (hsmsMessage.MessageType != HsmsMessageType.DataMessage)
+                {
+                    _logger?.LogDebug("Starting control message handling...");
+                    await HandleControlMessage(hsmsMessage);
+                    _logger?.LogDebug("Finished control message handling");
+                    return;
+                }
+                
+                // Convert HSMS data message to SECS message
                 var secsMessage = SecsMessage.Decode(
                     hsmsMessage.Stream,
                     hsmsMessage.Function,
@@ -327,6 +350,8 @@ namespace XStateNet.Semi.Testing
                     true);
                     
                 secsMessage.SystemBytes = hsmsMessage.SystemBytes;
+                
+                _logger?.LogDebug("Decoded SECS message: {SxFy}", secsMessage.SxFy);
                 
                 MessageReceived?.Invoke(this, secsMessage);
                 
@@ -386,6 +411,51 @@ namespace XStateNet.Semi.Testing
             if (EnableLogging)
             {
                 _logger?.LogInformation("Sent: {Message}", message.SxFy);
+            }
+        }
+        
+        private async Task HandleControlMessage(HsmsMessage hsmsMessage)
+        {
+            _logger?.LogDebug("Handling control message: {Type}", hsmsMessage.MessageType);
+            
+            switch (hsmsMessage.MessageType)
+            {
+                case HsmsMessageType.SelectReq:
+                    // Respond with SelectRsp
+                    var selectRsp = new HsmsMessage
+                    {
+                        MessageType = HsmsMessageType.SelectRsp,
+                        SystemBytes = hsmsMessage.SystemBytes
+                    };
+                    await _connection!.SendMessageAsync(selectRsp);
+                    _logger?.LogInformation("Sent SelectRsp");
+                    break;
+                    
+                case HsmsMessageType.LinktestReq:
+                    // Respond with LinktestRsp
+                    var linktestRsp = new HsmsMessage
+                    {
+                        MessageType = HsmsMessageType.LinktestRsp,
+                        SystemBytes = hsmsMessage.SystemBytes
+                    };
+                    await _connection!.SendMessageAsync(linktestRsp);
+                    _logger?.LogDebug("Sent LinktestRsp");
+                    break;
+                    
+                case HsmsMessageType.DeselectReq:
+                    // Respond with DeselectRsp
+                    var deselectRsp = new HsmsMessage
+                    {
+                        MessageType = HsmsMessageType.DeselectRsp,
+                        SystemBytes = hsmsMessage.SystemBytes
+                    };
+                    await _connection!.SendMessageAsync(deselectRsp);
+                    _logger?.LogInformation("Sent DeselectRsp");
+                    break;
+                    
+                default:
+                    _logger?.LogWarning("Unhandled control message type: {Type}", hsmsMessage.MessageType);
+                    break;
             }
         }
         

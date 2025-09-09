@@ -28,7 +28,10 @@
       "Bash(git restore:*)",
       "Bash(csc:*)",
       "Bash(test_json.exe)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(timeout:*)",
+      "Bash(cat:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

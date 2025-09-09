@@ -1,0 +1,77 @@
+SEMI Equipment Simulator Test Program
+=====================================
+
+Starting equipment simulator on port 5000...
+info: XStateNet.Semi.Transport.HsmsConnection[0]
+      Listening on 127.0.0.1:5000 in Passive mode
+Simulator started successfully!
+
+Creating host connection...
+[HOST] Connection state: Connecting
+info: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Connection state changed to Connecting
+info: XStateNet.Semi.Transport.HsmsConnection[0]
+      Accepted connection from 127.0.0.1:60286 in Passive mode
+info: XStateNet.Semi.Testing.EquipmentSimulator[0]
+      Equipment simulator started on 127.0.0.1:5000
+info: XStateNet.Semi.Transport.HsmsConnection[0]
+      Connected to 127.0.0.1:5000 in Active mode
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Waiting for next HSMS message...
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Waiting for next HSMS message...
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      About to send HSMS message: Type=SelectReq, Stream=0, Function=0, SystemBytes=558583302, DataLength=0, BufferLength=14
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      HSMS Header (hex): 00-00-00-0A-00-00-00-00-01-00-21-4B-4E-06
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Successfully sent HSMS message
+[HOST] Connection state: Selected
+info: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Connection state changed to Selected
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Received HSMS Header (hex): 00-00-00-0A-00-00-00-00-01-00-21-4B-4E-06, Length: 10
+[HOST] Connection state: Connected
+info: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Connection state changed to Connected
+Host connected successfully!
+
+info: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Successfully connected to 127.0.0.1:5000
+Selection completed.
+
+
+=== Running Test Scenarios ===
+
+Test 1: S1F1 Are You There
+  Sending HSMS - Stream: 1, Function: 1, SystemBytes: 1664595039
+dbug: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Sending message via ResilientHsmsConnection: Type=DataMessage, Stream=1, Function=1
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      About to send HSMS message: Type=DataMessage, Stream=1, Function=1, SystemBytes=1664595039, DataLength=0, BufferLength=14
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      HSMS Header (hex): 00-00-00-0A-00-00-01-01-00-00-63-37-B4-5F
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Successfully sent HSMS message
+dbug: XStateNet.Semi.Testing.EquipmentSimulator[0]
+      Raw HSMS received - Stream: 0, Function: 0, Type: SelectReq, SystemBytes: 558583302
+dbug: XStateNet.Semi.Testing.EquipmentSimulator[0]
+      Handling control message: SelectReq
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      About to send HSMS message: Type=SelectRsp, Stream=0, Function=0, SystemBytes=558583302, DataLength=0, BufferLength=14
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      HSMS Header (hex): 00-00-00-0A-00-00-00-00-02-00-21-4B-4E-06
+info: XStateNet.Semi.Testing.EquipmentSimulator[0]
+      Sent SelectRsp
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Successfully sent HSMS message
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Received HSMS message: Type=SelectReq, Stream=0, Function=0, SystemBytes=558583302, DataLength=10
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Continuing receive loop...
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Waiting for next HSMS message...
+dbug: XStateNet.Semi.Transport.HsmsConnection[0]
+      Received HSMS Header (hex): 00-00-00-0A-00-00-00-00-02-00-21-4B-4E-06, Length: 10
+warn: XStateNet.Semi.Transport.ResilientHsmsConnection[0]
+      Connection health changed from Unknown to Healthy (Success rate: 100.00 %)
