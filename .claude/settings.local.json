@@ -27,7 +27,8 @@
       "Bash(dotnet new:*)",
       "Bash(git restore:*)",
       "Bash(csc:*)",
-      "Bash(test_json.exe)"
+      "Bash(test_json.exe)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
