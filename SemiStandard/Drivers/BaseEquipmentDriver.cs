@@ -18,8 +18,8 @@ namespace XStateNet.Semi.Drivers
         protected HsmsConnection? _connection;
         protected EquipmentConfiguration? _config;
         protected readonly ILogger? _logger;
-        protected E37HSMSSession? _hsmsSession;
-        protected E30GemController? _gemController;
+        // protected E37HSMSSession? _hsmsSession; // TODO: Implement when E37HSMSSession is available
+        // protected E30GemController? _gemController; // TODO: Implement when E30GemController is available
         
         private readonly ConcurrentDictionary<uint, TaskCompletionSource<SecsMessage>> _pendingReplies = new();
         private readonly ConcurrentDictionary<uint, object> _statusVariables = new();
@@ -52,17 +52,19 @@ namespace XStateNet.Semi.Drivers
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
             // Initialize HSMS session
-            var mode = config.IsActive ? E37HSMSSession.HSMSMode.Active : E37HSMSSession.HSMSMode.Passive;
-            _hsmsSession = new E37HSMSSession(
-                config.EquipmentId,
-                mode,
-                config.T5Timeout,
-                config.T6Timeout,
-                config.T7Timeout,
-                config.T8Timeout);
+            // TODO: Uncomment when E37HSMSSession is available
+            // var mode = config.IsActive ? E37HSMSSession.HSMSMode.Active : E37HSMSSession.HSMSMode.Passive;
+            // _hsmsSession = new E37HSMSSession(
+            //     config.EquipmentId,
+            //     mode,
+            //     config.T5Timeout,
+            //     config.T6Timeout,
+            //     config.T7Timeout,
+            //     config.T8Timeout);
             
             // Initialize GEM controller
-            _gemController = new E30GemController(config.EquipmentId);
+            // TODO: Uncomment when E30GemController is available
+            // _gemController = new E30GemController(config.EquipmentId);
             
             // Load equipment-specific configuration
             await LoadEquipmentConfigurationAsync(cancellationToken);
@@ -127,7 +129,9 @@ namespace XStateNet.Semi.Drivers
                 SetState(EquipmentState.Offline);
                 
                 // Deselect if needed
-                if (_hsmsSession?.IsSelected == true)
+                // TODO: Check HSMS session when available
+                // if (_hsmsSession?.IsSelected == true)
+                if (IsConnected)
                 {
                     await DeselectAsync();
                 }
@@ -485,7 +489,8 @@ namespace XStateNet.Semi.Drivers
             };
             
             await _connection!.SendMessageAsync(selectReq, cancellationToken);
-            _hsmsSession?.Enable();
+            // TODO: Enable HSMS session when available
+            // _hsmsSession?.Enable();
         }
         
         private async Task DeselectAsync()
@@ -565,7 +570,8 @@ namespace XStateNet.Semi.Drivers
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
             _connection?.Dispose();
-            _hsmsSession?.Dispose();
+            // TODO: Dispose HSMS session when available
+            // _hsmsSession?.Dispose();
             _commandSemaphore?.Dispose();
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Runtime.Caching;
 using Microsoft.Extensions.Logging;
@@ -331,7 +332,7 @@ namespace XStateNet.Semi.Transport
             High
         }
         
-        private enum CacheOperation
+        public enum CacheOperation
         {
             Add,
             Hit,

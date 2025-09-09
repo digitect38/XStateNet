@@ -4,8 +4,28 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
+using SecsMessage = XStateNet.Semi.Secs.SecsMessage;
+using SecsItem = XStateNet.Semi.Secs.SecsItem;
+using SecsList = XStateNet.Semi.Secs.SecsList;
+using SecsU1 = XStateNet.Semi.Secs.SecsU1;
+using SecsU2 = XStateNet.Semi.Secs.SecsU2;
+using SecsU4 = XStateNet.Semi.Secs.SecsU4;
+using SecsU8 = XStateNet.Semi.Secs.SecsU8;
+using SecsI1 = XStateNet.Semi.Secs.SecsI1;
+using SecsI2 = XStateNet.Semi.Secs.SecsI2;
+using SecsI4 = XStateNet.Semi.Secs.SecsI4;
+using SecsI8 = XStateNet.Semi.Secs.SecsI8;
+using SecsF4 = XStateNet.Semi.Secs.SecsF4;
+using SecsF8 = XStateNet.Semi.Secs.SecsF8;
+using SecsU4Array = XStateNet.Semi.Secs.SecsU4Array;
+using SecsAscii = XStateNet.Semi.Secs.SecsAscii;
+using SecsBinary = XStateNet.Semi.Secs.SecsBinary;
+using SecsBoolean = XStateNet.Semi.Secs.SecsBoolean;
+using SecsMessageLibrary = XStateNet.Semi.Secs.SecsMessageLibrary;
+using HsmsMessage = XStateNet.Semi.Transport.HsmsMessage;
+using HsmsMessageType = XStateNet.Semi.Transport.HsmsMessageType;
+using HsmsConnection = XStateNet.Semi.Transport.HsmsConnection;
 
 namespace XStateNet.Semi.Testing
 {
@@ -30,8 +50,8 @@ namespace XStateNet.Semi.Testing
         public string ModelName { get; set; } = "XStateNet Simulator";
         public string SoftwareRevision { get; set; } = "1.0.0";
         public EquipmentState State { get; set; } = EquipmentState.Idle;
-        public CommunicationState CommunicationState { get; set; } = CommunicationState.NotCommunicating;
-        public ControlState ControlState { get; set; } = ControlState.EquipmentOffline;
+        public CommunicationStateEnum CommunicationState { get; set; } = CommunicationStateEnum.NotCommunicating;
+        public ControlStateEnum ControlState { get; set; } = ControlStateEnum.EquipmentOffline;
         
         // Simulation parameters
         public int ResponseDelayMs { get; set; } = 10;
@@ -52,14 +72,14 @@ namespace XStateNet.Semi.Testing
             Error
         }
         
-        public enum CommunicationState
+        public enum CommunicationStateEnum
         {
             Disabled,
             NotCommunicating,
             Communicating
         }
         
-        public enum ControlState
+        public enum ControlStateEnum
         {
             EquipmentOffline,
             AttemptOnline,
@@ -93,7 +113,7 @@ namespace XStateNet.Semi.Testing
             
             await _connection.ConnectAsync(_cancellationTokenSource.Token);
             
-            CommunicationState = CommunicationState.NotCommunicating;
+            CommunicationState = CommunicationStateEnum.NotCommunicating;
             _logger?.LogInformation("Equipment simulator started on {Endpoint}", _endpoint);
             
             // Start message processing
@@ -113,7 +133,7 @@ namespace XStateNet.Semi.Testing
             if (_connection != null)
                 await _connection.DisconnectAsync();
                 
-            CommunicationState = CommunicationState.Disabled;
+            CommunicationState = CommunicationStateEnum.Disabled;
             _logger?.LogInformation("Equipment simulator stopped");
         }
         
@@ -212,7 +232,7 @@ namespace XStateNet.Semi.Testing
             RegisterHandler("S1F13", async msg =>
             {
                 await SimulateDelay();
-                CommunicationState = CommunicationState.Communicating;
+                CommunicationState = CommunicationStateEnum.Communicating;
                 return SecsMessageLibrary.S1F14(0, ModelName, SoftwareRevision);
             });
             
@@ -353,8 +373,8 @@ namespace XStateNet.Semi.Testing
                 
             var hsmsMessage = new HsmsMessage
             {
-                Stream = message.Stream,
-                Function = message.Function,
+                Stream = (byte)message.Stream,
+                Function = (byte)message.Function,
                 MessageType = HsmsMessageType.DataMessage,
                 SystemBytes = message.SystemBytes,
                 Data = message.Encode()

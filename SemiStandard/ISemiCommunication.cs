@@ -12,12 +12,12 @@ public interface ISemiCommunication
     /// <summary>
     /// Send a SECS message
     /// </summary>
-    Task<SecsMessage?> SendMessage(int stream, int function, object data);
+    Task<LegacySecsMessage?> SendMessage(int stream, int function, object data);
     
     /// <summary>
     /// Handle incoming SECS message
     /// </summary>
-    void RegisterMessageHandler(int stream, int function, Func<SecsMessage, Task<SecsMessage?>> handler);
+    void RegisterMessageHandler(int stream, int function, Func<LegacySecsMessage, Task<LegacySecsMessage?>> handler);
     
     /// <summary>
     /// Report collection event
@@ -41,9 +41,9 @@ public interface ISemiCommunication
 }
 
 /// <summary>
-/// SECS message representation
+/// Legacy SECS message representation (deprecated - use XStateNet.Semi.Secs.SecsMessage instead)
 /// </summary>
-public class SecsMessage
+public class LegacySecsMessage
 {
     public int Stream { get; set; }
     public int Function { get; set; }
@@ -51,7 +51,7 @@ public class SecsMessage
     public object? Data { get; set; }
     public int TransactionId { get; set; }
     
-    public SecsMessage(int stream, int function, bool replyExpected = false)
+    public LegacySecsMessage(int stream, int function, bool replyExpected = false)
     {
         Stream = stream;
         Function = function;

@@ -503,6 +503,7 @@ namespace XStateNet.Semi.Secs
     public class SecsU4Array : SecsItem
     {
         public uint[] Value { get; }
+        public uint[] Values => Value; // Alias for compatibility
         
         public override SecsFormat Format => SecsFormat.U4;
         public override int Length => Value.Length * 4;

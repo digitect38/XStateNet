@@ -6,8 +6,27 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
+using SecsMessage = XStateNet.Semi.Secs.SecsMessage;
+using SecsItem = XStateNet.Semi.Secs.SecsItem;
+using SecsList = XStateNet.Semi.Secs.SecsList;
+using SecsU1 = XStateNet.Semi.Secs.SecsU1;
+using SecsU4 = XStateNet.Semi.Secs.SecsU4;
+using SecsU8 = XStateNet.Semi.Secs.SecsU8;
+using SecsI1 = XStateNet.Semi.Secs.SecsI1;
+using SecsI2 = XStateNet.Semi.Secs.SecsI2;
+using SecsI4 = XStateNet.Semi.Secs.SecsI4;
+using SecsI8 = XStateNet.Semi.Secs.SecsI8;
+using SecsF4 = XStateNet.Semi.Secs.SecsF4;
+using SecsF8 = XStateNet.Semi.Secs.SecsF8;
+using SecsU2 = XStateNet.Semi.Secs.SecsU2;
+using SecsAscii = XStateNet.Semi.Secs.SecsAscii;
+using SecsBinary = XStateNet.Semi.Secs.SecsBinary;
+using SecsBoolean = XStateNet.Semi.Secs.SecsBoolean;
+using SecsFormat = XStateNet.Semi.Secs.SecsFormat;
+using SecsMessageLibrary = XStateNet.Semi.Secs.SecsMessageLibrary;
+using HsmsMessage = XStateNet.Semi.Transport.HsmsMessage;
+using HsmsMessageType = XStateNet.Semi.Transport.HsmsMessageType;
 
 namespace XStateNet.Semi.Testing
 {

@@ -201,7 +201,7 @@ public class SemiEquipmentController
         // S1F13 - Establish communications request
         _communication.RegisterMessageHandler(1, 13, async (msg) =>
         {
-            return new SecsMessage(1, 14) // S1F14 - Establish communications acknowledge
+            return new LegacySecsMessage(1, 14) // S1F14 - Establish communications acknowledge
             {
                 Data = new { COMMACK = 0, MDLN = "XStateNet", SOFTREV = "1.0.0" }
             };
@@ -213,7 +213,7 @@ public class SemiEquipmentController
             var command = msg.Data as dynamic;
             var result = await ProcessHostCommand(command?.RCMD);
             
-            return new SecsMessage(2, 42) // S2F42 - Host command acknowledge
+            return new LegacySecsMessage(2, 42) // S2F42 - Host command acknowledge
             {
                 Data = new { HCACK = result ? 0 : 1 }
             };
