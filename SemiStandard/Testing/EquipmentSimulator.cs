@@ -108,17 +108,8 @@ namespace XStateNet.Semi.Testing
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
             // Create passive connection (equipment typically acts as server)
-            ILogger<HsmsConnection>? hsmsLogger = null;
-            if (_logger != null)
-            {
-                var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => 
-                {
-                    builder.AddConsole();
-                    builder.SetMinimumLevel(LogLevel.Debug);
-                });
-                hsmsLogger = loggerFactory.CreateLogger<HsmsConnection>();
-            }
-            _connection = new HsmsConnection(_endpoint, HsmsConnection.HsmsConnectionMode.Passive, hsmsLogger);
+            // Don't create a separate logger factory - it causes issues with test runners
+            _connection = new HsmsConnection(_endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
             _connection.MessageReceived += OnMessageReceived;
             
             await _connection.ConnectAsync(_cancellationTokenSource.Token);

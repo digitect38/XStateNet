@@ -16,8 +16,8 @@ namespace XStateNet.Semi.Testing
     {
         public static async Task Main(string[] args)
         {
-            Console.WriteLine("SEMI Equipment Simulator Test Program");
-            Console.WriteLine("=====================================\n");
+            System.Console.WriteLine("SEMI Equipment Simulator Test Program");
+            System.Console.WriteLine("=====================================\n");
 
             // Create logger
             using var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
@@ -40,26 +40,26 @@ namespace XStateNet.Semi.Testing
             // Subscribe to events
             simulator.MessageReceived += (sender, msg) =>
             {
-                Console.WriteLine($"[SIMULATOR] Received: {msg.SxFy}");
+                System.Console.WriteLine($"[SIMULATOR] Received: {msg.SxFy}");
             };
             
             simulator.MessageSent += (sender, msg) =>
             {
-                Console.WriteLine($"[SIMULATOR] Sent: {msg.SxFy}");
+                System.Console.WriteLine($"[SIMULATOR] Sent: {msg.SxFy}");
             };
 
             try
             {
                 // Start the simulator in a background task
-                Console.WriteLine("Starting equipment simulator on port 5000...");
+                System.Console.WriteLine("Starting equipment simulator on port 5000...");
                 var simulatorTask = Task.Run(async () => await simulator.StartAsync());
                 
                 // Give the simulator a moment to start listening
                 await Task.Delay(500);
-                Console.WriteLine("Simulator started successfully!\n");
+                System.Console.WriteLine("Simulator started successfully!\n");
 
                 // Create host connection
-                Console.WriteLine("Creating host connection...");
+                System.Console.WriteLine("Creating host connection...");
                 var hostConnection = new ResilientHsmsConnection(
                     equipmentEndpoint,
                     HsmsConnection.HsmsConnectionMode.Active,
@@ -67,22 +67,22 @@ namespace XStateNet.Semi.Testing
 
                 hostConnection.StateChanged += (sender, state) =>
                 {
-                    Console.WriteLine($"[HOST] Connection state: {state}");
+                    System.Console.WriteLine($"[HOST] Connection state: {state}");
                 };
 
                 await hostConnection.ConnectAsync();
-                Console.WriteLine("Host connected successfully!\n");
+                System.Console.WriteLine("Host connected successfully!\n");
                 
                 // Wait for selection to complete
                 await Task.Delay(1000);
-                Console.WriteLine("Selection completed.\n");
+                System.Console.WriteLine("Selection completed.\n");
 
                 // Run test scenarios
                 await RunTestScenarios(hostConnection, simulator, logger);
 
                 // Keep running for interactive testing
-                Console.WriteLine("\nSimulator is running. Press any key to stop...");
-                Console.ReadKey();
+                System.Console.WriteLine("\nSimulator is running. Press any key to stop...");
+                System.Console.ReadKey();
 
                 // Cleanup
                 await hostConnection.DisconnectAsync();
@@ -98,7 +98,7 @@ namespace XStateNet.Semi.Testing
                 simulator.Dispose();
             }
 
-            Console.WriteLine("\nTest program completed.");
+            System.Console.WriteLine("\nTest program completed.");
         }
 
         private static async Task RunTestScenarios(
@@ -106,38 +106,38 @@ namespace XStateNet.Semi.Testing
             EquipmentSimulator simulator,
             ILogger logger)
         {
-            Console.WriteLine("\n=== Running Test Scenarios ===\n");
+            System.Console.WriteLine("\n=== Running Test Scenarios ===\n");
 
             // Test 1: Are You There
-            Console.WriteLine("Test 1: S1F1 Are You There");
+            System.Console.WriteLine("Test 1: S1F1 Are You There");
             await Task.Delay(2000); // Give time for selection to fully complete
             await TestAreYouThere(hostConnection, logger);
             await Task.Delay(500);
 
             // Test 2: Establish Communications
-            Console.WriteLine("\nTest 2: S1F13 Establish Communications");
+            System.Console.WriteLine("\nTest 2: S1F13 Establish Communications");
             await TestEstablishCommunications(hostConnection, logger);
             await Task.Delay(500);
 
             // Test 3: Status Variables
-            Console.WriteLine("\nTest 3: S1F3 Status Variables");
+            System.Console.WriteLine("\nTest 3: S1F3 Status Variables");
             await TestStatusVariables(hostConnection, logger);
             await Task.Delay(500);
 
             // Test 4: Equipment Constants
-            Console.WriteLine("\nTest 4: S2F13 Equipment Constants");
+            System.Console.WriteLine("\nTest 4: S2F13 Equipment Constants");
             await TestEquipmentConstants(hostConnection, logger);
             await Task.Delay(500);
 
             // Test 5: Trigger Alarm
-            Console.WriteLine("\nTest 5: S5F1 Alarm Report");
+            System.Console.WriteLine("\nTest 5: S5F1 Alarm Report");
             await simulator.TriggerAlarmAsync(1001, "Test Alarm", true);
             await Task.Delay(500);
             await simulator.TriggerAlarmAsync(1001, "Test Alarm", false);
             await Task.Delay(500);
 
             // Test 6: Trigger Event
-            Console.WriteLine("\nTest 6: S6F11 Event Report");
+            System.Console.WriteLine("\nTest 6: S6F11 Event Report");
             await simulator.TriggerEventAsync(2001, new List<SecsItem>
             {
                 new SecsU4(12345),
@@ -145,7 +145,7 @@ namespace XStateNet.Semi.Testing
             });
             await Task.Delay(500);
 
-            Console.WriteLine("\n=== Test Scenarios Completed ===");
+            System.Console.WriteLine("\n=== Test Scenarios Completed ===");
         }
 
         private static async Task TestAreYouThere(ResilientHsmsConnection connection, ILogger logger)
@@ -157,17 +157,17 @@ namespace XStateNet.Semi.Testing
                 
                 if (response != null && response.Stream == 1 && response.Function == 2)
                 {
-                    Console.WriteLine("✓ S1F1/F2 successful");
+                    System.Console.WriteLine("✓ S1F1/F2 successful");
                     if (response.Data is SecsList list && list.Items.Count >= 2)
                     {
                         var mdln = (list.Items[0] as SecsAscii)?.Value;
                         var softrev = (list.Items[1] as SecsAscii)?.Value;
-                        Console.WriteLine($"  Model: {mdln}, Software: {softrev}");
+                        System.Console.WriteLine($"  Model: {mdln}, Software: {softrev}");
                     }
                 }
                 else
                 {
-                    Console.WriteLine("✗ S1F1/F2 failed");
+                    System.Console.WriteLine("✗ S1F1/F2 failed");
                 }
             }
             catch (Exception ex)
@@ -185,16 +185,16 @@ namespace XStateNet.Semi.Testing
                 
                 if (response != null && response.Stream == 1 && response.Function == 14)
                 {
-                    Console.WriteLine("✓ S1F13/F14 successful");
+                    System.Console.WriteLine("✓ S1F13/F14 successful");
                     if (response.Data is SecsList list && list.Items.Count > 0)
                     {
                         var commack = (list.Items[0] as SecsU1)?.Value;
-                        Console.WriteLine($"  COMMACK: {commack} ({(commack == 0 ? "Accepted" : "Denied")})");
+                        System.Console.WriteLine($"  COMMACK: {commack} ({(commack == 0 ? "Accepted" : "Denied")})");
                     }
                 }
                 else
                 {
-                    Console.WriteLine("✗ S1F13/F14 failed");
+                    System.Console.WriteLine("✗ S1F13/F14 failed");
                 }
             }
             catch (Exception ex)
@@ -212,19 +212,19 @@ namespace XStateNet.Semi.Testing
                 
                 if (response != null && response.Stream == 1 && response.Function == 4)
                 {
-                    Console.WriteLine("✓ S1F3/F4 successful");
+                    System.Console.WriteLine("✓ S1F3/F4 successful");
                     if (response.Data is SecsList list)
                     {
-                        Console.WriteLine($"  Received {list.Items.Count} status variables");
+                        System.Console.WriteLine($"  Received {list.Items.Count} status variables");
                         for (int i = 0; i < list.Items.Count && i < 6; i++)
                         {
-                            Console.WriteLine($"  SV{i + 1}: {GetItemValue(list.Items[i])}");
+                            System.Console.WriteLine($"  SV{i + 1}: {GetItemValue(list.Items[i])}");
                         }
                     }
                 }
                 else
                 {
-                    Console.WriteLine("✗ S1F3/F4 failed");
+                    System.Console.WriteLine("✗ S1F3/F4 failed");
                 }
             }
             catch (Exception ex)
@@ -242,19 +242,19 @@ namespace XStateNet.Semi.Testing
                 
                 if (response != null && response.Stream == 2 && response.Function == 14)
                 {
-                    Console.WriteLine("✓ S2F13/F14 successful");
+                    System.Console.WriteLine("✓ S2F13/F14 successful");
                     if (response.Data is SecsList list)
                     {
-                        Console.WriteLine($"  Received {list.Items.Count} equipment constants");
+                        System.Console.WriteLine($"  Received {list.Items.Count} equipment constants");
                         for (int i = 0; i < list.Items.Count && i < 3; i++)
                         {
-                            Console.WriteLine($"  EC{i + 1}: {GetItemValue(list.Items[i])}");
+                            System.Console.WriteLine($"  EC{i + 1}: {GetItemValue(list.Items[i])}");
                         }
                     }
                 }
                 else
                 {
-                    Console.WriteLine("✗ S2F13/F14 failed");
+                    System.Console.WriteLine("✗ S2F13/F14 failed");
                 }
             }
             catch (Exception ex)
@@ -288,8 +288,8 @@ namespace XStateNet.Semi.Testing
             
             try
             {
-                // Set system bytes
-                message.SystemBytes = (uint)Random.Shared.Next(1, int.MaxValue);
+                // Set system bytes - use reasonable range (1 to 65535) for SEMI compatibility
+                message.SystemBytes = (uint)Random.Shared.Next(1, 65536);
                 
                 // Convert and send
                 var hsmsMessage = new HsmsMessage
@@ -301,7 +301,7 @@ namespace XStateNet.Semi.Testing
                     Data = message.Encode()
                 };
                 
-                Console.WriteLine($"  Sending HSMS - Stream: {hsmsMessage.Stream}, Function: {hsmsMessage.Function}, SystemBytes: {hsmsMessage.SystemBytes}");
+                System.Console.WriteLine($"  Sending HSMS - Stream: {hsmsMessage.Stream}, Function: {hsmsMessage.Function}, SystemBytes: {hsmsMessage.SystemBytes}");
                 
                 await connection.SendMessageAsync(hsmsMessage);
                 
@@ -310,7 +310,7 @@ namespace XStateNet.Semi.Testing
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("  Timeout waiting for response");
+                System.Console.WriteLine("  Timeout waiting for response");
                 return null;
             }
             finally

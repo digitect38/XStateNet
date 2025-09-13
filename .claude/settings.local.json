@@ -31,9 +31,15 @@
       "Bash(find:*)",
       "Bash(timeout:*)",
       "Bash(cat:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(taskkill:*)",
+      "Read(//c/Develop25/**)",
+      "Read(//c//**)",
+      "Read(//c/Users/digit/AppData/Local/SourceServer/a4fbca8864b7e47dbf4c3eef8479a247e78eeddad3c115e13425c7f120aaad77/src/Microsoft.TestPlatform.CommunicationUtilities/**)"
     ],
     "deny": [],
     "ask": []
-  }
+  }'
+  
+  "model": "opus"
 }

@@ -25,6 +25,8 @@ namespace XStateNet.Semi.Transport
         private Task? _monitoringTask;
         private bool _disposed;
         private int _reconnectAttempts;
+        private TaskCompletionSource<bool>? _selectionTcs;
+        private uint _selectionSystemBytes;
         
         // Configuration
         public int MaxRetryAttempts { get; set; } = 3;
@@ -176,18 +178,9 @@ namespace XStateNet.Semi.Transport
                 }
                 
                 // Create new connection
-                // Note: Can't cast logger type, so create a new one or pass null
-                ILogger<HsmsConnection>? hsmsLogger = null;
-                if (_logger != null)
-                {
-                    var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => 
-                    {
-                        builder.AddConsole();
-                        builder.SetMinimumLevel(LogLevel.Debug);
-                    });
-                    hsmsLogger = loggerFactory.CreateLogger<HsmsConnection>();
-                }
-                _connection = new HsmsConnection(_endpoint, _mode, hsmsLogger);
+                // Pass null for logger to avoid circular dependencies
+                // The HsmsConnection will use its own internal logging if needed
+                _connection = new HsmsConnection(_endpoint, _mode, null);
                 _connection.T5Timeout = T5Timeout;
                 _connection.T6Timeout = T6Timeout;
                 _connection.T7Timeout = T7Timeout;
@@ -346,11 +339,36 @@ namespace XStateNet.Semi.Transport
             var selectReq = new HsmsMessage
             {
                 MessageType = HsmsMessageType.SelectReq,
-                SystemBytes = (uint)DateTime.UtcNow.Ticks
+                SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
             };
             
-            await _connection!.SendMessageAsync(selectReq, cancellationToken);
-            SetState(ConnectionState.Selected);
+            // Set up the TaskCompletionSource for selection response
+            _selectionTcs = new TaskCompletionSource<bool>();
+            _selectionSystemBytes = selectReq.SystemBytes;
+            
+            try
+            {
+                // Send SelectReq - OnMessageReceived will handle the response
+                await _connection!.SendMessageAsync(selectReq, cancellationToken);
+                
+                // Wait for SelectRsp with timeout
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    cts.CancelAfter(T6Timeout);
+                    await _selectionTcs.Task.WaitAsync(cts.Token);
+                }
+                
+                SetState(ConnectionState.Selected);
+                _logger?.LogInformation("HSMS selection successful");
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException("Selection timeout - no response received");
+            }
+            finally
+            {
+                _selectionTcs = null; // Clear the TCS
+            }
         }
         
         /// <summary>
@@ -384,6 +402,23 @@ namespace XStateNet.Semi.Transport
         private void OnMessageReceived(object? sender, HsmsMessage message)
         {
             _healthMonitor.RecordSuccess();
+            
+            // Handle SelectRsp internally
+            if (_selectionTcs != null && 
+                message.MessageType == HsmsMessageType.SelectRsp && 
+                message.SystemBytes == _selectionSystemBytes)
+            {
+                _selectionTcs.TrySetResult(true);
+                return; // Don't forward SelectRsp to external handlers
+            }
+            else if (_selectionTcs != null && 
+                     message.MessageType == HsmsMessageType.RejectReq && 
+                     message.SystemBytes == _selectionSystemBytes)
+            {
+                _selectionTcs.TrySetException(new InvalidOperationException("Selection rejected by equipment"));
+                return; // Don't forward reject to external handlers
+            }
+            
             MessageReceived?.Invoke(this, message);
         }
         

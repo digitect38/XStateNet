@@ -390,7 +390,7 @@ namespace XStateNet.Distributed.Tests
             }
 
             // Assert
-            completedWork.Count.Should().BeGreaterOrEqualTo(3);
+            completedWork.Count.Should().BeGreaterThanOrEqualTo(3);
         }
 
         [Fact]

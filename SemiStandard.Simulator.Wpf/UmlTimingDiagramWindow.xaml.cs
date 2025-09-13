@@ -116,7 +116,10 @@ public partial class UmlTimingDiagramWindow : Window
     {
         try
         {
-            using var doc = JsonDocument.Parse(scriptJson);
+            // Convert single quotes to double quotes for valid JSON
+            var validJson = scriptJson.Replace('\'', '"');
+            
+            using var doc = JsonDocument.Parse(validJson);
             var root = doc.RootElement;
             
             var states = new List<string>();
@@ -129,10 +132,12 @@ public partial class UmlTimingDiagramWindow : Window
                 }
             }
             
+            System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Extracted {states.Count} states: {string.Join(", ", states)}");
             return states.ToArray();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Failed to extract states: {ex.Message}");
             return new[] { "Unknown" };
         }
     }

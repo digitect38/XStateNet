@@ -299,7 +299,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Assert - The game should have some activity
         // Note: Since guards might prevent all misses, we just check the game ran
-        (pingScore + pongScore).Should().BeGreaterOrEqualTo(0, "game should have run");
+        (pingScore + pongScore).Should().BeGreaterThanOrEqualTo(0, "game should have run");
         
         // At minimum, the machines should be in valid states
         pingMachine.GetActiveStateString().Should().NotBeEmpty();

@@ -30,6 +30,7 @@ namespace XStateNet.Semi.Transport
         private bool _disposed;
         
         // HSMS connection parameters (in milliseconds)
+        public int T3Timeout { get; set; } = 45000;  // Reply timeout
         public int T5Timeout { get; set; } = 10000;  // Connect separation timeout
         public int T6Timeout { get; set; } = 5000;   // Control transaction timeout
         public int T7Timeout { get; set; } = 10000;  // Not selected timeout
@@ -246,36 +247,40 @@ namespace XStateNet.Semi.Transport
                                     
                                 bytesRead += read;
                                 
-                                if (read < 14 - (bytesRead - read))
+                                if (bytesRead < 14)
                                 {
                                     _logger?.LogDebug("[{Mode}] Partial header read: {Read} bytes, total: {Total}/14", _mode, read, bytesRead);
                                 }
                             }
                             
-                            // Parse header to get message length
-                            var messageLength = (headerBuffer[0] << 24) | 
+                            // Parse header to get message length (excluding the 4-byte length field itself)
+                            var totalLength = (headerBuffer[0] << 24) | 
                                               (headerBuffer[1] << 16) | 
                                               (headerBuffer[2] << 8) | 
                                               headerBuffer[3];
                             
+                            // The total length includes the 10-byte HSMS header after the length field
+                            // So actual data length = totalLength - 10
+                            var dataLength = totalLength - 10;
+                            
                             // Log received header
                             var headerHex = BitConverter.ToString(headerBuffer);
-                            _logger?.LogDebug("[{Mode}] Received HSMS Header (hex): {HeaderHex}, Length: {Length}", _mode, headerHex, messageLength);
+                            _logger?.LogDebug("[{Mode}] Received HSMS Header (hex): {HeaderHex}, TotalLength: {TotalLength}, DataLength: {DataLength}", _mode, headerHex, totalLength, dataLength);
                                               
-                            // Read message body
-                            if (messageLength > 0)
+                            // Read message body if there is data
+                            if (dataLength > 0)
                             {
-                                if (messageLength > buffer.Length)
+                                if (dataLength > buffer.Length)
                                 {
                                     _bufferPool.Return(buffer);
-                                    buffer = _bufferPool.Rent(messageLength);
+                                    buffer = _bufferPool.Rent(dataLength);
                                 }
                                 
                                 bytesRead = 0;
-                                while (bytesRead < messageLength)
+                                while (bytesRead < dataLength)
                                 {
-                                    var read = await _stream.ReadAsync(
-                                        buffer.AsMemory(bytesRead, messageLength - bytesRead),
+                                    var read = await _stream!.ReadAsync(
+                                        buffer.AsMemory(bytesRead, dataLength - bytesRead),
                                         _cancellationTokenSource.Token);
                                         
                                     if (read == 0)
@@ -286,8 +291,11 @@ namespace XStateNet.Semi.Transport
                             }
                             
                             // Decode and process message
-                            var message = DecodeMessage(headerBuffer, buffer, messageLength);
+                            _logger?.LogDebug("[{Mode}] About to decode message with dataLength={DataLength}", _mode, dataLength);
+                            var message = DecodeMessage(headerBuffer, buffer, dataLength);
+                            _logger?.LogDebug("[{Mode}] Decoded message: Type={Type}, SystemBytes={SystemBytes}", _mode, message.MessageType, message.SystemBytes);
                             _receiveQueue.Enqueue(message);
+                            _logger?.LogDebug("[{Mode}] Enqueued message, queue size={QueueSize}", _mode, _receiveQueue.Count);
                             MessageReceived?.Invoke(this, message);
                             
                             _logger?.LogDebug("Received HSMS message: Type={Type}, Stream={Stream}, Function={Function}, SystemBytes={SystemBytes}, DataLength={DataLength}", 
@@ -298,6 +306,7 @@ namespace XStateNet.Semi.Transport
                         {
                             _logger?.LogError(ex, "Error receiving message");
                             ErrorOccurred?.Invoke(this, ex);
+                            break; // Exit the loop on error
                         }
                     }
                 }
@@ -305,7 +314,7 @@ namespace XStateNet.Semi.Transport
                 {
                     _bufferPool.Return(buffer, clearArray: true); // Clear buffer before returning to pool
                 }
-            }, _cancellationTokenSource!.Token);
+            });
         }
         
         /// <summary>
@@ -383,7 +392,16 @@ namespace XStateNet.Semi.Transport
                 _cancellationTokenSource?.Cancel();
                 
                 if (_receiveTask != null)
-                    await _receiveTask;
+                {
+                    try
+                    {
+                        await _receiveTask;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Expected when cancellation token is triggered
+                    }
+                }
                     
                 _stream?.Close();
                 _tcpClient?.Close();

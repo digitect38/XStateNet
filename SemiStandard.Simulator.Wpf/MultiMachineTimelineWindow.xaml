@@ -1,0 +1,125 @@
+<Window x:Class="SemiStandard.Simulator.Wpf.MultiMachineTimelineWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="Multi-Machine State Timeline" 
+        Height="900" Width="1600"
+        WindowStartupLocation="CenterOwner"
+        Style="{StaticResource MaterialDesignWindow}"
+        Background="#1E1E1E">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2D2D30" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ChartTimeline" 
+                                           VerticalAlignment="Center" 
+                                           Foreground="#BB86FC"
+                                           Width="24" Height="24"
+                                           Margin="0,0,10,0"/>
+                    <TextBlock Text="Multi-Machine State Timeline" 
+                             FontSize="16" 
+                             FontWeight="Bold" 
+                             Foreground="White"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <CheckBox x:Name="AutoScrollCheck" 
+                            Content="Auto Scroll" 
+                            IsChecked="True"
+                            Foreground="White"
+                            Margin="10,0"/>
+                    
+                    <Button x:Name="RefreshButton" 
+                          Click="RefreshButton_Click"
+                          Style="{StaticResource MaterialDesignFlatButton}"
+                          Margin="5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Refresh" 
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,5,0"/>
+                            <TextBlock Text="Refresh" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button x:Name="CloseButton" 
+                          Click="CloseButton_Click"
+                          Style="{StaticResource MaterialDesignFlatButton}"
+                          Margin="5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Close" 
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,5,0"/>
+                            <TextBlock Text="Close" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Main Timeline Area -->
+        <Grid Grid.Row="1">
+            <!-- Combined Horizontal and Vertical ScrollViewer -->
+            <ScrollViewer x:Name="TimelineScroller" 
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Auto"
+                        Background="#252526"
+                        Margin="10">
+                <Canvas x:Name="TimelineCanvas" 
+                      Background="#1E1E1E"/>
+            </ScrollViewer>
+        </Grid>
+        
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="#007ACC" Height="25">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0" 
+                         x:Name="StatusText"
+                         Text="Ready" 
+                         Foreground="White" 
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Margin="10,0"/>
+                
+                <TextBlock Grid.Column="2" 
+                         x:Name="MachineCountText"
+                         Text="0 Machines" 
+                         Foreground="White" 
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Margin="10,0"/>
+                
+                <TextBlock Grid.Column="3" 
+                         x:Name="LastUpdateText"
+                         Text="Last Update: Never" 
+                         Foreground="White" 
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Margin="10,0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

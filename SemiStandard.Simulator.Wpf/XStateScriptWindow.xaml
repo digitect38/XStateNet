@@ -1,0 +1,123 @@
+<Window x:Class="SemiStandard.Simulator.Wpf.XStateScriptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="XState Machine Script" 
+        Height="600" Width="800"
+        WindowStartupLocation="CenterOwner"
+        Style="{StaticResource MaterialDesignWindow}"
+        Background="#1E1E1E">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2D2D30" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ScriptText" 
+                                           VerticalAlignment="Center" 
+                                           Foreground="#BB86FC"
+                                           Width="24" Height="24"
+                                           Margin="0,0,10,0"/>
+                    <TextBlock x:Name="MachineTitleText" 
+                             Text="State Machine: " 
+                             FontSize="16" 
+                             FontWeight="Bold" 
+                             Foreground="White"
+                             VerticalAlignment="Center"/>
+                    <TextBlock x:Name="MachineNameText" 
+                             Text="EquipmentController" 
+                             FontSize="16" 
+                             FontWeight="Bold" 
+                             Foreground="#BB86FC"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="CopyButton" 
+                          Click="CopyButton_Click"
+                          Style="{StaticResource MaterialDesignFlatButton}"
+                          Margin="5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ContentCopy" 
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,5,0"/>
+                            <TextBlock Text="Copy" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button x:Name="CloseButton" 
+                          Click="CloseButton_Click"
+                          Style="{StaticResource MaterialDesignFlatButton}"
+                          Margin="5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Close" 
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,5,0"/>
+                            <TextBlock Text="Close" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Script Content -->
+        <Border Grid.Row="1" Background="#1E1E1E" Margin="10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" 
+                        HorizontalScrollBarVisibility="Auto">
+                <TextBox x:Name="ScriptTextBox"
+                       IsReadOnly="True"
+                       FontFamily="Cascadia Code, Consolas, Courier New"
+                       FontSize="13"
+                       Background="#1E1E1E"
+                       Foreground="#D4D4D4"
+                       BorderThickness="0"
+                       Padding="10"
+                       TextWrapping="NoWrap"
+                       AcceptsReturn="True"
+                       AcceptsTab="True"
+                       VerticalAlignment="Stretch"
+                       HorizontalAlignment="Stretch"/>
+            </ScrollViewer>
+        </Border>
+        
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="#007ACC" Height="25">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0" 
+                         Text="Read-Only" 
+                         Foreground="White" 
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Margin="10,0"/>
+                
+                <TextBlock Grid.Column="2" 
+                         x:Name="LineCountText"
+                         Text="Lines: 0" 
+                         Foreground="White" 
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Margin="10,0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

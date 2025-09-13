@@ -37,9 +37,23 @@ namespace XStateNet.Semi.Secs
         /// </summary>
         public static SecsMessage S1F3(params uint[] svids)
         {
+            if (svids.Length == 0)
+            {
+                return new SecsMessage(1, 3, true)
+                {
+                    Data = new SecsList() // Empty list for all SVIDs
+                };
+            }
+            
+            var items = new SecsItem[svids.Length];
+            for (int i = 0; i < svids.Length; i++)
+            {
+                items[i] = new SecsU4(svids[i]);
+            }
+            
             return new SecsMessage(1, 3, true)
             {
-                Data = svids.Length > 0 ? new SecsU4Array(svids) : null
+                Data = new SecsList(items)
             };
         }
         
@@ -88,9 +102,15 @@ namespace XStateNet.Semi.Secs
         /// </summary>
         public static SecsMessage S2F13(params uint[] ecids)
         {
+            // Create a list of individual SecsU4 items as per SECS-II standard
+            var items = new SecsItem[ecids.Length];
+            for (int i = 0; i < ecids.Length; i++)
+            {
+                items[i] = new SecsU4(ecids[i]);
+            }
             return new SecsMessage(2, 13, true)
             {
-                Data = ecids.Length > 0 ? new SecsU4Array(ecids) : null
+                Data = new SecsList(items)
             };
         }
         

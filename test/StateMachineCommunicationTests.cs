@@ -162,7 +162,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200); // Give more time for all subscribers to process
             
             // Assert - At least 4 out of 5 should receive (timing dependent)
-            receivedCount.Should().BeGreaterOrEqualTo(4);
+            receivedCount.Should().BeGreaterThanOrEqualTo(4);
         }
         finally
         {
@@ -208,7 +208,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200);
             
             // Assert - At least 2 out of 3 should complete (timing dependent)
-            completedCount.Should().BeGreaterOrEqualTo(2);
+            completedCount.Should().BeGreaterThanOrEqualTo(2);
         }
         finally
         {
