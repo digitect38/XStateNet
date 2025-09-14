@@ -321,17 +321,25 @@ namespace SemiStandard.Simulator.Wpf
                 
                 if (item.Type == ItemType.State)
                 {
+                    Console.WriteLine($"[DEBUG] Processing State item: '{item.Name}' at time {item.Time}, duration {item.Duration}");
+
                     double durationToDraw = item.Duration;
                     if (isRealtimeMode && item.Time + item.Duration > currentTime)
                     {
                         durationToDraw = currentTime - item.Time;
                     }
-                    
+
                     double rectWidth = durationToDraw * zoomFactor;
-                    
+
+                    Console.WriteLine($"[DEBUG] State item width: {rectWidth}, x: {x}, y: {y}");
+
                     // Culling
-                    if (x + rectWidth < 0 || x > width) continue;
-                    
+                    if (x + rectWidth < 0 || x > width)
+                    {
+                        Console.WriteLine($"[DEBUG] State item culled: x+width={x + rectWidth}, canvas width={width}");
+                        continue;
+                    }
+
                     DrawState(canvas, item, x, y, rectWidth, definition);
                 }
                 else
@@ -357,13 +365,32 @@ namespace SemiStandard.Simulator.Wpf
         {
             int stateIndex = Array.IndexOf(definition.States, item.Name);
 
+            // Debug output to trace state name matching
+            Console.WriteLine($"[DEBUG] DrawState: item.Name='{item.Name}', definition.States=[{string.Join(", ", definition.States)}], stateIndex={stateIndex}");
+
             // Ensure we have a valid state index, fallback to 0 if not found
             if (stateIndex == -1)
             {
+                Console.WriteLine($"[DEBUG] State '{item.Name}' not found in definition, using index 0");
                 stateIndex = 0; // Default to first color if state not found in definition
             }
 
-            Color color = STATE_COLORS[stateIndex % STATE_COLORS.Length];
+            // Force very obvious colors for testing
+            Color color;
+            if (stateIndex == 0)
+            {
+                color = Colors.Red;  // Very obvious red
+            }
+            else if (stateIndex == 1)
+            {
+                color = Colors.Lime; // Very obvious green
+            }
+            else
+            {
+                color = Colors.Blue; // Very obvious blue
+            }
+
+            Console.WriteLine($"[DEBUG] Using color: R={color.R}, G={color.G}, B={color.B} for state '{item.Name}' (stateIndex={stateIndex})");
             
             if (isStepDisplayMode)
             {
