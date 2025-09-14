@@ -313,12 +313,23 @@ namespace SemiStandard.Simulator.Wpf
             double width = canvas.ActualWidth;
             double liveLineX = width / 2;
             double currentTime = isRealtimeMode ? simulationTime : viewOffset;
-            return (time - currentTime) * zoomFactor + liveLineX;
+            double result = (time - currentTime) * zoomFactor + liveLineX;
+
+            // Debug first few calculations only
+            if (time < 1000000) // Only for early items
+            {
+                Debug.WriteLine($"[DEBUG] TimeToPx: time={time:F0}, currentTime={currentTime:F0}, zoomFactor={zoomFactor:F6}, liveLineX={liveLineX}, result={result:F2}");
+            }
+
+            return result;
         }
 
         private void DrawObjects(Canvas canvas, List<TimelineItem> data, StateMachineDefinition definition)
         {
             double currentTime = isRealtimeMode ? simulationTime : viewOffset;
+
+            // Debug simulation time and mode
+            Debug.WriteLine($"[DEBUG] DrawObjects: isRealtimeMode={isRealtimeMode}, simulationTime={simulationTime:F0}, viewOffset={viewOffset:F0}, currentTime={currentTime:F0}");
             double width = canvas.ActualWidth;
             
             foreach (var item in data)
@@ -726,8 +737,10 @@ namespace SemiStandard.Simulator.Wpf
         {
             double width = SM1Canvas.ActualWidth;
             if (width <= 0) width = 1200;
-            // 10 seconds (10,000,000 microseconds) should fit in the width
-            zoomFactor = width / 10000000;
+            // Show 100 seconds (100,000,000 microseconds) in the view for better visibility
+            // This gives us a wider view of the timeline
+            zoomFactor = width / 100000000; // Was 10000000, now 100000000 for 100 seconds view
+            Debug.WriteLine($"[DEBUG] UpdateZoomFactorForRealtimeMode: width={width}, zoomFactor={zoomFactor:F8}");
         }
 
         private void UpdateSpeedControlVisibility()
@@ -755,10 +768,22 @@ namespace SemiStandard.Simulator.Wpf
         // Event handlers
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
+            Debug.WriteLine($"[DEBUG] StartButton_Click: simulationTime before={simulationTime:F0}");
+
+            // If starting from stopped state, reset time to 0
+            if (simulationState == SimulationState.Stopped)
+            {
+                simulationTime = 0;
+                viewOffset = 0;
+                Debug.WriteLine("[DEBUG] Reset simulationTime and viewOffset to 0");
+            }
+
             simulationState = SimulationState.Running;
             lastTimestamp = default(DateTime);
             simulationTimer.Start();
             UpdateButtonStates();
+
+            Debug.WriteLine($"[DEBUG] StartButton_Click: simulationTime after={simulationTime:F0}");
         }
 
         private void PauseButton_Click(object sender, RoutedEventArgs e)
