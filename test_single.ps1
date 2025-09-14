@@ -1,0 +1,1 @@
+dotnet test Test/XStateNet.Tests.csproj --no-build --filter "FullyQualifiedName=TimelineWPF.Tests.RealTimeIntegrationTests.RealTimeAdapter_CapturesActions" --logger:"console;verbosity=detailed"

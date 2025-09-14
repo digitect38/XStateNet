@@ -693,12 +693,9 @@ public partial class UmlTimingDiagramWindow : Window
                 };
                 lane.Segments.Add(initialSegment);
                 
-                // Subscribe to state machine transitions by chaining with existing callback
-                var originalOnTransition = machine.OnTransition;
-                machine.OnTransition = (fromState, toState, eventName) =>
+                // Subscribe to state machine transitions
+                machine.OnTransition += (fromState, toState, eventName) =>
                 {
-                    // Call original callback first to maintain existing functionality
-                    originalOnTransition?.Invoke(fromState, toState, eventName);
                     
                     // Add transition to timing diagram
                     var currentStateName = machine.GetActiveStateString();

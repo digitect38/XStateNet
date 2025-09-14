@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -29,7 +29,7 @@ namespace SuperComplexStateMachineTests
         public void TestInitialStartupState()
         {
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.startup");
+            Assert.Equal("#superComplexFSM.startup", currentState);
         }
 
         [Fact]
@@ -37,8 +37,8 @@ namespace SuperComplexStateMachineTests
         {
             _stateMachine!.Send("INIT_COMPLETE");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.systemCheck.checkingMemory");
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.awaitingInput");
+            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory", currentState);
+            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
         }
 
         #endregion
@@ -51,8 +51,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INIT_COMPLETE");
             _stateMachine!.Send("MEMORY_OK");
             var currentState = _stateMachine!.GetActiveStateString(true);
-            currentState.Should().Contain("#superComplexFSM.initializing.systemCheck.checkingCPU");
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.awaitingInput");
+            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingCPU", currentState);
+            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
@@ -62,8 +62,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("MEMORY_OK");
             _stateMachine!.Send("CPU_OK");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.systemCheck.done");
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.awaitingInput");
+            Assert.Contains("#superComplexFSM.initializing.systemCheck.done", currentState);
+            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
@@ -72,7 +72,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INIT_COMPLETE");
             _stateMachine!.Send("INPUT_RECEIVED");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.validating");
+            Assert.Contains("#superComplexFSM.initializing.userAuth.validating", currentState);
         }
 
         [Fact]
@@ -82,7 +82,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INPUT_RECEIVED");
             _stateMachine!.Send("VALID");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.authenticated");
+            Assert.Contains("#superComplexFSM.initializing.userAuth.authenticated", currentState);
         }
 
         [Fact]
@@ -92,7 +92,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INPUT_RECEIVED");
             _stateMachine!.Send("INVALID");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.awaitingInput");
+            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
         }
 
         #endregion
@@ -109,7 +109,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("VALID");
             _stateMachine!.Send("START_PROCESS");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.processing.taskSelection");
+            Assert.Equal("#superComplexFSM.processing.taskSelection", currentState);
         }
 
         [Fact]
@@ -123,7 +123,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("START_PROCESS");
             _stateMachine!.Send("TASK_A_SELECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.processing.taskA.step1");
+            Assert.Equal("#superComplexFSM.processing.taskA.step1", currentState);
         }
 
         [Fact]
@@ -138,7 +138,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("TASK_A_SELECTED");
             _stateMachine!.Send("NEXT");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.processing.taskA.step2");
+            Assert.Equal("#superComplexFSM.processing.taskA.step2", currentState);
         }
 
         [Fact]
@@ -155,7 +155,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("NEXT");
             _stateMachine!.Send("COMPLETE");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.ready");
+            Assert.Equal("#superComplexFSM.ready", currentState);
         }
 
         [Fact]
@@ -169,7 +169,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("START_PROCESS");
             _stateMachine!.Send("TASK_B_SELECTED");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.processing.taskB.subtask1");
+            Assert.Equal("#superComplexFSM.processing.taskB.subtask1", currentState);
         }
 
         [Fact]
@@ -184,8 +184,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("TASK_B_SELECTED");
             _stateMachine!.Send("NEXT");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working");
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working");
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
         }
 
         [Fact]
@@ -201,8 +201,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("NEXT");
             _stateMachine!.Send("COMPLETE_A");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.completed");
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working");
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.completed", currentState);
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
         }
 
         [Fact]
@@ -218,8 +218,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("NEXT");
             _stateMachine!.Send("COMPLETE_B");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.completed");
-            currentState.Should().Contain("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working");
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.completed", currentState);
+            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
         }
 
         [Fact]
@@ -237,7 +237,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("COMPLETE_B");
             _stateMachine!.Send("COMPLETE");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.ready");
+            Assert.Equal("#superComplexFSM.ready", currentState);
         }
 
         #endregion
@@ -254,7 +254,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("VALID");
             _stateMachine!.Send("SHUTDOWN");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.shuttingDown.cleaningUp");
+            Assert.Equal("#superComplexFSM.shuttingDown.cleaningUp", currentState);
         }
 
         [Fact]
@@ -268,7 +268,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("SHUTDOWN");
             _stateMachine!.Send("CLEANUP_DONE");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.shuttingDown.savingState");
+            Assert.Equal("#superComplexFSM.shuttingDown.savingState", currentState);
         }
 
         [Fact]
@@ -283,7 +283,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("CLEANUP_DONE");
             _stateMachine!.Send("SAVE_COMPLETE");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.shuttingDown.done");
+            Assert.Equal("#superComplexFSM.shuttingDown.done", currentState);
         }
 
         [Fact]
@@ -295,7 +295,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INPUT_RECEIVED");
             _stateMachine!.Send("VALID");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.ready");
+            Assert.Equal("#superComplexFSM.ready", currentState);
         }
 
         [Fact]
@@ -311,7 +311,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("SAVE_COMPLETE");
             _stateMachine!.Send("SHUTDOWN_CONFIRMED");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.shutdownComplete");
+            Assert.Equal("#superComplexFSM.shutdownComplete", currentState);
         }
 
         #endregion
@@ -323,7 +323,7 @@ namespace SuperComplexStateMachineTests
         {
             _stateMachine!.Send("START_PROCESS");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.startup");
+            Assert.Equal("#superComplexFSM.startup", currentState);
         }
 
         [Fact]
@@ -332,8 +332,8 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("INIT_COMPLETE");
             _stateMachine!.Send("INVALID_EVENT");
             var currentState = _stateMachine!.GetActiveStateString(false);
-            currentState.Should().Contain("#superComplexFSM.initializing.systemCheck.checkingMemory");
-            currentState.Should().Contain("#superComplexFSM.initializing.userAuth.awaitingInput");
+            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory", currentState);
+            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
@@ -346,7 +346,7 @@ namespace SuperComplexStateMachineTests
             _stateMachine!.Send("VALID");
             //_stateMachine.Send("INVALID_EVENT");
             var currentState = _stateMachine!.GetActiveStateString();
-            currentState.Should().Be("#superComplexFSM.ready");
+            Assert.Equal("#superComplexFSM.ready", currentState);
         }
 
         #endregion

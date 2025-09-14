@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using System;
 using System.Collections.Generic;
@@ -82,19 +82,19 @@ namespace DelaysTest
                 
                 // Initially, the state machine should be in state 'a'
                 var activeState = _stateMachine!.GetActiveStateString();
-                _stateMachine.GetActiveStateString().Should().Be($"#{machineId}.a");
+                Assert.Equal($"#{machineId}.a", _stateMachine.GetActiveStateString());
             
                 // Wait for the timeout to trigger the transition
                 await Task.Delay(1500);
 
                 // The state machine should now be in state 'b'
-                _stateMachine.GetActiveStateString().Should().Be($"#{machineId}.b");
+                Assert.Equal($"#{machineId}.b", _stateMachine.GetActiveStateString());
 
                 // Check that the transition action was executed
-                _transitionLog.Should().Contain("transitionAction executed");
+                Assert.Contains("transitionAction executed", _transitionLog);
 
                 // Check the transition log
-                _transitionLog.Should().Contain($"Transitioned from #{machineId}.a to #{machineId}.b on event after: 1234");
+                Assert.Contains($"Transitioned from #{machineId}.a to #{machineId}.b on event after: 1234", _transitionLog);
             }
             finally
             {

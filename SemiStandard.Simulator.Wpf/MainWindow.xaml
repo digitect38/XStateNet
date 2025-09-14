@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SemiStandard.Simulator.Wpf"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+        xmlns:scottplot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="SEMI Equipment Simulator" Height="1080" Width="1920"
@@ -341,7 +341,7 @@
                     <materialDesign:Card Margin="8" Padding="16" materialDesign:ElevationAssist.Elevation="Dp2">
                         <StackPanel>
                             <TextBlock Text="Message Rate" Style="{StaticResource MaterialDesignSubtitle1TextBlock}" Margin="0,0,0,8"/>
-                            <lvc:CartesianChart x:Name="MessageRateChart" Height="150"/>
+                            <scottplot:WpfPlot x:Name="MessageRateChart" Height="150"/>
                         </StackPanel>
                     </materialDesign:Card>
 

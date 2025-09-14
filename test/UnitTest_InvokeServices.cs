@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using System;
 using System.Threading.Tasks;
 using System.Threading;
@@ -91,19 +91,19 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
         _stateMachine!.Start();
         
-        _stateMachine.GetActiveStateString().Contains("idle").Should().BeTrue();
+        Assert.Contains("idle", _stateMachine.GetActiveStateString());
         
         _stateMachine!.Send("START");
-        _stateMachine.GetActiveStateString().Contains("fetching").Should().BeTrue();
+        Assert.Contains("fetching", _stateMachine.GetActiveStateString());
         
         // Wait for service to complete
         await Task.Delay(200);
         _stateMachine!.Send("onDone");
         
-        _stateMachine.GetActiveStateString().Contains("success").Should().BeTrue();
-        _serviceCompleted.Should().BeTrue();
-        _serviceCallCount.Should().Be(1);
-        _stateMachine.ContextMap!["data"].Should().Be("fetched data");
+        Assert.Contains("success", _stateMachine.GetActiveStateString());
+        Assert.True(_serviceCompleted);
+        Assert.Equal(1, _serviceCallCount);
+        Assert.Equal("fetched data", _stateMachine.ContextMap!["data"]);
     }
     
     [Fact]
@@ -144,15 +144,15 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        _stateMachine.GetActiveStateString().Contains("processing").Should().BeTrue();
+        Assert.Contains("processing", _stateMachine.GetActiveStateString());
         
         // Wait for service to fail
         await Task.Delay(150);
         _stateMachine!.Send("onError");
         
-        _stateMachine.GetActiveStateString().Contains("error").Should().BeTrue();
-        _errorOccurred.Should().BeTrue();
-        _lastErrorMessage.Should().Be("Service failed intentionally");
+        Assert.Contains("error", _stateMachine.GetActiveStateString());
+        Assert.True(_errorOccurred);
+        Assert.Equal("Service failed intentionally", _lastErrorMessage);
     }
     
     [Fact]
@@ -216,8 +216,8 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Both services should be running
         var activeStates = _stateMachine!.GetActiveStateString();
-        activeStates.Contains("serviceA.running").Should().BeTrue();
-        activeStates.Contains("serviceB.running").Should().BeTrue();
+        Assert.Contains("serviceA.running", activeStates);
+        Assert.Contains("serviceB.running", activeStates);
         
         // Wait for shorter service
         await Task.Delay(200);
@@ -225,7 +225,7 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Service A should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        activeStates.Contains("serviceA.complete").Should().BeTrue();
+        Assert.Contains("serviceA.complete", activeStates);
         
         // Wait for longer service
         await Task.Delay(400);
@@ -233,8 +233,8 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Both services should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        activeStates.Contains("serviceA.complete").Should().BeTrue();
-        activeStates.Contains("serviceB.complete").Should().BeTrue();
+        Assert.Contains("serviceA.complete", activeStates);
+        Assert.Contains("serviceB.complete", activeStates);
     }
     
     [Fact]
@@ -282,11 +282,11 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        _stateMachine.GetActiveStateString().Contains("processing").Should().BeTrue();
+        Assert.Contains("processing", _stateMachine.GetActiveStateString());
         
         // Cancel should exit the state and cancel the service
         _stateMachine!.Send("CANCEL");
-        _stateMachine.GetActiveStateString().Contains("cancelled").Should().BeTrue();
+        Assert.Contains("cancelled", _stateMachine.GetActiveStateString());
         
         // Note: In a real implementation, we'd need to verify the service was actually cancelled
         // This would require more sophisticated service management in the StateMachine

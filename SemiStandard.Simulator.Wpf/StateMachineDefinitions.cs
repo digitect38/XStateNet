@@ -396,7 +396,7 @@ namespace SemiStandard.Simulator.Wpf
                 var machine = StateMachine.CreateFromScript(script, actions);
                 
                 // Subscribe to state changes
-                machine.OnTransition = (fromState, toState, eventName) =>
+                machine.OnTransition += (fromState, toState, eventName) =>
                 {
                     var fromStateName = fromState?.Name ?? "null";
                     var toStateName = toState?.Name ?? "null";

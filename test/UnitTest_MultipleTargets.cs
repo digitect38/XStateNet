@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Generic;
@@ -72,15 +72,15 @@ namespace MultipleTargetsTests
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             var initialState = _stateMachine!.GetActiveStateString();
-            initialState.Should().Contain("region1.state1");
-            initialState.Should().Contain("region2.stateA");
+            Assert.Contains("region1.state1", initialState);
+            Assert.Contains("region2.stateA", initialState);
 
             _stateMachine!.Send("EVENT");
 
             var finalState = _stateMachine!.GetActiveStateString();
-            finalState.Should().Contain("region1.state2");
-            finalState.Should().Contain("region2.stateA"); // Unchanged
-            _stateMachine.ContextMap!["actionExecuted"].Should().Be("A");
+            Assert.Contains("region1.state2", finalState);
+            Assert.Contains("region2.stateA", finalState); // Unchanged
+            Assert.Equal("A", _stateMachine.ContextMap!["actionExecuted"]);
         }
 
         [Fact]
@@ -147,18 +147,18 @@ namespace MultipleTargetsTests
             _stateMachine!.Send("NEXT");
 
             var movedState = _stateMachine!.GetActiveStateString();
-            movedState.Should().Contain("region1.state2");
-            movedState.Should().Contain("region2.stateB");
-            movedState.Should().Contain("region3.final");
+            Assert.Contains("region1.state2", movedState);
+            Assert.Contains("region2.stateB", movedState);
+            Assert.Contains("region3.final", movedState);
 
             // Now reset all regions to their specific states using multiple targets
             _stateMachine!.Send("RESET_ALL");
 
             var resetState = _stateMachine!.GetActiveStateString();
-            resetState.Should().Contain("region1.state1");
-            resetState.Should().Contain("region2.stateA");
-            resetState.Should().Contain("region3.initial");
-            ((bool)(_stateMachine.ContextMap!["resetExecuted"] ?? false)).Should().BeTrue();
+            Assert.Contains("region1.state1", resetState);
+            Assert.Contains("region2.stateA", resetState);
+            Assert.Contains("region3.initial", resetState);
+            Assert.True((bool)(_stateMachine.ContextMap!["resetExecuted"] ?? false));
         }
 
         [Fact]
@@ -215,15 +215,15 @@ namespace MultipleTargetsTests
             _stateMachine!.Send("START");
 
             var runningState = _stateMachine!.GetActiveStateString();
-            runningState.Should().Contain("left.running");
-            runningState.Should().Contain("right.processing");
+            Assert.Contains("left.running", runningState);
+            Assert.Contains("right.processing", runningState);
 
             // Trigger emergency stop with multiple targets
             _stateMachine!.Send("EMERGENCY");
 
             var emergencyState = _stateMachine!.GetActiveStateString();
-            emergencyState.Should().Contain("left.error");
-            emergencyState.Should().Contain("right.stopped");
+            Assert.Contains("left.error", emergencyState);
+            Assert.Contains("right.stopped", emergencyState);
         }
 
         [Fact]
@@ -278,8 +278,8 @@ namespace MultipleTargetsTests
             _stateMachine!.Send("EVENT1");
 
             var state1 = _stateMachine!.GetActiveStateString();
-            state1.Should().Contain("region1.b");
-            state1.Should().Contain("region2.y");
+            Assert.Contains("region1.b", state1);
+            Assert.Contains("region2.y", state1);
 
             // Reset to test multiple targets
             _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
@@ -291,8 +291,8 @@ namespace MultipleTargetsTests
             _stateMachine!.Send("EVENT2");
 
             var state2 = _stateMachine!.GetActiveStateString();
-            state2.Should().Contain("region1.c");
-            state2.Should().Contain("region2.x"); // Reset to x
+            Assert.Contains("region1.c", state2);
+            Assert.Contains("region2.x", state2); // Reset to x
         }
 
 

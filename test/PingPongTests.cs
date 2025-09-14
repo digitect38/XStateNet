@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 
 namespace InterMachineTests;
@@ -119,18 +119,18 @@ public class PingPongTests : XStateNet.Tests.TestBase
         await Task.Delay(2500); // Enough time for multiple exchanges
         
         // Assert
-        transitionLog.Should().NotBeEmpty();
-        transitionLog.Should().Contain("PING: Served ball to PONG");
-        transitionLog.Should().Contain("PONG: Received serve from PING");
-        transitionLog.Should().Contain("PONG: Returned ball to PING");
-        transitionLog.Should().Contain("PING: Received return from PONG");
+        Assert.NotEmpty(transitionLog);
+        Assert.Contains("PING: Served ball to PONG", transitionLog);
+        Assert.Contains("PONG: Received serve from PING", transitionLog);
+        Assert.Contains("PONG: Returned ball to PING", transitionLog);
+        Assert.Contains("PING: Received return from PONG", transitionLog);
         
         // Should have multiple complete exchanges
         var serveCount = transitionLog.FindAll(s => s.Contains("Served ball")).Count;
         var returnCount = transitionLog.FindAll(s => s.Contains("Returned ball")).Count;
         
-        serveCount.Should().BeGreaterThan(1, "should have multiple serves");
-        returnCount.Should().BeGreaterThan(1, "should have multiple returns");
+        Assert.True(serveCount > 1, "should have multiple serves");
+        Assert.True(returnCount > 1, "should have multiple returns");
     }
     
     [Fact]
@@ -299,11 +299,11 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Assert - The game should have some activity
         // Note: Since guards might prevent all misses, we just check the game ran
-        (pingScore + pongScore).Should().BeGreaterThanOrEqualTo(0, "game should have run");
+        Assert.True((pingScore + pongScore) >= 0, "game should have run");
         
         // At minimum, the machines should be in valid states
-        pingMachine.GetActiveStateString().Should().NotBeEmpty();
-        pongMachine.GetActiveStateString().Should().NotBeEmpty();
+        Assert.NotEmpty(pingMachine.GetActiveStateString());
+        Assert.NotEmpty(pongMachine.GetActiveStateString());
     }
     
     [Fact]
@@ -423,20 +423,20 @@ public class PingPongTests : XStateNet.Tests.TestBase
         await Task.Delay(1000);
         
         // Assert - Both tables should have activity
-        table1Log.Should().NotBeEmpty("Table 1 should have hits");
-        table2Log.Should().NotBeEmpty("Table 2 should have hits");
+        Assert.NotEmpty(table1Log /*, "Table 1 should have hits" */);
+        Assert.NotEmpty(table2Log /*, "Table 2 should have hits" */);
         
-        table1Log.Should().Contain("Ping1 hit");
-        table1Log.Should().Contain("Pong1 hit");
+        Assert.Contains("Ping1 hit", table1Log);
+        Assert.Contains("Pong1 hit", table1Log);
         
-        table2Log.Should().Contain("Ping2 hit");
-        table2Log.Should().Contain("Pong2 hit");
+        Assert.Contains("Ping2 hit", table2Log);
+        Assert.Contains("Pong2 hit", table2Log);
         
         // Tables should play independently (different hit counts due to different delays)
         var table1Hits = table1Log.Count;
         var table2Hits = table2Log.Count;
         
-        table1Hits.Should().BeGreaterThan(0);
-        table2Hits.Should().BeGreaterThan(0);
+        Assert.True(table1Hits > 0);
+        Assert.True(table2Hits > 0);
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 
 namespace InterMachineTests;
@@ -41,27 +41,27 @@ public class StateCheckingTests
         machine.Start();
         
         // Assert - Initial state (use full path with machine ID)
-        machine.IsInState(machine, "#trafficLight.red").Should().BeTrue();
-        machine.IsInState(machine, "#trafficLight.yellow").Should().BeFalse();
-        machine.IsInState(machine, "#trafficLight.green").Should().BeFalse();
+        Assert.True(machine.IsInState(machine, "#trafficLight.red"));
+        Assert.False(machine.IsInState(machine, "#trafficLight.yellow"));
+        Assert.False(machine.IsInState(machine, "#trafficLight.green"));
         
         // Act - Transition to yellow
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After first transition
-        machine.IsInState(machine, "#trafficLight.red").Should().BeFalse();
-        machine.IsInState(machine, "#trafficLight.yellow").Should().BeTrue();
-        machine.IsInState(machine, "#trafficLight.green").Should().BeFalse();
+        Assert.False(machine.IsInState(machine, "#trafficLight.red"));
+        Assert.True(machine.IsInState(machine, "#trafficLight.yellow"));
+        Assert.False(machine.IsInState(machine, "#trafficLight.green"));
         
         // Act - Transition to green
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After second transition
-        machine.IsInState(machine, "#trafficLight.red").Should().BeFalse();
-        machine.IsInState(machine, "#trafficLight.yellow").Should().BeFalse();
-        machine.IsInState(machine, "#trafficLight.green").Should().BeTrue();
+        Assert.False(machine.IsInState(machine, "#trafficLight.red"));
+        Assert.False(machine.IsInState(machine, "#trafficLight.yellow"));
+        Assert.True(machine.IsInState(machine, "#trafficLight.green"));
     }
     
     [Fact]
@@ -103,7 +103,7 @@ public class StateCheckingTests
         
         // Assert - Initial state
         var initialState = machine.GetActiveStateString(leafOnly: true);
-        initialState.Should().Contain("idle");
+        Assert.Contains("idle", initialState);
         
         // Act - Start working
         machine.Send("START");
@@ -111,12 +111,12 @@ public class StateCheckingTests
         
         // Assert - Working state
         var workingState = machine.GetActiveStateString(leafOnly: true);
-        workingState.Should().Contain("processing");
+        Assert.Contains("processing", workingState);
         
         // Get full path
         var fullPath = machine.GetActiveStateString(leafOnly: false);
-        fullPath.Should().Contain("working");
-        fullPath.Should().Contain("processing");
+        Assert.Contains("working", fullPath);
+        Assert.Contains("processing", fullPath);
     }
     
     [Fact]
@@ -155,14 +155,14 @@ public class StateCheckingTests
         var stateString = states.ToCsvString(machine, true);
         
         // Assert
-        stateString.Should().Contain("level1");
-        stateString.Should().Contain("level2");
-        stateString.Should().Contain("level3");
+        Assert.Contains("level1", stateString);
+        Assert.Contains("level2", stateString);
+        Assert.Contains("level3", stateString);
         
         // Check nested state (use full paths)
-        machine.IsInState(machine, "#nestedMachine.level1").Should().BeTrue();
-        machine.IsInState(machine, "#nestedMachine.level1.level2").Should().BeTrue();
-        machine.IsInState(machine, "#nestedMachine.level1.level2.level3").Should().BeTrue();
+        Assert.True(machine.IsInState(machine, "#nestedMachine.level1"));
+        Assert.True(machine.IsInState(machine, "#nestedMachine.level1.level2"));
+        Assert.True(machine.IsInState(machine, "#nestedMachine.level1.level2.level3"));
     }
     
     [Fact]
@@ -202,24 +202,24 @@ public class StateCheckingTests
         machine2.Start();
         
         // Act & Assert - Check states independently
-        machine1.IsInState(machine1, "#machine1.on").Should().BeTrue();
-        machine2.IsInState(machine2, "#machine2.inactive").Should().BeTrue();
+        Assert.True(machine1.IsInState(machine1, "#machine1.on"));
+        Assert.True(machine2.IsInState(machine2, "#machine2.inactive"));
         
         // Toggle machine1
         machine1.Send("TOGGLE");
-        machine1.IsInState(machine1, "#machine1.off").Should().BeTrue();
-        machine1.IsInState(machine1, "#machine1.on").Should().BeFalse();
+        Assert.True(machine1.IsInState(machine1, "#machine1.off"));
+        Assert.False(machine1.IsInState(machine1, "#machine1.on"));
         
         // Machine2 should be unaffected
-        machine2.IsInState(machine2, "#machine2.inactive").Should().BeTrue();
+        Assert.True(machine2.IsInState(machine2, "#machine2.inactive"));
         
         // Activate machine2
         machine2.Send("ACTIVATE");
-        machine2.IsInState(machine2, "#machine2.active").Should().BeTrue();
-        machine2.IsInState(machine2, "#machine2.inactive").Should().BeFalse();
+        Assert.True(machine2.IsInState(machine2, "#machine2.active"));
+        Assert.False(machine2.IsInState(machine2, "#machine2.inactive"));
         
         // Machine1 should still be off
-        machine1.IsInState(machine1, "#machine1.off").Should().BeTrue();
+        Assert.True(machine1.IsInState(machine1, "#machine1.off"));
     }
     
     [Fact]
@@ -262,8 +262,8 @@ public class StateCheckingTests
         }
         
         // Assert
-        result.Should().Be("Door is closed, opening... Door is now open!");
-        door.IsInState(door, "#door.open").Should().BeTrue();
+        Assert.Equal("Door is closed, opening... Door is now open!", result);
+        Assert.True(door.IsInState(door, "#door.open"));
     }
     
     [Fact]
@@ -305,25 +305,25 @@ public class StateCheckingTests
         
         // Assert - Both parallel regions should be active
         var activeStates = machine.GetActiveStateString(leafOnly: false);
-        activeStates.Should().Contain("lights");
-        activeStates.Should().Contain("heating");
-        activeStates.Should().Contain("off");
-        activeStates.Should().Contain("idle");
+        Assert.Contains("lights", activeStates);
+        Assert.Contains("heating", activeStates);
+        Assert.Contains("off", activeStates);
+        Assert.Contains("idle", activeStates);
         
         // Act - Turn on lights
         machine.Send("TURN_ON");
         await Task.Delay(50);
         
         // Assert - Lights should be on, heating still idle
-        machine.IsInState(machine, "#parallelMachine.lights.on").Should().BeTrue();
-        machine.IsInState(machine, "#parallelMachine.heating.idle").Should().BeTrue();
+        Assert.True(machine.IsInState(machine, "#parallelMachine.lights.on"));
+        Assert.True(machine.IsInState(machine, "#parallelMachine.heating.idle"));
         
         // Act - Start heating
         machine.Send("HEAT");
         await Task.Delay(50);
         
         // Assert - Both should be in their active states
-        machine.IsInState(machine, "#parallelMachine.lights.on").Should().BeTrue();
-        machine.IsInState(machine, "#parallelMachine.heating.heating").Should().BeTrue();
+        Assert.True(machine.IsInState(machine, "#parallelMachine.lights.on"));
+        Assert.True(machine.IsInState(machine, "#parallelMachine.heating.heating"));
     }
 }

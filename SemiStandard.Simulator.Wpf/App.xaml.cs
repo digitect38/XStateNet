@@ -42,6 +42,13 @@ public partial class App : Application
                     MainWindow = mainWindow;
                     mainWindow.Show();
                 }
+                else if (arg == "timeline")
+                {
+                    Logger.Log("[APP] Starting Timeline Window from command line");
+                    var timelineWindow = new TimelineWPF.TimelineWindow();
+                    MainWindow = timelineWindow;
+                    timelineWindow.Show();
+                }
                 else
                 {
                     // Unknown argument, show selection dialog

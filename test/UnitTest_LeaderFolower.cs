@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -44,18 +44,18 @@ namespace AdvancedFeatures
         public async Task TestLeaderFollowerStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            _followerStateMachine.GetActiveStateString().Should().Be("#follower.a");
-            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.a");
+            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateString());
+            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateString());
 
             // Wait for the leader to send the 'to_b' event to the follower
             await Task.Delay(1100);
-            _followerStateMachine.GetActiveStateString().Should().Be("#follower.b");
-            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.b");
+            Assert.Equal("#follower.b", _followerStateMachine.GetActiveStateString());
+            Assert.Equal("#leader.b", _leaderStateMachine.GetActiveStateString());
 
             // Wait for the leader to send the 'to_a' event to the follower
             await Task.Delay(1100);
-            _followerStateMachine.GetActiveStateString().Should().Be("#follower.a");
-            _leaderStateMachine.GetActiveStateString().Should().Be("#leader.a");
+            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateString());
+            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateString());
         }
         
         public void Dispose()

@@ -1,0 +1,1 @@
+dotnet test Test/XStateNet.Tests.csproj --no-build --filter "FullyQualifiedName=XStateNet.Tests.RealTimeMonitoringTests.Monitor_CapturesActions" --logger:"console;verbosity=detailed"

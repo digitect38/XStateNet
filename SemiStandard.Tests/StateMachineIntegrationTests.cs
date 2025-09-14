@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
 using XStateNet;
 using XStateNet.Semi;
 
@@ -94,10 +93,10 @@ public class StateMachineIntegrationTests
         controlJob.Start();
         
         // Assert
-        carrier.Should().BeTrue();
-        equipment.GetCurrentState().Should().Contain("remote");
-        controlJob.GetCurrentState().Should().Contain("executing");
-        handoff.GetCurrentState().Should().NotContain("idle");
+        Assert.True(carrier);
+        Assert.Contains("remote", equipment.GetCurrentState());
+        Assert.Contains("executing", controlJob.GetCurrentState());
+        Assert.DoesNotContain("idle", handoff.GetCurrentState());
     }
     
     [Fact]
@@ -147,9 +146,9 @@ public class StateMachineIntegrationTests
         controlJob.MaterialOut("CAR001");
         
         // Assert
-        processedSubstrates.Should().HaveCount(3);
-        controlJob.ProcessedSubstrates.Should().HaveCount(3);
-        controlJob.GetCurrentState().Should().Contain("completed");
+        Assert.Equal(3, processedSubstrates.Count);
+        Assert.Equal(3, controlJob.ProcessedSubstrates.Count);
+        Assert.Contains("completed", controlJob.GetCurrentState());
     }
     
     [Fact]
@@ -183,11 +182,11 @@ public class StateMachineIntegrationTests
         var finalState = handoff.GetCurrentState();
         
         // Assert
-        handoff.LoadRequest.Should().BeFalse();
-        handoff.UnloadRequest.Should().BeFalse();
-        handoff.Ready.Should().BeFalse();
-        completeState.Should().NotBeEmpty();
-        finalState.Should().NotBeEmpty();
+        Assert.False(handoff.LoadRequest);
+        Assert.False(handoff.UnloadRequest);
+        Assert.False(handoff.Ready);
+        Assert.NotEmpty(completeState);
+        Assert.NotEmpty(finalState);
     }
     
     [Fact]
@@ -203,9 +202,9 @@ public class StateMachineIntegrationTests
         coordinator.MapEvent("semi-equipment", "offline", "job_JOB001", "ABORT");
         
         // Assert
-        coordinator.GetMappingCount().Should().Be(4);
-        coordinator.HasMapping("carrier_CAR001", "WaitingForHost").Should().BeTrue();
-        coordinator.HasMapping("job_JOB001", "completed").Should().BeTrue();
+        Assert.Equal(4, coordinator.GetMappingCount());
+        Assert.True(coordinator.HasMapping("carrier_CAR001", "WaitingForHost"));
+        Assert.True(coordinator.HasMapping("job_JOB001", "completed"));
     }
     
     [Fact]
@@ -227,7 +226,7 @@ public class StateMachineIntegrationTests
         await Task.Delay(100);
         
         // Assert
-        coordinator.EventLog.Should().Contain("machine1.active -> machine2.TRIGGER");
+        Assert.Contains("machine1.active -> machine2.TRIGGER", coordinator.EventLog);
     }
     
     [Fact]
@@ -255,9 +254,9 @@ public class StateMachineIntegrationTests
         job2.Start();
         
         // Assert
-        job1.GetCurrentState().Should().Contain("executing");
-        job2.GetCurrentState().Should().Contain("executing");
-        jobManager.GetAllJobs().Should().HaveCount(2);
+        Assert.Contains("executing", job1.GetCurrentState());
+        Assert.Contains("executing", job2.GetCurrentState());
+        Assert.Equal(2, jobManager.GetAllJobs().Count());
     }
     
     [Fact]
@@ -286,9 +285,9 @@ public class StateMachineIntegrationTests
         var resumedState = job.GetCurrentState();
         
         // Assert
-        executingState.Should().Contain("executing");
-        pausedState.Should().Contain("paused");
-        resumedState.Should().Contain("executing");
+        Assert.Contains("executing", executingState);
+        Assert.Contains("paused", pausedState);
+        Assert.Contains("executing", resumedState);
     }
     
     [Fact]
@@ -298,19 +297,19 @@ public class StateMachineIntegrationTests
         var equipment = new SemiEquipmentController("EQ001");
         
         // Act & Assert - Test state transitions
-        equipment.GetCurrentState().Should().Contain("offline");
+        Assert.Contains("offline", equipment.GetCurrentState());
         
         equipment.SendEvent("goLocal");
         await Task.Delay(50);
-        equipment.GetCurrentState().Should().Contain("local");
+        Assert.Contains("local", equipment.GetCurrentState());
         
         equipment.SendEvent("goRemote");
         await Task.Delay(50);
-        equipment.GetCurrentState().Should().Contain("remote");
+        Assert.Contains("remote", equipment.GetCurrentState());
         
         equipment.SendEvent("initialized");
         await Task.Delay(50);
-        equipment.GetCurrentState().Should().Contain("idle");
+        Assert.Contains("idle", equipment.GetCurrentState());
     }
     
     [Fact]
@@ -327,9 +326,9 @@ public class StateMachineIntegrationTests
         var jobAfterDelete = jobManager.GetControlJob("JOB001");
         
         // Assert
-        jobExists.Should().NotBeNull();
-        deleted.Should().BeTrue();
-        jobAfterDelete.Should().BeNull();
+        Assert.NotNull(jobExists);
+        Assert.True(deleted);
+        Assert.Null(jobAfterDelete);
     }
     
     private StateMachine CreateTestMachine(string id)

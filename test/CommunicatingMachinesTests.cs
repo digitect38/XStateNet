@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 
 namespace InterMachineTests;
@@ -385,10 +385,10 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             await Task.Delay(1000); // Allow state transitions to complete
             
             // Assert
-            parent.GetCurrentState().Should().Contain("complete");
-            parent.EventLog.Should().Contain("Parent: Starting all children");
-            parent.EventLog.Should().Contain(e => e.Contains("changed to ready"));
-            parent.EventLog.Should().Contain(e => e.Contains("changed to complete"));
+            Assert.Contains("complete", parent.GetCurrentState());
+            Assert.Contains("Parent: Starting all children", parent.EventLog);
+            Assert.Contains(parent.EventLog, e => e.Contains("changed to ready"));
+            Assert.Contains(parent.EventLog, e => e.Contains("changed to complete"));
         }
         finally
         {
@@ -419,9 +419,9 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             await Task.Delay(500);
             
             // Assert
-            parent.GetCurrentState().Should().Contain("error");
-            parent.EventLog.Should().Contain("Parent: Stopping all children");
-            parent.EventLog.Should().Contain(e => e.Contains("changed to error"));
+            Assert.Contains("error", parent.GetCurrentState());
+            Assert.Contains("Parent: Stopping all children", parent.EventLog);
+            Assert.Contains(parent.EventLog, e => e.Contains("changed to error"));
         }
         finally
         {
@@ -456,8 +456,8 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             var resetState = parent.GetCurrentState();
             
             // Assert
-            errorState.Should().Contain("error");
-            resetState.Should().Contain("idle");
+            Assert.Contains("error", errorState);
+            Assert.Contains("idle", resetState);
         }
         finally
         {
@@ -490,7 +490,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             await Task.Delay(100);
             
             // Assert
-            actorSystem.MessageLog.Should().Contain("Producer -> Consumer: TEST_MESSAGE");
+            Assert.Contains("Producer -> Consumer: TEST_MESSAGE", actorSystem.MessageLog);
         }
         finally
         {
@@ -527,9 +527,9 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             await Task.Delay(100);
             
             // Assert
-            actorSystem.GetSubscriberCount("Producer").Should().Be(2);
-            actorSystem.MessageLog.Should().Contain("Producer -> Consumer1: BROADCAST_MESSAGE");
-            actorSystem.MessageLog.Should().Contain("Producer -> Consumer2: BROADCAST_MESSAGE");
+            Assert.Equal(2, actorSystem.GetSubscriberCount("Producer"));
+            Assert.Contains("Producer -> Consumer1: BROADCAST_MESSAGE", actorSystem.MessageLog);
+            Assert.Contains("Producer -> Consumer2: BROADCAST_MESSAGE", actorSystem.MessageLog);
         }
         finally
         {
@@ -556,7 +556,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             actorSystem.SendMessage("Producer", "NonExistent", "TEST");
             
             // Assert
-            actorSystem.MessageLog.Should().BeEmpty();
+            Assert.Empty(actorSystem.MessageLog);
         }
         finally
         {
@@ -600,8 +600,8 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 }
             }
             
-            children.All(c => c.IsComplete).Should().BeTrue("all children should complete");
-            parent.GetCurrentState().Should().Contain("complete");
+            Assert.True(children.All(c => c.IsComplete), "all children should complete");
+            Assert.Contains("complete", parent.GetCurrentState());
         }
         finally
         {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.Semi;
 
@@ -37,12 +37,12 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200);
             
             // Assert - Check if any events were received
-            coordinator.ReceivedEvents.Should().NotBeEmpty("machines should notify coordinator when transitioning to active state");
-            
+            Assert.NotEmpty(coordinator.ReceivedEvents /*, "machines should notify coordinator when transitioning to active state" */);
+
             // If events were received, check specifics
             if (coordinator.ReceivedEvents.Count > 0)
             {
-                coordinator.ReceivedEvents.Should().Contain(e => e.FromMachine == "machine1" || e.FromMachine == "machine2");
+                Assert.Contains(coordinator.ReceivedEvents, e => e.FromMachine == "machine1" || e.FromMachine == "machine2");
             }
         }
         finally
@@ -89,8 +89,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200);
             
             // Assert
-            parent.GetSourceSubStateCollection(null).ToCsvString(parent, true)
-                .Should().Contain("allComplete");
+            Assert.Contains("allComplete", parent.GetSourceSubStateCollection(null).ToCsvString(parent, true));
         }
         finally
         {
@@ -122,9 +121,9 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
         handoff.SetCS0(true); // Carrier detected
         
         // Assert
-        equipmentController.GetCurrentState().Should().Contain("remote");
-        job.GetCurrentState().Should().Contain("selected");
-        handoff.GetCurrentState().Should().NotContain("idle");
+        Assert.Contains("remote", equipmentController.GetCurrentState());
+        Assert.Contains("selected", job.GetCurrentState());
+        Assert.DoesNotContain("idle", handoff.GetCurrentState());
     }
     
     [Fact]
@@ -162,7 +161,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200); // Give more time for all subscribers to process
             
             // Assert - At least 4 out of 5 should receive (timing dependent)
-            receivedCount.Should().BeGreaterThanOrEqualTo(4);
+            Assert.True(receivedCount >= 4);
         }
         finally
         {
@@ -208,7 +207,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             await Task.Delay(200);
             
             // Assert - At least 2 out of 3 should complete (timing dependent)
-            completedCount.Should().BeGreaterThanOrEqualTo(2);
+            Assert.True(completedCount >= 2);
         }
         finally
         {

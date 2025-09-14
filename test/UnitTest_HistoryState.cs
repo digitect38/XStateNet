@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -52,12 +52,12 @@ public class HistoryState : IDisposable
         _stateMachine!.Send("TO_B");
 
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.Should().Be("#testMachine.B");
+        Assert.Equal("#testMachine.B", currentState);
 
         _stateMachine!.Send("TO_A");
 
         currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
-        currentState.Should().Be("#testMachine.A;#testMachine.A.A2");
+        Assert.Equal("#testMachine.A;#testMachine.A.A2", currentState);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class HistoryState : IDisposable
         currentState = _stateMachine!.GetActiveStateString();
         _stateMachine!.Send("TO_B");
         currentState = _stateMachine!.GetActiveStateString(leafOnly : false);
-        currentState.Should().Be("#testMachine.B;#testMachine.B.B1");
+        Assert.Equal("#testMachine.B;#testMachine.B.B1", currentState);
         _stateMachine!.Send("TO_A");
         currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
 

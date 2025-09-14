@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using System.Collections.Generic;
 
@@ -19,7 +19,7 @@ namespace AdvancedFeatures
         public void GetCurrentSubStatesTest1()
         {
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine, true);
-            currentState.Should().Be("#fsm.A.A1.A1a;#fsm.A.A2");
+            Assert.Equal("#fsm.A.A1.A1a;#fsm.A.A2", currentState);
         }
 
         [Fact]
@@ -28,7 +28,7 @@ namespace AdvancedFeatures
             stateMachine!.Send("TO_A1b");
 
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
-            currentState.Should().Be("#fsm.A.A1.A1b;#fsm.A.A2");
+            Assert.Equal("#fsm.A.A1.A1b;#fsm.A.A2", currentState);
         }
 
         [Fact]
@@ -37,7 +37,7 @@ namespace AdvancedFeatures
             stateMachine!.Send("TO_B");
 
             var currentState = stateMachine!.GetSourceSubStateCollection(null).ToCsvString(stateMachine);
-            currentState.Should().Be("#fsm.B.B1");
+            Assert.Equal("#fsm.B.B1", currentState);
         }
 
 

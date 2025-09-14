@@ -107,7 +107,14 @@ public class ErrorHandler : StateObject
         
         // Execute first matching error transition
         var transition = errorTransitions.First();
-        if (transition.Guard == null || transition.Guard.PredicateFunc(StateMachine))
+        bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
+        if (transition.Guard != null)
+        {
+            // Notify guard evaluation
+            StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+        }
+
+        if (guardPassed)
         {
             var executor = new TransitionExecutor(StateMachine.machineId);
             executor.Execute(transition, $"error:{exception.GetType().Name}");

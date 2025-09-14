@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -92,7 +92,7 @@ public class StateMachine_AlwaysTests
         _stateMachine!.ContextMap!["count"] = 0;
 
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.Should().Be("#counter.smallNumber");
+        Assert.Equal("#counter.smallNumber", currentState);
 
         // Test incrementing to trigger always transition
         _stateMachine!.Send("INCREMENT");
@@ -104,7 +104,7 @@ public class StateMachine_AlwaysTests
         currentState = _stateMachine!.GetActiveStateString();
 
         StateMachine.Log(">>>>> _stateMachine!.ContextMap![\"count\"] = " + _stateMachine!.ContextMap!["count"]);
-        currentState.Should().Be("#counter.bigNumber");
+        Assert.Equal("#counter.bigNumber", currentState);
 
         _stateMachine!.Send("DECREMENT");
         _stateMachine!.Send("DECREMENT");

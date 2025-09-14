@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using System;
 using System.Collections.Generic;
 using XStateNet;
@@ -86,17 +86,17 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
         _stateMachine!.Start();
         
-        _stateMachine.GetActiveStateString().Contains("idle").Should().BeTrue();
+        Assert.Contains("idle", _stateMachine.GetActiveStateString());
         
         _stateMachine!.Send("START");
         
         // The error should be caught and handled
-        _stateMachine.GetActiveStateString().Contains("error").Should().BeTrue();
-        _errorHandled.Should().BeTrue();
-        _errorMessage.Should().Be("Test error");
-        _errorType.Should().Be("InvalidOperationException");
-        _actionLog.Should().Contain("throwError");
-        _actionLog.Should().Contain("handleError");
+        Assert.Contains("error", _stateMachine.GetActiveStateString());
+        Assert.True(_errorHandled);
+        Assert.Equal("Test error", _errorMessage);
+        Assert.Equal("InvalidOperationException", _errorType);
+        Assert.Contains("throwError", _actionLog);
+        Assert.Contains("handleError", _actionLog);
     }
     
     [Fact]
@@ -156,9 +156,9 @@ public class UnitTest_ErrorHandling : IDisposable
         
         // Test InvalidOperationException handling
         _stateMachine!.Send("THROW_INVALID");
-        _stateMachine.GetActiveStateString().Contains("handledInvalid").Should().BeTrue();
-        _errorHandled.Should().BeTrue();
-        _errorType.Should().Be("InvalidOperationException");
+        Assert.Contains("handledInvalid", _stateMachine.GetActiveStateString());
+        Assert.True(_errorHandled);
+        Assert.Equal("InvalidOperationException", _errorType);
         
         // Reset and test ArgumentException handling
         _errorHandled = false;
@@ -169,9 +169,9 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Start();
         
         _stateMachine!.Send("THROW_ARGUMENT");
-        _stateMachine.GetActiveStateString().Contains("handledArgument").Should().BeTrue();
-        _errorHandled.Should().BeTrue();
-        _errorType.Should().Be("ArgumentException");
+        Assert.Contains("handledArgument", _stateMachine.GetActiveStateString());
+        Assert.True(_errorHandled);
+        Assert.Equal("ArgumentException", _errorType);
     }
     
     [Fact]
@@ -215,9 +215,9 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Send("START");
         
         // Should recover because InvalidOperationException is recoverable
-        _stateMachine.GetActiveStateString().Contains("recovered").Should().BeTrue();
-        _actionLog.Should().Contain("recover");
-        _stateMachine.ContextMap!["recovered"].Should().NotBeNull();
+        Assert.Contains("recovered", _stateMachine.GetActiveStateString());
+        Assert.Contains("recover", _actionLog);
+        Assert.NotNull(_stateMachine.ContextMap!["recovered"]);
     }
     
     [Fact]
@@ -268,8 +268,8 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Send("START");
         
         // Error should be caught at level2 and transition to localError
-        _stateMachine.GetActiveStateString().Contains("localError").Should().BeTrue();
-        _errorHandled.Should().BeTrue();
+        Assert.Contains("localError", _stateMachine.GetActiveStateString());
+        Assert.True(_errorHandled);
     }
     
     [Fact]
@@ -315,16 +315,16 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Send("START");
         
         // Error context should be preserved
-        _stateMachine.GetActiveStateString().Contains("retry").Should().BeTrue();
-        _stateMachine.ContextMap["_lastError"].Should().NotBeNull();
-        _errorMessage.Should().Be("Test error");
+        Assert.Contains("retry", _stateMachine.GetActiveStateString());
+        Assert.NotNull(_stateMachine.ContextMap["_lastError"]);
+        Assert.Equal("Test error", _errorMessage);
         
         // Update attempts
         _stateMachine.ContextMap!["attempts"] = (int)(_stateMachine.ContextMap!["attempts"] ?? 0) + 1;
         
         _stateMachine!.Send("GIVE_UP");
-        _stateMachine.GetActiveStateString().Contains("failed").Should().BeTrue();
-        _stateMachine.ContextMap["attempts"].Should().Be(1);
+        Assert.Contains("failed", _stateMachine.GetActiveStateString());
+        Assert.Equal(1, _stateMachine.ContextMap["attempts"]);
     }
     
     [Fact]
@@ -377,16 +377,16 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Start();
         
         var initialState = _stateMachine!.GetActiveStateString();
-        initialState.Contains("regionA.idle").Should().BeTrue();
-        initialState.Contains("regionB.working").Should().BeTrue();
+        Assert.Contains("regionA.idle", initialState);
+        Assert.Contains("regionB.working", initialState);
         
         _stateMachine!.Send("ERROR_A");
         
         // Region A should handle its error locally
         var afterError = _stateMachine!.GetActiveStateString();
-        afterError.Contains("regionA.failed").Should().BeTrue();
-        afterError.Contains("regionB.working").Should().BeTrue(); // Region B continues
-        _errorHandled.Should().BeTrue();
+        Assert.Contains("regionA.failed", afterError);
+        Assert.Contains("regionB.working", afterError); // Region B continues
+        Assert.True(_errorHandled);
     }
     
     public void Dispose()

@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
@@ -100,7 +100,7 @@ public class AfterTests : IDisposable
         // Initial state should be 'red'
         var cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
-        cxtlog.Should().Be("Entering red; ");
+        Assert.Equal("Entering red; ", cxtlog);
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
 
@@ -108,7 +108,7 @@ public class AfterTests : IDisposable
         System.Threading.Thread.Sleep(450);
 
         // Assert that the 'after' transition has not occurred yet
-        cxtlog.Should().Be("Entering red; ");
+        Assert.Equal("Entering red; ", cxtlog);
 
         // Wait longer than the 'after' delay
         System.Threading.Thread.Sleep(100);
@@ -119,8 +119,8 @@ public class AfterTests : IDisposable
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
         // Assert
-        currentStates.Should().Be("#trafficLight.green");
-        cxtlog.Should().Be("Entering red; Exiting red; After transition to green; Entering green; ");
+        Assert.Equal("#trafficLight.green", currentStates);
+        Assert.Equal("Entering red; Exiting red; After transition to green; Entering green; ", cxtlog);
     }
 
     StateMachine? _stateMachine = null;
@@ -160,6 +160,6 @@ public class AfterTests : IDisposable
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
         currentState.AssertEquivalence("#trafficLight.red");
-        log.Should().Be("Entering red; ");
+        Assert.Equal("Entering red; ", log);
     }
 }

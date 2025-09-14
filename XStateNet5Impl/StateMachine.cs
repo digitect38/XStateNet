@@ -111,9 +111,40 @@ public partial class StateMachine
         _instanceMap.Clear();
     }
 
-    // OnTransition delegate definition
+    // Event handler delegates for monitoring
     public delegate void TransitionHandler(CompoundState? fromState, StateNode? toState, string eventName);
-    public TransitionHandler? OnTransition;
+    public event TransitionHandler? OnTransition;
+
+    public delegate void EventReceivedHandler(string eventName, object? eventData);
+    public event EventReceivedHandler? OnEventReceived;
+
+    public delegate void ActionExecutedHandler(string actionName, string? stateName);
+    public event ActionExecutedHandler? OnActionExecuted;
+
+    public delegate void GuardEvaluatedHandler(string guardName, bool result);
+    public event GuardEvaluatedHandler? OnGuardEvaluated;
+
+    // Protected methods to raise events - allows derived classes and internal components to trigger events
+    internal void RaiseTransition(CompoundState? fromState, StateNode? toState, string eventName)
+    {
+        OnTransition?.Invoke(fromState, toState, eventName);
+    }
+
+    internal void RaiseEventReceived(string eventName, object? eventData)
+    {
+        OnEventReceived?.Invoke(eventName, eventData);
+    }
+
+    internal void RaiseActionExecuted(string actionName, string? stateName)
+    {
+        OnActionExecuted?.Invoke(actionName, stateName);
+    }
+
+    internal void RaiseGuardEvaluated(string guardName, bool result)
+    {
+        OnGuardEvaluated?.Invoke(guardName, result);
+    }
+
     private volatile MachineState machineState = MachineState.Stopped;
 
     /// <summary>
@@ -284,6 +315,9 @@ public partial class StateMachine
     public void Send(string eventName)
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
+
+        // Notify event received
+        RaiseEventReceived(eventName, null);
 
         _stateLock.EnterReadLock();
         try
@@ -902,8 +936,14 @@ public partial class StateMachine
         string? firstExit = path1.exitSinglePath.FirstOrDefault();
         string? firstEntry = path1.entrySinglePath.FirstOrDefault();
 
-        if ((transition.Guard == null || transition.Guard.PredicateFunc(this))
-            && (transition.InCondition == null || transition.InCondition()))
+        bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(this);
+        if (transition.Guard != null)
+        {
+            // Notify guard evaluation
+            RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+        }
+
+        if (guardPassed && (transition.InCondition == null || transition.InCondition()))
         {
             if (toState != null)
             {

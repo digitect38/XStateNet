@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using XStateNet.UnitTest;
 using System;
@@ -168,11 +168,11 @@ public class TrafficMachine : IDisposable
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateString();
 
-        exitActions.Should().Contain("Exiting red.bright");
-        exitActions.Should().Contain("Exiting red");
-        tranActions.Should().Contain("TransitionAction: red --> green");
-        entryActions.Should().Contain("Entering green");
-        entryActions.Should().Contain("Entering green.bright");
+        Assert.Contains("Exiting red.bright", exitActions);
+        Assert.Contains("Exiting red", exitActions);
+        Assert.Contains("TransitionAction: red --> green", tranActions);
+        Assert.Contains("Entering green", entryActions);
+        Assert.Contains("Entering green.bright", entryActions);
     }
 
     [Fact]
@@ -181,8 +181,8 @@ public class TrafficMachine : IDisposable
         _stateMachine = StateMachine.CreateFromScript(json, _actions1, _guards).Start();
         _stateMachine!.Send("PUSH_BUTTON");
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.Should().Contain("canWalk");
-        currentState.Should().Contain("red");
+        Assert.Contains("canWalk", currentState);
+        Assert.Contains("red", currentState);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class TrafficMachine : IDisposable
 
         _stateMachine!.Send("NO_TARGET");
 
-        noTargetActions.Should().Contain("No target action executed");
+        Assert.Contains("No target action executed", noTargetActions);
 
     }
     [Fact]
@@ -229,7 +229,7 @@ public class TrafficMachine : IDisposable
         _stateMachine!.Send("IMPLICIT_TARGET");
 
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.Should().Contain("yellow", "Current state should contain 'yellow'");
+        Assert.Contains("yellow", currentState);
     }
     
 

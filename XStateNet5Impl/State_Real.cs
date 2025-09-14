@@ -75,6 +75,8 @@ public abstract class RealState : StateNode
             {
                 try
                 {
+                    // Notify action execution
+                    StateMachine?.RaiseActionExecuted(action.Name, Name);
                     action.Action?.Invoke(StateMachine);
                 }
                 catch (Exception ex)
@@ -122,7 +124,11 @@ public abstract class RealState : StateNode
                     try
                     {
                         if (StateMachine != null)
+                        {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, Name);
                             action.Action(StateMachine);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -255,6 +261,8 @@ public abstract class CompoundState : RealState
             {
                 try
                 {
+                    // Notify action execution
+                    StateMachine?.RaiseActionExecuted(action.Name, Name);
                     action.Action?.Invoke(StateMachine);
                 }
                 catch (Exception ex)
@@ -309,7 +317,11 @@ public abstract class CompoundState : RealState
                     try
                     {
                         if (StateMachine != null)
+                        {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, Name);
                             action.Action(StateMachine);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -422,7 +434,14 @@ public abstract class CompoundState : RealState
         {
             foreach (var transition in transitions)
             {
-                if (transition.Guard == null || transition.Guard != null && transition.Guard.PredicateFunc(StateMachine))
+                bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
+                if (transition.Guard != null)
+                {
+                    // Notify guard evaluation
+                    StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+                }
+
+                if (guardPassed)
                 {
                     transitionList.Add((this, transition, eventName));
                 }

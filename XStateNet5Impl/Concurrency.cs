@@ -269,8 +269,14 @@ public class SafeTransitionExecutor : TransitionExecutor
     {
         Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
         
-        if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine!))
-            && (transition.InCondition == null || transition.InCondition()))
+        bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine!);
+        if (transition.Guard != null)
+        {
+            // Notify guard evaluation
+            StateMachine?.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+        }
+
+        if (guardPassed && (transition.InCondition == null || transition.InCondition()))
         {
             string? sourceName = transition?.SourceName;
             string? targetName = transition?.TargetName;
@@ -298,6 +304,8 @@ public class SafeTransitionExecutor : TransitionExecutor
                     {
                         try
                         {
+                            // Notify action execution
+                            StateMachine?.RaiseActionExecuted(action.Name, targetName);
                             action.Action(StateMachine!);
                         }
                         catch (Exception ex)
@@ -314,7 +322,7 @@ public class SafeTransitionExecutor : TransitionExecutor
                 // Notify transition completed
                 var sourceNode = GetState(sourceName);
                 var targetNode = GetState(targetName);
-                StateMachine!.OnTransition?.Invoke(sourceNode as CompoundState, targetNode, eventName);
+                StateMachine!.RaiseTransition(sourceNode as CompoundState, targetNode, eventName);
             }
             else
             {

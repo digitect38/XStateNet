@@ -10,17 +10,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using LiveChartsCore;
-using LiveChartsCore.Defaults;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
+using ScottPlot;
+using ScottPlot.WPF;
 using MaterialDesignThemes.Wpf;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 using XStateNet.Semi.Testing;
-using SkiaSharp;
 using XStateNet;
 
 namespace SemiStandard.Simulator.Wpf;
@@ -35,7 +32,8 @@ public class MessageLogEntry
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly ObservableCollection<MessageLogEntry> _messageLog = new();
-    private readonly ObservableCollection<ObservablePoint> _messageRateData = new();
+    private readonly double[] _messageRateData = new double[20];
+    private readonly double[] _messageRateTime = new double[20];
     private DispatcherTimer _updateTimer = null!;
     private DispatcherTimer _uptimeTimer = null!;
     
@@ -52,7 +50,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private Dictionary<string, StateMachine> _stateMachines = new();
     private Dictionary<string, string> _currentStates = new();
     
-    public ISeries[] MessageRateSeries { get; set; } = Array.Empty<ISeries>();
+    // Message rate chart data (removed LiveCharts series)
     
     public MainWindow()
     {
@@ -70,41 +68,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     
     private void SetupChart()
     {
-        MessageRateSeries = new ISeries[]
-        {
-            new LineSeries<ObservablePoint>
-            {
-                Values = _messageRateData,
-                Stroke = new SolidColorPaint(SKColors.CornflowerBlue, 2),
-                Fill = new SolidColorPaint(SKColors.CornflowerBlue.WithAlpha(50)),
-                GeometryStroke = null,
-                GeometryFill = null,
-                LineSmoothness = 0.7
-            }
-        };
-        
-        MessageRateChart.Series = MessageRateSeries;
-        MessageRateChart.XAxes = new Axis[] 
-        { 
-            new Axis 
-            { 
-                IsVisible = false 
-            } 
-        };
-        MessageRateChart.YAxes = new Axis[] 
-        { 
-            new Axis 
-            { 
-                MinLimit = 0,
-                IsVisible = false 
-            } 
-        };
-        
-        // Initialize with some data points
+        // Initialize time axis
         for (int i = 0; i < 20; i++)
         {
-            _messageRateData.Add(new ObservablePoint(i, 0));
+            _messageRateTime[i] = i;
+            _messageRateData[i] = 0;
         }
+
+        // Setup ScottPlot
+        MessageRateChart.Plot.Add.Signal(_messageRateData);
+        MessageRateChart.Plot.Title("Message Rate");
+        MessageRateChart.Plot.Axes.Left.Label.Text = "Messages/sec";
+        MessageRateChart.Plot.Axes.Bottom.Label.Text = "Time (seconds)";
+        // Use default style for now
+        MessageRateChart.Refresh();
     }
     
     private void SetupMessageLog()
@@ -174,16 +151,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateMessageRateChart()
     {
         // Shift data left
-        for (int i = 0; i < _messageRateData.Count - 1; i++)
+        for (int i = 0; i < _messageRateData.Length - 1; i++)
         {
-            _messageRateData[i].Y = _messageRateData[i + 1].Y;
+            _messageRateData[i] = _messageRateData[i + 1];
         }
-        
+
         // Add new data point (messages per second)
-        if (_messageRateData.Count > 0)
-        {
-            _messageRateData[^1].Y = (_messagesSent + _messagesReceived) / 2.0;
-        }
+        _messageRateData[^1] = (_messagesSent + _messagesReceived) / 2.0;
+
+        // Refresh the chart
+        MessageRateChart.Refresh();
         
         // Reset counters
         _messagesSent = 0;

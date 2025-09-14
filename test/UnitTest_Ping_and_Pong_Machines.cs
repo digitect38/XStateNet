@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using XStateNet;
 using System;
 using System.Collections.Concurrent;
@@ -141,23 +141,23 @@ namespace AdvancedFeatures
             try
             {
                 // Initially, both state machines should be in state 'a'
-            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.a");
-            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.a");
+            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateString());
 
             // Wait for the ping to send the 'to_b' event to pong
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.b");
-            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.b");
+            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateString());
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.a");
-            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.a");
+            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateString());
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            _pingStateMachine.GetActiveStateString().Should().Be($"#{_pingId}.b");
-            _pongStateMachine.GetActiveStateString().Should().Be($"#{_pongId}.b");
+            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateString());
 
             // Check transition log
             foreach (var log in _transitionLog)
@@ -165,17 +165,17 @@ namespace AdvancedFeatures
                 StateMachine.Log($"log:{log}");
             }
 
-            _transitionLog.Count.Should().Be(6);
+            Assert.Equal(6, _transitionLog.Count);
 
 
-            _transitionLog[0].Should().Be($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000");
-            _transitionLog[1].Should().Be($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b");
+            Assert.Equal($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000", _transitionLog[0]);
+            Assert.Equal($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b", _transitionLog[1]);
 
-            _transitionLog[2].Should().Be($"Transitioned from #{_pongId}.b to #{_pongId}.a on event after: 1000");
-            _transitionLog[3].Should().Be($"Transitioned from #{_pingId}.b to #{_pingId}.a on event to_a");
+            Assert.Equal($"Transitioned from #{_pongId}.b to #{_pongId}.a on event after: 1000", _transitionLog[2]);
+            Assert.Equal($"Transitioned from #{_pingId}.b to #{_pingId}.a on event to_a", _transitionLog[3]);
 
-                _transitionLog[4].Should().Be($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000");
-                _transitionLog[5].Should().Be($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b");
+                Assert.Equal($"Transitioned from #{_pingId}.a to #{_pingId}.b on event after: 1000", _transitionLog[4]);
+                Assert.Equal($"Transitioned from #{_pongId}.a to #{_pongId}.b on event to_b", _transitionLog[5]);
             }
             finally
             {

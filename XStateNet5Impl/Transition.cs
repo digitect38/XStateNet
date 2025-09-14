@@ -27,6 +27,8 @@ public class TransitionExecutor : StateObject
             {
                 try
                 {
+                    // Notify action execution
+                    StateMachine.RaiseActionExecuted(action.Name, transition.SourceName);
                     action.Action(StateMachine);
                 }
                 catch (Exception ex)
@@ -140,8 +142,14 @@ public class TransitionExecutor : StateObject
 
         Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
 
-        if ((transition.Guard == null || transition.Guard.PredicateFunc(StateMachine))
-            && (transition.InCondition == null || transition.InCondition()))
+        bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
+        if (transition.Guard != null)
+        {
+            // Notify guard evaluation
+            StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+        }
+
+        if (guardPassed && (transition.InCondition == null || transition.InCondition()))
         {
 
             string? sourceName = transition.SourceName;
@@ -164,6 +172,8 @@ public class TransitionExecutor : StateObject
                         try
                         {
                             Logger.Debug($"Executing action: {action.Name}");
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
                             action.Action(StateMachine);
                         }
                         catch (Exception ex)
@@ -179,7 +189,7 @@ public class TransitionExecutor : StateObject
                 
                 // Fire OnTransition event even for internal transitions
                 var sourceNode = GetState(sourceName);
-                StateMachine.OnTransition?.Invoke(sourceNode as CompoundState, sourceNode, eventName);
+                StateMachine.RaiseTransition(sourceNode as CompoundState, sourceNode, eventName);
                 return;
             }
 
@@ -210,7 +220,7 @@ public class TransitionExecutor : StateObject
                 CompoundState? source = sourceNode as CompoundState;
                 StateNode? target = GetState(targetName);
 
-                StateMachine.OnTransition?.Invoke(source, target, eventName);
+                StateMachine.RaiseTransition(source, target, eventName);
 
                 if (transition?.Actions != null)
                 {
@@ -218,6 +228,8 @@ public class TransitionExecutor : StateObject
                     {
                         try
                         {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
                             action.Action(StateMachine);
                         }
                         catch (Exception ex)
@@ -243,6 +255,8 @@ public class TransitionExecutor : StateObject
                     {
                         try
                         {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
                             action.Action(StateMachine);
                         }
                         catch (Exception ex)

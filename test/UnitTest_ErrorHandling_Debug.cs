@@ -1,5 +1,5 @@
 using Xunit;
-using FluentAssertions;
+
 using System;
 using System.Collections.Generic;
 using XStateNet;
@@ -72,7 +72,7 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         _stateMachine!.Start();
         
         Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateString()}");
-        _stateMachine.GetActiveStateString().Should().Contain("idle");
+        Assert.Contains("idle", _stateMachine.GetActiveStateString());
         
         try
         {
@@ -107,7 +107,8 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         Console.WriteLine($"Action log: {string.Join(", ", _actionLog)}");
         
         // The error should be caught and handled
-        (_stateMachine.GetActiveStateString().Contains("error") || _errorHandled).Should().BeTrue();
+        Assert.Contains("error", _stateMachine.GetActiveStateString());
+        Assert.True(_errorHandled);
     }
     
     public void Dispose()
