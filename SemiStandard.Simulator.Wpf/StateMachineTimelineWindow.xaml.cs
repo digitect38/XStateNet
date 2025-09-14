@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -76,15 +77,15 @@ namespace SemiStandard.Simulator.Wpf
 
         public StateMachineTimelineWindow()
         {
-            Console.WriteLine("[DEBUG] StateMachineTimelineWindow constructor called");
+            Debug.WriteLine("[DEBUG] StateMachineTimelineWindow constructor called");
             InitializeComponent();
             InitializeSimulation();
-            Console.WriteLine("[DEBUG] StateMachineTimelineWindow initialization complete");
+            Debug.WriteLine("[DEBUG] StateMachineTimelineWindow initialization complete");
         }
 
         private void InitializeSimulation()
         {
-            Console.WriteLine("[DEBUG] InitializeSimulation called");
+            Debug.WriteLine("[DEBUG] InitializeSimulation called");
 
             simulationTimer = new DispatcherTimer();
             simulationTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
@@ -100,11 +101,11 @@ namespace SemiStandard.Simulator.Wpf
 
             // Generate initial data
             GenerateSimulationData();
-            Console.WriteLine($"[DEBUG] After GenerateSimulationData - sm1Data.Count={sm1Data.Count}");
+            Debug.WriteLine($"[DEBUG] After GenerateSimulationData - sm1Data.Count={sm1Data.Count}");
 
             // Initial draw
             DrawAllCharts();
-            Console.WriteLine("[DEBUG] InitializeSimulation complete");
+            Debug.WriteLine("[DEBUG] InitializeSimulation complete");
         }
 
         private void GenerateSimulationData()
@@ -196,7 +197,7 @@ namespace SemiStandard.Simulator.Wpf
             // Update simulation time
             simulationTime += deltaTime * 1000 * playbackSpeed; // Convert to microseconds
 
-            Console.WriteLine($"[DEBUG] Timer Tick - simulationTime={simulationTime:F0}μs, deltaTime={deltaTime:F1}ms");
+            Debug.WriteLine($"[DEBUG] Timer Tick - simulationTime={simulationTime:F0}μs, deltaTime={deltaTime:F1}ms");
 
             // In playback mode, update view offset to follow simulation time
             if (!isRealtimeMode)
@@ -213,7 +214,7 @@ namespace SemiStandard.Simulator.Wpf
 
         private void DrawAllCharts()
         {
-            Console.WriteLine($"[DEBUG] DrawAllCharts called - sm1Data.Count={sm1Data.Count}, sm2Data.Count={sm2Data.Count}, sm3Data.Count={sm3Data.Count}");
+            Debug.WriteLine($"[DEBUG] DrawAllCharts called - sm1Data.Count={sm1Data.Count}, sm2Data.Count={sm2Data.Count}, sm3Data.Count={sm3Data.Count}");
             DrawChart(SM1Canvas, sm1Data, sm1Def);
             DrawChart(SM2Canvas, sm2Data, sm2Def);
             DrawChart(SM3Canvas, sm3Data, sm3Def);
@@ -221,7 +222,7 @@ namespace SemiStandard.Simulator.Wpf
 
         private void DrawChart(Canvas canvas, List<TimelineItem> data, StateMachineDefinition definition)
         {
-            Console.WriteLine($"[DEBUG] DrawChart called for '{definition.Name}' - data.Count={data.Count}, canvas.ActualWidth={canvas.ActualWidth}");
+            Debug.WriteLine($"[DEBUG] DrawChart called for '{definition.Name}' - data.Count={data.Count}, canvas.ActualWidth={canvas.ActualWidth}");
 
             canvas.Children.Clear();
 
@@ -332,7 +333,7 @@ namespace SemiStandard.Simulator.Wpf
                 
                 if (item.Type == ItemType.State)
                 {
-                    Console.WriteLine($"[DEBUG] Processing State item: '{item.Name}' at time {item.Time}, duration {item.Duration}");
+                    Debug.WriteLine($"[DEBUG] Processing State item: '{item.Name}' at time {item.Time}, duration {item.Duration}");
 
                     double durationToDraw = item.Duration;
                     if (isRealtimeMode && item.Time + item.Duration > currentTime)
@@ -342,12 +343,12 @@ namespace SemiStandard.Simulator.Wpf
 
                     double rectWidth = durationToDraw * zoomFactor;
 
-                    Console.WriteLine($"[DEBUG] State item width: {rectWidth}, x: {x}, y: {y}");
+                    Debug.WriteLine($"[DEBUG] State item width: {rectWidth}, x: {x}, y: {y}");
 
                     // Culling
                     if (x + rectWidth < 0 || x > width)
                     {
-                        Console.WriteLine($"[DEBUG] State item culled: x+width={x + rectWidth}, canvas width={width}");
+                        Debug.WriteLine($"[DEBUG] State item culled: x+width={x + rectWidth}, canvas width={width}");
                         continue;
                     }
 
@@ -377,12 +378,12 @@ namespace SemiStandard.Simulator.Wpf
             int stateIndex = Array.IndexOf(definition.States, item.Name);
 
             // Debug output to trace state name matching
-            Console.WriteLine($"[DEBUG] DrawState: item.Name='{item.Name}', definition.States=[{string.Join(", ", definition.States)}], stateIndex={stateIndex}");
+            Debug.WriteLine($"[DEBUG] DrawState: item.Name='{item.Name}', definition.States=[{string.Join(", ", definition.States)}], stateIndex={stateIndex}");
 
             // Ensure we have a valid state index, fallback to 0 if not found
             if (stateIndex == -1)
             {
-                Console.WriteLine($"[DEBUG] State '{item.Name}' not found in definition, using index 0");
+                Debug.WriteLine($"[DEBUG] State '{item.Name}' not found in definition, using index 0");
                 stateIndex = 0; // Default to first color if state not found in definition
             }
 
@@ -401,7 +402,7 @@ namespace SemiStandard.Simulator.Wpf
                 color = Colors.Blue; // Very obvious blue
             }
 
-            Console.WriteLine($"[DEBUG] Using color: R={color.R}, G={color.G}, B={color.B} for state '{item.Name}' (stateIndex={stateIndex})");
+            Debug.WriteLine($"[DEBUG] Using color: R={color.R}, G={color.G}, B={color.B} for state '{item.Name}' (stateIndex={stateIndex})");
             
             if (isStepDisplayMode)
             {
