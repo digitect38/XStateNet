@@ -45,6 +45,8 @@ namespace SemiStandard.Simulator.Wpf
         
         // State-time tracking
         private UmlTimingDiagramWindow? _umlTimingWindow;
+        private TimelineWPF.TimelineWindow? _timelineWindow;
+        private StateMachineTimelineWindow? _debugTimelineWindow;
         private readonly Dictionary<string, List<(string fromState, string toState, DateTime timestamp)>> _stateHistory = new();
         
         // Charts
@@ -1000,6 +1002,74 @@ namespace SemiStandard.Simulator.Wpf
         }
         
         
+        private void ShowTimelineButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Check if window already exists
+            if (_timelineWindow != null && _timelineWindow.IsLoaded)
+            {
+                _timelineWindow.Activate();
+                _timelineWindow.Focus();
+            }
+            else
+            {
+                // Create new Timeline window
+                _timelineWindow = new TimelineWPF.TimelineWindow()
+                {
+                    Owner = this
+                };
+
+                // Clear any demo data
+                _timelineWindow.ClearStateMachines();
+
+                // Register all state machines for real-time monitoring
+                foreach (var kvp in _stateMachines)
+                {
+                    var machineName = kvp.Key;
+                    var machine = kvp.Value;
+
+                    // Register for real-time monitoring
+                    _timelineWindow.RegisterStateMachine(machine, machineName);
+                }
+
+                // Optionally, populate with historical state transitions if needed
+                // The real-time adapter will capture all future transitions automatically
+
+                // Remove from tracking when closed
+                _timelineWindow.Closed += (s, args) =>
+                {
+                    _timelineWindow = null;
+                };
+
+                _timelineWindow.Show();
+            }
+        }
+
+        private void ShowDebugTimelineButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Check if window already exists
+            if (_debugTimelineWindow != null && _debugTimelineWindow.IsLoaded)
+            {
+                _debugTimelineWindow.Activate();
+                _debugTimelineWindow.Focus();
+            }
+            else
+            {
+                // Create new Debug Timeline window
+                _debugTimelineWindow = new StateMachineTimelineWindow()
+                {
+                    Owner = this
+                };
+
+                // Remove from tracking when closed
+                _debugTimelineWindow.Closed += (s, args) =>
+                {
+                    _debugTimelineWindow = null;
+                };
+
+                _debugTimelineWindow.Show();
+            }
+        }
+
         private void ShowUmlTimingButton_Click(object sender, RoutedEventArgs e)
         {
             // Check if window already exists

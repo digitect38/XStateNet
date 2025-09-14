@@ -400,9 +400,19 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0">
                                         <TextBlock Text="Analyze:" VerticalAlignment="Center" Foreground="Gray" Margin="0,0,8,0"/>
 
-                                        <Button x:Name="ShowUmlTimingButton" Content="🏊 UML TIMING" 
-                                               Click="ShowUmlTimingButton_Click" 
-                                               Background="#03DAC6" Foreground="Black" 
+                                        <Button x:Name="ShowUmlTimingButton" Content="🏊 UML TIMING"
+                                               Click="ShowUmlTimingButton_Click"
+                                               Background="#03DAC6" Foreground="Black"
+                                               Padding="12,4" FontWeight="Bold" Margin="0,0,4,0"/>
+
+                                        <Button x:Name="ShowTimelineButton" Content="📊 TIMELINE"
+                                               Click="ShowTimelineButton_Click"
+                                               Background="#10B981" Foreground="White"
+                                               Padding="12,4" FontWeight="Bold" Margin="0,0,4,0"/>
+
+                                        <Button x:Name="ShowDebugTimelineButton" Content="🔍 DEBUG"
+                                               Click="ShowDebugTimelineButton_Click"
+                                               Background="#EF4444" Foreground="White"
                                                Padding="12,4" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Grid>
@@ -593,9 +603,19 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0">
                                         <TextBlock Text="Analyze:" VerticalAlignment="Center" Foreground="Gray" Margin="0,0,8,0"/>
 
-                                        <Button x:Name="ShowUmlTimingButton1" Content="🏊 UML TIMING" 
-                                            Click="ShowUmlTimingButton_Click" 
-                                            Background="#03DAC6" Foreground="Black" 
+                                        <Button x:Name="ShowUmlTimingButton1" Content="🏊 UML TIMING"
+                                            Click="ShowUmlTimingButton_Click"
+                                            Background="#03DAC6" Foreground="Black"
+                                            Padding="12,4" FontWeight="Bold" Margin="0,0,4,0"/>
+
+                                        <Button x:Name="ShowTimelineButton1" Content="📊 TIMELINE"
+                                            Click="ShowTimelineButton_Click"
+                                            Background="#10B981" Foreground="White"
+                                            Padding="12,4" FontWeight="Bold" Margin="0,0,4,0"/>
+
+                                        <Button x:Name="ShowDebugTimelineButton1" Content="🔍 DEBUG"
+                                            Click="ShowDebugTimelineButton_Click"
+                                            Background="#EF4444" Foreground="White"
                                             Padding="12,4" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Grid>
