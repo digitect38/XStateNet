@@ -1,0 +1,130 @@
+<UserControl x:Class="TimelineWPF.TimelineComponent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:TimelineWPF"
+             xmlns:vm="clr-namespace:TimelineWPF.ViewModels"
+             xmlns:controls="clr-namespace:TimelineWPF.Control"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="1200">
+    <UserControl.DataContext>
+        <vm:MainViewModel/>
+    </UserControl.DataContext>
+    <UserControl.Resources>
+        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:HeightAndMarginToOffsetConverter x:Key="HeightAndMarginToOffsetConverter"/>
+        <local:OffsetConverter x:Key="OffsetConverter"/>
+    </UserControl.Resources>
+    <Grid Background="#1F2937">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Control Bar -->
+        <Grid Grid.Row="0" Background="#111827" Height="60">
+            <StackPanel Orientation="Horizontal" Margin="20,0">
+                <!-- Playback Controls -->
+                <Button Name="StartButton" Content="▶" Width="55" Height="40" Margin="5"
+                        Command="{Binding StartCommand}" IsEnabled="{Binding IsStartEnabled}"
+                        Background="#10B981" Foreground="White" FontSize="16"/>
+                <Button Name="PauseButton" Content="⏸" Width="52" Height="40" Margin="5"
+                        Command="{Binding PauseCommand}" IsEnabled="{Binding IsPauseEnabled}"
+                        Background="#F59E0B" Foreground="White" FontSize="16"/>
+                <Button Name="ResetButton" Content="⏹" Width="54" Height="40" Margin="5"
+                        Command="{Binding ResetCommand}" IsEnabled="{Binding IsResetEnabled}"
+                        Background="#EF4444" Foreground="White" FontSize="16"/>
+
+                <!-- Status Display -->
+                <Border Background="#374151" CornerRadius="5" Padding="10,5" Margin="20,0,10,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Status: " Foreground="#9CA3AF"/>
+                        <TextBlock Text="{Binding SimulationState}" Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Time Display -->
+                <Border Background="#374151" CornerRadius="5" Padding="10,5" Margin="10,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Time: " Foreground="#9CA3AF"/>
+                        <TextBlock Foreground="White" FontWeight="Bold">
+                            <TextBlock.Text>
+                                <Binding Path="SimulationTime" StringFormat="{}{0:F3}s">
+                                    <Binding.Converter>
+                                        <local:MicrosecondToSecondConverter/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Speed Control -->
+                <StackPanel Orientation="Horizontal" Margin="20,0" VerticalAlignment="Center">
+                    <TextBlock Text="Speed: " Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                    <Slider Name="SpeedSlider" Width="100" Minimum="0.1" Maximum="10" Value="{Binding PlaybackSpeed}"
+                            IsEnabled="{Binding IsRealtimeMode, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}"
+                            VerticalAlignment="Center" Margin="5,0"/>
+                    <TextBlock Text="{Binding PlaybackSpeed, StringFormat='x{0:F1}'}" Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Mode Switches -->
+                <StackPanel Orientation="Horizontal" Margin="20,0" VerticalAlignment="Center">
+                    <CheckBox IsChecked="{Binding IsRealtimeMode, Mode=TwoWay}" Foreground="#9CA3AF" VerticalAlignment="Center">
+                        <TextBlock Text="Realtime Mode" Margin="5,0,0,0"/>
+                    </CheckBox>
+                    <CheckBox IsChecked="{Binding IsStepDisplayMode, Mode=TwoWay}" Foreground="#9CA3AF" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <TextBlock Text="Step Display" Margin="5,0,0,0"/>
+                    </CheckBox>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Timeline Content -->
+        <Border Grid.Row="1" Name="TimelineBorder" Margin="10" Background="#111827" CornerRadius="5"
+                SizeChanged="TimelineBorder_SizeChanged">
+            <Grid>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding StateMachines}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Vertical"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="180" Margin="0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- State Machine Title -->
+                                    <Border Grid.Column="0" Background="#1F2937" Padding="10">
+                                        <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Chart Control -->
+                                    <controls:StateMachineTimelineControl
+                                        Grid.Column="1"
+                                        ItemsSource="{Binding Data}"
+                                        StateDefinitions="{Binding States}"
+                                        SimulationTime="{Binding DataContext.SimulationTime, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        ViewOffset="{Binding DataContext.ViewOffset, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        ZoomFactor="{Binding DataContext.ZoomFactor, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        IsRealtimeMode="{Binding DataContext.IsRealtimeMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        IsStepDisplayMode="{Binding DataContext.IsStepDisplayMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        SizeChanged="ChartControl_SizeChanged"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Timeline Overlay -->
+                <Canvas Name="TimelineOverlay" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
