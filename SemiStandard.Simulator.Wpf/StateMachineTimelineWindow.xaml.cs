@@ -206,7 +206,8 @@ namespace SemiStandard.Simulator.Wpf
             }
 
             // Update time display
-            TimeDisplay.Text = $"Time: {(simulationTime / 1000000):F3}s";
+            if (TimeDisplay != null)
+                TimeDisplay.Text = $"Time: {(simulationTime / 1000000):F3}s";
 
             // Redraw all charts
             DrawAllCharts();
@@ -732,17 +733,23 @@ namespace SemiStandard.Simulator.Wpf
         private void UpdateSpeedControlVisibility()
         {
             // Speed control is hidden in real-time mode
-            SpeedSlider.IsEnabled = !isRealtimeMode;
-            SpeedValueText.Opacity = isRealtimeMode ? 0.5 : 1.0;
+            if (SpeedSlider != null)
+                SpeedSlider.IsEnabled = !isRealtimeMode;
+            if (SpeedValueText != null)
+                SpeedValueText.Opacity = isRealtimeMode ? 0.5 : 1.0;
         }
 
         private void UpdateButtonStates()
         {
-            StartButton.IsEnabled = simulationState != SimulationState.Running;
-            PauseButton.IsEnabled = simulationState == SimulationState.Running;
-            ResetButton.IsEnabled = simulationState != SimulationState.Stopped;
-            
-            StatusText.Text = simulationState.ToString();
+            if (StartButton != null)
+                StartButton.IsEnabled = simulationState != SimulationState.Running;
+            if (PauseButton != null)
+                PauseButton.IsEnabled = simulationState == SimulationState.Running;
+            if (ResetButton != null)
+                ResetButton.IsEnabled = simulationState != SimulationState.Stopped;
+
+            if (StatusText != null)
+                StatusText.Text = simulationState.ToString();
         }
 
         // Event handlers
@@ -774,6 +781,8 @@ namespace SemiStandard.Simulator.Wpf
 
         private void SpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (SpeedSlider == null || SpeedValueText == null) return; // Null check for initialization
+
             playbackSpeed = SpeedSlider.Value;
             SpeedValueText.Text = $"x{playbackSpeed:F1}";
         }
