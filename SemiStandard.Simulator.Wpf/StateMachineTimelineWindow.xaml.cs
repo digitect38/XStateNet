@@ -76,29 +76,35 @@ namespace SemiStandard.Simulator.Wpf
 
         public StateMachineTimelineWindow()
         {
+            Console.WriteLine("[DEBUG] StateMachineTimelineWindow constructor called");
             InitializeComponent();
             InitializeSimulation();
+            Console.WriteLine("[DEBUG] StateMachineTimelineWindow initialization complete");
         }
 
         private void InitializeSimulation()
         {
+            Console.WriteLine("[DEBUG] InitializeSimulation called");
+
             simulationTimer = new DispatcherTimer();
             simulationTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
             simulationTimer.Tick += SimulationTimer_Tick;
-            
+
             // Set initial mode
             isRealtimeMode = true;
             UpdateSpeedControlVisibility();
-            
+
             // Calculate initial zoom factor
             UpdateZoomFactorForRealtimeMode();
             playbackZoomFactor = zoomFactor;
-            
+
             // Generate initial data
             GenerateSimulationData();
-            
+            Console.WriteLine($"[DEBUG] After GenerateSimulationData - sm1Data.Count={sm1Data.Count}");
+
             // Initial draw
             DrawAllCharts();
+            Console.WriteLine("[DEBUG] InitializeSimulation complete");
         }
 
         private void GenerateSimulationData()
@@ -177,34 +183,37 @@ namespace SemiStandard.Simulator.Wpf
         private void SimulationTimer_Tick(object sender, EventArgs e)
         {
             if (simulationState != SimulationState.Running) return;
-            
+
             var now = DateTime.Now;
             if (lastTimestamp == default(DateTime))
             {
                 lastTimestamp = now;
             }
-            
+
             var deltaTime = (now - lastTimestamp).TotalMilliseconds;
             lastTimestamp = now;
-            
+
             // Update simulation time
             simulationTime += deltaTime * 1000 * playbackSpeed; // Convert to microseconds
-            
+
+            Console.WriteLine($"[DEBUG] Timer Tick - simulationTime={simulationTime:F0}μs, deltaTime={deltaTime:F1}ms");
+
             // In playback mode, update view offset to follow simulation time
             if (!isRealtimeMode)
             {
                 viewOffset = simulationTime;
             }
-            
+
             // Update time display
             TimeDisplay.Text = $"Time: {(simulationTime / 1000000):F3}s";
-            
+
             // Redraw all charts
             DrawAllCharts();
         }
 
         private void DrawAllCharts()
         {
+            Console.WriteLine($"[DEBUG] DrawAllCharts called - sm1Data.Count={sm1Data.Count}, sm2Data.Count={sm2Data.Count}, sm3Data.Count={sm3Data.Count}");
             DrawChart(SM1Canvas, sm1Data, sm1Def);
             DrawChart(SM2Canvas, sm2Data, sm2Def);
             DrawChart(SM3Canvas, sm3Data, sm3Def);
@@ -212,11 +221,13 @@ namespace SemiStandard.Simulator.Wpf
 
         private void DrawChart(Canvas canvas, List<TimelineItem> data, StateMachineDefinition definition)
         {
+            Console.WriteLine($"[DEBUG] DrawChart called for '{definition.Name}' - data.Count={data.Count}, canvas.ActualWidth={canvas.ActualWidth}");
+
             canvas.Children.Clear();
-            
+
             double width = canvas.ActualWidth;
             if (width <= 0) width = 1200; // Default width
-            
+
             double height = LANE_HEIGHT * 3 + GRID_HEIGHT;
             canvas.Height = height;
             
