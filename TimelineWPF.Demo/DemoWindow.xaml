@@ -1,0 +1,274 @@
+<Window x:Class="TimelineWPF.Demo.DemoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:timeline="clr-namespace:TimelineWPF;assembly=TimelineWPF"
+        mc:Ignorable="d"
+        Title="XStateNet Timeline Chart Demo"
+        Height="900" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        Background="#1F2937">
+
+    <Window.Resources>
+        <!-- Modern Dark Theme Colors -->
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#1F2937"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#374151"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#10B981"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#F3F4F6"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#4B5563"/>
+
+        <!-- Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#059669"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#047857"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="20,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="⏱️" FontSize="24" Margin="0,0,10,0"/>
+                    <StackPanel>
+                        <TextBlock Text="XStateNet Timeline Demo"
+                                 FontSize="20" FontWeight="Bold"
+                                 Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="Interactive State Machine Timeline Visualization"
+                                 FontSize="12" Opacity="0.7"
+                                 Foreground="{StaticResource TextBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Demo Scenarios -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Label Content="Demo:" Foreground="{StaticResource TextBrush}"
+                           VerticalAlignment="Center"/>
+                    <ComboBox x:Name="DemoSelector" Width="200"
+                              SelectedIndex="0"
+                              SelectionChanged="DemoSelector_SelectionChanged">
+                        <ComboBoxItem>Traffic Light System</ComboBoxItem>
+                        <ComboBoxItem>Elevator Controller</ComboBoxItem>
+                        <ComboBoxItem>Manufacturing Process</ComboBoxItem>
+                        <ComboBoxItem>Network Protocol</ComboBoxItem>
+                        <ComboBoxItem>Custom State Machines</ComboBoxItem>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Control Panel -->
+            <Border Grid.Column="0" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="15">
+                        <!-- Simulation Controls -->
+                        <GroupBox Header="Simulation Controls" Foreground="{StaticResource TextBrush}">
+                            <StackPanel Margin="5">
+                                <Button x:Name="StartBtn" Content="▶️ Start"
+                                        Style="{StaticResource ModernButton}"
+                                        Click="StartBtn_Click"/>
+                                <Button x:Name="PauseBtn" Content="⏸️ Pause"
+                                        Style="{StaticResource ModernButton}"
+                                        Click="PauseBtn_Click"/>
+                                <Button x:Name="ResetBtn" Content="🔄 Reset"
+                                        Style="{StaticResource ModernButton}"
+                                        Click="ResetBtn_Click"/>
+
+                                <Separator Margin="0,10"/>
+
+                                <Label Content="Speed:" Foreground="{StaticResource TextBrush}"/>
+                                <Slider x:Name="SpeedSlider"
+                                        Minimum="0.1" Maximum="5" Value="1"
+                                        TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                        ValueChanged="SpeedSlider_ValueChanged"/>
+                                <TextBlock x:Name="SpeedText" Text="1.0x"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{StaticResource TextBrush}"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Display Options -->
+                        <GroupBox Header="Display Options" Foreground="{StaticResource TextBrush}"
+                                  Margin="0,15,0,0">
+                            <StackPanel Margin="5">
+                                <CheckBox x:Name="StepModeCheck" Content="Step Display Mode"
+                                        Foreground="{StaticResource TextBrush}"
+                                        Checked="StepModeCheck_Changed"
+                                        Unchecked="StepModeCheck_Changed"/>
+                                <CheckBox x:Name="ShowEventsCheck" Content="Show Events"
+                                        IsChecked="True"
+                                        Foreground="{StaticResource TextBrush}"
+                                        Checked="ShowEventsCheck_Changed"
+                                        Unchecked="ShowEventsCheck_Changed"/>
+                                <CheckBox x:Name="ShowActionsCheck" Content="Show Actions"
+                                        IsChecked="True"
+                                        Foreground="{StaticResource TextBrush}"
+                                        Checked="ShowActionsCheck_Changed"
+                                        Unchecked="ShowActionsCheck_Changed"/>
+                                <CheckBox x:Name="RealtimeModeCheck" Content="Real-time Mode"
+                                        IsChecked="True"
+                                        Foreground="{StaticResource TextBrush}"
+                                        Checked="RealtimeModeCheck_Changed"
+                                        Unchecked="RealtimeModeCheck_Changed"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- State Machine Manager -->
+                        <GroupBox Header="State Machines" Foreground="{StaticResource TextBrush}"
+                                  Margin="0,15,0,0">
+                            <StackPanel Margin="5">
+                                <Button x:Name="AddMachineBtn" Content="➕ Add Machine"
+                                        Style="{StaticResource ModernButton}"
+                                        Click="AddMachineBtn_Click"/>
+                                <Button x:Name="RemoveMachineBtn" Content="➖ Remove Selected"
+                                        Style="{StaticResource ModernButton}"
+                                        Background="#EF4444"
+                                        Click="RemoveMachineBtn_Click"/>
+                                <ListBox x:Name="MachineList" Height="150"
+                                         Background="#1F2937"
+                                         Foreground="{StaticResource TextBrush}"
+                                         Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Event Generator -->
+                        <GroupBox Header="Event Generator" Foreground="{StaticResource TextBrush}"
+                                  Margin="0,15,0,0">
+                            <StackPanel Margin="5">
+                                <Label Content="Target Machine:" Foreground="{StaticResource TextBrush}"/>
+                                <ComboBox x:Name="TargetMachineCombo"/>
+
+                                <Label Content="Event Type:" Foreground="{StaticResource TextBrush}"/>
+                                <ComboBox x:Name="EventTypeCombo">
+                                    <ComboBoxItem>State Transition</ComboBoxItem>
+                                    <ComboBoxItem>Event</ComboBoxItem>
+                                    <ComboBoxItem>Action</ComboBoxItem>
+                                </ComboBox>
+
+                                <Label Content="Event Name:" Foreground="{StaticResource TextBrush}"/>
+                                <TextBox x:Name="EventNameText" Text="CustomEvent"/>
+
+                                <Button x:Name="TriggerEventBtn" Content="⚡ Trigger Event"
+                                        Style="{StaticResource ModernButton}"
+                                        Background="#F59E0B"
+                                        Click="TriggerEventBtn_Click"
+                                        Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Timeline Display -->
+            <Border Grid.Column="1" Background="#111827" Margin="10" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="40"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Timeline Header -->
+                    <Border Grid.Row="0" Background="#1F2937"
+                            CornerRadius="8,8,0,0"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="0,0,0,1">
+                        <Grid Margin="10,0">
+                            <TextBlock Text="Timeline Visualization"
+                                     VerticalAlignment="Center"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock x:Name="TimeDisplay"
+                                     HorizontalAlignment="Right"
+                                     VerticalAlignment="Center"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     FontFamily="Consolas"
+                                     Text="00:00:00.000"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Timeline Component -->
+                    <timeline:TimelineComponent x:Name="Timeline" Grid.Row="1"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="20,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Status: " Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock x:Name="StatusText" Text="Ready"
+                             Foreground="{StaticResource AccentBrush}"
+                             FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Machines: " Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock x:Name="MachineCountText" Text="0"
+                             Foreground="{StaticResource AccentBrush}"
+                             FontWeight="SemiBold"/>
+                    <TextBlock Text=" | Events: " Foreground="{StaticResource TextBrush}"
+                             Margin="10,0,0,0"/>
+                    <TextBlock x:Name="EventCountText" Text="0"
+                             Foreground="{StaticResource AccentBrush}"
+                             FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

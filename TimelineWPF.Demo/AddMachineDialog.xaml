@@ -1,0 +1,53 @@
+<Window x:Class="TimelineWPF.Demo.AddMachineDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add State Machine"
+        Height="250" Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#1F2937">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#1F2937"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#374151"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#10B981"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#F3F4F6"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Label Grid.Row="0" Content="Machine Name:" Foreground="{StaticResource TextBrush}"/>
+        <TextBox Grid.Row="1" x:Name="MachineNameText" Margin="0,5,0,15"
+                 Background="{StaticResource PanelBrush}"
+                 Foreground="{StaticResource TextBrush}"
+                 Padding="5"/>
+
+        <Label Grid.Row="2" Content="States (comma-separated):" Foreground="{StaticResource TextBrush}"/>
+        <TextBox Grid.Row="3" x:Name="StatesText" Margin="0,5,0,15"
+                 Background="{StaticResource PanelBrush}"
+                 Foreground="{StaticResource TextBrush}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 Padding="5"
+                 Text="idle, active, completed"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="OkButton" Content="Add" Width="80" Margin="5"
+                    Background="{StaticResource AccentBrush}"
+                    Foreground="White"
+                    Click="OkButton_Click"/>
+            <Button x:Name="CancelButton" Content="Cancel" Width="80" Margin="5"
+                    Background="#6B7280"
+                    Foreground="White"
+                    Click="CancelButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
