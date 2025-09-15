@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using TimelineWPF;
+using TimelineWPF.ViewModels;
 using XStateNet;
 
 namespace TimelineWPF.Demo
@@ -28,6 +29,12 @@ namespace TimelineWPF.Demo
 
             _stateMachines = new Dictionary<string, StateMachine>();
             _random = new Random();
+
+            // Ensure Timeline has a MainViewModel
+            if (Timeline.DataContext == null)
+            {
+                Timeline.DataContext = new MainViewModel();
+            }
 
             InitializeDemo();
             UpdateStatus();
@@ -62,18 +69,18 @@ namespace TimelineWPF.Demo
             var machine = _stateMachines[machineName];
 
             // Generate event based on current state
-            var currentState = machine.GetCurrentState();
+            var currentState = machine.GetActiveStateString();
             if (currentState != null)
             {
                 // Simulate state transition
                 var eventName = GenerateEventForState(machineName, currentState);
                 if (!string.IsNullOrEmpty(eventName))
                 {
-                    machine.SendEvent(eventName);
+                    machine.Send(eventName);
 
                     // Update timeline
-                    var newState = machine.GetCurrentState();
-                    Timeline.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
+                    var newState = machine.GetActiveStateString();
+                    Timeline.DataProvider?.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
 
                     _eventCount++;
                     UpdateStatus();
@@ -125,7 +132,7 @@ namespace TimelineWPF.Demo
         private void AddTrafficLight(string name, double delay)
         {
             var states = new List<string> { "red", "yellow", "green" };
-            Timeline.AddStateMachine(name, states, "red");
+            Timeline.DataProvider?.AddStateMachine(name, states, "red");
 
             var machine = CreateTrafficLightMachine(name);
             _stateMachines[name] = machine;
@@ -134,7 +141,7 @@ namespace TimelineWPF.Demo
             TargetMachineCombo.Items.Add(name);
 
             // Add initial state
-            Timeline.AddStateTransition(name, "", "red", delay);
+            Timeline.DataProvider?.AddStateTransition(name, "", "red", delay);
         }
 
         private StateMachine CreateTrafficLightMachine(string name)
@@ -174,7 +181,7 @@ namespace TimelineWPF.Demo
         private void AddElevator(string name)
         {
             var states = new List<string> { "idle", "moving_up", "moving_down", "doors_open", "maintenance" };
-            Timeline.AddStateMachine(name, states, "idle");
+            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
 
             var machine = CreateElevatorMachine(name);
             _stateMachines[name] = machine;
@@ -182,7 +189,7 @@ namespace TimelineWPF.Demo
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "idle", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
         }
 
         private StateMachine CreateElevatorMachine(string name)
@@ -243,7 +250,7 @@ namespace TimelineWPF.Demo
         private void AddManufacturingProcess(string name)
         {
             var states = new List<string> { "idle", "loading", "processing", "unloading", "error" };
-            Timeline.AddStateMachine(name, states, "idle");
+            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
 
             var machine = CreateManufacturingMachine(name);
             _stateMachines[name] = machine;
@@ -251,7 +258,7 @@ namespace TimelineWPF.Demo
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "idle", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
         }
 
         private StateMachine CreateManufacturingMachine(string name)
@@ -294,23 +301,23 @@ namespace TimelineWPF.Demo
         private void AddQualityControl(string name)
         {
             var states = new List<string> { "waiting", "inspecting", "pass", "fail", "rework" };
-            Timeline.AddStateMachine(name, states, "waiting");
+            Timeline.DataProvider?.AddStateMachine(name, states, "waiting");
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "waiting", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "waiting", 0);
         }
 
         private void AddPackaging(string name)
         {
             var states = new List<string> { "ready", "packaging", "sealing", "labeling", "complete" };
-            Timeline.AddStateMachine(name, states, "ready");
+            Timeline.DataProvider?.AddStateMachine(name, states, "ready");
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "ready", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "ready", 0);
         }
 
         private void LoadNetworkProtocolDemo()
@@ -328,23 +335,23 @@ namespace TimelineWPF.Demo
         private void AddTcpConnection(string name)
         {
             var states = new List<string> { "closed", "listen", "syn_sent", "syn_received", "established", "close_wait", "last_ack", "fin_wait_1", "fin_wait_2", "time_wait" };
-            Timeline.AddStateMachine(name, states, "closed");
+            Timeline.DataProvider?.AddStateMachine(name, states, "closed");
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "closed", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "closed", 0);
         }
 
         private void AddHttpSession(string name)
         {
             var states = new List<string> { "idle", "connecting", "sending", "waiting", "receiving", "processing", "done", "error" };
-            Timeline.AddStateMachine(name, states, "idle");
+            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
 
-            Timeline.AddStateTransition(name, "", "idle", 0);
+            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
         }
 
         private void ClearAll()
@@ -352,7 +359,7 @@ namespace TimelineWPF.Demo
             _stateMachines.Clear();
             MachineList.Items.Clear();
             TargetMachineCombo.Items.Clear();
-            Timeline.ClearStateMachines();
+            Timeline.DataProvider?.ClearStateMachines();
             _eventCount = 0;
             _simulationTime = 0;
             UpdateStatus();
@@ -383,7 +390,9 @@ namespace TimelineWPF.Demo
         {
             _isRunning = true;
             _timer.Start();
-            Timeline.StartSimulation();
+            // Start simulation in view model
+            if (Timeline.DataContext is MainViewModel vm)
+                vm.SimulationState = SimulationStatus.Running;
             StatusText.Text = "Running";
         }
 
@@ -391,7 +400,9 @@ namespace TimelineWPF.Demo
         {
             _isRunning = false;
             _timer.Stop();
-            Timeline.PauseSimulation();
+            // Pause simulation in view model
+            if (Timeline.DataContext is MainViewModel vm)
+                vm.SimulationState = SimulationStatus.Paused;
             StatusText.Text = "Paused";
         }
 
@@ -401,7 +412,12 @@ namespace TimelineWPF.Demo
             _timer.Stop();
             _simulationTime = 0;
             _eventCount = 0;
-            Timeline.ResetSimulation();
+            // Reset simulation in view model
+            if (Timeline.DataContext is MainViewModel vm)
+            {
+                vm.SimulationState = SimulationStatus.Stopped;
+                vm.SimulationTime = 0;
+            }
             TimeDisplay.Text = "00:00:00.000";
             StatusText.Text = "Reset";
             UpdateStatus();
@@ -412,13 +428,15 @@ namespace TimelineWPF.Demo
             if (SpeedText != null)
             {
                 SpeedText.Text = $"{SpeedSlider.Value:F1}x";
-                Timeline.SetPlaybackSpeed(SpeedSlider.Value);
+                if (Timeline.DataContext is MainViewModel vm)
+                    vm.PlaybackSpeed = SpeedSlider.Value;
             }
         }
 
         private void StepModeCheck_Changed(object sender, RoutedEventArgs e)
         {
-            Timeline.SetStepDisplayMode(StepModeCheck.IsChecked ?? false);
+            if (Timeline.DataContext is MainViewModel vm)
+                vm.IsStepDisplayMode = StepModeCheck.IsChecked ?? false;
         }
 
         private void ShowEventsCheck_Changed(object sender, RoutedEventArgs e)
@@ -433,7 +451,8 @@ namespace TimelineWPF.Demo
 
         private void RealtimeModeCheck_Changed(object sender, RoutedEventArgs e)
         {
-            Timeline.SetRealtimeMode(RealtimeModeCheck.IsChecked ?? true);
+            if (Timeline.DataContext is MainViewModel vm)
+                vm.IsRealtimeMode = RealtimeModeCheck.IsChecked ?? true;
         }
 
         private void AddMachineBtn_Click(object sender, RoutedEventArgs e)
@@ -444,7 +463,7 @@ namespace TimelineWPF.Demo
                 var name = dialog.MachineName;
                 var states = dialog.States.Split(',').Select(s => s.Trim()).ToList();
 
-                Timeline.AddStateMachine(name, states, states.First());
+                Timeline.DataProvider?.AddStateMachine(name, states, states.First());
                 MachineList.Items.Add(name);
                 TargetMachineCombo.Items.Add(name);
 
@@ -456,7 +475,7 @@ namespace TimelineWPF.Demo
         {
             if (MachineList.SelectedItem is string machineName)
             {
-                Timeline.RemoveStateMachine(machineName);
+                Timeline.DataProvider?.RemoveStateMachine(machineName);
                 _stateMachines.Remove(machineName);
                 MachineList.Items.Remove(machineName);
                 TargetMachineCombo.Items.Remove(machineName);
@@ -477,20 +496,20 @@ namespace TimelineWPF.Demo
                     if (_stateMachines.ContainsKey(machineName))
                     {
                         var machine = _stateMachines[machineName];
-                        var currentState = machine.GetCurrentState();
-                        machine.SendEvent(eventName);
-                        var newState = machine.GetCurrentState();
+                        var currentState = machine.GetActiveStateString();
+                        machine.Send(eventName);
+                        var newState = machine.GetActiveStateString();
 
-                        Timeline.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
+                        Timeline.DataProvider?.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
                     }
                 }
                 else if (EventTypeCombo.SelectedIndex == 1) // Event
                 {
-                    Timeline.AddEvent(machineName, eventName, _simulationTime * 1000);
+                    Timeline.DataProvider?.AddEvent(machineName, eventName, _simulationTime * 1000);
                 }
                 else if (EventTypeCombo.SelectedIndex == 2) // Action
                 {
-                    Timeline.AddAction(machineName, eventName, _simulationTime * 1000);
+                    Timeline.DataProvider?.AddAction(machineName, eventName, _simulationTime * 1000);
                 }
 
                 _eventCount++;
