@@ -47,6 +47,8 @@ namespace SemiStandard.Simulator.Wpf
         private double viewOffset = 0; // microseconds
         private bool isPanning = false;
         private Point lastPanPoint;
+        private int frameSkipCounter = 0;
+        private const int FRAME_SKIP = 2; // Redraw every 2nd frame for smoother performance
         
         // State machine data
         private List<TimelineItem> sm1Data = new List<TimelineItem>();
@@ -88,7 +90,7 @@ namespace SemiStandard.Simulator.Wpf
             Debug.WriteLine("[DEBUG] InitializeSimulation called");
 
             simulationTimer = new DispatcherTimer();
-            simulationTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
+            simulationTimer.Interval = TimeSpan.FromMilliseconds(33); // ~30 FPS - balanced performance
             simulationTimer.Tick += SimulationTimer_Tick;
 
             // Set initial mode
@@ -197,7 +199,11 @@ namespace SemiStandard.Simulator.Wpf
             // Update simulation time
             simulationTime += deltaTime * 1000 * playbackSpeed; // Convert to microseconds
 
-            Debug.WriteLine($"[DEBUG] Timer Tick - simulationTime={simulationTime:F0}μs, deltaTime={deltaTime:F1}ms");
+            // Only log debug every 10th frame to reduce overhead
+            if (frameSkipCounter % 10 == 0)
+            {
+                Debug.WriteLine($"[DEBUG] Timer Tick - simulationTime={simulationTime:F0}μs, deltaTime={deltaTime:F1}ms");
+            }
 
             // In playback mode, update view offset to follow simulation time
             if (!isRealtimeMode)
@@ -209,13 +215,18 @@ namespace SemiStandard.Simulator.Wpf
             if (TimeDisplay != null)
                 TimeDisplay.Text = $"Time: {(simulationTime / 1000000):F3}s";
 
-            // Redraw all charts
-            DrawAllCharts();
+            // Only redraw charts every FRAME_SKIP frames to reduce jitter
+            frameSkipCounter++;
+            if (frameSkipCounter >= FRAME_SKIP)
+            {
+                frameSkipCounter = 0;
+                DrawAllCharts();
+            }
         }
 
         private void DrawAllCharts()
         {
-            Debug.WriteLine($"[DEBUG] DrawAllCharts called - sm1Data.Count={sm1Data.Count}, sm2Data.Count={sm2Data.Count}, sm3Data.Count={sm3Data.Count}");
+            // Debug output removed for performance
             DrawChart(SM1Canvas, sm1Data, sm1Def);
             DrawChart(SM2Canvas, sm2Data, sm2Def);
             DrawChart(SM3Canvas, sm3Data, sm3Def);
@@ -223,7 +234,7 @@ namespace SemiStandard.Simulator.Wpf
 
         private void DrawChart(Canvas canvas, List<TimelineItem> data, StateMachineDefinition definition)
         {
-            Debug.WriteLine($"[DEBUG] DrawChart called for '{definition.Name}' - data.Count={data.Count}, canvas.ActualWidth={canvas.ActualWidth}");
+            // Debug output removed for performance
 
             canvas.Children.Clear();
 
@@ -328,8 +339,7 @@ namespace SemiStandard.Simulator.Wpf
         {
             double currentTime = isRealtimeMode ? simulationTime : viewOffset;
 
-            // Debug simulation time and mode
-            Debug.WriteLine($"[DEBUG] DrawObjects: isRealtimeMode={isRealtimeMode}, simulationTime={simulationTime:F0}, viewOffset={viewOffset:F0}, currentTime={currentTime:F0}");
+            // Debug output removed for performance
             double width = canvas.ActualWidth;
             
             foreach (var item in data)
