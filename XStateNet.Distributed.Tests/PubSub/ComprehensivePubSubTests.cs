@@ -385,7 +385,15 @@ namespace XStateNet.Distributed.Tests.PubSub
             }
 
             await Task.WhenAll(tasks);
-            await Task.Delay(1000); // Allow all events to process
+
+            // Wait for all events to be processed with timeout
+            var timeout = TimeSpan.FromSeconds(10);
+            var stopwatch = Stopwatch.StartNew();
+
+            while (receivedEvents.Count < totalEvents && stopwatch.Elapsed < timeout)
+            {
+                await Task.Delay(100);
+            }
 
             // Assert
             Assert.Equal(totalEvents, receivedEvents.Count);
