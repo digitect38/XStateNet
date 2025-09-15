@@ -737,9 +737,9 @@ namespace SemiStandard.Simulator.Wpf
         {
             double width = SM1Canvas.ActualWidth;
             if (width <= 0) width = 1200;
-            // Show 100 seconds (100,000,000 microseconds) in the view for better visibility
-            // This gives us a wider view of the timeline
-            zoomFactor = width / 100000000; // Was 10000000, now 100000000 for 100 seconds view
+            // Show 10 seconds (10,000,000 microseconds) in the view
+            // This provides a good balance for viewing Ping-Pong-Pang interactions
+            zoomFactor = width / 10000000; // 10 seconds view window
             Debug.WriteLine($"[DEBUG] UpdateZoomFactorForRealtimeMode: width={width}, zoomFactor={zoomFactor:F8}");
         }
 
