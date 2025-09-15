@@ -31,13 +31,13 @@ namespace XStateNet.Distributed.Examples
 
             // Example 1: Traffic Light System with Event Notifications
             await RunTrafficLightExample(eventBus, loggerFactory);
-            /*
+            
             // Example 2: Order Processing System with Multiple Machines
             await RunOrderProcessingExample(eventBus, loggerFactory);
 
             // Example 3: Event Aggregation Example
             await RunEventAggregationExample(eventBus, loggerFactory);
-            */
+            
             Console.WriteLine("\n=== Example Complete ===");
         }
 
@@ -110,7 +110,7 @@ namespace XStateNet.Distributed.Examples
             // Subscribe to all events
             var allEventsSub = await eventBus.SubscribeToAllAsync(evt =>
             {
-                Console.WriteLine($"📨 Event: {evt.EventName} from {evt.SourceMachineId}");
+                Console.WriteLine($"📨 Event: {evt.EventName} from {(evt.SourceMachineId == "" ? "<None>" : evt.SourceMachineId)}");
             });
 
             // Start services
@@ -336,9 +336,15 @@ namespace XStateNet.Distributed.Examples
             };
 
             var counterMachine = StateMachine.CreateFromScript(counterJson, actionMap);
+#if false
             var notificationService = new EventNotificationService(
                 counterMachine, eventBus, "counter-1",
                 loggerFactory.CreateLogger<EventNotificationService>());
+#else
+            var notificationService = new OptimizedEventNotificationService(
+                counterMachine, eventBus, "counter-1", null,
+                loggerFactory.CreateLogger<OptimizedEventNotificationService>());
+#endif
 
             // Create event aggregator - batch events every 2 seconds or when 5 events accumulate
             var aggregator = notificationService.CreateAggregator<ActionExecutedNotification>(

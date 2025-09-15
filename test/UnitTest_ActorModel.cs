@@ -71,6 +71,9 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestActorCommunication()
     {
+        // Use unique IDs to avoid conflicts with parallel tests
+        var testId = Guid.NewGuid().ToString().Substring(0, 8);
+
         const string pingScript = @"
         {
             'id': 'ping',
@@ -115,24 +118,24 @@ public class UnitTest_ActorModel : IDisposable
         var pingActions = new ActionMap
         {
             ["sendPong"] = new List<NamedAction> { new NamedAction("sendPong", async (sm) => {
-                await ActorSystem.Instance.SendToActor("pong", "PING");
+                await ActorSystem.Instance.SendToActor($"pong_{testId}", "PING");
             }) }
         };
-        
+
         var pongActions = new ActionMap
         {
             ["sendPing"] = new List<NamedAction> { new NamedAction("sendPing", async (sm) => {
                 pingReceived = true;
-                await ActorSystem.Instance.SendToActor("ping", "PONG_RECEIVED");
+                await ActorSystem.Instance.SendToActor($"ping_{testId}", "PONG_RECEIVED");
                 pongReceived = true;
             }) }
         };
-        
+
         var pingMachine = StateMachine.CreateFromScript(pingScript, pingActions, _guards);
         var pongMachine = StateMachine.CreateFromScript(pongScript, pongActions, _guards);
-        
-        var pingActor = ActorSystem.Instance.Spawn("ping", id => new StateMachineActor(id, pingMachine));
-        var pongActor = ActorSystem.Instance.Spawn("pong", id => new StateMachineActor(id, pongMachine));
+
+        var pingActor = ActorSystem.Instance.Spawn($"ping_{testId}", id => new StateMachineActor(id, pingMachine));
+        var pongActor = ActorSystem.Instance.Spawn($"pong_{testId}", id => new StateMachineActor(id, pongMachine));
         
         await pingActor.StartAsync();
         await pongActor.StartAsync();
@@ -149,6 +152,9 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestChildActorSpawning()
     {
+        // Use unique IDs to avoid conflicts with parallel tests
+        var testId = Guid.NewGuid().ToString().Substring(0, 8);
+
         const string parentScript = @"
         {
             'id': 'parent',
@@ -164,7 +170,7 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         const string childScript = @"
         {
             'id': 'child',
@@ -180,24 +186,39 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         var parentMachine = StateMachine.CreateFromScript(parentScript, _actions, _guards);
         var childMachine = StateMachine.CreateFromScript(childScript, _actions, _guards);
-        
-        var parentActor = ActorSystem.Instance.Spawn("parent", id => new StateMachineActor(id, parentMachine));
+
+        var parentActor = ActorSystem.Instance.Spawn($"parent_{testId}", id => new StateMachineActor(id, parentMachine));
         await parentActor.StartAsync();
         
         // Spawn child actor
         var childActor = parentActor.SpawnChild("child1", childMachine);
         await childActor.StartAsync();
-        
-        Assert.Equal("parent.child1", childActor.Id);
+
+        Assert.Equal($"parent_{testId}.child1", childActor.Id);
         Assert.Equal(ActorStatus.Running, childActor.Status);
         Assert.Contains("active", childActor.Machine.GetActiveStateString());
         
         await childActor.SendAsync("STOP");
-        await Task.Delay(50);
-        
+
+        // Wait for the state to actually change with a timeout
+        var maxWaitTime = 1000; // 1 second timeout
+        var waitInterval = 10;
+        var elapsed = 0;
+
+        while (elapsed < maxWaitTime)
+        {
+            var currentState = childActor.Machine.GetActiveStateString();
+            if (currentState.Contains("stopped"))
+            {
+                break;
+            }
+            await Task.Delay(waitInterval);
+            elapsed += waitInterval;
+        }
+
         Assert.Contains("stopped", childActor.Machine.GetActiveStateString());
     }
     

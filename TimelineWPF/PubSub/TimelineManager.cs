@@ -15,6 +15,23 @@ namespace TimelineWPF.PubSub
         private readonly List<ITimelineSubscriber> _subscribers;
         private static TimelineManager? _instance;
         private static readonly object _lock = new object();
+        private static bool _useOptimizedEventBus = false;
+
+        /// <summary>
+        /// Configure whether to use the optimized event bus
+        /// Must be called before accessing Instance
+        /// </summary>
+        public static void ConfigureOptimizedEventBus(bool useOptimized)
+        {
+            lock (_lock)
+            {
+                if (_instance != null)
+                {
+                    throw new InvalidOperationException("Cannot change event bus configuration after TimelineManager has been initialized");
+                }
+                _useOptimizedEventBus = useOptimized;
+            }
+        }
 
         /// <summary>
         /// Singleton instance of TimelineManager
@@ -29,7 +46,7 @@ namespace TimelineWPF.PubSub
                     {
                         if (_instance == null)
                         {
-                            _instance = new TimelineManager();
+                            _instance = new TimelineManager(_useOptimizedEventBus);
                         }
                     }
                 }
@@ -47,9 +64,15 @@ namespace TimelineWPF.PubSub
         /// </summary>
         public StateMachinePublisher Publisher => _publisher;
 
-        private TimelineManager()
+        private TimelineManager() : this(false)
         {
-            _eventBus = new TimelineEventBus(enableAsyncPublishing: false);
+        }
+
+        private TimelineManager(bool useOptimizedEventBus)
+        {
+            _eventBus = useOptimizedEventBus
+                ? new OptimizedTimelineEventBus()
+                : new TimelineEventBus(enableAsyncPublishing: false);
             _publisher = new StateMachinePublisher(_eventBus);
             _subscribers = new List<ITimelineSubscriber>();
         }

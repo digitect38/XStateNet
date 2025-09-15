@@ -13,6 +13,7 @@ using Microsoft.Extensions.ObjectPool;
 using XStateNet;
 using XStateNet.Distributed.Core;
 using XStateNet.Distributed.EventBus;
+using XStateNet.Distributed.PubSub;
 
 namespace XStateNet.Distributed.PubSub.Optimized
 {
@@ -199,6 +200,17 @@ namespace XStateNet.Distributed.PubSub.Optimized
             _batchChannel.Writer.TryComplete();
 
             await Task.WhenAll(_processingTask, _batchingTask);
+        }
+
+        /// <summary>
+        /// Create an event aggregator for batch processing
+        /// </summary>
+        public EventAggregator<T> CreateAggregator<T>(
+            TimeSpan window,
+            int maxBatchSize,
+            Action<List<T>> batchHandler) where T : StateMachineEvent
+        {
+            return new EventAggregator<T>(window, maxBatchSize, batchHandler);
         }
 
         #endregion

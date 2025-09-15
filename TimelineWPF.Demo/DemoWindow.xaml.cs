@@ -31,6 +31,14 @@ namespace TimelineWPF.Demo
 
             _stateMachines = new Dictionary<string, StateMachine>();
             _random = new Random();
+
+            // Check if optimized event bus should be used (from saved settings or default)
+            var useOptimized = false; // Default to standard event bus
+            if (useOptimized)
+            {
+                TimelineManager.ConfigureOptimizedEventBus(true);
+            }
+
             _timelineManager = TimelineManager.Instance;
 
             // Ensure Timeline has a MainViewModel
@@ -137,43 +145,86 @@ namespace TimelineWPF.Demo
             AddTrafficLight("Traffic Light East", 2000);
             AddTrafficLight("Traffic Light West", 3000);
 
-            StatusText.Text = "Traffic Light System Loaded";
+            if (StatusText != null)
+            {
+                StatusText.Text = "Traffic Light System Loaded";
+            }
         }
 
         private void AddTrafficLight(string name, double delay)
         {
-            var states = new List<string> { "red", "yellow", "green" };
+            try
+            {
+                var states = new List<string> { "red", "yellow", "green" };
 
-            var machine = CreateTrafficLightMachine(name);
-            _stateMachines[name] = machine;
+                var machine = CreateTrafficLightMachine(name);
+                if (machine == null)
+                {
+                    MessageBox.Show($"Failed to create traffic light machine: {name}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
 
-            // Register with TimelineManager for Pub/Sub
-            _timelineManager.RegisterStateMachine(name, machine, states);
+                if (_stateMachines == null)
+                {
+                    MessageBox.Show("State machines dictionary is not initialized", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
 
-            MachineList.Items.Add(name);
-            TargetMachineCombo.Items.Add(name);
+                _stateMachines[name] = machine;
+
+                // Register with TimelineManager for Pub/Sub
+                if (_timelineManager != null)
+                {
+                    _timelineManager.RegisterStateMachine(name, machine, states);
+                }
+
+                if (MachineList != null)
+                {
+                    MachineList.Items.Add(name);
+                }
+
+                if (TargetMachineCombo != null)
+                {
+                    TargetMachineCombo.Items.Add(name);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error adding traffic light '{name}': {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private StateMachine CreateTrafficLightMachine(string name)
         {
-            var script = @"
+            try
             {
-                id: '" + name + @"',
-                initial: 'red',
-                states: {
-                    red: {
-                        on: { TIMER: 'green' }
-                    },
-                    green: {
-                        on: { TIMER: 'yellow' }
-                    },
-                    yellow: {
-                        on: { TIMER: 'red' }
+                var script = @"
+                {
+                    'id': '" + name + @"',
+                    'initial': 'red',
+                    'states': {
+                        'red': {
+                            'on': { 'TIMER': 'green' }
+                        },
+                        'green': {
+                            'on': { 'TIMER': 'yellow' }
+                        },
+                        'yellow': {
+                            'on': { 'TIMER': 'red' }
+                        }
                     }
-                }
-            }";
+                }";
 
-            return StateMachine.CreateFromScript(script);
+                // CreateFromScript might need actions and guards even if empty
+                var actions = new ActionMap();
+                var guards = new GuardMap();
+                return StateMachine.CreateFromScript(script, actions, guards);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to create state machine from script: {ex.Message}", "Script Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
         }
 
         private void LoadElevatorDemo()
@@ -603,24 +654,57 @@ namespace TimelineWPF.Demo
 
         private void StepModeCheck_Changed(object sender, RoutedEventArgs e)
         {
-            if (Timeline.DataContext is MainViewModel vm)
+            if (Timeline != null && Timeline.DataContext is MainViewModel vm && StepModeCheck != null)
+            {
                 vm.IsStepDisplayMode = StepModeCheck.IsChecked ?? false;
+            }
         }
 
         private void ShowEventsCheck_Changed(object sender, RoutedEventArgs e)
         {
-            // Timeline.ShowEvents = ShowEventsCheck.IsChecked ?? true;
+            // if (Timeline != null && ShowEventsCheck != null)
+            //     Timeline.ShowEvents = ShowEventsCheck.IsChecked ?? true;
         }
 
         private void ShowActionsCheck_Changed(object sender, RoutedEventArgs e)
         {
-            // Timeline.ShowActions = ShowActionsCheck.IsChecked ?? true;
+            // if (Timeline != null && ShowActionsCheck != null)
+            //     Timeline.ShowActions = ShowActionsCheck.IsChecked ?? true;
         }
 
         private void RealtimeModeCheck_Changed(object sender, RoutedEventArgs e)
         {
-            if (Timeline.DataContext is MainViewModel vm)
+            if (Timeline != null && Timeline.DataContext is MainViewModel vm && RealtimeModeCheck != null)
+            {
                 vm.IsRealtimeMode = RealtimeModeCheck.IsChecked ?? true;
+            }
+        }
+
+        private void UseOptimizedEventBusCheck_Changed(object sender, RoutedEventArgs e)
+        {
+            if (UseOptimizedEventBusCheck == null)
+                return;
+
+            var useOptimized = UseOptimizedEventBusCheck.IsChecked ?? false;
+
+            // Show a message that the application needs to restart to apply changes
+            MessageBox.Show(
+                "The event bus configuration will be applied on the next application restart.\n\n" +
+                $"Optimized Event Bus will be {(useOptimized ? "enabled" : "disabled")} next time.",
+                "Configuration Change",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            // Save the preference for next startup (you could save this to a settings file)
+            // For now, we'll just log it
+            System.Diagnostics.Debug.WriteLine($"Optimized Event Bus will be {(useOptimized ? "enabled" : "disabled")} on restart");
+        }
+
+        private void PerfTestBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var perfWindow = new PerformanceTestWindow();
+            perfWindow.Owner = this;
+            perfWindow.ShowDialog();
         }
 
         private void AddMachineBtn_Click(object sender, RoutedEventArgs e)

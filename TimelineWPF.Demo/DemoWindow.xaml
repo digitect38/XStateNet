@@ -121,6 +121,11 @@
                                 <Button x:Name="ResetBtn" Content="🔄 Reset"
                                         Style="{StaticResource ModernButton}"
                                         Click="ResetBtn_Click"/>
+                                <Button x:Name="PerfTestBtn" Content="⚡ Perf Test"
+                                        Style="{StaticResource ModernButton}"
+                                        Background="#8B5CF6"
+                                        Click="PerfTestBtn_Click"
+                                        ToolTip="Compare Standard vs Optimized Event Bus Performance"/>
 
                                 <Separator Margin="0,10"/>
 
@@ -158,6 +163,13 @@
                                         Foreground="{StaticResource TextBrush}"
                                         Checked="RealtimeModeCheck_Changed"
                                         Unchecked="RealtimeModeCheck_Changed"/>
+                                <Separator Margin="0,10,0,10" Background="{StaticResource BorderBrush}"/>
+                                <CheckBox x:Name="UseOptimizedEventBusCheck" Content="Use Optimized Event Bus"
+                                        IsChecked="False"
+                                        Foreground="{StaticResource TextBrush}"
+                                        ToolTip="Enable the high-performance XStateNet.Distributed event bus"
+                                        Checked="UseOptimizedEventBusCheck_Changed"
+                                        Unchecked="UseOptimizedEventBusCheck_Changed"/>
                             </StackPanel>
                         </GroupBox>
 
