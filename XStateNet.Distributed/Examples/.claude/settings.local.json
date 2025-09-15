@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Develop25/XStateNet/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -7,12 +7,13 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows.Media;
 using TimelineWPF.Models;
+using TimelineWPF.PubSub;
 
 namespace TimelineWPF.ViewModels
 {
     public enum SimulationStatus { Stopped, Running, Paused }
 
-    public class MainViewModel : INotifyPropertyChanged, ITimelineDataProvider
+    public class MainViewModel : INotifyPropertyChanged, ITimelineDataProvider, ITimelineSubscriber
     {
         private SimulationStatus _simulationState;
         private double _simulationTime;
@@ -355,6 +356,53 @@ namespace TimelineWPF.ViewModels
         public IEnumerable<StateMachineDefinition> GetStateMachines()
         {
             return StateMachines;
+        }
+
+        #endregion
+
+        #region ITimelineSubscriber Implementation
+
+        public void OnTimelineMessage(ITimelineMessage message)
+        {
+            switch (message)
+            {
+                case MachineRegisteredMessage registered:
+                    AddStateMachine(registered.MachineName, registered.States, registered.InitialState);
+                    SetCurrentState(registered.MachineName, registered.InitialState, registered.Timestamp);
+                    break;
+
+                case MachineUnregisteredMessage unregistered:
+                    RemoveStateMachine(unregistered.MachineName);
+                    break;
+
+                case StateTransitionMessage transition:
+                    AddStateTransition(transition.MachineName, transition.FromState, transition.ToState, transition.Timestamp);
+                    break;
+
+                case EventMessage evt:
+                    AddEvent(evt.MachineName, evt.EventName, evt.Timestamp);
+                    break;
+
+                case ActionMessage action:
+                    AddAction(action.MachineName, action.ActionName, action.Timestamp);
+                    break;
+
+                case ErrorMessage error:
+                    // Could log errors or display them in UI
+                    System.Diagnostics.Debug.WriteLine($"Timeline Error: {error.MachineName} - {error.ErrorDescription}");
+                    break;
+            }
+        }
+
+        public void OnTimelineMessageBatch(IEnumerable<ITimelineMessage> messages)
+        {
+            // Process messages in batch for better performance
+            foreach (var message in messages)
+            {
+                OnTimelineMessage(message);
+            }
+            // Trigger single UI update after batch processing
+            OnPropertyChanged(nameof(StateMachines));
         }
 
         #endregion

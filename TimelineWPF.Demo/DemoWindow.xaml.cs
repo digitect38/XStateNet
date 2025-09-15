@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using TimelineWPF;
+using TimelineWPF.PubSub;
 using TimelineWPF.ViewModels;
 using XStateNet;
 
@@ -15,6 +16,7 @@ namespace TimelineWPF.Demo
         private readonly DispatcherTimer _timer;
         private readonly Dictionary<string, StateMachine> _stateMachines;
         private readonly Random _random;
+        private readonly TimelineManager _timelineManager;
         private double _simulationTime;
         private bool _isRunning;
         private int _eventCount;
@@ -29,11 +31,18 @@ namespace TimelineWPF.Demo
 
             _stateMachines = new Dictionary<string, StateMachine>();
             _random = new Random();
+            _timelineManager = TimelineManager.Instance;
 
             // Ensure Timeline has a MainViewModel
             if (Timeline.DataContext == null)
             {
                 Timeline.DataContext = new MainViewModel();
+            }
+
+            // Subscribe the view model to timeline events
+            if (Timeline.DataContext is MainViewModel vm)
+            {
+                _timelineManager.SubscribeViewModel(vm);
             }
 
             InitializeDemo();
@@ -76,11 +85,13 @@ namespace TimelineWPF.Demo
                 var eventName = GenerateEventForState(machineName, currentState);
                 if (!string.IsNullOrEmpty(eventName))
                 {
+                    // Send event and let Pub/Sub handle the timeline update
                     machine.Send(eventName);
 
-                    // Update timeline
+                    // Manually publish the event and transition since XStateNet doesn't have these events yet
+                    _timelineManager.PublishEvent(machineName, eventName);
                     var newState = machine.GetActiveStateString();
-                    Timeline.DataProvider?.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
+                    _timelineManager.PublishStateTransition(machineName, currentState, newState, eventName);
 
                     _eventCount++;
                     UpdateStatus();
@@ -132,16 +143,15 @@ namespace TimelineWPF.Demo
         private void AddTrafficLight(string name, double delay)
         {
             var states = new List<string> { "red", "yellow", "green" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "red");
 
             var machine = CreateTrafficLightMachine(name);
             _stateMachines[name] = machine;
 
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
+
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
-
-            // Add initial state
-            Timeline.DataProvider?.AddStateTransition(name, "", "red", delay);
         }
 
         private StateMachine CreateTrafficLightMachine(string name)
@@ -181,15 +191,15 @@ namespace TimelineWPF.Demo
         private void AddElevator(string name)
         {
             var states = new List<string> { "idle", "moving_up", "moving_down", "doors_open", "maintenance" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
 
             var machine = CreateElevatorMachine(name);
             _stateMachines[name] = machine;
 
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
+
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
-
-            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
         }
 
         private StateMachine CreateElevatorMachine(string name)
@@ -250,15 +260,15 @@ namespace TimelineWPF.Demo
         private void AddManufacturingProcess(string name)
         {
             var states = new List<string> { "idle", "loading", "processing", "unloading", "error" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
 
             var machine = CreateManufacturingMachine(name);
             _stateMachines[name] = machine;
 
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
+
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
-
-            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
         }
 
         private StateMachine CreateManufacturingMachine(string name)
@@ -301,23 +311,90 @@ namespace TimelineWPF.Demo
         private void AddQualityControl(string name)
         {
             var states = new List<string> { "waiting", "inspecting", "pass", "fail", "rework" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "waiting");
+
+            // Create a simple state machine for quality control
+            var machine = CreateQualityControlMachine(name);
+            _stateMachines[name] = machine;
+
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
+        }
 
-            Timeline.DataProvider?.AddStateTransition(name, "", "waiting", 0);
+        private StateMachine CreateQualityControlMachine(string name)
+        {
+            var script = @"
+            {
+                id: '" + name + @"',
+                initial: 'waiting',
+                states: {
+                    waiting: {
+                        on: { INSPECT: 'inspecting' }
+                    },
+                    inspecting: {
+                        on: {
+                            PASS: 'pass',
+                            FAIL: 'fail'
+                        }
+                    },
+                    pass: {
+                        on: { NEXT: 'waiting' }
+                    },
+                    fail: {
+                        on: { REWORK: 'rework' }
+                    },
+                    rework: {
+                        on: { REINSPECT: 'inspecting' }
+                    }
+                }
+            }";
+
+            return StateMachine.CreateFromScript(script);
         }
 
         private void AddPackaging(string name)
         {
             var states = new List<string> { "ready", "packaging", "sealing", "labeling", "complete" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "ready");
+
+            // Create a simple state machine for packaging
+            var machine = CreatePackagingMachine(name);
+            _stateMachines[name] = machine;
+
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
+        }
 
-            Timeline.DataProvider?.AddStateTransition(name, "", "ready", 0);
+        private StateMachine CreatePackagingMachine(string name)
+        {
+            var script = @"
+            {
+                id: '" + name + @"',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { START: 'packaging' }
+                    },
+                    packaging: {
+                        on: { PACKED: 'sealing' }
+                    },
+                    sealing: {
+                        on: { SEALED: 'labeling' }
+                    },
+                    labeling: {
+                        on: { LABELED: 'complete' }
+                    },
+                    complete: {
+                        on: { RESET: 'ready' }
+                    }
+                }
+            }";
+
+            return StateMachine.CreateFromScript(script);
         }
 
         private void LoadNetworkProtocolDemo()
@@ -335,31 +412,120 @@ namespace TimelineWPF.Demo
         private void AddTcpConnection(string name)
         {
             var states = new List<string> { "closed", "listen", "syn_sent", "syn_received", "established", "close_wait", "last_ack", "fin_wait_1", "fin_wait_2", "time_wait" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "closed");
+
+            // For simplicity, create a basic TCP state machine
+            var machine = CreateTcpMachine(name);
+            _stateMachines[name] = machine;
+
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
+        }
 
-            Timeline.DataProvider?.AddStateTransition(name, "", "closed", 0);
+        private StateMachine CreateTcpMachine(string name)
+        {
+            var script = @"
+            {
+                id: '" + name + @"',
+                initial: 'closed',
+                states: {
+                    closed: {
+                        on: { LISTEN: 'listen', SYN: 'syn_sent' }
+                    },
+                    listen: {
+                        on: { SYN: 'syn_received', CLOSE: 'closed' }
+                    },
+                    syn_sent: {
+                        on: { SYN_ACK: 'established', TIMEOUT: 'closed' }
+                    },
+                    syn_received: {
+                        on: { ACK: 'established', CLOSE: 'fin_wait_1' }
+                    },
+                    established: {
+                        on: { CLOSE: 'fin_wait_1', FIN: 'close_wait' }
+                    },
+                    close_wait: {
+                        on: { CLOSE: 'last_ack' }
+                    },
+                    last_ack: {
+                        on: { ACK: 'closed' }
+                    },
+                    fin_wait_1: {
+                        on: { FIN: 'closing', ACK: 'fin_wait_2' }
+                    },
+                    fin_wait_2: {
+                        on: { FIN: 'time_wait' }
+                    },
+                    time_wait: {
+                        on: { TIMEOUT: 'closed' }
+                    }
+                }
+            }";
+
+            return StateMachine.CreateFromScript(script);
         }
 
         private void AddHttpSession(string name)
         {
             var states = new List<string> { "idle", "connecting", "sending", "waiting", "receiving", "processing", "done", "error" };
-            Timeline.DataProvider?.AddStateMachine(name, states, "idle");
+
+            var machine = CreateHttpSessionMachine(name);
+            _stateMachines[name] = machine;
+
+            // Register with TimelineManager for Pub/Sub
+            _timelineManager.RegisterStateMachine(name, machine, states);
 
             MachineList.Items.Add(name);
             TargetMachineCombo.Items.Add(name);
+        }
 
-            Timeline.DataProvider?.AddStateTransition(name, "", "idle", 0);
+        private StateMachine CreateHttpSessionMachine(string name)
+        {
+            var script = @"
+            {
+                id: '" + name + @"',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { CONNECT: 'connecting' }
+                    },
+                    connecting: {
+                        on: { CONNECTED: 'sending', ERROR: 'error' }
+                    },
+                    sending: {
+                        on: { SENT: 'waiting', ERROR: 'error' }
+                    },
+                    waiting: {
+                        on: { RESPONSE: 'receiving', TIMEOUT: 'error' }
+                    },
+                    receiving: {
+                        on: { RECEIVED: 'processing', ERROR: 'error' }
+                    },
+                    processing: {
+                        on: { COMPLETE: 'done', ERROR: 'error' }
+                    },
+                    done: {
+                        on: { RESET: 'idle' }
+                    },
+                    error: {
+                        on: { RETRY: 'idle' }
+                    }
+                }
+            }";
+
+            return StateMachine.CreateFromScript(script);
         }
 
         private void ClearAll()
         {
+            // Clear TimelineManager registrations
+            _timelineManager.Clear();
+
             _stateMachines.Clear();
             MachineList.Items.Clear();
             TargetMachineCombo.Items.Clear();
-            Timeline.DataProvider?.ClearStateMachines();
             _eventCount = 0;
             _simulationTime = 0;
             UpdateStatus();
@@ -500,16 +666,19 @@ namespace TimelineWPF.Demo
                         machine.Send(eventName);
                         var newState = machine.GetActiveStateString();
 
-                        Timeline.DataProvider?.AddStateTransition(machineName, currentState, newState, _simulationTime * 1000);
+                        // Publish via Pub/Sub instead of direct update
+                        _timelineManager.PublishStateTransition(machineName, currentState, newState, eventName);
                     }
                 }
                 else if (EventTypeCombo.SelectedIndex == 1) // Event
                 {
-                    Timeline.DataProvider?.AddEvent(machineName, eventName, _simulationTime * 1000);
+                    // Publish event via Pub/Sub
+                    _timelineManager.PublishEvent(machineName, eventName);
                 }
                 else if (EventTypeCombo.SelectedIndex == 2) // Action
                 {
-                    Timeline.DataProvider?.AddAction(machineName, eventName, _simulationTime * 1000);
+                    // Publish action via Pub/Sub
+                    _timelineManager.PublishAction(machineName, eventName);
                 }
 
                 _eventCount++;
