@@ -520,8 +520,8 @@ namespace TimelineWPF.Demo
 
         private void ClearAll()
         {
-            // Clear TimelineManager registrations
-            _timelineManager.Clear();
+            // Clear TimelineManager registrations if it exists
+            _timelineManager?.Clear();
 
             _stateMachines.Clear();
             MachineList.Items.Clear();

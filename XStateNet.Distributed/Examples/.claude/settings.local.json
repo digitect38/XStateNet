@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Develop25/XStateNet/**)"
+      "Read(//c/Develop25/XStateNet/**)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet clean:*)"
     ],
     "deny": [],
     "ask": []

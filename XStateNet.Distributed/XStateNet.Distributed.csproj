@@ -11,6 +11,8 @@
     <Authors>XStateNet Contributors</Authors>
     <Description>Distributed communication layer for XStateNet state machines supporting ZeroMQ and RabbitMQ</Description>
     <PackageTags>statemachine;distributed;zeromq;rabbitmq;xstate</PackageTags>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
