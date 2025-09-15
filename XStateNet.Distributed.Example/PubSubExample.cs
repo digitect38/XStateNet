@@ -1,10 +1,11 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
+using XStateNet.Distributed.PubSub.Optimized;
 
 namespace XStateNet.Distributed.Examples
 {
@@ -24,17 +25,19 @@ namespace XStateNet.Distributed.Examples
             });
 
             // Create event bus (in-memory for this example)
+
             var eventBus = new InMemoryEventBus(loggerFactory.CreateLogger<InMemoryEventBus>());
+            
 
             // Example 1: Traffic Light System with Event Notifications
             await RunTrafficLightExample(eventBus, loggerFactory);
-
+            /*
             // Example 2: Order Processing System with Multiple Machines
             await RunOrderProcessingExample(eventBus, loggerFactory);
 
             // Example 3: Event Aggregation Example
             await RunEventAggregationExample(eventBus, loggerFactory);
-
+            */
             Console.WriteLine("\n=== Example Complete ===");
         }
 
@@ -84,12 +87,20 @@ namespace XStateNet.Distributed.Examples
             var trafficLight = StateMachine.CreateFromScript(trafficLightJson, actionMap);
 
             // Create event notification service
+#if false
             var notificationService = new EventNotificationService(
                 trafficLight,
                 eventBus,
                 "traffic-light-1",
                 loggerFactory.CreateLogger<EventNotificationService>());
-
+#else
+            var notificationService = new OptimizedEventNotificationService(
+                trafficLight,
+                eventBus,
+                "traffic-light-1",
+                null, // EventServiceOptions (optional)
+                loggerFactory.CreateLogger<OptimizedEventNotificationService>());
+#endif
             // Subscribe to state changes
             var stateChangeSub = await eventBus.SubscribeToStateChangesAsync("traffic-light-1", stateChange =>
             {
@@ -233,7 +244,7 @@ namespace XStateNet.Distributed.Examples
 
             // Create notification services
             var orderNotifications = new EventNotificationService(
-                orderMachine, eventBus, orderMachine.machineId, //"order-1",
+                orderMachine, eventBus, "order-1",
                 loggerFactory.CreateLogger<EventNotificationService>());
 
             var inventoryNotifications = new EventNotificationService(
