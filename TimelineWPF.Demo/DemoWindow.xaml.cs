@@ -523,9 +523,9 @@ namespace TimelineWPF.Demo
             // Clear TimelineManager registrations if it exists
             _timelineManager?.Clear();
 
-            _stateMachines.Clear();
-            MachineList.Items.Clear();
-            TargetMachineCombo.Items.Clear();
+            _stateMachines?.Clear();
+            MachineList?.Items.Clear();
+            TargetMachineCombo?.Items.Clear();
             _eventCount = 0;
             _simulationTime = 0;
             UpdateStatus();
@@ -533,8 +533,10 @@ namespace TimelineWPF.Demo
 
         private void UpdateStatus()
         {
-            MachineCountText.Text = _stateMachines.Count.ToString();
-            EventCountText.Text = _eventCount.ToString();
+            if (MachineCountText != null)
+                MachineCountText.Text = _stateMachines?.Count.ToString() ?? "0";
+            if (EventCountText != null)
+                EventCountText.Text = _eventCount.ToString();
         }
 
         // Event Handlers
