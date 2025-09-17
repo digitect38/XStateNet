@@ -26,31 +26,75 @@ namespace TimelineWPF.Tests
             }
         }
 
-        private StateMachine CreateTestMachine(string id)
+        private StateMachine CreateTestMachineWithFixedId(string fixedId)
         {
             var json = @"{
-                ""id"": """ + id + @""",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": {
-                                ""target"": ""active"",
-                                ""actions"": [""onStart""]
+                'id': '" + fixedId + @"',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': {
+                                'target': 'active',
+                                'actions': ['onStart']
                             }
                         }
                     },
-                    ""active"": {
-                        ""entry"": [""enterActive""],
-                        ""exit"": [""exitActive""],
-                        ""on"": {
-                            ""STOP"": ""idle"",
-                            ""ERROR"": ""error""
+                    'active': {
+                        'entry': ['enterActive'],
+                        'exit': ['exitActive'],
+                        'on': {
+                            'STOP': 'idle',
+                            'ERROR': 'error'
                         }
                     },
-                    ""error"": {
-                        ""on"": {
-                            ""RESET"": ""idle""
+                    'error': {
+                        'on': {
+                            'RESET': 'idle'
+                        }
+                    }
+                }
+            }";
+
+            var actionMap = new ActionMap
+            {
+                ["onStart"] = new List<NamedAction> { new NamedAction("onStart", _ => { }) },
+                ["enterActive"] = new List<NamedAction> { new NamedAction("enterActive", _ => { }) },
+                ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
+            };
+
+            var machine = StateMachine.CreateFromScript(json, actionMap);
+            machine.Start();
+            _machines.Add(machine);
+            return machine;
+        }
+
+        private StateMachine CreateTestMachine(string id)
+        {
+            string uniqueId = $"#{id}-{Guid.NewGuid()}";
+            var json = @"{
+                'id': '" + uniqueId + @"',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': {
+                                'target': 'active',
+                                'actions': ['onStart']
+                            }
+                        }
+                    },
+                    'active': {
+                        'entry': ['enterActive'],
+                        'exit': ['exitActive'],
+                        'on': {
+                            'STOP': 'idle',
+                            'ERROR': 'error'
+                        }
+                    },
+                    'error': {
+                        'on': {
+                            'RESET': 'idle'
                         }
                     }
                 }
@@ -178,8 +222,9 @@ namespace TimelineWPF.Tests
             adapter.RegisterStateMachine(machine, "Test Machine");
             Thread.Sleep(100);
 
-            // Act
-            adapter.UnregisterStateMachine("test-unregister");
+            // Act - Use the actual machine ID which includes the GUID
+            var actualId = machine.machineId;
+            adapter.UnregisterStateMachine(actualId);
             Thread.Sleep(100);
 
             // Assert
@@ -331,7 +376,9 @@ namespace TimelineWPF.Tests
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
 
-            var machine = CreateTestMachine("test-reregister");
+            // For this test, we need a fixed ID to test re-registration
+            var fixedId = $"test-reregister-{Guid.NewGuid():N}";
+            var machine = CreateTestMachineWithFixedId(fixedId);
 
             // Act
             adapter.RegisterStateMachine(machine, "Original Name");

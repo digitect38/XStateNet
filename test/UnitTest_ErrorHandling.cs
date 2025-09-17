@@ -60,9 +60,9 @@ public class UnitTest_ErrorHandling : IDisposable
     [Fact]
     public void TestBasicErrorHandling()
     {
-        const string script = @"
-        {
-            'id': 'errorTest',
+        string uniqueId = $"'errorTest{Guid.NewGuid():N}'";
+        string script = @"{
+            'id': " + uniqueId + @",
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -102,9 +102,9 @@ public class UnitTest_ErrorHandling : IDisposable
     [Fact]
     public void TestSpecificErrorTypeHandling()
     {
-        const string script = @"
+        string script = @"
         {
-            'id': 'specificErrorTest',
+            'id': " + $"'specificErrorTest{Guid.NewGuid():N}'" + @",
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -177,9 +177,10 @@ public class UnitTest_ErrorHandling : IDisposable
     [Fact]
     public void TestErrorHandlingWithGuards()
     {
-        const string script = @"
+        string uniqueId = $"'guardedErrorTest{Guid.NewGuid():N}'";
+        string script = @"
         {
-            'id': 'guardedErrorTest',
+            'id': " + uniqueId + @",
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -223,9 +224,10 @@ public class UnitTest_ErrorHandling : IDisposable
     [Fact]
     public void TestNestedErrorHandling()
     {
-        const string script = @"
+        string uniqueId = $"nestedErrorTest{Guid.NewGuid():N}";
+        string script = @"
         {
-            'id': 'nestedErrorTest',
+            'id': '" + uniqueId + @"',
             'initial': 'level1',
             'states': {
                 'level1': {
@@ -244,7 +246,7 @@ public class UnitTest_ErrorHandling : IDisposable
                                 }
                             },
                             'onError': {
-                                'target': '#nestedErrorTest.level1.localError',
+                                'target': '#" + uniqueId + @".level1.localError',
                                 'actions': 'handleError'
                             }
                         },
@@ -275,9 +277,10 @@ public class UnitTest_ErrorHandling : IDisposable
     [Fact]
     public void TestErrorContextPreservation()
     {
-        const string script = @"
+        string uniqueId = $"'contextTest{Guid.NewGuid():N}'";
+        string script = @"
         {
-            'id': 'contextTest',
+            'id':" + uniqueId + @",
             'initial': 'idle',
             'context': {
                 'attempts': 0

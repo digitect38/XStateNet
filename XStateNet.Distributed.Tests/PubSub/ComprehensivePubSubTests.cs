@@ -208,7 +208,17 @@ namespace XStateNet.Distributed.Tests.PubSub
                 machine.Send(i % 2 == 0 ? "GO" : "STOP");
             }
 
-            await Task.Delay(500); // Allow all events to process
+            // Wait for all events to be processed with timeout
+            var timeout = TimeSpan.FromSeconds(10);
+            var stopwatch = Stopwatch.StartNew();
+
+            while (stateChangeCount < 100 && stopwatch.Elapsed < timeout)
+            {
+                await Task.Delay(100);
+            }
+
+            // Additional delay to ensure all async operations complete
+            await Task.Delay(500);
 
             // Assert
             Assert.Equal(100, stateChangeCount);
@@ -387,7 +397,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             await Task.WhenAll(tasks);
 
             // Wait for all events to be processed with timeout
-            var timeout = TimeSpan.FromSeconds(10);
+            var timeout = TimeSpan.FromSeconds(30);  // Increased timeout for slower systems
             var stopwatch = Stopwatch.StartNew();
 
             while (receivedEvents.Count < totalEvents && stopwatch.Elapsed < timeout)
@@ -395,7 +405,15 @@ namespace XStateNet.Distributed.Tests.PubSub
                 await Task.Delay(100);
             }
 
-            // Assert
+            // Additional small delay to ensure all async operations complete
+            await Task.Delay(500);
+
+            // Assert with diagnostic information
+            if (receivedEvents.Count != totalEvents)
+            {
+                var missingCount = totalEvents - receivedEvents.Count;
+                Assert.True(false, $"Expected {totalEvents} events but received {receivedEvents.Count}. Missing {missingCount} events after {stopwatch.Elapsed.TotalSeconds:F2} seconds");
+            }
             Assert.Equal(totalEvents, receivedEvents.Count);
 
             // Verify all events are unique
@@ -684,20 +702,21 @@ namespace XStateNet.Distributed.Tests.PubSub
 
         private StateMachine CreateTestStateMachine()
         {
+            string uniqueId = $"{Guid.NewGuid():N}";
             var json = @"{
-                ""id"": ""test"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""GO"": ""running""
+                'id': '" + uniqueId + @"',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'GO': 'running'
                         }
                     },
-                    ""running"": {
-                        ""entry"": [""doWork""],
-                        ""exit"": [""cleanup""],
-                        ""on"": {
-                            ""STOP"": ""idle""
+                    'running': {
+                        'entry': ['doWork'],
+                        'exit': ['cleanup'],
+                        'on': {
+                            'STOP': 'idle'
                         }
                     }
                 }

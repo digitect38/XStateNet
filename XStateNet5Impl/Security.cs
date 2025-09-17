@@ -16,8 +16,8 @@ public static class Security
     // Maximum JSON complexity depth
     private const int MaxJsonDepth = 100;
     
-    // Regex timeout (100ms)
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
+    // Regex timeout (5 seconds - increased for complex state machines)
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
     
     /// <summary>
     /// Validates and sanitizes file paths to prevent path traversal attacks

@@ -132,10 +132,11 @@ public class ControlJob
         {
             throw new InvalidOperationException("E94ControlJobStates.json file not found.");
         }
-        
-        // Update the id in the JSON to be unique for this job
-        jsonScript = jsonScript.Replace("\"id\": \"E94ControlJobStateMachine\"", 
-                                      $"\"id\": \"job_{jobId}\"");
+
+        // Update the id in the JSON to be unique for this job (including a GUID for parallel test safety)
+        var uniqueId = $"job_{jobId}_{Guid.NewGuid():N}";
+        jsonScript = jsonScript.Replace("\"id\": \"E94ControlJobStateMachine\"",
+                                      $"\"id\": \"{uniqueId}\"");
         
         // Define action callbacks
         var actionMap = new ActionMap();
@@ -256,6 +257,6 @@ public class ControlJob
     /// </summary>
     public string GetCurrentState()
     {
-        return StateMachine.GetSourceSubStateCollection(null).ToCsvString(StateMachine, true);
+        return StateMachine.GetActiveStateString();
     }
 }

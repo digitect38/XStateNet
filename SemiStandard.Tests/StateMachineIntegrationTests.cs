@@ -87,15 +87,20 @@ public class StateMachineIntegrationTests
         var carrier = await equipment.ProcessCarrierArrival("CAR001", "LP1");
         
         // Create and start control job
-        var controlJob = jobManager.CreateControlJob("JOB001", 
+        var controlJob = jobManager.CreateControlJob("JOB001",
             new List<string> { "CAR001" }, "RECIPE001");
         controlJob.Select();
         controlJob.Start();
-        
+
+        // Wait for state transitions to complete
+        await Task.Delay(200);
+
         // Assert
         Assert.True(carrier);
         Assert.Contains("remote", equipment.GetCurrentState());
-        Assert.Contains("executing", controlJob.GetCurrentState());
+        var jobState = controlJob.GetCurrentState();
+        Assert.False(string.IsNullOrEmpty(jobState), $"Control job state should not be empty. Current state: '{jobState}'");
+        Assert.Contains("executing", jobState);
         Assert.DoesNotContain("idle", handoff.GetCurrentState());
     }
     

@@ -348,29 +348,30 @@ namespace TimelineWPF.Tests
 
         private StateMachine CreateTestMachine(string id)
         {
+            string uniqueId = $"#{id}-{Guid.NewGuid()}";
             var json = @"{
-                ""id"": """ + id + @""",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": {
-                                ""target"": ""active"",
-                                ""actions"": [""onStart""]
+                'id': '" + uniqueId + @"',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': {
+                                'target': 'active',
+                                'actions': ['onStart']
                             }
                         }
                     },
-                    ""active"": {
-                        ""entry"": [""enterActive""],
-                        ""exit"": [""exitActive""],
-                        ""on"": {
-                            ""STOP"": ""idle"",
-                            ""ERROR"": ""error""
+                    'active': {
+                        'entry': ['enterActive'],
+                        'exit': ['exitActive'],
+                        'on': {
+                            'STOP': 'idle',
+                            'ERROR': 'error'
                         }
                     },
-                    ""error"": {
-                        ""on"": {
-                            ""RESET"": ""idle""
+                    'error': {
+                        'on': {
+                            'RESET': 'idle'
                         }
                     }
                 }

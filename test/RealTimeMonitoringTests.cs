@@ -23,36 +23,37 @@ namespace XStateNet.Tests
 
         private StateMachine CreateTestMachine(string id)
         {
+            string uniqueId = $"#{id}-{Guid.NewGuid()}";
             var json = @"{
-                ""id"": """ + id + @""",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": {
-                                ""target"": ""running"",
-                                ""actions"": [""logStart""]
+                'id': '" + uniqueId + @"',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': {
+                                'target': 'running',
+                                'actions': ['logStart']
                             }
                         }
                     },
-                    ""running"": {
-                        ""entry"": [""startProcess""],
-                        ""exit"": [""stopProcess""],
-                        ""on"": {
-                            ""STOP"": {
-                                ""target"": ""idle"",
-                                ""actions"": [""logStop""]
+                    'running': {
+                        'entry': ['startProcess'],
+                        'exit': ['stopProcess'],
+                        'on': {
+                            'STOP': {
+                                'target': 'idle',
+                                'actions': ['logStop']
                             },
-                            ""PAUSE"": {
-                                ""target"": ""paused"",
-                                ""cond"": ""canPause""
+                            'PAUSE': {
+                                'target': 'paused',
+                                'cond': 'canPause'
                             }
                         }
                     },
-                    ""paused"": {
-                        ""on"": {
-                            ""RESUME"": ""running"",
-                            ""STOP"": ""idle""
+                    'paused': {
+                        'on': {
+                            'RESUME': 'running',
+                            'STOP': 'idle'
                         }
                     }
                 }
@@ -343,8 +344,8 @@ namespace XStateNet.Tests
             Assert.Equal(1, events1.Count); // Machine1 received only START
             Assert.Equal(2, events2.Count); // Machine2 received START and PAUSE
 
-            Assert.Equal("test-multi-1", monitor1.StateMachineId);
-            Assert.Equal("test-multi-2", monitor2.StateMachineId);
+            Assert.Contains("test-multi-1", monitor1.StateMachineId);
+            Assert.Contains("test-multi-2", monitor2.StateMachineId);
 
             monitor1.StopMonitoring();
             monitor2.StopMonitoring();
