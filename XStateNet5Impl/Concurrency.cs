@@ -76,14 +76,24 @@ public class EventQueue : IDisposable
         }
     }
 
+    public void Clear()
+    {
+        // Drain the channel without processing
+        while (_channel.Reader.TryRead(out _))
+        {
+            // Just discard the message
+        }
+        Logger.Debug("EventQueue cleared");
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
-        
+
         _disposed = true;
         _channel.Writer.TryComplete();
         _cancellationTokenSource.Cancel();
-        
+
         try
         {
             _processingTask.Wait(TimeSpan.FromSeconds(5));
@@ -92,11 +102,11 @@ public class EventQueue : IDisposable
         {
             Logger.Error($"Error disposing EventQueue: {ex.Message}");
         }
-        
+
         _cancellationTokenSource.Dispose();
         _processingSemaphore.Dispose();
     }
-    
+
     private record EventMessage(string EventName, DateTime Timestamp);
 }
 
@@ -320,9 +330,40 @@ public class SafeTransitionExecutor : TransitionExecutor
                     await StateMachine!.TransitDown(firstEntry.ToState(StateMachine!) as CompoundState, targetName);
                 
                 // Notify transition completed
-                var sourceNode = GetState(sourceName);
-                var targetNode = GetState(targetName);
-                StateMachine!.RaiseTransition(sourceNode as CompoundState, targetNode, eventName);
+                StateNode? sourceNode = null;
+                StateNode? targetNode = null;
+
+                // Safely get source node
+                if (!string.IsNullOrWhiteSpace(sourceName))
+                {
+                    try
+                    {
+                        sourceNode = GetState(sourceName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warning($"Failed to get source state '{sourceName}': {ex.Message}");
+                    }
+                }
+
+                // Safely get target node
+                if (!string.IsNullOrWhiteSpace(targetName))
+                {
+                    try
+                    {
+                        targetNode = GetState(targetName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warning($"Failed to get target state '{targetName}': {ex.Message}");
+                    }
+                }
+
+                // Only raise transition if both states are valid
+                if (sourceNode != null && targetNode != null)
+                {
+                    StateMachine!.RaiseTransition(sourceNode as CompoundState, targetNode, eventName);
+                }
             }
             else
             {
