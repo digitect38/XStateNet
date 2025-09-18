@@ -8,7 +8,7 @@ class Program
 {
     static void Main()
     {
-        var stateMachine = StateMachine.CreateFromScript(jsonScript, _actions).Start();
+        var stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonScript, _actions).Start();
         Log("==========================================================================");
 
         var path1 = stateMachine.GetFullTransitionSinglePath("#S.S1", "#S.S2");

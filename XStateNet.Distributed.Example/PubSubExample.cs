@@ -140,70 +140,70 @@ namespace XStateNet.Distributed.Examples
 
             // Create Order Machine
             var orderMachineJson = @"{
-                ""id"": ""order-machine"",
-                ""initial"": ""pending"",
-                ""states"": {
-                    ""pending"": {
-                        ""on"": {
-                            ""APPROVE"": ""processing"",
-                            ""REJECT"": ""cancelled""
+                'id': 'order-machine',
+                'initial': 'pending',
+                'states': {
+                    'pending': {
+                        'on': {
+                            'APPROVE': 'processing',
+                            'REJECT': 'cancelled'
                         }
                     },
-                    ""processing"": {
-                        ""on"": {
-                            ""SHIP"": ""shipped"",
-                            ""CANCEL"": ""cancelled""
+                    'processing': {
+                        'on': {
+                            'SHIP': 'shipped',
+                            'CANCEL': 'cancelled'
                         },
-                        ""entry"": [""notifyWarehouse""]
+                        'entry': ['notifyWarehouse']
                     },
-                    ""shipped"": {
-                        ""on"": {
-                            ""DELIVER"": ""delivered""
+                    'shipped': {
+                        'on': {
+                            'DELIVER': 'delivered'
                         },
-                        ""entry"": [""notifyCustomer""]
+                        'entry': ['notifyCustomer']
                     },
-                    ""delivered"": {
-                        ""type"": ""final""
+                    'delivered': {
+                        'type': 'final'
                     },
-                    ""cancelled"": {
-                        ""type"": ""final"",
-                        ""entry"": [""notifyCustomer""]
+                    'cancelled': {
+                        'type': 'final',
+                        'entry': ['notifyCustomer']
                     }
                 }
             }";
 
             // Create Inventory Machine
             var inventoryMachineJson = @"{
-                ""id"": ""inventory-machine"",
-                ""initial"": ""available"",
-                ""states"": {
-                    ""available"": {
-                        ""on"": {
-                            ""RESERVE"": ""reserved"",
-                            ""CHECK"": [
+                'id': 'inventory-machine',
+                'initial': 'available',
+                'states': {
+                    'available': {
+                        'on': {
+                            'RESERVE': 'reserved',
+                            'CHECK': [
                                 {
-                                    ""target"": ""available"",
-                                    ""cond"": ""hasStock"",
-                                    ""actions"": [""confirmStock""]
+                                    'target': 'available',
+                                    'cond': 'hasStock',
+                                    'actions': ['confirmStock']
                                 },
                                 {
-                                    ""target"": ""outOfStock""
+                                    'target': 'outOfStock'
                                 }
                             ]
                         }
                     },
-                    ""reserved"": {
-                        ""on"": {
-                            ""RELEASE"": ""available"",
-                            ""CONSUME"": ""consumed""
+                    'reserved': {
+                        'on': {
+                            'RELEASE': 'available',
+                            'CONSUME': 'consumed'
                         }
                     },
-                    ""consumed"": {
-                        ""type"": ""final""
+                    'consumed': {
+                        'type': 'final'
                     },
-                    ""outOfStock"": {
-                        ""on"": {
-                            ""RESTOCK"": ""available""
+                    'outOfStock': {
+                        'on': {
+                            'RESTOCK': 'available'
                         }
                     }
                 }
@@ -300,18 +300,18 @@ namespace XStateNet.Distributed.Examples
 
             // Create a simple counter machine
             var counterJson = @"{
-                ""id"": ""counter"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""INCREMENT"": {
-                                ""target"": ""idle"",
-                                ""actions"": [""increment""]
+                'id': 'counter',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'INCREMENT': {
+                                'target': 'idle',
+                                'actions': ['increment']
                             },
-                            ""DECREMENT"": {
-                                ""target"": ""idle"",
-                                ""actions"": [""decrement""]
+                            'DECREMENT': {
+                                'target': 'idle',
+                                'actions': ['decrement']
                             }
                         }
                     }

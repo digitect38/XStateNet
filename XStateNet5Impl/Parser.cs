@@ -23,11 +23,12 @@ public partial class StateMachine
     /// <param name="serviceCallbacks"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript, 
-        ActionMap? actionCallbacks, 
-        GuardMap? guardCallbacks, 
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
+        ActionMap? actionCallbacks,
+        GuardMap? guardCallbacks,
         ServiceMap? serviceCallbacks,
-        DelayMap? delayCallbacks
+        DelayMap? delayCallbacks,
+        ActivityMap? activityCallbacks = null
     )
     {
         if (string.IsNullOrWhiteSpace(jsonScript))
@@ -63,6 +64,7 @@ public partial class StateMachine
             stateMachine.GuardMap = guardCallbacks;
             stateMachine.ServiceMap = serviceCallbacks;
             stateMachine.DelayMap = delayCallbacks;
+            stateMachine.ActivityMap = activityCallbacks;
 
             // Thread-safe registration with conflict handling
             if (!_instanceMap.TryAdd(stateMachine.machineId, stateMachine))
@@ -80,6 +82,9 @@ public partial class StateMachine
                 {
                     throw new Exception("Invalid context object!");
                 }
+
+                // Store original context JSON for RESET functionality
+                stateMachine._originalContextJson = tokenList.ToString();
 
                 foreach (JToken contextItem in tokenList)
                 {
@@ -115,11 +120,12 @@ public partial class StateMachine
         ActionMap? actionCallbacks,
         GuardMap? guardCallbacks,
         ServiceMap? serviceCallbacks,
-        DelayMap? delayCallbacks
+        DelayMap? delayCallbacks,
+        ActivityMap? activityCallbacks = null
     )
     {
         var stateMachine = new StateMachine() { };
-        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
+        return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
     /// <summary>
     /// 
@@ -233,12 +239,26 @@ public partial class StateMachine
 
         if (onTransitionTokens != null)
         {
-            foreach (var token in onTransitionTokens)
+            foreach (JProperty prop in onTransitionTokens)
             {
-                var eventName = token.Path.Split('.').Last();
-                if (token.First != null)
+                var eventName = prop.Name;
+
+                // Debug logging
+                Logger.Debug($"Parsing on transition with event name: '{eventName}'");
+
+                if (prop.Value != null)
                 {
-                    ParseTransitions(state, TransitionType.On, eventName, token.First);
+                    // Handle empty string event as 'always' transition (XState v4 compatibility)
+                    // The event name might come through as just empty or as the literal string "''"
+                    if (string.IsNullOrEmpty(eventName) || eventName == "''" || eventName == "\"\"")
+                    {
+                        Logger.Debug($"Converting empty event '{eventName}' to always transition");
+                        ParseTransitions(state, TransitionType.Always, "always", prop.Value);
+                    }
+                    else
+                    {
+                        ParseTransitions(state, TransitionType.On, eventName, prop.Value);
+                    }
                 }
             }
         }
@@ -247,12 +267,12 @@ public partial class StateMachine
 
         if (afterTokens != null)
         {
-            foreach (var token in afterTokens)
+            foreach (JProperty prop in afterTokens)
             {
-                var delay = token.Path.Split('.').Last();
-                if (token.First != null)
+                var delay = prop.Name;
+                if (prop.Value != null)
                 {
-                    ParseTransitions(state, TransitionType.After, delay, token.First);
+                    ParseTransitions(state, TransitionType.After, delay, prop.Value);
                 }
             }
         }
@@ -293,6 +313,30 @@ public partial class StateMachine
         if (states != null)
         {
             ParseStates(states, stateName);
+        }
+
+        // Check if this compound state has history configuration
+        var historyToken = stateToken["history"];
+        if (historyToken != null && state is NormalState normalState)
+        {
+            var historyTypeStr = historyToken.ToString();
+            var historyType = historyTypeStr == "deep" ? HistoryType.Deep : HistoryType.Shallow;
+
+            // Create a history substate for this compound state
+            var historyStateName = $"{stateName}.#history";
+            var historyState = new HistoryState(historyStateName, stateName, machineId, historyType);
+
+            // Register the history state
+            if (StateMap != null)
+            {
+                StateMap[historyStateName] = historyState;
+            }
+
+            // Set it as the history substate of this normal state
+            normalState.HistorySubState = historyState;
+
+            // Add to parent's substates
+            normalState.SubStateNames.Add(historyStateName);
         }
 
         //Parser_Action.ParseActions("exit", ActionMap, stateToken);
@@ -669,7 +713,8 @@ public partial class StateMachine
         }
     }
 
-    HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;   
+    HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;
+
 }
 
 

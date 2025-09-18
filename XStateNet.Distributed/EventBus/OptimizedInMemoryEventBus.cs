@@ -30,7 +30,7 @@ namespace XStateNet.Distributed.EventBus.Optimized
         private readonly ConcurrentDictionary<string, PendingRequest> _pendingRequests = new();
 
         // Object pools
-        private readonly Microsoft.Extensions.ObjectPool.ObjectPool<StateMachineEvent> _eventPool;
+        private readonly ExpandableObjectPool<StateMachineEvent> _eventPool;
         private readonly Microsoft.Extensions.ObjectPool.ObjectPool<List<ISubscription>> _listPool;
         private readonly ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
 
@@ -63,8 +63,25 @@ namespace XStateNet.Distributed.EventBus.Optimized
             _logger = logger;
 
             // Initialize object pools
+            _eventPool = new ExpandableObjectPool<StateMachineEvent>(
+                () => new StateMachineEvent(),
+                evt =>
+                {
+                    evt.EventId = Guid.NewGuid().ToString();
+                    evt.EventName = string.Empty;
+                    evt.SourceMachineId = string.Empty;
+                    evt.TargetMachineId = null;
+                    evt.Payload = null;
+                    evt.Headers.Clear();
+                    evt.Timestamp = default;
+                    evt.CorrelationId = null;
+                    evt.CausationId = null;
+                    return true;
+                },
+                logger: _logger,
+                initialSize: 100);
+
             var poolProvider = new DefaultObjectPoolProvider();
-            _eventPool = poolProvider.Create(new EventPoolPolicy());
             _listPool = poolProvider.Create(new ListPoolPolicy());
 
             // Create unbounded channels for maximum performance
@@ -383,6 +400,7 @@ namespace XStateNet.Distributed.EventBus.Optimized
         private void ProcessPublishBatch(List<PublishWorkItem> items)
         {
             var subscriptionsToNotify = _listPool.Get();
+            var eventsToReturn = new List<StateMachineEvent>();
 
             try
             {
@@ -396,7 +414,7 @@ namespace XStateNet.Distributed.EventBus.Optimized
                         topicSubs.CopyTo(subscriptionsToNotify);
                     }
 
-                    // Pattern matches
+                    // Pattern matches including wildcard "*" pattern
                     foreach (var kvp in _patternSubscriptions)
                     {
                         if (kvp.Value.Matches(item.Topic))
@@ -405,22 +423,23 @@ namespace XStateNet.Distributed.EventBus.Optimized
                         }
                     }
 
-                    // Wildcard
-                    if (_topicSubscriptions.TryGetValue("*", out var wildcardSubs))
-                    {
-                        wildcardSubs.CopyTo(subscriptionsToNotify);
-                    }
-
-                    // Notify all subscriptions
+                    // Notify all subscriptions synchronously
                     NotifySubscriptions(subscriptionsToNotify, item.Event);
 
-                    // Return event to pool if it came from pool
+                    // Queue event for return to pool after all handlers complete
                     if (item.ReturnToPool)
                     {
-                        _eventPool.Return(item.Event);
+                        eventsToReturn.Add(item.Event);
                     }
 
                     Interlocked.Increment(ref _totalEventsPublished);
+                }
+
+                // Return events to pool after all notifications complete
+                // This ensures handlers have finished processing before events are reused
+                foreach (var evt in eventsToReturn)
+                {
+                    _eventPool.Return(evt);
                 }
             }
             finally
@@ -769,25 +788,6 @@ namespace XStateNet.Distributed.EventBus.Optimized
 
         #region Object Pool Policies
 
-        private class EventPoolPolicy : PooledObjectPolicy<StateMachineEvent>
-        {
-            public override StateMachineEvent Create() => new StateMachineEvent();
-
-            public override bool Return(StateMachineEvent obj)
-            {
-                obj.EventId = Guid.NewGuid().ToString();
-                obj.EventName = string.Empty;
-                obj.SourceMachineId = string.Empty;
-                obj.TargetMachineId = null;
-                obj.Payload = null;
-                obj.Headers.Clear();
-                obj.Timestamp = default;
-                obj.CorrelationId = null;
-                obj.CausationId = null;
-                return true;
-            }
-        }
-
         private class ListPoolPolicy : PooledObjectPolicy<List<ISubscription>>
         {
             public override List<ISubscription> Create() => new List<ISubscription>(32);
@@ -796,6 +796,119 @@ namespace XStateNet.Distributed.EventBus.Optimized
             {
                 obj.Clear();
                 return obj.Capacity < 256;
+            }
+        }
+
+        #endregion
+
+        #region Expandable Object Pool
+
+        /// <summary>
+        /// An object pool that automatically doubles in size when exhausted to prevent blocking
+        /// </summary>
+        private sealed class ExpandableObjectPool<T> where T : class
+        {
+            private readonly ConcurrentBag<T> _objects = new();
+            private readonly Func<T> _objectGenerator;
+            private readonly Func<T, bool> _resetFunc;
+            private readonly ILogger<OptimizedInMemoryEventBus>? _logger;
+            private int _currentSize;
+            private int _rentedCount;
+            private int _totalCreated;
+            private int _expansionCount;
+            private readonly object _expansionLock = new();
+            private const int MaxPoolSize = 10000; // Prevent unbounded growth
+
+            public ExpandableObjectPool(Func<T> objectGenerator, Func<T, bool> resetFunc,
+                ILogger<OptimizedInMemoryEventBus>? logger = null, int initialSize = 16)
+            {
+                _objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
+                _resetFunc = resetFunc ?? throw new ArgumentNullException(nameof(resetFunc));
+                _logger = logger;
+                _currentSize = initialSize;
+
+                // Pre-populate the pool
+                for (int i = 0; i < initialSize; i++)
+                {
+                    _objects.Add(_objectGenerator());
+                    Interlocked.Increment(ref _totalCreated);
+                }
+
+                _logger?.LogDebug("ExpandableObjectPool<{Type}> initialized with size {Size}",
+                    typeof(T).Name, initialSize);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public T Get()
+            {
+                var rentedCount = Interlocked.Increment(ref _rentedCount);
+
+                // Try to get from pool
+                if (_objects.TryTake(out T? item))
+                {
+                    return item;
+                }
+
+                // Check if we should expand the pool
+                // Only expand if rented count suggests we need more objects
+                if (rentedCount > _currentSize && _currentSize < MaxPoolSize)
+                {
+                    ExpandPool();
+
+                    // Try again after expansion
+                    if (_objects.TryTake(out item))
+                    {
+                        return item;
+                    }
+                }
+
+                // Create a new one if pool is exhausted or at max size
+                Interlocked.Increment(ref _totalCreated);
+                return _objectGenerator();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Return(T item)
+            {
+                if (_resetFunc(item))
+                {
+                    _objects.Add(item);
+                    Interlocked.Decrement(ref _rentedCount);
+                }
+            }
+
+            private void ExpandPool()
+            {
+                lock (_expansionLock)
+                {
+                    // Double-check under lock
+                    if (_currentSize >= MaxPoolSize)
+                    {
+                        _logger?.LogWarning("ExpandableObjectPool<{Type}> reached max size {MaxSize}, cannot expand further",
+                            typeof(T).Name, MaxPoolSize);
+                        return;
+                    }
+
+                    // Calculate new size (double current size, but cap at MaxPoolSize)
+                    var oldSize = _currentSize;
+                    var newSize = Math.Min(_currentSize * 2, MaxPoolSize);
+                    var itemsToAdd = newSize - _currentSize;
+
+                    // Add new items to the pool
+                    for (int i = 0; i < itemsToAdd; i++)
+                    {
+                        _objects.Add(_objectGenerator());
+                        Interlocked.Increment(ref _totalCreated);
+                    }
+
+                    _currentSize = newSize;
+                    var expansions = Interlocked.Increment(ref _expansionCount);
+
+                    _logger?.LogInformation(
+                        "ExpandableObjectPool<{Type}> expanded from {OldSize} to {NewSize} " +
+                        "(expansion #{ExpansionCount}, rented: {RentedCount}, total created: {TotalCreated})",
+                        typeof(T).Name, oldSize, newSize, expansions, _rentedCount, _totalCreated);
+                }
             }
         }
 

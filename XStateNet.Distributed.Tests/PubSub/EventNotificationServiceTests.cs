@@ -431,33 +431,33 @@ namespace XStateNet.Distributed.Tests.PubSub
         private StateMachine CreateTestStateMachine()
         {
             var json = @"{
-                ""id"": ""test"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""GO"": ""running"",
-                            ""PAUSE"": {
-                                ""target"": ""paused"",
-                                ""cond"": ""canPause""
+                'id': 'test',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'GO': 'running',
+                            'PAUSE': {
+                                'target': 'paused',
+                                'cond': 'canPause'
                             }
                         }
                     },
-                    ""running"": {
-                        ""entry"": [""startRunning""],
-                        ""exit"": [""stopRunning""],
-                        ""on"": {
-                            ""STOP"": ""idle"",
-                            ""GO"": {
-                                ""target"": ""running"",
-                                ""internal"": true,
-                                ""actions"": [""logRestart""]
+                    'running': {
+                        'entry': ['startRunning'],
+                        'exit': ['stopRunning'],
+                        'on': {
+                            'STOP': 'idle',
+                            'GO': {
+                                'target': 'running',
+                                'internal': true,
+                                'actions': ['logRestart']
                             }
                         }
                     },
-                    ""paused"": {
-                        ""on"": {
-                            ""RESUME"": ""running""
+                    'paused': {
+                        'on': {
+                            'RESUME': 'running'
                         }
                     }
                 }

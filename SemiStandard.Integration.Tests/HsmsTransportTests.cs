@@ -299,8 +299,12 @@ public class HsmsTransportTests : IAsyncDisposable
 
     private static int GetAvailablePort()
     {
-        var random = new Random();
-        return random.Next(5500, 6500);
+        // Find an actually available port by letting the OS assign one
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     public async ValueTask DisposeAsync()

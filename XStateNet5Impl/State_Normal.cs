@@ -113,12 +113,19 @@ public class NormalState : CompoundState
     /// <returns></returns>
     public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
-     
+
         string? nextActiveStateName = InitialStateName;
         var childHistoryType =  historyType;
-        
+
+        // Check if this state has history enabled and should restore last active state
+        if (HistorySubState != null && LastActiveStateName != null && targetHistoryState == null)
+        {
+            // This compound state has history, so restore the last active state
+            nextActiveStateName = LastActiveStateName;
+            childHistoryType = HistorySubState.HistoryType;
+        }
         // History state stuff
-        if (targetHistoryState != null)
+        else if (targetHistoryState != null)
         {
             // if I have a history state and it's name is same as the history state name or historyType is shallow or deep, then I should go to the last active state
             // otherwise, I should go to the initial state.

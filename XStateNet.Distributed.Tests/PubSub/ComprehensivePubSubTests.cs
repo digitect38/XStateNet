@@ -188,10 +188,11 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Arrange
             var machine = CreateTestStateMachine();
             var eventBus = new OptimizedInMemoryEventBus();
-            var service = new OptimizedEventNotificationService(machine, eventBus, "test-rapid");
+            var uniqueId = "test-rapid_" + Guid.NewGuid().ToString();
+            var service = new OptimizedEventNotificationService(machine, eventBus, uniqueId);
 
             var stateChangeCount = 0;
-            var subscription = await eventBus.SubscribeToStateChangesAsync("test-rapid", _ =>
+            var subscription = await eventBus.SubscribeToStateChangesAsync(uniqueId, _ =>
             {
                 Interlocked.Increment(ref stateChangeCount);
             });
@@ -431,7 +432,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             var subscriptions = new ConcurrentBag<IDisposable>();
             var errors = new ConcurrentBag<Exception>();
-
+            var uniqueId = "machine-" + Guid.NewGuid().ToString();
             // Act - Concurrent subscribe/unsubscribe
             var tasks = new Task[20];
             for (int i = 0; i < 20; i++)
@@ -442,7 +443,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                     {
                         for (int j = 0; j < 100; j++)
                         {
-                            var sub = await eventBus.SubscribeToMachineAsync($"machine-{j}", _ => { });
+                            var sub = await eventBus.SubscribeToMachineAsync($"{uniqueId}-{j}", _ => { });
                             subscriptions.Add(sub);
 
                             if (j % 10 == 0)

@@ -47,18 +47,18 @@ namespace XStateNet.Distributed.Tests.Benchmarks
 
             // Create state machine
             var json = @"{
-                ""id"": ""benchmark"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": {
-                            ""START"": ""running""
+                'id': 'benchmark',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': {
+                            'START': 'running'
                         }
                     },
-                    ""running"": {
-                        ""entry"": [""doWork""],
-                        ""on"": {
-                            ""STOP"": ""idle""
+                    'running': {
+                        'entry': ['doWork'],
+                        'on': {
+                            'STOP': 'idle'
                         }
                     }
                 }

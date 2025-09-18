@@ -303,8 +303,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                             if (random.Next(2) == 0 || activeSubscriptions.Count == 0)
                             {
                                 var sub = await eventBus.SubscribeToMachineAsync(
-                                    $"machine-{random.Next(100)}",
-                                    _ => { });
+                                    $"machine-{random.Next(100)}", _ => { });
                                 activeSubscriptions.Add(sub);
                                 Interlocked.Increment(ref subscribeCount);
                             }
@@ -598,14 +597,14 @@ namespace XStateNet.Distributed.Tests.PubSub
         private StateMachine CreateTestStateMachine()
         {
             var json = @"{
-                ""id"": ""test"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""GO"": ""running"" }
+                'id': 'test',
+                'initial': 'idle',
+                'states': {
+                    'idle': {
+                        'on': { 'GO': 'running' }
                     },
-                    ""running"": {
-                        ""on"": { ""STOP"": ""idle"" }
+                    'running': {
+                        'on': { 'STOP': 'idle' }
                     }
                 }
             }";

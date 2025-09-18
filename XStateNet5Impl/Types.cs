@@ -33,8 +33,8 @@ public class NamedGuard
 public class NamedService   // for "invoke"
 {
     public string Name { get; set; }
-    public Func<StateMachine, Task> ServiceFunc { get; set; }
-    public NamedService(string name, Func<StateMachine, Task> service)
+    public Func<StateMachine, CancellationToken, Task<object>> ServiceFunc { get; set; }
+    public NamedService(string name, Func<StateMachine, CancellationToken, Task<object>> service)
     {
         Name = name;
         ServiceFunc = service;

@@ -154,6 +154,70 @@ public partial class StateMachine
         }
 
         return actions;
-    }    
+    }
+
+    /// <summary>
+    /// Parse activities from JSON token
+    /// </summary>
+    /// <param name="key"></param>
+    /// <param name="activityMap"></param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    public static List<NamedActivity>? ParseActivities(string key, ActivityMap? activityMap, JToken token)
+    {
+        List<NamedActivity>? activities = null;
+
+        if (token[key] == null)
+        {
+            return null;
+        }
+
+        // Handle both string and array formats
+        List<string>? activityNames = null;
+        var activityToken = token[key];
+
+        if (activityToken?.Type == JTokenType.String)
+        {
+            // Single activity as string
+            var singleActivity = activityToken.ToObject<string>();
+            if (singleActivity != null)
+            {
+                activityNames = new List<string> { singleActivity };
+            }
+        }
+        else if (activityToken?.Type == JTokenType.Array)
+        {
+            // Multiple activities as array
+            activityNames = activityToken.ToObject<List<string>>();
+        }
+
+        if (activityNames == null)
+        {
+            return activities;
+        }
+
+        if (activityMap == null)
+        {
+            // Log warning that activities are defined but no activity map provided
+            Logger.Warning($"Activities {string.Join(", ", activityNames)} defined but no activity map provided");
+            return null;
+        }
+
+        activities = new List<NamedActivity>();
+
+        foreach (var activityName in activityNames)
+        {
+            if (activityMap.TryGetValue(activityName, out var namedActivity))
+            {
+                activities.Add(namedActivity);
+            }
+            else
+            {
+                Logger.Warning($"Activity '{activityName}' is not defined in the activity map");
+            }
+        }
+
+        return activities;
+    }
 }
 

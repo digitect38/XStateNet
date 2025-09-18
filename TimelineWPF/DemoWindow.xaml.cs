@@ -89,30 +89,30 @@ namespace TimelineWPF
             string json = type switch
             {
                 "Traffic Light" => @"{
-                    ""id"": """ + id + @""",
-                    ""initial"": ""red"",
-                    ""states"": {
-                        ""red"": {
-                            ""on"": {
-                                ""CHANGE"": {
-                                    ""target"": ""green"",
-                                    ""actions"": [""logChange""]
+                    'id': " + id + @",
+                    'initial': 'red',
+                    'states': {
+                        'red': {
+                            'on': {
+                                'CHANGE': {
+                                    'target': 'green',
+                                    'actions': ['logChange']
                                 }
                             }
                         },
-                        ""green"": {
-                            ""on"": {
-                                ""CHANGE"": {
-                                    ""target"": ""yellow"",
-                                    ""actions"": [""logChange""]
+                        'green': {
+                            'on': {
+                                'CHANGE': {
+                                    'target': 'yellow',
+                                    'actions': ['logChange']
                                 }
                             }
                         },
-                        ""yellow"": {
-                            ""on"": {
-                                ""CHANGE"": {
-                                    ""target"": ""red"",
-                                    ""actions"": [""logChange""]
+                        'yellow': {
+                            'on': {
+                                'CHANGE': {
+                                    'target': 'red',
+                                    'actions': ['logChange']
                                 }
                             }
                         }
@@ -120,71 +120,71 @@ namespace TimelineWPF
                 }",
 
                 "Door Controller" => @"{
-                    ""id"": """ + id + @""",
-                    ""initial"": ""closed"",
-                    ""states"": {
-                        ""closed"": {
-                            ""on"": {
-                                ""OPEN"": {
-                                    ""target"": ""opening"",
-                                    ""actions"": [""startMotor""]
+                    'id': " + id + @",
+                    'initial': 'closed',
+                    'states': {
+                        'closed': {
+                            'on': {
+                                'OPEN': {
+                                    'target': 'opening',
+                                    'actions': ['startMotor']
                                 }
                             }
                         },
-                        ""opening"": {
-                            ""after"": {
-                                ""500"": ""open""
+                        'opening': {
+                            'after': {
+                                '500': 'open'
                             }
                         },
-                        ""open"": {
-                            ""on"": {
-                                ""CLOSE"": {
-                                    ""target"": ""closing"",
-                                    ""actions"": [""startMotor""]
+                        'open': {
+                            'on': {
+                                'CLOSE': {
+                                    'target': 'closing',
+                                    'actions': ['startMotor']
                                 }
                             }
                         },
-                        ""closing"": {
-                            ""after"": {
-                                ""500"": ""closed""
+                        'closing': {
+                            'after': {
+                                '500': 'closed'
                             }
                         }
                     }
                 }",
 
                 _ => @"{
-                    ""id"": """ + id + @""",
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""on"": {
-                                ""CALL"": {
-                                    ""target"": ""moving"",
-                                    ""actions"": [""startMoving""]
+                    'id': " + id + @",
+                    'initial': 'idle',
+                    'states': {
+                        'idle': {
+                            'on': {
+                                'CALL': {
+                                    'target': 'moving',
+                                    'actions': ['startMoving']
                                 }
                             }
                         },
-                        ""moving"": {
-                            ""on"": {
-                                ""ARRIVE"": {
-                                    ""target"": ""arrived"",
-                                    ""actions"": [""stopMoving""]
+                        'moving': {
+                            'on': {
+                                'ARRIVE': {
+                                    'target': 'arrived',
+                                    'actions': ['stopMoving']
                                 }
                             }
                         },
-                        ""arrived"": {
-                            ""on"": {
-                                ""OPEN_DOOR"": {
-                                    ""target"": ""doorOpen"",
-                                    ""actions"": [""openDoor""]
+                        'arrived': {
+                            'on': {
+                                'OPEN_DOOR': {
+                                    'target': 'doorOpen',
+                                    'actions': ['openDoor']
                                 }
                             }
                         },
-                        ""doorOpen"": {
-                            ""on"": {
-                                ""CLOSE_DOOR"": {
-                                    ""target"": ""idle"",
-                                    ""actions"": [""closeDoor""]
+                        'doorOpen': {
+                            'on': {
+                                'CLOSE_DOOR': {
+                                    'target': 'idle',
+                                    'actions': ['closeDoor']
                                 }
                             }
                         }
