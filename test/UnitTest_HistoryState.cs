@@ -44,7 +44,7 @@ public class HistoryState : IDisposable
         }"
         ;
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson,
             new ActionMap(),
             new GuardMap()).Start();
 
@@ -102,7 +102,7 @@ public class HistoryState : IDisposable
           }"
         ;
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson,
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson,
             new ActionMap(),
             new GuardMap()).Start();
 

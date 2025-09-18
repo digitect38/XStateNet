@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
+using System.Threading;
 
 namespace XStateNet;
 
@@ -22,8 +23,11 @@ public abstract class RealState : StateNode
     public List<NamedAction>? ExitActions { get; set; }
     public NamedService? Service { get; set; }
     public NamedDelay? Delay { get; set; }
-    
+    public List<NamedActivity>? Activities { get; set; }
+
     protected System.Timers.Timer? _afterTransitionTimer;
+    private readonly Dictionary<string, Action> _activeActivityCleanups = new();
+    private CancellationTokenSource? _activityCancellationSource;
 
     public RealState(string? name, string? parentName, string? stateMachineId) 
         : base(name, parentName, stateMachineId)
@@ -41,6 +45,84 @@ public abstract class RealState : StateNode
             _afterTransitionTimer.Dispose();
             _afterTransitionTimer = null;
         }
+    }
+
+    /// <summary>
+    /// Start all activities for this state
+    /// </summary>
+    private void StartActivities()
+    {
+        _activityCancellationSource = new CancellationTokenSource();
+        if (Activities != null && StateMachine != null && StateMachine.ActivityMap != null)
+        {
+            foreach (var activity in Activities)
+            {
+                try
+                {
+                    // Get the activity from the activity map
+                    if (StateMachine?.ActivityMap?.TryGetValue(activity.Name, out var namedActivity) == true)
+                    {
+                        // Execute the activity and get the cleanup function
+                        var cleanup = namedActivity.Activity(StateMachine, _activityCancellationSource.Token);
+
+                        // Store the cleanup function for later
+                        if (cleanup != null)
+                        {
+                            _activeActivityCleanups[activity.Name] = cleanup;
+                        }
+
+                        // Notify activity started
+                        StateMachine.RaiseActivityStarted(activity.Name, Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't fail state entry
+                    Logger.Error($"Failed to start activity '{activity.Name}': {ex.Message}");
+
+                    // Store error in context
+                    if (StateMachine?.ContextMap != null)
+                    {
+                        StateMachine.ContextMap[$"_activityError_{activity.Name}"] = ex.Message;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stop all activities for this state
+    /// </summary>
+    private void StopActivities()
+    {
+        if (_activityCancellationSource == null) return;
+
+        // Cancel all activities
+        _activityCancellationSource.Cancel();
+
+        // Execute cleanup functions
+        foreach (var cleanup in _activeActivityCleanups)
+        {
+            try
+            {
+                cleanup.Value?.Invoke();
+
+                // Notify activity stopped
+                StateMachine?.RaiseActivityStopped(cleanup.Key, Name);
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue cleanup
+                Logger.Error($"Failed to stop activity '{cleanup.Key}': {ex.Message}");
+            }
+        }
+
+        // Clear the cleanups
+        _activeActivityCleanups.Clear();
+
+        // Dispose the cancellation token source
+        _activityCancellationSource.Dispose();
+        _activityCancellationSource = null;
     }
 
     /// <summary>
@@ -62,7 +144,10 @@ public abstract class RealState : StateNode
         
         // Cancel any active after transition timer
         CleanupAfterTimer();
-        
+
+        // Stop all activities for this state
+        StopActivities();
+
         // Cancel any active services for this state
         if (StateMachine != null && StateMachine.serviceInvoker != null && this is CompoundState compoundState)
         {
@@ -77,7 +162,10 @@ public abstract class RealState : StateNode
                 {
                     // Notify action execution
                     StateMachine?.RaiseActionExecuted(action.Name, Name);
-                    action.Action?.Invoke(StateMachine);
+                    if (StateMachine != null)
+                    {
+                        action.Action?.Invoke(StateMachine);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -144,7 +232,10 @@ public abstract class RealState : StateNode
                     }
                 }
             }
-            
+
+            // Start activities for this state
+            StartActivities();
+
             // Invoke service using ServiceInvoker for proper onDone/onError handling
             if (Service != null && this is CompoundState compoundState && StateMachine?.serviceInvoker != null)
             {
@@ -238,47 +329,9 @@ public abstract class CompoundState : RealState
             return Task.CompletedTask;
         }
 
-        IsActive = false;
         IsDone = false; // for next time
 
-        if (Parent != null)
-        {
-            Parent.ActiveStateName = null;
-        }
-        
-        // Cancel any active after transition timer
-        CleanupAfterTimer();
-        
-        // Cancel any active services for this state
-        if (StateMachine != null && StateMachine.serviceInvoker != null)
-        {
-            StateMachine.serviceInvoker.CancelService(this);
-        }
-
-        if (StateMachine != null && ExitActions != null)
-        {
-            foreach (var action in ExitActions)
-            {
-                try
-                {
-                    // Notify action execution
-                    StateMachine?.RaiseActionExecuted(action.Name, Name);
-                    action.Action?.Invoke(StateMachine);
-                }
-                catch (Exception ex)
-                {
-                    // Store error context and rethrow
-                    if (StateMachine?.ContextMap != null)
-                    {
-                        StateMachine.ContextMap["_error"] = ex;
-                        StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                        StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
-                    }
-                    throw;  // Rethrow to be handled at higher level
-                }
-            }
-        }
+        base.ExitState(postAction, recursive);
 
         return Task.CompletedTask;
     }
@@ -299,53 +352,16 @@ public abstract class CompoundState : RealState
 
         IsDone = false;
 
-        // Mark state as active before executing entry actions so error transitions can be triggered
-        IsActive = true;
-
-        if (Parent != null)
-        {
-            Parent.ActiveStateName = Name;
-        }
-
-        if (StateMachine != null)
-        {
-            // Execute entry actions with error handling
-            if (EntryActions != null)
-            {
-                foreach (var action in EntryActions)
-                {
-                    try
-                    {
-                        if (StateMachine != null)
-                        {
-                            // Notify action execution
-                            StateMachine.RaiseActionExecuted(action.Name, Name);
-                            action.Action(StateMachine);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Store error context and rethrow for higher level handling
-                        if (StateMachine?.ContextMap != null)
-                        {
-                            StateMachine.ContextMap["_error"] = ex;
-                            StateMachine.ContextMap["_lastError"] = ex;  // For backward compatibility
-                            StateMachine.ContextMap["_errorType"] = ex.GetType().Name;
-                            StateMachine.ContextMap["_errorMessage"] = ex.Message;
-                        }
-                        throw;  // Rethrow to be handled by TransitDown
-                    }
-                }
-            }
-            
-            // Invoke service using ServiceInvoker for proper onDone/onError handling
-            if (Service != null && this is CompoundState compoundState && StateMachine?.serviceInvoker != null)
-            {
-                _ = StateMachine.serviceInvoker.InvokeService(compoundState, Service.Name, Service);
-            }
-        }
+        base.EntryState(postAction, recursive, historyType, targetHistoryState);
 
         ScheduleAfterTransitionTimer();
+
+        // Check for always transitions after entering the state
+        // Only check if we actually have an always transition to avoid unnecessary async operations
+        if (AlwaysTransition != null)
+        {
+            CheckAndExecuteAlwaysTransition();
+        }
 
         return Task.CompletedTask;
     }
@@ -355,6 +371,8 @@ public abstract class CompoundState : RealState
     {
         if (AfterTransition == null) return;
         if (StateMachine == null) throw new Exception("StateMachine is null");
+
+        Logger.Info($">>> Scheduling after transition for state {Name} in {AfterTransition.Delay} ms");
 
         // Cancel any existing timer before creating a new one
         if (_afterTransitionTimer != null)
@@ -416,6 +434,40 @@ public abstract class CompoundState : RealState
         StateMachine.Log("");
     }
 
+    private void CheckAndExecuteAlwaysTransition()
+    {
+        if (AlwaysTransition == null || StateMachine == null) return;
+
+        // Check if guard passes (if there is one)
+        bool guardPassed = AlwaysTransition.Guard == null ||
+                          AlwaysTransition.Guard.PredicateFunc(StateMachine);
+
+        if (guardPassed)
+        {
+            Logger.Info($">>> Executing always transition from state {Name}");
+
+            // Execute the always transition immediately
+            // Use Task.Run to avoid blocking the current state entry
+            Task.Run(() =>
+            {
+                try
+                {
+                    StateMachine.transitionExecutor.Execute(AlwaysTransition, "always");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error executing always transition from {Name}: {ex.Message}");
+                    // Store error in context
+                    if (StateMachine?.ContextMap != null)
+                    {
+                        StateMachine.ContextMap["_error"] = ex;
+                        StateMachine.ContextMap["_errorMessage"] = ex.Message;
+                    }
+                }
+            });
+        }
+    }
+
     public virtual void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // Defensive null check with more context
@@ -456,13 +508,16 @@ public abstract class CompoundState : RealState
         if (AlwaysTransition != null)
             transitionList.Add((this, AlwaysTransition, "always"));
 
-        /* After and onDone transition should be called other 
-         * 
+        // Handle onDone event from service invocations
+        if (eventName == "onDone" && OnDoneTransition != null)
+        {
+            transitionList.Add((this, OnDoneTransition, "onDone"));
+        }
+
+        /* After transition should be called by timer
+         *
         if (AfterTransition != null)
             transitionList.Add((this, AfterTransition, "after"));
-        onDone transition should be called by OnDone() methid
-        if (OnDoneTransition != null)
-            transitionList.Add((this, OnDoneTransition, "onDone"));
         */
     }
 
@@ -486,6 +541,7 @@ public abstract class Parser_RealState : Parser_StateBase
         state.EntryActions = StateMachine.ParseActions("entry", StateMachine.ActionMap, stateToken);
         state.ExitActions = StateMachine.ParseActions("exit", StateMachine.ActionMap, stateToken);
         state.Service = StateMachine.ParseService("invoke", StateMachine.ServiceMap, stateToken);
+        state.Activities = StateMachine.ParseActivities("activities", StateMachine.ActivityMap, stateToken);
         
         // Parse onDone and onError transitions from invoke if present
         var invokeToken = stateToken["invoke"];
@@ -495,7 +551,19 @@ public abstract class Parser_RealState : Parser_StateBase
             var onDoneToken = invokeToken["onDone"];
             if (onDoneToken != null)
             {
-                var targetName = onDoneToken["target"]?.ToString();
+                string? targetName = null;
+                JToken? actionsToken = null;
+
+                if (onDoneToken.Type == JTokenType.String)
+                {
+                    targetName = onDoneToken.ToString();
+                }
+                else if (onDoneToken.Type == JTokenType.Object)
+                {
+                    targetName = onDoneToken["target"]?.ToString();
+                    actionsToken = onDoneToken["actions"];
+                }
+
                 if (!string.IsNullOrEmpty(targetName) && !string.IsNullOrEmpty(state.Name))
                 {
                     // Ensure target name has the proper full path
@@ -521,7 +589,6 @@ public abstract class Parser_RealState : Parser_StateBase
                     };
                     
                     // Parse actions if present
-                    var actionsToken = onDoneToken["actions"];
                     if (actionsToken != null)
                     {
                         onDoneTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, onDoneToken);
@@ -535,49 +602,100 @@ public abstract class Parser_RealState : Parser_StateBase
                 }
             }
             
-            // Parse onError transition from invoke  
+            // Parse onError transition from invoke
             var onErrorToken = invokeToken["onError"];
             if (onErrorToken != null)
             {
-                var targetName = onErrorToken["target"]?.ToString();
-                if (!string.IsNullOrEmpty(targetName) && !string.IsNullOrEmpty(state.Name))
+                // Initialize onError transition list if not exists
+                if (!state.OnTransitionMap.ContainsKey("onError"))
                 {
-                    // Ensure target name has the proper full path
-                    // state.Name already includes the machine ID and # prefix
-                    if (!targetName.StartsWith("#") && !targetName.StartsWith("."))
+                    state.OnTransitionMap["onError"] = new List<Transition>();
+                }
+
+                // Handle array of onError transitions (like guarded transitions)
+                if (onErrorToken.Type == JTokenType.Array)
+                {
+                    foreach (var errorItem in onErrorToken)
                     {
-                        // Get the parent path from the current state
-                        var parentPath = state.Name.Substring(0, state.Name.LastIndexOf('.'));
-                        targetName = $"{parentPath}.{targetName}";
+                        var onErrorTransition = ParseSingleOnErrorTransition(errorItem, state.Name ?? string.Empty, machineId ?? string.Empty, StateMachine);
+                        if (onErrorTransition != null)
+                        {
+                            state.OnTransitionMap["onError"].Add(onErrorTransition);
+                        }
                     }
-                    else if (targetName.StartsWith("."))
+                }
+                else
+                {
+                    // Handle single onError transition (string or object)
+                    var onErrorTransition = ParseSingleOnErrorTransition(onErrorToken, state.Name ?? string.Empty, machineId ?? string.Empty, StateMachine);
+                    if (onErrorTransition != null)
                     {
-                        // Relative target - resolve relative to current state's parent
-                        var parentPath = state.Name.Substring(0, state.Name.LastIndexOf('.'));
-                        targetName = $"{parentPath}{targetName}";
+                        state.OnTransitionMap["onError"].Add(onErrorTransition);
                     }
-                    
-                    var onErrorTransition = new OnTransition(machineId)
-                    {
-                        Event = "onError",
-                        SourceName = state.Name,
-                        TargetName = targetName
-                    };
-                    
-                    // Parse actions if present
-                    var actionsToken = onErrorToken["actions"];
-                    if (actionsToken != null)
-                    {
-                        onErrorTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, onErrorToken);
-                    }
-                    
-                    if (!state.OnTransitionMap.ContainsKey("onError"))
-                    {
-                        state.OnTransitionMap["onError"] = new List<Transition>();
-                    }
-                    state.OnTransitionMap["onError"].Add(onErrorTransition);
                 }
             }
         }
+    }
+
+    private static OnTransition? ParseSingleOnErrorTransition(JToken onErrorToken, string stateName, string machineId, StateMachine StateMachine)
+    {
+        string? targetName = null;
+        JToken? actionsToken = null;
+        JToken? condToken = null;
+
+        if (onErrorToken.Type == JTokenType.String)
+        {
+            targetName = onErrorToken.ToString();
+        }
+        else if (onErrorToken.Type == JTokenType.Object)
+        {
+            targetName = onErrorToken["target"]?.ToString();
+            actionsToken = onErrorToken["actions"];
+            condToken = onErrorToken["cond"];
+        }
+
+        if (string.IsNullOrEmpty(targetName) || string.IsNullOrEmpty(stateName))
+        {
+            return null;
+        }
+
+        // Ensure target name has the proper full path
+        if (!targetName.StartsWith("#") && !targetName.StartsWith("."))
+        {
+            // Get the parent path from the current state
+            var parentPath = stateName.Substring(0, stateName.LastIndexOf('.'));
+            targetName = $"{parentPath}.{targetName}";
+        }
+        else if (targetName.StartsWith("."))
+        {
+            // Relative target - resolve relative to current state's parent
+            var parentPath = stateName.Substring(0, stateName.LastIndexOf('.'));
+            targetName = $"{parentPath}{targetName}";
+        }
+
+        var onErrorTransition = new OnTransition(machineId)
+        {
+            Event = "onError",
+            SourceName = stateName,
+            TargetName = targetName
+        };
+
+        // Parse guard condition if present
+        if (condToken != null && StateMachine?.GuardMap != null)
+        {
+            var guardName = condToken.ToString();
+            if (StateMachine.GuardMap.TryGetValue(guardName, out var guard))
+            {
+                onErrorTransition.Guard = guard;
+            }
+        }
+
+        // Parse actions if present
+        if (actionsToken != null && StateMachine?.ActionMap != null)
+        {
+            onErrorTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, onErrorToken);
+        }
+
+        return onErrorTransition;
     }
 }

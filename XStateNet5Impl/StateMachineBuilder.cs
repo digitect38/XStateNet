@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace XStateNet
 {
@@ -8,13 +9,17 @@ namespace XStateNet
     /// </summary>
     public class StateMachineBuilder
     {
-        private string _jsonScript = string.Empty;
-        private string _baseId = string.Empty;
-        private IsolationMode _isolationMode = IsolationMode.None;
-        private string? _isolationPrefix;
-        private ActionMap? _actionMap;
-        private Dictionary<string, object> _context = new();
-        private bool _autoStart = false;
+        private string _jsonScript = string.Empty;                  // The JSON script defining the state machine
+        private string _baseId = string.Empty;                      // The ID in the JSON to be replaced
+        private IsolationMode _isolationMode = IsolationMode.None;  // Isolation mode
+        private string? _isolationPrefix;                           // Optional prefix for custom isolation
+        private ActionMap? _actionMap;                              // Action map for actions        
+        private GuardMap? _guardMap;                                // Guard map for guards
+        private ServiceMap? serviceMap;                             // Service map for services
+        private DelayMap? delayMap;                                 // Delay map for delays
+        private ActivityMap? activityMap;                           // Activity map for activities
+        private Dictionary<string, object> _context = new();        // Context data to be added
+        private bool _autoStart = false;                            // Whether to auto-start the state machine
 
         /// <summary>
         /// Isolation modes for state machine instances
@@ -36,7 +41,6 @@ namespace XStateNet
         }
 
         private static int _instanceCounter = 0;
-        private static readonly object _counterLock = new object();
 
         /// <summary>
         /// Set the JSON script for the state machine
@@ -76,6 +80,51 @@ namespace XStateNet
         }
 
         /// <summary>
+        /// Set the guard map for the state machine
+        /// </summary>
+        /// <param name="guardMap"></param>
+        /// <returns></returns>
+        public StateMachineBuilder WithGuardMap(GuardMap guardMap)
+        {
+            _guardMap = guardMap;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the service map for the state machine
+        /// </summary>
+        /// <param name="serviceMap"></param>
+        /// <returns></returns>
+
+        public StateMachineBuilder WithServiceMap(ServiceMap serviceMap)
+        {
+            this.serviceMap = serviceMap;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the delay map for the state machine
+        /// </summary>
+        /// <param name="delayMap"></param>
+        /// <returns></returns>
+        public StateMachineBuilder WithDelayMap(DelayMap delayMap)
+        {
+            this.delayMap = delayMap;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the activity map for the state machine
+        /// </summary>
+        /// <param name="activityMap"></param>
+        /// <returns></returns>
+        public StateMachineBuilder WithActivityMap(ActivityMap activityMap)
+        {
+            this.activityMap = activityMap;
+            return this;
+        }
+
+        /// <summary>
         /// Add context data to the state machine
         /// </summary>
         public StateMachineBuilder WithContext(string key, object value)
@@ -102,12 +151,21 @@ namespace XStateNet
                 throw new InvalidOperationException("JSON script is required");
 
             var processedScript = ProcessJsonScript(instanceId);
-            var stateMachine = StateMachine.CreateFromScript(processedScript, _actionMap);
+            var stateMachine = StateMachine.CreateFromScript(
+                processedScript,
+                _actionMap,
+                _guardMap,
+                serviceMap,
+                delayMap,
+                activityMap);
 
             // Apply context
-            foreach (var kvp in _context)
+            if (stateMachine.ContextMap != null)
             {
-                stateMachine.ContextMap[kvp.Key] = kvp.Value;
+                foreach (var kvp in _context)
+                {
+                    stateMachine.ContextMap[kvp.Key] = kvp.Value;
+                }
             }
 
             if (_autoStart)
@@ -121,7 +179,7 @@ namespace XStateNet
         /// <summary>
         /// Process the JSON script with isolation
         /// </summary>
-        private string ProcessJsonScript(string? instanceId)
+        public string ProcessJsonScript(string? instanceId)
         {
             if (_isolationMode == IsolationMode.None || string.IsNullOrEmpty(_baseId))
                 return _jsonScript;
@@ -133,6 +191,7 @@ namespace XStateNet
             return _jsonScript.Replace(searchPattern, replacement);
         }
 
+        
         /// <summary>
         /// Generate a unique ID based on isolation mode
         /// </summary>
@@ -156,10 +215,7 @@ namespace XStateNet
         /// </summary>
         private static int GetNextCounter()
         {
-            lock (_counterLock)
-            {
-                return ++_instanceCounter;
-            }
+            return Interlocked.Increment(ref _instanceCounter);
         }
 
         /// <summary>

@@ -19,7 +19,7 @@ namespace SuperComplexStateMachineTests
             _guards = new GuardMap();
 
             // Load the state machine from the provided JSON script
-            _stateMachine = StateMachine.CreateFromScript(json, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions, _guards).Start();
         }
 
 

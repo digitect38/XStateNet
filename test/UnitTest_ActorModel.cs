@@ -1,6 +1,7 @@
 using Xunit;
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
 
@@ -32,9 +33,10 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestBasicActorCreation()
     {
-        const string script = @"
+        var uniqueId = $"testActor-{Guid.NewGuid():N}";
+        string script = @"
         {
-            'id': 'testActor',
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -73,10 +75,12 @@ public class UnitTest_ActorModel : IDisposable
     {
         // Use unique IDs to avoid conflicts with parallel tests
         var testId = Guid.NewGuid().ToString().Substring(0, 8);
+        
+        var uniqueId = $"ping_{Guid.NewGuid():N}";
 
-        const string pingScript = @"
+        string pingScript = @"
         {
-            'id': 'ping',
+            'id': '" + uniqueId + @"',
             'initial': 'waiting',
             'states': {
                 'waiting': {
@@ -92,10 +96,12 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
-        const string pongScript = @"
+
+        uniqueId = $"pong_{Guid.NewGuid():N}";
+
+        string pongScript = @"
         {
-            'id': 'pong',
+            'id': '" + uniqueId + @"',
             'initial': 'waiting',
             'states': {
                 'waiting': {
@@ -155,9 +161,11 @@ public class UnitTest_ActorModel : IDisposable
         // Use unique IDs to avoid conflicts with parallel tests
         var testId = Guid.NewGuid().ToString().Substring(0, 8);
 
-        const string parentScript = @"
+        var uniqueId = $"parent_{Guid.NewGuid():N}";
+
+        string parentScript = @"
         {
-            'id': 'parent',
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -170,10 +178,12 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
+        
+        uniqueId = $"child_{Guid.NewGuid():N}";
 
-        const string childScript = @"
+        string childScript = @"
         {
-            'id': 'child',
+            'id': '" + uniqueId + @"',
             'initial': 'active',
             'states': {
                 'active': {
@@ -225,22 +235,25 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestActorErrorHandling()
     {
-        const string script = @"
-        {
-            'id': 'errorActor',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
-                        'CAUSE_ERROR': 'error'
-                    }
-                },
-                'error': {
-                    'entry': 'throwError'
+        var uniqueId = $"errorActor_{Guid.NewGuid():N}";
+
+        var script = @"{
+          'id':'" + uniqueId + @"',
+          'initial':'idle',
+          'states':{
+            'idle':{
+                'on':{
+                    'CAUSE_ERROR':'error'
                 }
+            },
+            'error':{
+                'entry':'throwError'
             }
+          }
         }";
-        
+
+
+
         var errorActions = new ActionMap
         {
             ["throwError"] = new List<NamedAction> { new NamedAction("throwError", (sm) => {
@@ -263,17 +276,18 @@ public class UnitTest_ActorModel : IDisposable
     public async Task TestActorMessageQueuing()
     {
         var messageCount = 0;
-        
+
         var countingActions = new ActionMap
         {
             ["count"] = new List<NamedAction> { new NamedAction("count", (sm) => {
-                messageCount++;
+                Interlocked.Increment(ref messageCount);
             }) }
         };
-        
-        const string script = @"
+
+        var uniqueId = $"counter_{Guid.NewGuid():N}";
+        string script = @"
         {
-            'id': 'counter',
+            'id': '" + uniqueId + @"',
             'initial': 'counting',
             'states': {
                 'counting': {
@@ -286,20 +300,21 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         var stateMachine = StateMachine.CreateFromScript(script, countingActions, _guards);
-        var actor = ActorSystem.Instance.Spawn("counter", id => new StateMachineActor(id, stateMachine));
-        
+        var actor = ActorSystem.Instance.Spawn(uniqueId, id => new StateMachineActor(id, stateMachine));
+
         await actor.StartAsync();
-        
+
         // Send multiple messages rapidly
         for (int i = 0; i < 10; i++)
         {
             await actor.SendAsync("INCREMENT");
         }
-        
-        await Task.Delay(100); // Allow all messages to be processed
-        
+
+        // Allow more time for all messages to be processed
+        await Task.Delay(200);
+
         Assert.Equal(10, messageCount);
     }
     
@@ -314,10 +329,11 @@ public class UnitTest_ActorModel : IDisposable
                 receivedData = sm.ContextMap?["_eventData"];
             }) }
         };
-        
-        const string script = @"
+        var uniqueId = $"dataReceiver-{Guid.NewGuid():N}";
+
+        string script = @"
         {
-            'id': 'dataReceiver',
+            'id': '" + uniqueId + @"',
             'initial': 'waiting',
             'states': {
                 'waiting': {

@@ -26,7 +26,7 @@ public class AtmStateMachineTests : IDisposable
         _guards = new ();
 
         // Load state machine from JSON
-        _stateMachine = StateMachine.CreateFromScript(json, _actions, _guards).Start();
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions, _guards).Start();
     }
 
     public void Dispose()

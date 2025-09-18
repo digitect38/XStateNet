@@ -8,7 +8,7 @@ namespace XStateNet;
 /// <summary>
 /// Represents an invoked service instance
 /// </summary>
-public class InvokedService
+public class InvokedService : IDisposable
 {
     public string Id { get; set; }
     public string ServiceName { get; set; }
@@ -20,13 +20,23 @@ public class InvokedService
     public bool IsCompleted => ServiceTask?.IsCompleted ?? false;
     public bool IsFaulted => ServiceTask?.IsFaulted ?? false;
     public bool IsCanceled => ServiceTask?.IsCanceled ?? false;
-    
+    private bool _disposed;
+
     public InvokedService(string id, string serviceName, CompoundState invokingState)
     {
         Id = id;
         ServiceName = serviceName;
         InvokingState = invokingState;
         CancellationToken = new CancellationTokenSource();
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            CancellationToken?.Dispose();
+            _disposed = true;
+        }
     }
 }
 
@@ -36,6 +46,8 @@ public class InvokedService
 public class ServiceInvoker : StateObject
 {
     private readonly ConcurrentDictionary<string, InvokedService> _activeServices = new();
+    
+    
     private readonly ConcurrentDictionary<string, TaskCompletionSource<object>> _serviceCompletions = new();
     
     public ServiceInvoker(string? machineId) : base(machineId) { }
@@ -69,8 +81,8 @@ public class ServiceInvoker : StateObject
             {
                 try
                 {
-                    await service.ServiceFunc(StateMachine);
-                    tcs.SetResult(true);
+                    var result = await service.ServiceFunc(StateMachine, invokedService.CancellationToken.Token);
+                    tcs.SetResult(result);
                 }
                 catch (Exception ex)
                 {
@@ -79,8 +91,18 @@ public class ServiceInvoker : StateObject
                 }
             }, invokedService.CancellationToken.Token);
             
-            // Handle service completion
-            _ = HandleServiceCompletion(invokedService);
+            // Handle service completion properly
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await HandleServiceCompletion(invokedService);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Unhandled exception in service completion for '{invokedService.ServiceName}': {ex}");
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -89,7 +111,7 @@ public class ServiceInvoker : StateObject
             await HandleServiceError(invokedService);
         }
     }
-    
+
     /// <summary>
     /// Handles service completion (success or failure)
     /// </summary>
@@ -102,14 +124,43 @@ public class ServiceInvoker : StateObject
             // Service completed successfully
             Logger.Info($"Service '{service.ServiceName}' completed successfully");
             
+            // Get result from task
+            object? result = null;
+            if (_serviceCompletions.TryGetValue(service.Id, out var tcs))
+            {
+                if (tcs.Task.IsCompletedSuccessfully)
+                {
+                    result = tcs.Task.Result;
+                    Logger.Info($">>> Service result: {result}");
+                }
+            }
+
+            // Store result in context
+            if (StateMachine?.ContextMap != null && result != null)
+            {
+                StateMachine.ContextMap["_serviceResult"] = result;
+            }
+
             // Send onDone event
             if (StateMachine != null)
             {
                 var doneEvent = $"done.invoke.{service.InvokingState.Name}.{service.ServiceName}";
-                StateMachine.Send(doneEvent);
-                
-                // Also try the generic onDone event
-                StateMachine.Send("onDone");
+                var eventData = new { data = result };
+
+                // Queue events for processing without blocking
+                // This avoids lock conflicts while ensuring events are handled
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        StateMachine.Send(doneEvent, eventData);
+                        StateMachine.Send("onDone", eventData);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error($"Failed to send completion event for service '{service.ServiceName}': {ex.Message}");
+                    }
+                }).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -124,10 +175,15 @@ public class ServiceInvoker : StateObject
         finally
         {
             // Clean up
-            _activeServices.TryRemove(service.Id, out _);
+            if (_activeServices.TryRemove(service.Id, out var removedService))
+            {
+                removedService?.Dispose();
+            }
             _serviceCompletions.TryRemove(service.Id, out _);
         }
     }
+    
+    
     
     /// <summary>
     /// Handles service errors
@@ -145,10 +201,20 @@ public class ServiceInvoker : StateObject
             StateMachine.ContextMap["_errorMessage"] = service.Error.Message;
             
             var errorEvent = $"error.invoke.{service.InvokingState.Name}.{service.ServiceName}";
-            StateMachine.Send(errorEvent);
-            
-            // Also try the generic onError event  
-            StateMachine.Send("onError");
+
+            // Queue error events for processing without blocking
+            await Task.Run(() =>
+            {
+                try
+                {
+                    StateMachine.Send(errorEvent);
+                    StateMachine.Send("onError");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to send error event for service '{service.ServiceName}': {ex.Message}");
+                }
+            }).ConfigureAwait(false);
         }
         
         await Task.CompletedTask;

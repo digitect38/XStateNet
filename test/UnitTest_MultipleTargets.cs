@@ -69,7 +69,7 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             var initialState = _stateMachine!.GetActiveStateString();
             Assert.Contains("region1.state1", initialState);
@@ -141,7 +141,7 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             // Move all regions to their second states
             _stateMachine!.Send("NEXT");
@@ -209,7 +209,7 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             // Start both regions
             _stateMachine!.Send("START");
@@ -272,7 +272,7 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             // Test single target transition
             _stateMachine!.Send("EVENT1");
@@ -282,7 +282,7 @@ namespace MultipleTargetsTests
             Assert.Contains("region2.y", state1);
 
             // Reset to test multiple targets
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, _actions, _guards).Start();
 
             // Move region2 to y first
             _stateMachine!.Send("EVENT1");

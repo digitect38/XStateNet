@@ -67,15 +67,15 @@ namespace VideoPlayerStateMachineTests
             // ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
             var services = new ServiceMap
             {
-                ["startVideo"] = new("startVideo", (sm) =>
+                ["startVideo"] = new("startVideo", (sm, ct) =>
                 {
                     _serviceInvoked = true;
                     StateMachine.Log("startVideo service invoked");
-                    return Task.CompletedTask; // Mock asynchronous service
+                    return Task.FromResult<object>(null);
                 })
             };
 
-            _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
+            _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
             Assert.False(_serviceInvoked);
@@ -101,6 +101,3 @@ namespace VideoPlayerStateMachineTests
         }
     }
 }
-
-
-

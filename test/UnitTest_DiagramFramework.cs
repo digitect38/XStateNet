@@ -53,7 +53,7 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["selectionCount"] = 0;
 
         // ���� �ӽ� �ʱ�ȭ
-        _stateMachine = StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
     }
 
 

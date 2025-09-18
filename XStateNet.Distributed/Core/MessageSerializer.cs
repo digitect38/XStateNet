@@ -46,17 +46,54 @@ namespace XStateNet.Distributed.Core
         /// </summary>
         public static T? Deserialize<T>(byte[]? data, SerializationType? type = null)
         {
-            type ??= _defaultType;
-
             if (data == null || data.Length == 0)
                 return default;
 
-            return type switch
+            // If type is not specified, try to auto-detect
+            if (type == null)
             {
-                SerializationType.Json => DeserializeJson<T>(data),
-                SerializationType.MessagePack => DeserializeMessagePack<T>(data),
-                _ => throw new NotSupportedException($"Serialization type {type} not supported")
-            };
+                // Check if data looks like JSON (starts with { or [ or ")
+                if (data.Length > 0 && (data[0] == '{' || data[0] == '[' || data[0] == '"'))
+                {
+                    type = SerializationType.Json;
+                }
+                else
+                {
+                    type = _defaultType;
+                }
+            }
+
+            try
+            {
+                return type switch
+                {
+                    SerializationType.Json => DeserializeJson<T>(data),
+                    SerializationType.MessagePack => DeserializeMessagePack<T>(data),
+                    _ => throw new NotSupportedException($"Serialization type {type} not supported")
+                };
+            }
+            catch (Exception ex) when (type == _defaultType && ex is not NotSupportedException)
+            {
+                // If default deserialization fails, try the other format
+                var fallbackType = _defaultType == SerializationType.MessagePack
+                    ? SerializationType.Json
+                    : SerializationType.MessagePack;
+
+                try
+                {
+                    return fallbackType switch
+                    {
+                        SerializationType.Json => DeserializeJson<T>(data),
+                        SerializationType.MessagePack => DeserializeMessagePack<T>(data),
+                        _ => default
+                    };
+                }
+                catch
+                {
+                    // If fallback also fails, throw the original exception
+                    throw ex;
+                }
+            }
         }
 
         /// <summary>

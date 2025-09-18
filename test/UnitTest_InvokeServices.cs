@@ -37,18 +37,19 @@ public class UnitTest_InvokeServices : IDisposable
         
         _services = new ServiceMap
         {
-            ["fetchData"] = new NamedService("fetchData", async (sm) => {
+            ["fetchData"] = new NamedService("fetchData", async (sm, ct) => {
                 _serviceCallCount++;
-                await Task.Delay(100);
+                await Task.Delay(100, ct);
                 sm.ContextMap!["data"] = "fetched data";
+                return "fetched data";
             }),
-            ["failingService"] = new NamedService("failingService", async (sm) => {
-                await Task.Delay(50);
-                throw new InvalidOperationException("Service failed intentionally");
+            ["failingService"] = new NamedService("failingService", (sm, ct) => {
+                return Task.FromException<object>(new InvalidOperationException("Service failed intentionally"));
             }),
-            ["longRunningService"] = new NamedService("longRunningService", async (sm) => {
-                await Task.Delay(500);
+            ["longRunningService"] = new NamedService("longRunningService", async (sm, ct) => {
+                await Task.Delay(500, ct);
                 sm.ContextMap!["result"] = "completed";
+                return "completed";
             })
         };
     }
@@ -98,7 +99,6 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Wait for service to complete
         await Task.Delay(200);
-        _stateMachine!.Send("onDone");
         
         Assert.Contains("success", _stateMachine.GetActiveStateString());
         Assert.True(_serviceCompleted);
@@ -148,7 +148,6 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Wait for service to fail
         await Task.Delay(150);
-        _stateMachine!.Send("onError");
         
         Assert.Contains("error", _stateMachine.GetActiveStateString());
         Assert.True(_errorOccurred);
@@ -174,10 +173,8 @@ public class UnitTest_InvokeServices : IDisposable
                         },
                         'running': {
                             'invoke': {
-                                'src': 'fetchData'
-                            },
-                            'on': {
-                                'onDone': 'complete'
+                                'src': 'fetchData',
+                                'onDone': { 'target': 'complete' }
                             }
                         },
                         'complete': {
@@ -195,10 +192,8 @@ public class UnitTest_InvokeServices : IDisposable
                         },
                         'running': {
                             'invoke': {
-                                'src': 'longRunningService'
-                            },
-                            'on': {
-                                'onDone': 'complete'
+                                'src': 'longRunningService',
+                                'onDone': { 'target': 'complete' }
                             }
                         },
                         'complete': {
@@ -221,7 +216,6 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Wait for shorter service
         await Task.Delay(200);
-        _stateMachine!.Send("onDone");
         
         // Service A should be complete
         activeStates = _stateMachine!.GetActiveStateString();
@@ -229,7 +223,6 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Wait for longer service
         await Task.Delay(400);
-        _stateMachine!.Send("onDone");
         
         // Both services should be complete
         activeStates = _stateMachine!.GetActiveStateString();
@@ -242,15 +235,16 @@ public class UnitTest_InvokeServices : IDisposable
     {
         var cancellableService = new ServiceMap
         {
-            ["cancellable"] = new NamedService("cancellable", async (sm) => {
+            ["cancellable"] = new NamedService("cancellable", async (sm, ct) => {
                 try
                 {
-                    await Task.Delay(5000); // Long delay
+                    await Task.Delay(5000, ct); // Long delay
                 }
                 catch (TaskCanceledException)
                 {
-                    throw;
+                    // This is expected
                 }
+                return null;
             })
         };
         
@@ -297,4 +291,3 @@ public class UnitTest_InvokeServices : IDisposable
         // Cleanup if needed
     }
 }
-

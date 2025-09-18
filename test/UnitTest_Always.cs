@@ -52,32 +52,37 @@ public class StateMachine_AlwaysTests
         bool IsSmallNumber(StateMachine sm)
         {
             StateMachine.Log("in IsSmallNumber()...");
-            var count = (int)(sm.ContextMap!["count"] ?? 0);
+            var countValue = sm.ContextMap!["count"];
+            var count = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
             StateMachine.Log(">>>>> count = " + count);
-            return (int)(sm.ContextMap!["count"] ?? 0) <= 3;
+            return count <= 3;
         }
 
         bool IsBigNumber(StateMachine sm)
         {
             StateMachine.Log("in IsBigNumber()...");
-            var count = (int)(sm.ContextMap!["count"] ?? 0);
+            var countValue = sm.ContextMap!["count"];
+            var count = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
             StateMachine.Log(">>>>> count = " + count);
-            return (int)(sm.ContextMap!["count"] ?? 0) > 3;
+            return count > 3;
         }
 
         void Increment(StateMachine sm)
         {
-            sm.ContextMap!["count"] = (int)(sm.ContextMap!["count"] ?? 0) + 1;
+            var countValue = sm.ContextMap!["count"];
+            var currentCount = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
+            sm.ContextMap!["count"] = currentCount + 1;
 
             StateMachine.Log("in Increment()... after increment,");
-            var count = (int)(sm.ContextMap!["count"] ?? 0);
-            StateMachine.Log(">>>>> count = " + count);
+            StateMachine.Log(">>>>> count = " + (currentCount + 1));
 
         };
 
         void Decrement(StateMachine sm)
         {
-            sm.ContextMap!["count"] = (int)(sm.ContextMap!["count"] ?? 0) - 1;
+            var countValue = sm.ContextMap!["count"];
+            var currentCount = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
+            sm.ContextMap!["count"] = currentCount - 1;
         }
         var guards = new GuardMap
         {
@@ -85,7 +90,7 @@ public class StateMachine_AlwaysTests
             ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))
         };
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
 
         _stateMachine!.RootState!.PrintActiveStateTree(0);
 

@@ -20,7 +20,7 @@ public class InConditionTests : IDisposable
 
         var stateMachineJson = InConditionStateMachineWithParallel.InConditionStateMachineScript;
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
     }
 
     [Fact]

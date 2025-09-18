@@ -36,8 +36,8 @@ namespace AdvancedFeatures
             var followerJson = LeaderFollowerStateMachine.FollowerStateMachineScript;
             var leaderJson = LeaderFollowerStateMachine.LeaderStateMachineScript;
 
-            _followerStateMachine = StateMachine.CreateFromScript(followerJson, _followerActions, _followerGuards).Start();
-            _leaderStateMachine = StateMachine.CreateFromScript(leaderJson, _leaderActions, _leaderGuards).Start();
+            _followerStateMachine = (StateMachine)StateMachine.CreateFromScript(followerJson, _followerActions, _followerGuards).Start();
+            _leaderStateMachine = (StateMachine)StateMachine.CreateFromScript(leaderJson, _leaderActions, _leaderGuards).Start();
         }
 
         [Fact]

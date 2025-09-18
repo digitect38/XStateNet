@@ -42,8 +42,8 @@
 // [ ] Implement 'invoke' keyword.
 //      [v] Simple Unit test for invoke
 //      [ ] Heavy Unit test for invoke
-// [ ] Implement 'activities' keyword.
-// [ ] Implement 'internal' keyword.
+// [v] Implement 'activities' keyword.
+// [v] Implement 'internal' keyword.
 // [x] State branch block transition (Parallel by parallel) --> Not work
 // [v] Implement top down transition algorithm for full transition --> this is the solution for the above issue
 // [ ] Implement single action expression (not an array, embraced using square bracket) for entry, exit, transition
@@ -57,6 +57,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using System.Threading;
+using Newtonsoft.Json.Linq;
 
 
 namespace XStateNet;
@@ -68,7 +69,7 @@ public enum MachineState
     Stopped
 }
 
-public partial class StateMachine
+public partial class StateMachine : IStateMachine
 {
     public static StateMachine? GetInstance(string Id)
     {
@@ -79,18 +80,62 @@ public partial class StateMachine
         return instance;
     }
 
-    public string? machineId { set; get; }
+    public string machineId { set; get; } = string.Empty;
     public CompoundState? RootState { set; get; }
     private StateMap? StateMap { set; get; }
+
+    // IStateMachine implementation
+    Dictionary<string, object?>? IStateMachine.ContextMap
+    {
+        get
+        {
+            // ContextMap inherits from ConcurrentDictionary which implements IDictionary
+            // We need to create a new Dictionary from it
+            if (ContextMap == null) return null;
+            return new Dictionary<string, object?>(ContextMap);
+        }
+        set
+        {
+            if (value == null)
+            {
+                ContextMap = null;
+            }
+            else
+            {
+                // Convert Dictionary to ContextMap
+                var contextMap = new ContextMap();
+                foreach (var kvp in value)
+                {
+                    contextMap[kvp.Key] = kvp.Value;
+                }
+                ContextMap = contextMap;
+            }
+        }
+    }
+
     public ContextMap? ContextMap { get; private set; } // use object because context can have various types of data
+    internal string? _originalContextJson; // Store original context for RESET
 
     public ActionMap? ActionMap { set; get; }
     public GuardMap? GuardMap { set; get; }
     public ServiceMap? ServiceMap { set; get; }
     public DelayMap? DelayMap { set; get; }
+    public ActivityMap? ActivityMap { set; get; }
 
     public TransitionExecutor transitionExecutor { private set; get; } = null!;
     public ServiceInvoker serviceInvoker { private set; get; } = null!;
+    public ServiceInvoker? ServiceInvoker
+    {
+        get => serviceInvoker;
+        set => serviceInvoker = value ?? serviceInvoker;
+    }
+
+    // Machine state tracking - using existing machineState field
+    public bool IsRunning => machineState == MachineState.Running;
+
+    // Events for interface
+    public event Action<string>? StateChanged;
+    public event Action<Exception>? ErrorOccurred;
     private EventQueue? _eventQueue;
     private StateMachineSync? _sync;
     private readonly ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
@@ -124,6 +169,12 @@ public partial class StateMachine
     public delegate void GuardEvaluatedHandler(string guardName, bool result);
     public event GuardEvaluatedHandler? OnGuardEvaluated;
 
+    public delegate void ActivityStartedHandler(string activityName, string? stateName);
+    public event ActivityStartedHandler? OnActivityStarted;
+
+    public delegate void ActivityStoppedHandler(string activityName, string? stateName);
+    public event ActivityStoppedHandler? OnActivityStopped;
+
     // Protected methods to raise events - allows derived classes and internal components to trigger events
     internal void RaiseTransition(CompoundState? fromState, StateNode? toState, string eventName)
     {
@@ -145,15 +196,67 @@ public partial class StateMachine
         OnGuardEvaluated?.Invoke(guardName, result);
     }
 
+    internal void RaiseActivityStarted(string activityName, string? stateName)
+    {
+        OnActivityStarted?.Invoke(activityName, stateName);
+    }
+
+    internal void RaiseActivityStopped(string activityName, string? stateName)
+    {
+        OnActivityStopped?.Invoke(activityName, stateName);
+    }
+
     private volatile MachineState machineState = MachineState.Stopped;
 
     /// <summary>
     /// Enable thread-safe operation mode
     /// </summary>
     public bool EnableThreadSafety { get; set; } = false;
-    
+
     /// <summary>
-    /// 
+    /// Global error handler for unhandled exceptions
+    /// </summary>
+    private Action<Exception>? _globalErrorHandler;
+
+    /// <summary>
+    /// Set a global error handler for unhandled exceptions
+    /// </summary>
+    public void SetGlobalErrorHandler(Action<Exception> handler)
+    {
+        _globalErrorHandler = handler;
+    }
+
+    /// <summary>
+    /// Handle an unhandled exception
+    /// </summary>
+    internal void HandleUnhandledException(Exception ex, string context = "")
+    {
+        try
+        {
+            // Log the error
+            Logger.Error($"Unhandled exception in {context}: {ex.Message}");
+
+            // Store in context
+            if (ContextMap != null)
+            {
+                ContextMap["_lastUnhandledError"] = ex;
+                ContextMap["_lastUnhandledErrorContext"] = context;
+            }
+
+            // Call global handler if set
+            _globalErrorHandler?.Invoke(ex);
+
+            // Raise ErrorOccurred event
+            ErrorOccurred?.Invoke(ex);
+        }
+        catch (Exception handlerEx)
+        {
+            Logger.Error($"Error in global error handler: {handlerEx.Message}");
+        }
+    }
+
+    /// <summary>
+    ///
     /// </summary>
     public StateMachine()
     {
@@ -173,12 +276,13 @@ public partial class StateMachine
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
     )
     {
         // Use secure file reading with validation
         var jsonScript = Security.SafeReadFile(jsonFilePath);
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
     /// <summary>
@@ -193,10 +297,11 @@ public partial class StateMachine
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
     )
     {
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
+        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
     /// <summary>
@@ -213,12 +318,13 @@ public partial class StateMachine
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
         )
     {
         // Use secure file reading with validation
         var jsonScript = Security.SafeReadFile(jsonFilePath);
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
     /// <summary>
@@ -233,10 +339,11 @@ public partial class StateMachine
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
         )
     {
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
     /// <summary>
@@ -261,7 +368,7 @@ public partial class StateMachine
     /// 
     /// </summary>
     /// <returns></returns>
-    public StateMachine Start()
+    public IStateMachine Start()
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => ">>> Start state machine");
 
@@ -312,12 +419,19 @@ public partial class StateMachine
     /// 
     /// </summary>
     /// <param name="eventName"></param>
-    public void Send(string eventName)
+    public void Send(string eventName, object? eventData = null)
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
 
-        // Notify event received
-        RaiseEventReceived(eventName, null);
+        // Notify event received (before handling RESET to ensure it's captured)
+        RaiseEventReceived(eventName, eventData);
+
+        // Handle RESET event specially
+        if (eventName == "RESET")
+        {
+            Reset();
+            return;
+        }
 
         _stateLock.EnterReadLock();
         try
@@ -335,17 +449,34 @@ public partial class StateMachine
 
         // Direct synchronous processing for backward compatibility
         // EventQueue is only used when explicitly enabled
-        Transit(eventName);
-        //PrintCurrentStateTree();
-        PrintCurrentStatesString();
+        try
+        {
+            Transit(eventName, eventData);
+            //PrintCurrentStateTree();
+            PrintCurrentStatesString();
+        }
+        catch (Exception ex)
+        {
+            HandleUnhandledException(ex, $"Send({eventName})");
+        }
     }
     
     /// <summary>
     /// Send event asynchronously with thread-safe processing
     /// </summary>
-    public async Task SendAsync(string eventName)
+    public async Task SendAsync(string eventName, object? eventData = null)
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event async: {eventName}");
+
+        // Notify event received (before handling RESET to ensure it's captured)
+        RaiseEventReceived(eventName, eventData);
+
+        // Handle RESET event specially
+        if (eventName == "RESET")
+        {
+            await Task.Run(() => Reset());
+            return;
+        }
 
         _stateLock.EnterReadLock();
         try
@@ -369,9 +500,16 @@ public partial class StateMachine
         {
             await Task.Run(() =>
             {
-                Transit(eventName);
-                //PrintCurrentStateTree();
-                PrintCurrentStatesString();
+                try
+                {
+                    Transit(eventName, eventData);
+                    //PrintCurrentStateTree();
+                    PrintCurrentStatesString();
+                }
+                catch (Exception ex)
+                {
+                    HandleUnhandledException(ex, $"SendAsync({eventName})");
+                }
             });
         }
     }
@@ -383,9 +521,16 @@ public partial class StateMachine
     {
         await Task.Run(() =>
         {
-            Transit(eventName);
-            //PrintCurrentStateTree();
-            PrintCurrentStatesString();
+            try
+            {
+                Transit(eventName);
+                //PrintCurrentStateTree();
+                PrintCurrentStatesString();
+            }
+            catch (Exception ex)
+            {
+                HandleUnhandledException(ex, $"ProcessEventAsync({eventName})");
+            }
         });
     }
 
@@ -393,8 +538,13 @@ public partial class StateMachine
     /// 
     /// </summary>
     /// <param name="eventName"></param>
-    void Transit(string eventName)
+    void Transit(string eventName, object? eventData = null)
     {
+        if (eventData != null && ContextMap != null)
+        {
+            ContextMap["_event"] = eventData;
+        }
+
         // Use pooled list to reduce allocations
         var transitionList = PerformanceOptimizations.RentTransitionList();
         
@@ -655,7 +805,53 @@ public partial class StateMachine
     }
 
     /// <summary>
-    /// 
+    /// GetActiveStateString implementation for IStateMachine interface
+    /// </summary>
+    string IStateMachine.GetActiveStateString()
+    {
+        return GetActiveStateString();
+    }
+
+    /// <summary>
+    /// GetActiveStates implementation for IStateMachine interface
+    /// </summary>
+    public List<CompoundState> GetActiveStates()
+    {
+        var activeStates = new List<CompoundState>();
+        CollectActiveStates(RootState, activeStates);
+        return activeStates;
+    }
+
+    private void CollectActiveStates(CompoundState? state, List<CompoundState> activeStates)
+    {
+        if (state == null || !state.IsActive) return;
+
+        activeStates.Add(state);
+
+        // Use SubStateNames to get substates
+        if (state.SubStateNames != null)
+        {
+            foreach (var subStateName in state.SubStateNames)
+            {
+                var subState = GetState(subStateName) as CompoundState;
+                if (subState != null)
+                {
+                    CollectActiveStates(subState, activeStates);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// IsInState implementation for IStateMachine interface
+    /// </summary>
+    public bool IsInState(string stateName)
+    {
+        return IsInState(this, stateName);
+    }
+
+    /// <summary>
+    ///
     /// </summary>
     /// <param name="stateName"></param>
     /// <param name="singleBranchPath"></param>
@@ -1068,7 +1264,144 @@ public partial class StateMachine
             _stateLock.ExitWriteLock();
         }
     }
-    
+
+    /// <summary>
+    /// Reset the state machine to its initial state
+    /// </summary>
+    public void Reset()
+    {
+        Logger.Info(">>> Reset state machine");
+
+        _stateLock.EnterWriteLock();
+        try
+        {
+            // Store the original script's context if available
+            var initialContext = new Dictionary<string, object>();
+            if (ContextMap != null && _originalContextJson != null)
+            {
+                // Parse initial context from the original JSON
+                var contextToken = Newtonsoft.Json.Linq.JToken.Parse(_originalContextJson);
+                foreach (var prop in contextToken.Children<Newtonsoft.Json.Linq.JProperty>())
+                {
+                    if (prop.Value is JValue jValue)
+                    {
+                        initialContext[prop.Name] = jValue.Value;  // Keep null as null
+                    }
+                    else
+                    {
+                        initialContext[prop.Name] = prop.Value?.ToObject<object>();  // Keep null as null
+                    }
+                }
+            }
+
+            // Stop the machine first
+            if (machineState == MachineState.Running)
+            {
+                machineState = MachineState.Stopped;
+
+                // Clean up all active states and their timers
+                if (RootState != null)
+                {
+                    CleanupStateTimers(RootState);
+                }
+
+                // Cancel any invoke services
+                serviceInvoker?.CancelAllServices();
+
+                // Clear history states
+                Console.WriteLine(">>> Clearing history states");
+                ClearHistoryStates(RootState);
+                Console.WriteLine(">>> Exiting all active states");
+                ExitAllActiveStates(RootState);
+            }
+
+            // Clear event queue if it exists
+            _eventQueue?.Clear();
+
+            // Reset context to initial values
+            if (ContextMap != null)
+            {
+                ContextMap.Clear();
+                foreach (var kvp in initialContext)
+                {
+                    ContextMap[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Restart the machine
+            machineState = MachineState.Running;
+
+            // Re-enter initial state
+            if (RootState != null)
+            {
+                RootState.Start();
+            }
+
+            Logger.Info("State machine reset completed");
+            PrintCurrentStatesString();
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
+        }
+    }
+
+    /// <summary>
+    /// Clear all history states recursively
+    /// </summary>
+    private void ClearHistoryStates(CompoundState? state)
+    {
+        if (state == null) return;
+
+        // Clear history for normal states
+        if (state is NormalState normalState)
+        {
+            normalState.LastActiveStateName = null;
+            if (normalState.HistorySubState != null)
+            {
+                normalState.HistorySubState = null;
+            }
+        }
+
+        // Recursively clear history for all child states
+        if (state.SubStateNames != null)
+        {
+            foreach (var childStateName in state.SubStateNames)
+            {
+                var childState = GetState(childStateName);
+                if (childState is CompoundState compoundChild)
+                {
+                    ClearHistoryStates(compoundChild);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Exit all active states without triggering transitions
+    /// </summary>
+    private void ExitAllActiveStates(CompoundState? state)
+    {
+        if (state == null || !state.IsActive) return;
+
+        // Exit child states first
+        if (state.SubStateNames != null)
+        {
+            foreach (var childStateName in state.SubStateNames)
+            {
+                var childState = GetState(childStateName);
+                if (childState is CompoundState compoundChild && compoundChild.IsActive)
+                {
+                    ExitAllActiveStates(compoundChild);
+                }
+            }
+        }
+
+        // Mark state as inactive
+        state.IsActive = false;
+        state.ActiveStateName = null;
+    }
+
     /// <summary>
     /// Recursively clean up timers in all states
     /// </summary>

@@ -208,8 +208,7 @@ public class StateMachineSync
 public class SafeTransitionExecutor : TransitionExecutor
 {
     private readonly StateMachineSync _sync;
-    private readonly HashSet<string> _activeTransitions = new();
-    private readonly object _transitionLock = new();
+    private readonly ConcurrentDictionary<string, bool> _activeTransitions = new();
     
     public SafeTransitionExecutor(string? machineId, StateMachineSync sync) : base(machineId)
     {
@@ -232,15 +231,11 @@ public class SafeTransitionExecutor : TransitionExecutor
         
         var transitionKey = $"{transition.SourceName}->{transition.TargetName}";
         
-        // Check for re-entrancy
-        lock (_transitionLock)
+        // Check for re-entrancy using lock-free ConcurrentDictionary
+        if (!_activeTransitions.TryAdd(transitionKey, true))
         {
-            if (_activeTransitions.Contains(transitionKey))
-            {
-                Logger.Warning($"Skipping re-entrant transition: {transitionKey}");
-                return;
-            }
-            _activeTransitions.Add(transitionKey);
+            Logger.Warning($"Skipping re-entrant transition: {transitionKey}");
+            return;
         }
         
         try
@@ -268,10 +263,7 @@ public class SafeTransitionExecutor : TransitionExecutor
         }
         finally
         {
-            lock (_transitionLock)
-            {
-                _activeTransitions.Remove(transitionKey);
-            }
+            _activeTransitions.TryRemove(transitionKey, out _);
         }
     }
     

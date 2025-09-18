@@ -28,7 +28,7 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
 
         var stateMachineJson = PingPongMachine.PingPongStateMachineScript;
 
-        _pingPongStateMachine = StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
+        _pingPongStateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
     }
 
     Action<StateMachine> send_to_b = (sm) => sm.Send("to_b");

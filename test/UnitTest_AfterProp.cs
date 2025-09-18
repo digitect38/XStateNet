@@ -1,3 +1,4 @@
+
 using Xunit;
 
 using XStateNet;
@@ -5,6 +6,8 @@ using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using System.Threading.Tasks;
+
 namespace AdvancedFeatures;
 
 public class AfterTests : IDisposable
@@ -59,7 +62,8 @@ public class AfterTests : IDisposable
             ["isReady"] = new NamedGuard("isReady", (sm) =>
             {
                 var isReadyValue = sm.ContextMap?["isReady"];
-                return isReadyValue != null && isReadyValue.GetType() == typeof(JTokenType) && (bool)isReadyValue;
+                if (isReadyValue is bool b) return b;
+                return false;
             })
         };
     }
@@ -70,12 +74,13 @@ public class AfterTests : IDisposable
     }
 
     [Fact]
-    public void TestAfterTransition()
+    public async Task TestAfterTransition()
     {
         // Arrange
-        var stateMachineJson = @"
-        {
-            'id': 'trafficLight',
+        // Use a unique ID to avoid conflicts when tests run in parallel
+        var uniqueId = $"trafficLight_{Guid.NewGuid():N}";
+        var stateMachineJson = @"{
+            'id': '" + uniqueId + @"',
             'context': { 'isReady': true, 'log': '' },
             'states': {
                 'red': {
@@ -102,16 +107,15 @@ public class AfterTests : IDisposable
 
         Assert.Equal("Entering red; ", cxtlog);
 
-        cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
-
         // Wait half the time of the 'after' delay
-        System.Threading.Thread.Sleep(450);
+        await Task.Delay(450);
 
         // Assert that the 'after' transition has not occurred yet
-        Assert.Equal("Entering red; ", cxtlog);
+        var currentStatesBefore = _stateMachine?.GetActiveStateString();
+        Assert.Equal($"#{uniqueId}.red", currentStatesBefore);
 
         // Wait longer than the 'after' delay
-        System.Threading.Thread.Sleep(100);
+        await Task.Delay(100);
 
         // State should now be 'green'
         _stateMachine?.PrintCurrentStatesString();
@@ -119,47 +123,49 @@ public class AfterTests : IDisposable
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
         // Assert
-        Assert.Equal("#trafficLight.green", currentStates);
+        Assert.Equal($"#{uniqueId}.green", currentStates);
         Assert.Equal("Entering red; Exiting red; After transition to green; Entering green; ", cxtlog);
     }
 
     StateMachine? _stateMachine = null;
 
     [Fact]
-    public void TestGuardedAfterTransition_FailsGuard()
+    public async Task TestGuardedAfterTransition_FailsGuard()
     {
         // Arrange
-        var stateMachineJson = @"
-        {
-            'id': 'trafficLight',
-            'context': { 'isReady': false, 'log': '' },
-            'states': {
-                'red': {
+        // Use a unique ID to avoid conflicts when tests run in parallel
+        var uniqueId = $"trafficLight_{Guid.NewGuid():N}";
+        var stateMachineJson = $@"
+        {{
+            'id': '{uniqueId}',
+            'context': {{ 'isReady': false, 'log': '' }},
+            'states': {{
+                'red': {{
                     'entry': 'logEntryRed',
                     'exit': 'logExitRed',
-                    'after': {
-                        '500': { 'target': 'green', 'guard': 'isReady', 'actions': 'logTransitionAfterRedToGreen' }
-                    }
-                },
-                'green': {
+                    'after': {{
+                        '500': {{ 'target': 'green', 'guard': 'isReady', 'actions': 'logTransitionAfterRedToGreen' }}
+                    }}
+                }},
+                'green': {{
                     'entry': [],
                     'exit': []
-                }
-            },
+                }}
+            }},
             'initial': 'red'
-        }";
+        }}";
+
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
 
         // Wait for the after transition to occur
-        System.Threading.Thread.Sleep(600); // Wait longer than the 'after' delay
-
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
+        await Task.Delay(600); // Wait longer than the 'after' delay
 
         _stateMachine.PrintCurrentStatesString(); // State should still be 'red'
 
         var currentState = _stateMachine!.GetActiveStateString();
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
-        currentState.AssertEquivalence("#trafficLight.red");
+        Assert.Equal($"#{uniqueId}.red", currentState);
         Assert.Equal("Entering red; ", log);
     }
 }

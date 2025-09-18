@@ -14,9 +14,10 @@ public class StateCheckingTests
     [Fact]
     public async Task IsInState_Should_CheckCurrentState()
     {
+        string uniqueId = $"trafficLight-{Guid.NewGuid()}";
         // Arrange
         var json = @"{
-            'id': 'trafficLight',
+            'id': '" + uniqueId + @"',
             'initial': 'red',
             'states': {
                 'red': {
@@ -41,27 +42,27 @@ public class StateCheckingTests
         machine.Start();
         
         // Assert - Initial state (use full path with machine ID)
-        Assert.True(machine.IsInState(machine, "#trafficLight.red"));
-        Assert.False(machine.IsInState(machine, "#trafficLight.yellow"));
-        Assert.False(machine.IsInState(machine, "#trafficLight.green"));
+        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.red"));
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.yellow"));
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.green"));
         
         // Act - Transition to yellow
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After first transition
-        Assert.False(machine.IsInState(machine, "#trafficLight.red"));
-        Assert.True(machine.IsInState(machine, "#trafficLight.yellow"));
-        Assert.False(machine.IsInState(machine, "#trafficLight.green"));
-        
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.red"));
+        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.yellow"));
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.green"));
+
         // Act - Transition to green
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After second transition
-        Assert.False(machine.IsInState(machine, "#trafficLight.red"));
-        Assert.False(machine.IsInState(machine, "#trafficLight.yellow"));
-        Assert.True(machine.IsInState(machine, "#trafficLight.green"));
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.red"));
+        Assert.False(machine.IsInState(machine, $"#{uniqueId}.yellow"));
+        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.green"));
     }
     
     [Fact]
