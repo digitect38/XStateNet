@@ -120,8 +120,11 @@ public class UnitTest_ResetEvent : IDisposable
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
             .WithIsolation(StateMachineBuilder.IsolationMode.Test)
-            .WithAutoStart(true)
+            .WithAutoStart(false)
             .Build("resetTest");
+
+        //_stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine.Start();
 
         // Navigate to non-initial state
         _stateMachine.Send("START");
@@ -184,6 +187,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithIsolation(StateMachineBuilder.IsolationMode.Test)
             .WithAutoStart(true)
             .Build("contextReset");
+        
 
         // Modify context
         _stateMachine.Send("NEXT");
