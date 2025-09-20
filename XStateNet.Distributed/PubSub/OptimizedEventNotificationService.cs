@@ -23,7 +23,7 @@ namespace XStateNet.Distributed.PubSub.Optimized
     /// </summary>
     public sealed class OptimizedEventNotificationService : IDisposable
     {
-        private readonly StateMachine _stateMachine;
+        private readonly IStateMachine _stateMachine;
         private readonly IStateMachineEventBus _eventBus;
         private readonly ILogger<OptimizedEventNotificationService>? _logger;
         private readonly string _machineId;
@@ -57,9 +57,10 @@ namespace XStateNet.Distributed.PubSub.Optimized
 
         private volatile bool _isStarted;
         private volatile bool _disposed;
+        private string? _previousState;
 
         public OptimizedEventNotificationService(
-            StateMachine stateMachine,
+            IStateMachine stateMachine,
             IStateMachineEventBus eventBus,
             string? machineId = null,
             EventServiceOptions? options = null,
@@ -149,6 +150,36 @@ namespace XStateNet.Distributed.PubSub.Optimized
             catch
             {
                 _stateChangePool.Return(evt);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Publish error event
+        /// </summary>
+        public async ValueTask PublishErrorAsync(Exception exception, string? context = null)
+        {
+            if (!_isStarted) return;
+
+            var evt = _eventPool.Get();
+            try
+            {
+                evt.EventName = "Error";
+                evt.SourceMachineId = _machineId;
+                evt.Payload = new
+                {
+                    ErrorMessage = exception.Message,
+                    ErrorType = exception.GetType().Name,
+                    StackTrace = exception.StackTrace,
+                    Context = context
+                };
+                evt.Timestamp = DateTime.UtcNow;
+
+                await PublishEventInternalAsync(evt);
+            }
+            catch
+            {
+                _eventPool.Return(evt);
                 throw;
             }
         }
@@ -325,17 +356,50 @@ namespace XStateNet.Distributed.PubSub.Optimized
 
         private void WireUpStateMachineEventsOptimized()
         {
-            // Use delegates to avoid allocations
-            _stateMachine.OnTransition += OnTransitionOptimized;
-            _stateMachine.OnActionExecuted += OnActionExecutedOptimized;
-            _stateMachine.OnGuardEvaluated += OnGuardEvaluatedOptimized;
+            // Wire up the StateChanged event from IStateMachine
+            if (_stateMachine != null)
+            {
+                // Initialize previous state with current state (may be empty if not started)
+                var currentState = _stateMachine.GetActiveStateString();
+                _previousState = !string.IsNullOrEmpty(currentState) ? currentState : null;
+
+                _stateMachine.StateChanged += OnStateMachineStateChanged;
+                _stateMachine.ErrorOccurred += OnStateMachineError;
+            }
         }
 
         private void UnwireStateMachineEvents()
         {
-            _stateMachine.OnTransition -= OnTransitionOptimized;
-            _stateMachine.OnActionExecuted -= OnActionExecutedOptimized;
-            _stateMachine.OnGuardEvaluated -= OnGuardEvaluatedOptimized;
+            if (_stateMachine != null)
+            {
+                _stateMachine.StateChanged -= OnStateMachineStateChanged;
+                _stateMachine.ErrorOccurred -= OnStateMachineError;
+            }
+        }
+
+        private void OnStateMachineStateChanged(string newState)
+        {
+            // Fire and forget with optimized processing
+            _ = PublishStateChangeAsync(_previousState, newState, null);
+
+            // Update previous state for next transition
+            _previousState = newState;
+        }
+
+        private void OnStateMachineError(Exception error)
+        {
+            // Fire and forget
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await PublishErrorAsync(error);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to publish error event");
+                }
+            });
         }
 
         private async void OnTransitionOptimized(CompoundState? source, StateNode? target, string? eventName)

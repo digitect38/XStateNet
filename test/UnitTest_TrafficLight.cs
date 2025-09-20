@@ -119,7 +119,7 @@ public class TrafficMachine : IDisposable
         }
     };
     /*
-    bool IsReady(StateMachine sm)
+    bool IsReady(StateMachines sm)
     {
         return (bool)sm.ContextMap["isReady"];
     }
@@ -128,43 +128,51 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestInitialState()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
+        currentState.AssertEquivalence($"#{uniqueId}.light.red.bright;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestTransitionRedToGreen()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         if(_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#trafficLight.light.green.bright;#trafficLight.pedestrian.cannotWalk");
+        currentState.AssertEquivalence($"#{uniqueId}.light.green.bright;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestGuardCondition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = false;
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateString();
         // Should remain in last state as guard condition fails
-        currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
+        currentState.AssertEquivalence($"#{uniqueId}.light.red.bright;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestEntryAndExitActions()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions2, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
-        
+
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateString();
 
@@ -178,7 +186,9 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestParallelStates()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         _stateMachine!.Send("PUSH_BUTTON");
         var currentState = _stateMachine!.GetActiveStateString();
         Assert.Contains("canWalk", currentState);
@@ -188,28 +198,34 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestNestedStates()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
         //_stateMachine.Send("DARKER");
         var currentState = _stateMachine!.GetActiveStateString();
-        //currentState.AssertEquivalence("#trafficLight.light.green.dark;#trafficLight.pedestrian.cannotWalk");
+        //currentState.AssertEquivalence($"#{uniqueId}.light.green.dark;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestInvalidTransition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         _stateMachine!.Send("INVALID_EVENT");
         var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#trafficLight.light.red.bright;#trafficLight.pedestrian.cannotWalk");
+        currentState.AssertEquivalence($"#{uniqueId}.light.red.bright;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestNoTargetEvent()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions2, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
@@ -221,7 +237,9 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestImplicitTargetTransition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions1, _guards).Start();
+        var uniqueId = "trafficLight_" + Guid.NewGuid().ToString("N");
+        var jsonWithId = json.Replace("'trafficLight'", "'" + uniqueId + "'").Replace("#trafficLight", "#" + uniqueId);
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonWithId, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 

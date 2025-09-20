@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
+using System.Diagnostics;
 
 namespace XStateNet.Distributed.Tests.PubSub
 {
@@ -27,24 +28,43 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_PublishesStateChanges()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var service = new EventNotificationService(machine, _eventBus, "test-machine",
+            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(machineId);
+            var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             StateChangeEvent? capturedEvent = null;
+            var initialStateReceived = new TaskCompletionSource<bool>();
             var eventReceived = new TaskCompletionSource<bool>();
 
             await _eventBus.ConnectAsync();
-            var subscription = await _eventBus.SubscribeToStateChangesAsync("test-machine", evt =>
+            var subscription = await _eventBus.SubscribeToStateChangesAsync(machineId, evt =>
             {
-                capturedEvent = evt;
-                eventReceived.TrySetResult(true);
+                // Capture initial state first to ensure proper setup
+                if (evt.NewState?.Contains("idle") == true && evt.OldState == null)
+                {
+                    initialStateReceived.TrySetResult(true);
+                }
+                // We want to capture the transition from idle to running
+                else if (evt.NewState?.Contains("running") == true && evt.OldState?.Contains("idle") == true)
+                {
+                    capturedEvent = evt;
+                    eventReceived.TrySetResult(true);
+                }
             });
             _disposables.Add(subscription);
 
             // Act
             await service.StartAsync();
             machine.Start();
+
+            // Wait for initial state to be published
+            var initialReceived = await Task.WhenAny(initialStateReceived.Task, Task.Delay(1000));
+            Assert.True(initialReceived == initialStateReceived.Task, "Initial state was not received");
+
+            // Small delay to ensure state is fully established
+            await Task.Delay(50);
+
             machine.Send("GO");
 
             // Wait for event with timeout
@@ -54,9 +74,10 @@ namespace XStateNet.Distributed.Tests.PubSub
             Assert.True(received == eventReceived.Task, "State change event was not received within timeout");
             Assert.NotNull(capturedEvent);
             // State names include machine ID prefix like "#test.idle"
+
             Assert.Contains("idle", capturedEvent.OldState ?? "");
             Assert.Contains("running", capturedEvent.NewState ?? "");
-            Assert.Equal("test-machine", capturedEvent.SourceMachineId);
+            Assert.Equal(machineId, capturedEvent.SourceMachineId);
 
             // Cleanup
             await service.StopAsync();
@@ -67,8 +88,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_PublishesActionExecuted()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var service = new EventNotificationService(machine, _eventBus, "test-machine",
+            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(machineId);
+            var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var capturedActions = new List<ActionExecutedNotification>();
@@ -77,7 +99,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             await _eventBus.ConnectAsync();
             // Events are published to "machine.test-machine" topic
-            var subscription = await _eventBus.SubscribeToMachineAsync("test-machine", evt =>
+            var subscription = await _eventBus.SubscribeToMachineAsync(machineId, evt =>
             {
                 if (evt is ActionExecutedNotification action)
                 {
@@ -113,15 +135,16 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_PublishesGuardEvaluated()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var service = new EventNotificationService(machine, _eventBus, "test-machine",
+            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(machineId  );
+            var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             GuardEvaluatedNotification? capturedGuard = null;
             var guardReceived = new TaskCompletionSource<bool>();
 
             await _eventBus.ConnectAsync();
-            var subscription = await _eventBus.SubscribeToMachineAsync("test-machine", evt =>
+            var subscription = await _eventBus.SubscribeToMachineAsync(machineId, evt =>
             {
                 if (evt is GuardEvaluatedNotification guard)
                 {
@@ -153,11 +176,13 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_BroadcastsToAllMachines()
         {
             // Arrange
-            var machine1 = CreateTestStateMachine();
-            var machine2 = CreateTestStateMachine();
-            var service1 = new EventNotificationService(machine1, _eventBus, "machine-1",
+            var machineId1 = "test-machine1" + Guid.NewGuid().ToString("N");
+            var machineId2 = "test-machine2" + Guid.NewGuid().ToString("N");
+            var machine1 = CreateTestStateMachine(machineId1);
+            var machine2 = CreateTestStateMachine(machineId2);
+            var service1 = new EventNotificationService(machine1, _eventBus, "machineId1",
                 _loggerFactory.CreateLogger<EventNotificationService>());
-            var service2 = new EventNotificationService(machine2, _eventBus, "machine-2",
+            var service2 = new EventNotificationService(machine2, _eventBus, "machineId2",
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var receivedCount = 0;
@@ -205,18 +230,20 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_SendsToSpecificMachine()
         {
             // Arrange
-            var machine1 = CreateTestStateMachine();
-            var machine2 = CreateTestStateMachine();
-            var service1 = new EventNotificationService(machine1, _eventBus, "machine-1",
+            var machineId1 = "test-machine1" + Guid.NewGuid().ToString("N");
+            var machineId2 = "test-machine2" + Guid.NewGuid().ToString("N");
+            var machine1 = CreateTestStateMachine(machineId1);
+            var machine2 = CreateTestStateMachine(machineId2);
+            var service1 = new EventNotificationService(machine1, _eventBus, machineId1,
                 _loggerFactory.CreateLogger<EventNotificationService>());
-            var service2 = new EventNotificationService(machine2, _eventBus, "machine-2",
+            var service2 = new EventNotificationService(machine2, _eventBus, machineId2,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             StateMachineEvent? capturedEvent = null;
             var eventReceived = new TaskCompletionSource<bool>();
 
             await _eventBus.ConnectAsync();
-            var subscription = await _eventBus.SubscribeToMachineAsync("machine-2", evt =>
+            var subscription = await _eventBus.SubscribeToMachineAsync(machineId2, evt =>
             {
                 if (evt.EventName == "DIRECT_MESSAGE")
                 {
@@ -229,7 +256,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Act
             await service1.StartAsync();
             await service2.StartAsync();
-            await service1.SendToMachineAsync("machine-2", "DIRECT_MESSAGE", new { data = "test" });
+            await service1.SendToMachineAsync(machineId2, "DIRECT_MESSAGE", new { data = "test" });
 
             // Wait for message with timeout
             var received = await Task.WhenAny(eventReceived.Task, Task.Delay(5000));
@@ -238,7 +265,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             Assert.True(received == eventReceived.Task, "Direct message was not received within timeout");
             Assert.NotNull(capturedEvent);
             Assert.Equal("DIRECT_MESSAGE", capturedEvent.EventName);
-            Assert.Equal("machine-2", capturedEvent.TargetMachineId);
+            Assert.Equal(machineId2, capturedEvent.TargetMachineId);
 
             // Cleanup
             await service1.StopAsync();
@@ -249,11 +276,13 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_PublishesToGroup()
         {
             // Arrange
-            var machine1 = CreateTestStateMachine();
-            var machine2 = CreateTestStateMachine();
-            var service1 = new EventNotificationService(machine1, _eventBus, "machine-1",
+            var machineId1 = "test-machine1" + Guid.NewGuid().ToString("N");
+            var machineId2 = "test-machine2" + Guid.NewGuid().ToString("N");
+            var machine1 = CreateTestStateMachine(machineId1);
+            var machine2 = CreateTestStateMachine(machineId2);
+            var service1 = new EventNotificationService(machine1, _eventBus, machineId1,
                 _loggerFactory.CreateLogger<EventNotificationService>());
-            var service2 = new EventNotificationService(machine2, _eventBus, "machine-2",
+            var service2 = new EventNotificationService(machine2, _eventBus, machineId2,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var receivedEvents = new List<StateMachineEvent>();
@@ -294,11 +323,13 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_RequestResponsePattern()
         {
             // Arrange
-            var machine1 = CreateTestStateMachine();
-            var machine2 = CreateTestStateMachine();
-            var service1 = new EventNotificationService(machine1, _eventBus, "machine-1",
+            var machineId1 = "test-machine1" + Guid.NewGuid().ToString("N");
+            var machineId2 = "test-machine2" + Guid.NewGuid().ToString("N");
+            var machine1 = CreateTestStateMachine(machineId1);
+            var machine2 = CreateTestStateMachine(machineId2);
+            var service1 = new EventNotificationService(machine1, _eventBus, machineId1,
                 _loggerFactory.CreateLogger<EventNotificationService>());
-            var service2 = new EventNotificationService(machine2, _eventBus, "machine-2",
+            var service2 = new EventNotificationService(machine2, _eventBus, machineId2,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             await _eventBus.ConnectAsync();
@@ -336,8 +367,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_EventAggregation()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var service = new EventNotificationService(machine, _eventBus, "test-machine",
+            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(machineId);
+            var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var batchReceived = new TaskCompletionSource<List<ActionExecutedNotification>>();
@@ -390,8 +422,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_FilteredSubscriptions()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var service = new EventNotificationService(machine, _eventBus, "test-machine",
+            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(machineId);
+            var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var allEvents = new List<StateMachineEvent>();
@@ -428,36 +461,36 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service.StopAsync();
         }
 
-        private StateMachine CreateTestStateMachine()
+        private IStateMachine CreateTestStateMachine(string uniqueId)
         {
             var json = @"{
-                'id': 'test',
-                'initial': 'idle',
-                'states': {
-                    'idle': {
-                        'on': {
-                            'GO': 'running',
-                            'PAUSE': {
-                                'target': 'paused',
-                                'cond': 'canPause'
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: {
+                            GO: 'running',
+                            PAUSE: {
+                                target: 'paused',
+                                cond: 'canPause'
                             }
                         }
                     },
-                    'running': {
-                        'entry': ['startRunning'],
-                        'exit': ['stopRunning'],
-                        'on': {
-                            'STOP': 'idle',
-                            'GO': {
-                                'target': 'running',
-                                'internal': true,
-                                'actions': ['logRestart']
+                    running: {
+                        entry: ['startRunning'],
+                        exit: ['stopRunning'],
+                        on: {
+                            STOP: 'idle',
+                            GO: {
+                                target: 'running',
+                                internal: true,
+                                actions: ['logRestart']
                             }
                         }
                     },
-                    'paused': {
-                        'on': {
-                            'RESUME': 'running'
+                    paused: {
+                        on: {
+                            RESUME: 'running'
                         }
                     }
                 }
@@ -475,7 +508,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 ["canPause"] = new NamedGuard("canPause", sm => true)
             };
 
-            return StateMachine.CreateFromScript(json, actionMap, guardMap);
+            return XStateNet.StateMachine.CreateFromScript(json, actionMap, guardMap);
         }
 
         public void Dispose()

@@ -33,7 +33,7 @@ namespace XStateNet.Distributed.Tests.Benchmarks
 
         private InMemoryEventBus _standardEventBus = null!;
         private OptimizedInMemoryEventBus _optimizedEventBus = null!;
-        private StateMachine _stateMachine = null!;
+        private IStateMachine _stateMachine = null!;
         private EventNotificationService _standardService = null!;
         private OptimizedEventNotificationService _optimizedService = null!;
         private List<IDisposable> _subscriptions = null!;
@@ -46,19 +46,20 @@ namespace XStateNet.Distributed.Tests.Benchmarks
             _optimizedEventBus = new OptimizedInMemoryEventBus(workerCount: Environment.ProcessorCount);
 
             // Create state machine
+            var uniqueId = "benchmark_" + Guid.NewGuid().ToString("N");
             var json = @"{
-                'id': 'benchmark',
-                'initial': 'idle',
-                'states': {
-                    'idle': {
-                        'on': {
-                            'START': 'running'
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: {
+                            START: 'running'
                         }
                     },
-                    'running': {
-                        'entry': ['doWork'],
-                        'on': {
-                            'STOP': 'idle'
+                    running: {
+                        entry: ['doWork'],
+                        on: {
+                            STOP: 'idle'
                         }
                     }
                 }
@@ -69,7 +70,7 @@ namespace XStateNet.Distributed.Tests.Benchmarks
                 ["doWork"] = new List<NamedAction> { new NamedAction("doWork", _ => { }) }
             };
 
-            _stateMachine = StateMachine.CreateFromScript(json, actionMap);
+            _stateMachine = XStateNet.StateMachine.CreateFromScript(json, actionMap);
 
             // Create notification services
             _standardService = new EventNotificationService(_stateMachine, _standardEventBus, "bench-1");

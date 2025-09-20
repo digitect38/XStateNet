@@ -4,129 +4,150 @@ using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System;
 namespace AdvancedFeatures;
 
 public class MutualExclusionTests : IDisposable
 {
-    private StateMachine _stateMachine;
-
-    public MutualExclusionTests()
+    private StateMachine CreateStateMachine(string uniqueId)
     {
         var actionCallbacks = new ActionMap();
         var guardCallbacks = new GuardMap();
 
-        string jsonScript = @"
-        {
-            'id': 'mutualExclusion',
-            'type': 'parallel',
-            'states': {
-                'shooter': {
-                    'initial': 'wait',
-                    'states': {
-                        'wait': {
-                            'on': {
-                                'SHOOT': {
-                                    'target': 'shoot',
-                                    'in': '#mutualExclusion.trashCan.open'
-                                }
-                            }
-                        },
-                        'shoot': {
-                            'on': {
-                                'DONE': 'wait'
-                            }
-                        }
-                    }
-                },
-                'trashCan': {
-                    'initial': 'closed',
-                    'states': {
-                        'open': {
-                            'on': {
-                                'CLOSE': {
-                                    'target': 'closed',
-                                    'in': '#mutualExclusion.shooter.wait'
-                                }
-                            }
-                        },
-                        'closed': {
-                            'on': {
-                                'OPEN': 'open'
-                            }
-                        }
-                    }
-                }
-            }
-        }";
+        string jsonScript = @$"
+        {{
+            id: '{uniqueId}',
+            type: 'parallel',
+            states: {{
+                shooter: {{
+                    initial: 'wait',
+                    states: {{
+                        wait: {{
+                            on: {{
+                                SHOOT: {{
+                                    target: 'shoot',
+                                    in: '#{uniqueId}.trashCan.open'
+                                }}
+                            }}
+                        }},
+                        shoot: {{
+                            on: {{
+                                DONE: 'wait'
+                            }}
+                        }}
+                    }}
+                }},
+                trashCan: {{
+                    initial: 'closed',
+                    states: {{
+                        open: {{
+                            on: {{
+                                CLOSE: {{
+                                    target: 'closed',
+                                    in: '#{uniqueId}.shooter.wait'
+                                }}
+                            }}
+                        }},
+                        closed: {{
+                            on: {{
+                                OPEN: 'open'
+                            }}
+                        }}
+                    }}
+                }}
+            }}
+        }}";
 
-        _stateMachine = StateMachine.CreateFromScript(jsonScript, actionCallbacks, guardCallbacks);
-        _stateMachine!.Start();
+        var stateMachine = StateMachine.CreateFromScript(jsonScript, actionCallbacks, guardCallbacks);
+        stateMachine!.Start();
+        return stateMachine;
     }
 
     [Fact]
     public void TestInitialState()
     {
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
     [Fact]
     public void TestTransitionShoot()
     {
-        _stateMachine!.Send("OPEN");
-        _stateMachine!.Send("SHOOT");
+        var uniqueId = "TestTransitionShoot_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
 
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        stateMachine!.Send("OPEN");
+        stateMachine!.Send("SHOOT");
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
     public void TestTransitionCannotShoot()
     {
-        _stateMachine!.Send("SHOOT");
+        var uniqueId = "TestTransitionCannotShoot_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
 
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        stateMachine!.Send("SHOOT");
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
 
     [Fact]
     public void TestTransitionCannotClose()
     {
-        // trashcan should not be closed while shooting!
-        _stateMachine!.Send("OPEN");
-        _stateMachine!.Send("SHOOT");
-        _stateMachine!.Send("CLOSE");
+        var uniqueId = "TestTransitionCannotClose_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
 
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.shoot;#mutualExclusion.trashCan.open");
+        // trashcan should not be closed while shooting!
+        stateMachine!.Send("OPEN");
+        stateMachine!.Send("SHOOT");
+        stateMachine!.Send("CLOSE");
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
     public void TestTransitionCanClose()
     {
-        // trashcan can be closed after if shooting is done!
-        _stateMachine!.Send("OPEN");
-        _stateMachine!.Send("SHOOT");
-        _stateMachine!.Send("DONE");
-        _stateMachine!.Send("CLOSE");
+        var uniqueId = "TestTransitionCanClose_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
 
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        // trashcan can be closed after if shooting is done!
+        stateMachine!.Send("OPEN");
+        stateMachine!.Send("SHOOT");
+        stateMachine!.Send("DONE");
+        stateMachine!.Send("CLOSE");
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
     [Fact]
     public void TestShootAndDoneTransition()
     {
-        _stateMachine!.Send("OPEN");
-        _stateMachine!.Send("SHOOT");
-        _stateMachine!.Send("DONE");
+        var uniqueId = "TestShootAndDoneTransition_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
 
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.open");
+        stateMachine!.Send("OPEN");
+        stateMachine!.Send("SHOOT");
+        stateMachine!.Send("DONE");
+
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
     public void TestOpenAndCloseTransition()
     {
-        _stateMachine!.Send("OPEN");
-        _stateMachine!.Send("CLOSE");
-        var stateString = _stateMachine!.GetActiveStateString();
-        _stateMachine!.GetActiveStateString().AssertEquivalence("#mutualExclusion.shooter.wait;#mutualExclusion.trashCan.closed");
+        var uniqueId = "TestOpenAndCloseTransition_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
+        stateMachine!.Send("OPEN");
+        stateMachine!.Send("CLOSE");
+        var stateString = stateMachine!.GetActiveStateString();
+        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
     
     public void Dispose()

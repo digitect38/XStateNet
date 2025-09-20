@@ -123,7 +123,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithAutoStart(false)
             .Build("resetTest");
 
-        //_stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        //_stateMachine = StateMachines.CreateFromScript(script, _actions, _guards);
         _stateMachine.Start();
 
         // Navigate to non-initial state

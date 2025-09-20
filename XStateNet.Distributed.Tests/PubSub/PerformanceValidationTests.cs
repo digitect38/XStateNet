@@ -594,22 +594,23 @@ namespace XStateNet.Distributed.Tests.PubSub
 
         #region Helpers
 
-        private StateMachine CreateTestStateMachine()
+        private IStateMachine CreateTestStateMachine()
         {
+            var uniqueId = "test_" + Guid.NewGuid().ToString("N");
             var json = @"{
-                'id': 'test',
-                'initial': 'idle',
-                'states': {
-                    'idle': {
-                        'on': { 'GO': 'running' }
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { GO: 'running' }
                     },
-                    'running': {
-                        'on': { 'STOP': 'idle' }
+                    running: {
+                        on: { STOP: 'idle' }
                     }
                 }
             }";
 
-            return StateMachine.CreateFromScript(json);
+            return XStateNet.StateMachine.CreateFromScript(json);
         }
 
         public void Dispose()

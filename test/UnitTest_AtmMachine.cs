@@ -9,24 +9,23 @@ namespace ComplexMachine;
 
 public class AtmStateMachineTests : IDisposable
 {
-    private StateMachine _stateMachine;
-    private ActionMap _actions;
-    private GuardMap _guards;
-
-    public AtmStateMachineTests()
+    private StateMachine CreateStateMachine(string uniqueId)
     {
         // Define actions
-        _actions = new ()
+        var actions = new ActionMap()
         {
             ["logEntry"] = [new NamedAction("logEntry", (sm) => StateMachine.Log("Entering state"))],
             ["logExit"] = [new NamedAction("logExit", (sm) => StateMachine.Log("Exiting state"))]
         };
 
         // Define guards
-        _guards = new ();
+        var guards = new GuardMap();
+
+        var jsonScript = GetJson(uniqueId);
 
         // Load state machine from JSON
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions, _guards).Start();
+        var stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonScript, actions, guards).Start();
+        return stateMachine;
     }
 
     public void Dispose()
@@ -37,260 +36,290 @@ public class AtmStateMachineTests : IDisposable
     [Fact]
     public void TestInitialState()
     {
-        var initialState = _stateMachine!.GetActiveStateString();
-        initialState.AssertEquivalence("#atm.idle");
+        var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        var initialState = stateMachine.GetActiveStateString();
+        initialState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestCardInserted()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.authenticating.enteringPin");
+        var uniqueId = "TestCardInserted_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin");
     }
 
     [Fact]
     public void TestPinEnteredCorrectly()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestPinEnteredCorrectly_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestPinEnteredIncorrectly()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_INCORRECT");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.authenticating.enteringPin");
+        var uniqueId = "TestPinEnteredIncorrectly_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_INCORRECT");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin");
     }
 
     [Fact]
     public void TestWithdrawTransactionSuccess()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("WITHDRAW");
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("SUCCESS");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.idle");
+        var uniqueId = "TestWithdrawTransactionSuccess_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("WITHDRAW");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("SUCCESS");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestDepositTransactionFailure()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("DEPOSIT");
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("FAILURE");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestDepositTransactionFailure_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("DEPOSIT");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("FAILURE");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.depositing;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestCancelDuringTransaction()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("WITHDRAW");
-        _stateMachine!.Send("CANCEL");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestCancelDuringTransaction_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("WITHDRAW");
+        stateMachine.Send("CANCEL");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestRequestReceipt()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("REQUEST_RECEIPT");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.printingReceipt");
+        var uniqueId = "TestRequestReceipt_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("REQUEST_RECEIPT");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.printingReceipt");
     }
 
     [Fact]
     public void TestReceiptPrinted()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("REQUEST_RECEIPT");
-        _stateMachine!.Send("RECEIPT_PRINTED");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestReceiptPrinted_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("REQUEST_RECEIPT");
+        stateMachine.Send("RECEIPT_PRINTED");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestBalanceCheck()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("BALANCE");
-        _stateMachine!.Send("BALANCE_SHOWN");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestBalanceCheck_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("BALANCE");
+        stateMachine.Send("BALANCE_SHOWN");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestNestedCancelDuringTransaction()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("WITHDRAW");
-        _stateMachine!.Send("CANCEL");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.selectingTransaction;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestNestedCancelDuringTransaction_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("WITHDRAW");
+        stateMachine.Send("CANCEL");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
     public void TestInvalidTransition()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("INVALID_EVENT");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.authenticating.enteringPin"); // Should remain in the same state
+        var uniqueId = "TestInvalidTransition_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("INVALID_EVENT");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin"); // Should remain in the same state
     }
 
     [Fact]
     public void TestCancelAfterCardInserted()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("CANCEL");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.idle");
+        var uniqueId = "TestCancelAfterCardInserted_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("CANCEL");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestWithdrawFailureAndRetry()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("WITHDRAW");
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("FAILURE");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.withdrawing;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestWithdrawFailureAndRetry_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("WITHDRAW");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("FAILURE");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.withdrawing;#{uniqueId}.operational.receipt.noReceipt");
 
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("SUCCESS");
-        currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.idle");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("SUCCESS");
+        currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestDepositFailureAndRetry()
     {
-        _stateMachine!.Send("CARD_INSERTED");
-        _stateMachine!.Send("PIN_ENTERED");
-        _stateMachine!.Send("PIN_CORRECT");
-        _stateMachine!.Send("DEPOSIT");
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("FAILURE");
-        var currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.operational.transaction.depositing;#atm.operational.receipt.noReceipt");
+        var uniqueId = "TestDepositFailureAndRetry_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+        stateMachine.Send("CARD_INSERTED");
+        stateMachine.Send("PIN_ENTERED");
+        stateMachine.Send("PIN_CORRECT");
+        stateMachine.Send("DEPOSIT");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("FAILURE");
+        var currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.depositing;#{uniqueId}.operational.receipt.noReceipt");
 
-        _stateMachine!.Send("AMOUNT_ENTERED");
-        _stateMachine!.Send("SUCCESS");
-        currentState = _stateMachine!.GetActiveStateString();
-        currentState.AssertEquivalence("#atm.idle");
+        stateMachine.Send("AMOUNT_ENTERED");
+        stateMachine.Send("SUCCESS");
+        currentState = stateMachine.GetActiveStateString();
+        currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
-    const string json = @"{
-          id: 'atm',
+    private string GetJson(string uniqueId) => @$"{{
+          id: '{uniqueId}',
           initial: 'idle',
-          states: {
-            idle: {
-              on: { CARD_INSERTED: 'authenticating' }
-            },
-            authenticating: {
+          states: {{
+            idle: {{
+              on: {{ CARD_INSERTED: 'authenticating' }}
+            }},
+            authenticating: {{
               initial: 'enteringPin',
-              states: {
-                enteringPin: {
-                  on: {
+              states: {{
+                enteringPin: {{
+                  on: {{
                     PIN_ENTERED: 'verifyingPin',
-                    CANCEL: '#atm.idle'
-                  }
-                },
-                verifyingPin: {
-                  on: {
-                    PIN_CORRECT: '#atm.operational',
+                    CANCEL: '#{uniqueId}.idle'
+                  }}
+                }},
+                verifyingPin: {{
+                  on: {{
+                    PIN_CORRECT: '#{uniqueId}.operational',
                     PIN_INCORRECT: 'enteringPin'
-                  }
-                }
-              }
-            },
-            operational: {
+                  }}
+                }}
+              }}
+            }},
+            operational: {{
               type: 'parallel',
-              states: {
-                transaction: {
+              states: {{
+                transaction: {{
                   initial: 'selectingTransaction',
-                  states: {
-                    selectingTransaction: {
-                      on: {
+                  states: {{
+                    selectingTransaction: {{
+                      on: {{
                         WITHDRAW: 'withdrawing',
                         DEPOSIT: 'depositing',
                         BALANCE: 'checkingBalance',
-                        CANCEL: '#atm.idle'
-                      }
-                    },
-                    withdrawing: {
-                      on: {
+                        CANCEL: '#{uniqueId}.idle'
+                      }}
+                    }},
+                    withdrawing: {{
+                      on: {{
                         AMOUNT_ENTERED: 'processingWithdrawal',
                         CANCEL: 'selectingTransaction'
-                      }
-                    },
-                    processingWithdrawal: {
-                      on: {
-                        SUCCESS: '#atm.idle',
+                      }}
+                    }},
+                    processingWithdrawal: {{
+                      on: {{
+                        SUCCESS: '#{uniqueId}.idle',
                         FAILURE: 'withdrawing'
-                      }
-                    },
-                    depositing: {
-                      on: {
+                      }}
+                    }},
+                    depositing: {{
+                      on: {{
                         AMOUNT_ENTERED: 'processingDeposit',
                         CANCEL: 'selectingTransaction'
-                      }
-                    },
-                    processingDeposit: {
-                      on: {
-                        SUCCESS: '#atm.idle',
+                      }}
+                    }},
+                    processingDeposit: {{
+                      on: {{
+                        SUCCESS: '#{uniqueId}.idle',
                         FAILURE: 'depositing'
-                      }
-                    },
-                    checkingBalance: {
-                      on: {
+                      }}
+                    }},
+                    checkingBalance: {{
+                      on: {{
                         BALANCE_SHOWN: 'selectingTransaction',
                         CANCEL: 'selectingTransaction'
-                      }
-                    }
-                  }
-                },
-                receipt: {
+                      }}
+                    }}
+                  }}
+                }},
+                receipt: {{
                   initial: 'noReceipt',
-                  states: {
-                    noReceipt: {
-                      on: { REQUEST_RECEIPT: 'printingReceipt' }
-                    },
-                    printingReceipt: {
-                      on: { RECEIPT_PRINTED: 'noReceipt' }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }";
+                  states: {{
+                    noReceipt: {{
+                      on: {{ REQUEST_RECEIPT: 'printingReceipt' }}
+                    }},
+                    printingReceipt: {{
+                      on: {{ RECEIPT_PRINTED: 'noReceipt' }}
+                    }}
+                  }}
+                }}
+              }}
+            }}
+          }}
+        }}";
 }

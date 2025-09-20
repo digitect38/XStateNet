@@ -16,7 +16,7 @@ namespace XStateNet.Distributed.PubSub
     /// </summary>
     public class EventNotificationService : IDisposable
     {
-        private readonly StateMachine _stateMachine;
+        private readonly IStateMachine _stateMachine;
         private readonly IStateMachineEventBus _eventBus;
         private readonly ILogger<EventNotificationService>? _logger;
         private readonly string _machineId;
@@ -25,6 +25,7 @@ namespace XStateNet.Distributed.PubSub
         private readonly SemaphoreSlim _publishSemaphore = new(1, 1);
         private bool _isStarted;
         private bool _disposed;
+        private string? _previousState;
 
         // Event types
         public const string StateChangeEvent = "StateChange";
@@ -35,7 +36,7 @@ namespace XStateNet.Distributed.PubSub
         public const string CustomEvent = "Custom";
 
         public EventNotificationService(
-            StateMachine stateMachine,
+            IStateMachine stateMachine,
             IStateMachineEventBus eventBus,
             string? machineId = null,
             ILogger<EventNotificationService>? logger = null)
@@ -325,22 +326,72 @@ namespace XStateNet.Distributed.PubSub
 
         private void WireUpStateMachineEvents()
         {
-            // Wire up OnTransition event
-            _stateMachine.OnTransition += OnStateMachineTransition;
+            // Wire up the StateChanged event from IStateMachine
+            if (_stateMachine != null)
+            {
+                // Initialize previous state with current state (may be empty if not started)
+                var currentState = _stateMachine.GetActiveStateString();
+                _previousState = !string.IsNullOrEmpty(currentState) ? currentState : null;
 
-            // Wire up OnActionExecuted event
-            _stateMachine.OnActionExecuted += OnStateMachineActionExecuted;
-
-            // Wire up OnGuardEvaluated event
-            _stateMachine.OnGuardEvaluated += OnStateMachineGuardEvaluated;
+                _stateMachine.StateChanged += OnStateMachineStateChanged;
+                _stateMachine.ErrorOccurred += OnStateMachineError;
+            }
         }
 
         private void UnwireStateMachineEvents()
         {
             // Clean up event handlers
-            _stateMachine.OnTransition -= OnStateMachineTransition;
-            _stateMachine.OnActionExecuted -= OnStateMachineActionExecuted;
-            _stateMachine.OnGuardEvaluated -= OnStateMachineGuardEvaluated;
+            if (_stateMachine != null)
+            {
+                _stateMachine.StateChanged -= OnStateMachineStateChanged;
+                _stateMachine.ErrorOccurred -= OnStateMachineError;
+            }
+        }
+
+        private void OnStateMachineStateChanged(string newState)
+        {
+            // Fire and forget async operation
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var stateChangeEvent = new StateChangeEvent
+                    {
+                        NewState = newState,
+                        OldState = _previousState, // Track previous state manually
+                        Timestamp = DateTime.UtcNow,
+                        SourceMachineId = _machineId
+                    };
+
+                    await _eventBus.PublishStateChangeAsync(_machineId, stateChangeEvent);
+
+                    _logger?.LogDebug("Published state change from {OldState} to {NewState} for machine {MachineId}",
+                        _previousState, newState, _machineId);
+
+                    // Update previous state for next transition
+                    _previousState = newState;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to publish state change event");
+                }
+            });
+        }
+
+        private void OnStateMachineError(Exception error)
+        {
+            // Fire and forget async operation
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await PublishErrorAsync(error);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to publish error event");
+                }
+            });
         }
 
         private void OnStateMachineTransition(CompoundState? source, StateNode? target, string eventName)

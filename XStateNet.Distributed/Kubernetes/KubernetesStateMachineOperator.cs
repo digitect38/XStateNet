@@ -48,7 +48,7 @@ namespace XStateNet.Distributed.Kubernetes
             // First, ensure CRD exists
             await EnsureCustomResourceDefinitionAsync();
             
-            // Watch for StateMachine custom resources
+            // Watch for StateMachines custom resources
             await WatchStateMachinesAsync(stoppingToken);
         }
         
@@ -201,7 +201,7 @@ namespace XStateNet.Distributed.Kubernetes
         }
         
         /// <summary>
-        /// Reconcile a StateMachine custom resource with actual deployments
+        /// Reconcile a StateMachines custom resource with actual deployments
         /// </summary>
         public async Task ReconcileStateMachineAsync(StateMachineResource resource)
         {
@@ -557,7 +557,7 @@ namespace XStateNet.Distributed.Kubernetes
     }
     
     /// <summary>
-    /// Custom Resource Definition for StateMachine
+    /// Custom Resource Definition for StateMachines
     /// </summary>
     public class StateMachineResource
     {

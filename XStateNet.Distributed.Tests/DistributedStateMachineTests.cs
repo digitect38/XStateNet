@@ -14,18 +14,19 @@ namespace XStateNet.Distributed.Tests
         public void CreateFromScript_Should_CreateDistributedMachine()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {
-                        'on': {
+                        on: {
                             'START': 'running'
                         }
                     },
                     'running': {
-                        'on': {
+                        on: {
                             'STOP': 'idle'
                         }
                     }
@@ -33,10 +34,7 @@ namespace XStateNet.Distributed.Tests
             }";
             
             // Act
-            var machine = DistributedStateMachineFactory.CreateFromScript(
-                "test-machine",
-                json,
-                "local://test");
+            var machine = new DistributedStateMachine(StateMachine.CreateFromScript(json), "test-machine", "local://test");
             _machines.Add(machine);
             
             // Assert
@@ -48,11 +46,12 @@ namespace XStateNet.Distributed.Tests
         public void Start_Should_StartMachine()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {}
                 }
             }";
@@ -67,7 +66,7 @@ namespace XStateNet.Distributed.Tests
             machine.Start();
             
             // Assert
-            // Note: StateMachine doesn't have a Started property in this implementation
+            // Note: StateMachines doesn't have a Started property in this implementation
             // We can verify it doesn't throw
         }
 
@@ -75,13 +74,14 @@ namespace XStateNet.Distributed.Tests
         public void Send_LocalEvent_Should_ProcessLocally()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {
-                        'on': {
+                        on: {
                             'START': 'running'
                         }
                     },
@@ -109,13 +109,14 @@ namespace XStateNet.Distributed.Tests
         public async Task SendToMachine_Should_SendToRemoteMachine()
         {
             // Arrange
+            var machine1Id = "machine1_" + Guid.NewGuid().ToString("N");
             var json1 = @"
             {
-                'id': 'machine1',
-                'initial': 'idle',
-                'states': {
+                id: '" + machine1Id + @"',
+                initial: 'idle',
+                states: {
                     'idle': {
-                        'on': {
+                        on: {
                             'REMOTE_EVENT': 'active'
                         }
                     },
@@ -130,13 +131,14 @@ namespace XStateNet.Distributed.Tests
                 "local://machine1");
             _machines.Add(machine1);
             
+            var machine2Id = "machine2_" + Guid.NewGuid().ToString("N");
             var json2 = @"
             {
-                'id': 'machine2',
-                'initial': 'idle',
-                'states': {
+                id: '" + machine2Id + @"',
+                initial: 'idle',
+                states: {
                     'idle': {
-                        'on': {
+                        on: {
                             'START': 'running'
                         }
                     },
@@ -166,11 +168,12 @@ namespace XStateNet.Distributed.Tests
         public void Send_RemoteEventFormat_Should_ParseCorrectly()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {}
                 }
             }";
@@ -192,11 +195,12 @@ namespace XStateNet.Distributed.Tests
         public async Task DiscoverMachines_Should_ReturnEndpoints()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {}
                 }
             }";
@@ -221,11 +225,12 @@ namespace XStateNet.Distributed.Tests
         public async Task GetHealth_Should_ReturnHealthStatus()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {}
                 }
             }";
@@ -250,11 +255,12 @@ namespace XStateNet.Distributed.Tests
         public void Stop_Should_StopMachine()
         {
             // Arrange
+            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                'id': 'simple',
-                'initial': 'idle',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'idle',
+                states: {
                     'idle': {}
                 }
             }";

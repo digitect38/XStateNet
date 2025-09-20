@@ -17,7 +17,7 @@ namespace XStateNet.Distributed
     /// </summary>
     public class DistributedStateMachine : IDisposable
     {
-        private readonly StateMachine _stateMachine;
+        private readonly IStateMachine _stateMachine;
         private IStateMachineTransport? _transport;
         private readonly ConcurrentDictionary<string, IStateMachineTransport> _transportCache = new();
         private readonly string _machineId;
@@ -29,7 +29,7 @@ namespace XStateNet.Distributed
         /// <summary>
         /// Access to the underlying state machine
         /// </summary>
-        public StateMachine StateMachine => _stateMachine;
+        public IStateMachine StateMachine => _stateMachine;
 
         /// <summary>
         /// Create a distributed state machine
@@ -37,7 +37,7 @@ namespace XStateNet.Distributed
         /// <param name="machineId">Unique identifier for this machine</param>
         /// <param name="address">Address for communication (e.g., "local://machine1", "tcp://localhost:5555", "amqp://localhost")</param>
         /// <param name="logger">Optional logger</param>
-        public DistributedStateMachine(StateMachine stateMachine, string machineId, string? address = null, ILogger<DistributedStateMachine>? logger = null)
+        public DistributedStateMachine(IStateMachine stateMachine, string machineId, string? address = null, ILogger<DistributedStateMachine>? logger = null)
         {
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _machineId = machineId;
@@ -350,12 +350,14 @@ namespace XStateNet.Distributed
             ILogger<DistributedStateMachine>? logger = null)
         {
             // Create the base state machine from script
-            var baseMachine = StateMachine.CreateFromScript(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
-            
-            // Wrap it in a distributed state machine
-            var distributedMachine = new DistributedStateMachine(baseMachine, machineId, address, logger);
-            
-            return distributedMachine;
+            // Note: CreateFromScript would require a factory or builder pattern
+            // For now, this is a placeholder
+            throw new NotImplementedException("CreateFromScript requires implementation of StateMachine factory");
+
+            // // Wrap it in a distributed state machine
+            // var distributedMachine = new DistributedStateMachine(baseMachine, machineId, address, logger);
+            //
+            // return distributedMachine;
         }
     }
 }

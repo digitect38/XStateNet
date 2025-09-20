@@ -57,34 +57,36 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestBasicInvokeService()
     {
-        const string script = @"
+        var uniqueId = "TestBasicInvokeService_" + Guid.NewGuid().ToString("N");
+
+        string script = @"
         {
-            'id': 'invokeTest',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
-                        'START': 'fetching'
+            ""id"": """ + uniqueId + @""",
+            ""initial"": ""idle"",
+            ""states"": {
+                ""idle"": {
+                    ""on"": {
+                        ""START"": ""fetching""
                     }
                 },
-                'fetching': {
-                    'invoke': {
-                        'src': 'fetchData',
-                        'onDone': {
-                            'target': 'success',
-                            'actions': 'handleSuccess'
+                ""fetching"": {
+                    ""invoke"": {
+                        ""src"": ""fetchData"",
+                        ""onDone"": {
+                            ""target"": ""success"",
+                            ""actions"": ""handleSuccess""
                         },
-                        'onError': {
-                            'target': 'failure',
-                            'actions': 'handleError'
+                        ""onError"": {
+                            ""target"": ""failure"",
+                            ""actions"": ""handleError""
                         }
                     }
                 },
-                'success': {
-                    'type': 'final'
+                ""success"": {
+                    ""type"": ""final""
                 },
-                'failure': {
-                    'type': 'final'
+                ""failure"": {
+                    ""type"": ""final""
                 }
             }
         }";
@@ -92,15 +94,15 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
         _stateMachine!.Start();
         
-        Assert.Contains("idle", _stateMachine.GetActiveStateString());
-        
+        Assert.Contains(uniqueId + ".idle", _stateMachine.GetActiveStateString());
+
         _stateMachine!.Send("START");
-        Assert.Contains("fetching", _stateMachine.GetActiveStateString());
-        
+        Assert.Contains(uniqueId + ".fetching", _stateMachine.GetActiveStateString());
+
         // Wait for service to complete
         await Task.Delay(200);
-        
-        Assert.Contains("success", _stateMachine.GetActiveStateString());
+
+        Assert.Contains(uniqueId + ".success", _stateMachine.GetActiveStateString());
         Assert.True(_serviceCompleted);
         Assert.Equal(1, _serviceCallCount);
         Assert.Equal("fetched data", _stateMachine.ContextMap!["data"]);
@@ -109,33 +111,35 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestInvokeServiceWithError()
     {
-        const string script = @"
+        var uniqueId = "TestInvokeServiceWithError_" + Guid.NewGuid().ToString("N");
+
+        string script = @"
         {
-            'id': 'invokeErrorTest',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
-                        'START': 'processing'
+            ""id"": """ + uniqueId + @""",
+            ""initial"": ""idle"",
+            ""states"": {
+                ""idle"": {
+                    ""on"": {
+                        ""START"": ""processing""
                     }
                 },
-                'processing': {
-                    'invoke': {
-                        'src': 'failingService',
-                        'onDone': {
-                            'target': 'success'
+                ""processing"": {
+                    ""invoke"": {
+                        ""src"": ""failingService"",
+                        ""onDone"": {
+                            ""target"": ""success""
                         },
-                        'onError': {
-                            'target': 'error',
-                            'actions': 'handleError'
+                        ""onError"": {
+                            ""target"": ""error"",
+                            ""actions"": ""handleError""
                         }
                     }
                 },
-                'success': {
-                    'type': 'final'
+                ""success"": {
+                    ""type"": ""final""
                 },
-                'error': {
-                    'type': 'final'
+                ""error"": {
+                    ""type"": ""final""
                 }
             }
         }";
@@ -144,12 +148,12 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        Assert.Contains("processing", _stateMachine.GetActiveStateString());
-        
+        Assert.Contains(uniqueId + ".processing", _stateMachine.GetActiveStateString());
+
         // Wait for service to fail
         await Task.Delay(150);
-        
-        Assert.Contains("error", _stateMachine.GetActiveStateString());
+
+        Assert.Contains(uniqueId + ".error", _stateMachine.GetActiveStateString());
         Assert.True(_errorOccurred);
         Assert.Equal("Service failed intentionally", _lastErrorMessage);
     }
@@ -157,47 +161,49 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestMultipleInvokedServices()
     {
-        const string script = @"
+        var uniqueId = "TestMultipleInvokedServices_" + Guid.NewGuid().ToString("N");
+
+        string script = @"
         {
-            'id': 'multiInvokeTest',
-            'initial': 'idle',
-            'type': 'parallel',
-            'states': {
-                'serviceA': {
-                    'initial': 'idle',
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'START': 'running'
+            ""id"": """ + uniqueId + @""",
+            ""initial"": ""idle"",
+            ""type"": ""parallel"",
+            ""states"": {
+                ""serviceA"": {
+                    ""initial"": ""idle"",
+                    ""states"": {
+                        ""idle"": {
+                            ""on"": {
+                                ""START"": ""running""
                             }
                         },
-                        'running': {
-                            'invoke': {
-                                'src': 'fetchData',
-                                'onDone': { 'target': 'complete' }
+                        ""running"": {
+                            ""invoke"": {
+                                ""src"": ""fetchData"",
+                                ""onDone"": { ""target"": ""complete"" }
                             }
                         },
-                        'complete': {
-                            'type': 'final'
+                        ""complete"": {
+                            ""type"": ""final""
                         }
                     }
                 },
-                'serviceB': {
-                    'initial': 'idle',
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'START': 'running'
+                ""serviceB"": {
+                    ""initial"": ""idle"",
+                    ""states"": {
+                        ""idle"": {
+                            ""on"": {
+                                ""START"": ""running""
                             }
                         },
-                        'running': {
-                            'invoke': {
-                                'src': 'longRunningService',
-                                'onDone': { 'target': 'complete' }
+                        ""running"": {
+                            ""invoke"": {
+                                ""src"": ""longRunningService"",
+                                ""onDone"": { ""target"": ""complete"" }
                             }
                         },
-                        'complete': {
-                            'type': 'final'
+                        ""complete"": {
+                            ""type"": ""final""
                         }
                     }
                 }
@@ -211,23 +217,23 @@ public class UnitTest_InvokeServices : IDisposable
         
         // Both services should be running
         var activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains("serviceA.running", activeStates);
-        Assert.Contains("serviceB.running", activeStates);
-        
+        Assert.Contains(uniqueId + ".serviceA.running", activeStates);
+        Assert.Contains(uniqueId + ".serviceB.running", activeStates);
+
         // Wait for shorter service
         await Task.Delay(200);
-        
+
         // Service A should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains("serviceA.complete", activeStates);
-        
+        Assert.Contains(uniqueId + ".serviceA.complete", activeStates);
+
         // Wait for longer service
         await Task.Delay(400);
-        
+
         // Both services should be complete
         activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains("serviceA.complete", activeStates);
-        Assert.Contains("serviceB.complete", activeStates);
+        Assert.Contains(uniqueId + ".serviceA.complete", activeStates);
+        Assert.Contains(uniqueId + ".serviceB.complete", activeStates);
     }
     
     [Fact]
@@ -248,26 +254,28 @@ public class UnitTest_InvokeServices : IDisposable
             })
         };
         
-        const string script = @"
+        var uniqueId = "TestServiceCancellationOnStateExit_" + Guid.NewGuid().ToString("N");
+
+        string script = @"
         {
-            'id': 'cancelTest',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
-                        'START': 'processing'
+            ""id"": """ + uniqueId + @""",
+            ""initial"": ""idle"",
+            ""states"": {
+                ""idle"": {
+                    ""on"": {
+                        ""START"": ""processing""
                     }
                 },
-                'processing': {
-                    'invoke': {
-                        'src': 'cancellable'
+                ""processing"": {
+                    ""invoke"": {
+                        ""src"": ""cancellable""
                     },
-                    'on': {
-                        'CANCEL': 'cancelled'
+                    ""on"": {
+                        ""CANCEL"": ""cancelled""
                     }
                 },
-                'cancelled': {
-                    'type': 'final'
+                ""cancelled"": {
+                    ""type"": ""final""
                 }
             }
         }";
@@ -276,14 +284,14 @@ public class UnitTest_InvokeServices : IDisposable
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        Assert.Contains("processing", _stateMachine.GetActiveStateString());
-        
+        Assert.Contains(uniqueId + ".processing", _stateMachine.GetActiveStateString());
+
         // Cancel should exit the state and cancel the service
         _stateMachine!.Send("CANCEL");
-        Assert.Contains("cancelled", _stateMachine.GetActiveStateString());
+        Assert.Contains(uniqueId + ".cancelled", _stateMachine.GetActiveStateString());
         
         // Note: In a real implementation, we'd need to verify the service was actually cancelled
-        // This would require more sophisticated service management in the StateMachine
+        // This would require more sophisticated service management in the StateMachines
     }
     
     public void Dispose()

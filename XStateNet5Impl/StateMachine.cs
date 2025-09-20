@@ -407,6 +407,10 @@ public partial class StateMachine : IStateMachine
             }
 
             machineState = MachineState.Running;
+
+            // Fire StateChanged event with initial state
+            var initialState = GetActiveStateString();
+            StateChanged?.Invoke(initialState);
         }
         finally
         {
@@ -1218,8 +1222,12 @@ public partial class StateMachine : IStateMachine
     public void PrintCurrentStatesString()
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "=== Current States ===");
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => GetActiveStateString());
+        var currentStateString = GetActiveStateString();
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => currentStateString);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "======================");
+
+        // Fire StateChanged event with current state
+        StateChanged?.Invoke(currentStateString);
     }
 
     /// <summary>

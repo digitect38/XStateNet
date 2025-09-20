@@ -7,14 +7,12 @@ using System.Collections.Generic;
 namespace AdvancedFeatures;
 public class DiagrammingFrameworkTests : IDisposable
 {
-    private StateMachine _stateMachine;
     private ContextMap _context = new();
 
-    ActionMap actionMap = new();
-    GuardMap guardMap = new();
-
-    public DiagrammingFrameworkTests()
+    private StateMachine CreateStateMachine(string uniqueId)
     {
+        var actionMap = new ActionMap();
+        var guardMap = new GuardMap();
 
         // �׼� �߰�
         actionMap["setLButtonDown"] = [new("setLButtonDown", SetLButtonDown)];
@@ -52,8 +50,11 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["r_button_down"] = false;
         _context["selectionCount"] = 0;
 
+        var script = GetScript(uniqueId);
+
         // ���� �ӽ� �ʱ�ȭ
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
+        var stateMachine = (StateMachine)StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
+        return stateMachine;
     }
 
 
@@ -61,100 +62,121 @@ public class DiagrammingFrameworkTests : IDisposable
     [Fact]
     public void TestInitialState()
     {
-        var states = _stateMachine!.GetActiveStateString();
-        states.AssertEquivalence("#stateMachine.idle");
+        var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
+        var states = stateMachine!.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestLButtonDownOnShapeBody()
     {
+        var uniqueId = "TestLButtonDownOnShapeBody_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine!.Send("L_BUTTON_DOWN");
-        var states = _stateMachine!.GetActiveStateString();
-        states.AssertEquivalence("#stateMachine.selected.moving.idle");
+        stateMachine!.Send("L_BUTTON_DOWN");
+        var states = stateMachine!.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
     [Fact]
     public void TestLButtonDownOnCanvas()
     {
+        var uniqueId = "TestLButtonDownOnCanvas_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine!.Send("L_BUTTON_DOWN");
-        var states = _stateMachine!.GetActiveStateString();
-        states.AssertEquivalence("#stateMachine.selecting");
+        stateMachine!.Send("L_BUTTON_DOWN");
+        var states = stateMachine!.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selecting");
     }
 
     [Fact]
     public void TestSelectionToIdle()
     {
+        var uniqueId = "TestSelectionToIdle_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine!.Send("L_BUTTON_DOWN");
-        _stateMachine!.Send("MOUSE_MOVE");
+        stateMachine.Send("L_BUTTON_DOWN");
+        stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 0;
-        _stateMachine!.Send("L_BUTTON_UP");
-        var states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.idle");
+        stateMachine.Send("L_BUTTON_UP");
+        var states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
     public void TestSelectionToSelected()
     {
+        var uniqueId = "TestSelectionToSelected_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        _stateMachine!.Send("L_BUTTON_DOWN");
-        _stateMachine!.Send("MOUSE_MOVE");
+        stateMachine.Send("L_BUTTON_DOWN");
+        stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 1;
-        _stateMachine!.Send("L_BUTTON_UP");
-        var states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selecting");
+        stateMachine.Send("L_BUTTON_UP");
+        var states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selecting");
     }
 
     [Fact]
     public void TestMovingState()
     {
+        var uniqueId = "stateMachine_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine!.Send("L_BUTTON_DOWN");
+        stateMachine.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.moving.idle");
+        var states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
         _context["onResize"] = false;
 
-        _stateMachine!.Send("MOUSE_MOVE");
-        states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.moving.idle");
+        stateMachine.Send("MOUSE_MOVE");
+        states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
-        _stateMachine!.Send("L_BUTTON_UP");
-        states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.moving.idle");
+        stateMachine.Send("L_BUTTON_UP");
+        states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
     [Fact]
     public void TestResizingState()
     {
+        var uniqueId = "TestResizingState_" + Guid.NewGuid().ToString("N");
+        var stateMachine = CreateStateMachine(uniqueId);
+
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        _stateMachine!.Send("L_BUTTON_DOWN");
+        stateMachine.Send("L_BUTTON_DOWN");
 
-        var states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.moving.idle");
+        var states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
 
         _context["onShapeBody"] = false;
         _context["onResizePad"] = true;
         _context["l_button_down"] = false;
 
-        _stateMachine!.Send("MOUSE_MOVE");
+        stateMachine.Send("MOUSE_MOVE");
 
-        states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.resizing.idle");
+        states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.resizing.idle");
 
-        _stateMachine!.Send("L_BUTTON_UP");
-        states = _stateMachine!.GetActiveStateString();
-        states.Equals("#stateMachine.selected.resizing.idle");
+        stateMachine.Send("L_BUTTON_DOWN");
+        states = stateMachine.GetActiveStateString();
+        states.AssertEquivalence($"#{uniqueId}.selected.resizing.resizing");
     }
 
 
@@ -251,7 +273,7 @@ public class DiagrammingFrameworkTests : IDisposable
         return val;
     }
 
-    private static string script =
+    private static string GetScript(string uniqueId) =>
         @"   {
         'context': {
             'onCanvas': false,
@@ -264,7 +286,7 @@ public class DiagrammingFrameworkTests : IDisposable
             'r_button_down': false,
             'selectionCount': 0
         },
-        'id': 'stateMachine',
+        'id': '" + uniqueId + @"',
         'initial': 'idle',
         'on': {
             'RESET': {
@@ -280,7 +302,7 @@ public class DiagrammingFrameworkTests : IDisposable
                 'on': {
                     'L_BUTTON_DOWN': [
                         {
-                            'target': '#stateMachine.selected.moving',
+                            'target': '#" + uniqueId + @".selected.moving',
                             'cond': 'onShapeBody',
                             'actions': 'setLButtonDown'
                         },

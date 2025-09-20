@@ -398,7 +398,14 @@ namespace XStateNet.Distributed.Examples
     {
         public static async Task Main(string[] args)
         {
-            await PubSubExample.RunExample();
+            if (args.Length > 0 && args[0] == "ResilienceExample")
+            {
+                await ResilienceExample.RunExample();
+            }
+            else
+            {
+                await PubSubExample.RunExample();
+            }
         }
     }
 }

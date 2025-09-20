@@ -36,23 +36,24 @@ namespace MultipleTargetsTests
         [Fact]
         public void TestSingleTargetTransition()
         {
-            const string script = @"
+            var uniqueId = "machine_" + Guid.NewGuid().ToString("N");
+            string script = @"
             {
-                'id': 'machine',
-                'type': 'parallel',
-                'context': {
+                id: '" + uniqueId + @"',
+                type: 'parallel',
+                context: {
                     'actionExecuted': '',
                     'resetExecuted': false
                 },
-                'states': {
+                states: {
                     'region1': {
-                        'initial': 'state1',
-                        'states': {
+                        initial: 'state1',
+                        states: {
                             'state1': {
-                                'on': {
+                                on: {
                                     'EVENT': {
-                                        'target': 'state2',
-                                        'actions': 'actionA'
+                                        target: 'state2',
+                                        actions: 'actionA'
                                     }
                                 }
                             },
@@ -60,8 +61,8 @@ namespace MultipleTargetsTests
                         }
                     },
                     'region2': {
-                        'initial': 'stateA',
-                        'states': {
+                        initial: 'stateA',
+                        states: {
                             'stateA': {},
                             'stateB': {}
                         }
@@ -86,30 +87,31 @@ namespace MultipleTargetsTests
         [Fact]
         public void TestMultipleTargetsTransition()
         {
-            const string script = @"
+            var uniqueId = "machine_" + Guid.NewGuid().ToString("N");
+            string script = @"
             {
-                'id': 'machine',
-                'type': 'parallel',
-                'context': {
+                id: '" + uniqueId + @"',
+                type: 'parallel',
+                context: {
                     'actionExecuted': '',
                     'resetExecuted': false
                 },
-                'on': {
+                on: {
                     'RESET_ALL': {
-                        'target': [
+                        target: [
                             '.region1.state1',
                             '.region2.stateA',
                             '.region3.initial'
                         ],
-                        'actions': 'resetAction'
+                        actions: 'resetAction'
                     }
                 },
-                'states': {
+                states: {
                     'region1': {
-                        'initial': 'state1',
-                        'states': {
+                        initial: 'state1',
+                        states: {
                             'state1': {
-                                'on': {
+                                on: {
                                     'NEXT': 'state2'
                                 }
                             },
@@ -117,10 +119,10 @@ namespace MultipleTargetsTests
                         }
                     },
                     'region2': {
-                        'initial': 'stateA',
-                        'states': {
+                        initial: 'stateA',
+                        states: {
                             'stateA': {
-                                'on': {
+                                on: {
                                     'NEXT': 'stateB'
                                 }
                             },
@@ -128,10 +130,10 @@ namespace MultipleTargetsTests
                         }
                     },
                     'region3': {
-                        'initial': 'initial',
-                        'states': {
-                            'initial': {
-                                'on': {
+                        initial: 'initial',
+                        states: {
+                            initial: {
+                                on: {
                                     'NEXT': 'final'
                                 }
                             },
@@ -164,27 +166,28 @@ namespace MultipleTargetsTests
         [Fact]
         public void TestMultipleTargetsInNestedParallel()
         {
-            const string script = @"
+            var uniqueId = "machine";// + Guid.NewGuid().ToString("..8");
+            string script = @"
             {
-                'id': 'machine',
-                'initial': 'active',
-                'states': {
+                id: '" + uniqueId + @"',
+                initial: 'active',
+                states: {
                     'active': {
-                        'type': 'parallel',
-                        'on': {
+                        type: 'parallel',
+                        on: {
                             'EMERGENCY': {
-                                'target': [
+                                target: [
                                     '.left.error',
                                     '.right.stopped'
                                 ]
                             }
                         },
-                        'states': {
+                        states: {
                             'left': {
-                                'initial': 'idle',
-                                'states': {
+                                initial: 'idle',
+                                states: {
                                     'idle': {
-                                        'on': {
+                                        on: {
                                             'START': 'running'
                                         }
                                     },
@@ -193,10 +196,10 @@ namespace MultipleTargetsTests
                                 }
                             },
                             'right': {
-                                'initial': 'waiting',
-                                'states': {
+                                initial: 'waiting',
+                                states: {
                                     'waiting': {
-                                        'on': {
+                                        on: {
                                             'START': 'processing'
                                         }
                                     },
@@ -229,44 +232,45 @@ namespace MultipleTargetsTests
         [Fact]
         public void TestMixedSingleAndMultipleTargets()
         {
-            const string script = @"
+            var uniqueId = "machine";// + Guid.NewGuid().ToString("N");
+            string script = @"
             {
-                'id': 'machine',
-                'type': 'parallel',
-                'states': {
-                    'region1': {
-                        'initial': 'a',
-                        'states': {
-                            'a': {
-                                'on': {
+                id: '" + uniqueId + @"',
+                type: 'parallel',
+                states: {
+                    region1: {
+                        initial: 'a',
+                        states: {
+                            a: {
+                                on: {
                                     'EVENT1': 'b',
                                     'EVENT2': {
-                                        'target': 'c'
+                                        target: 'c'
                                     }
                                 }
                             },
-                            'b': {},
-                            'c': {}
+                            b: {},
+                            c: {}
                         }
                     },
-                    'region2': {
-                        'initial': 'x',
-                        'on': {
+                    region2: {
+                        initial: 'x',
+                        on: {
                             'EVENT2': {
-                                'target': [
+                                target: [
                                     '.x',
-                                    '#machine.region1.c'
+                                    '#" + uniqueId + @".region1.c'
                                 ]
                             }
                         },
-                        'states': {
-                            'x': {
-                                'on': {
+                        states: {
+                            x: {
+                                on: {
                                     'EVENT1': 'y'
                                 }
                             },
-                            'y': {},
-                            'z': {}
+                            y: {},
+                            z: {}
                         }
                     }
                 }
@@ -286,7 +290,7 @@ namespace MultipleTargetsTests
 
             // Move region2 to y first
             _stateMachine!.Send("EVENT1");
-
+            var state1_ = _stateMachine!.GetActiveStateString();
             // Test multiple target transition from region2
             _stateMachine!.Send("EVENT2");
 

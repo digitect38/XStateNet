@@ -3,23 +3,23 @@ using Xunit;
 using XStateNet;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System;
 
 namespace SuperComplexStateMachineTests
 {
     public class SuperComplexStateMachineTests : IDisposable
     {
-        private StateMachine _stateMachine;
-        private ActionMap _actions;
-        private GuardMap _guards;
-
-        public SuperComplexStateMachineTests()
+        private StateMachine CreateStateMachine(string uniqueId)
         {
             // Initialize action and guard dictionaries
-            _actions = new ActionMap();
-            _guards = new GuardMap();
+            var actions = new ActionMap();
+            var guards = new GuardMap();
+
+            var jsonScript = GetJsonScript(uniqueId);
 
             // Load the state machine from the provided JSON script
-            _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, _actions, _guards).Start();
+            var stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonScript, actions, guards).Start();
+            return stateMachine;
         }
 
 
@@ -28,17 +28,23 @@ namespace SuperComplexStateMachineTests
         [Fact]
         public void TestInitialStartupState()
         {
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.startup", currentState);
+            var uniqueId = "TestInitialStartupState_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.startup", currentState);
         }
 
         [Fact]
         public void TestTransitionToInitializing()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory", currentState);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
+            var uniqueId = "TestTransitionToInitializing_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.systemCheck.checkingMemory", currentState);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.awaitingInput", currentState);
         }
 
         #endregion
@@ -48,51 +54,66 @@ namespace SuperComplexStateMachineTests
         [Fact]
         public void TestParallelStateTransitionMemoryOk()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            var currentState = _stateMachine!.GetActiveStateString(true);
-            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingCPU", currentState);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
+            var uniqueId = "TestParallelStateTransitionMemoryOk_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            var currentState = stateMachine!.GetActiveStateString(true);
+            Assert.Contains($"#{uniqueId}.initializing.systemCheck.checkingCPU", currentState);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
         public void TestParallelStateTransitionCPUOk()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.systemCheck.done", currentState);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
+            var uniqueId = "TestParallelStateTransitionCPUOk_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.systemCheck.done", currentState);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
         public void TestParallelStateTransitionInputReceived()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.validating", currentState);
+            var uniqueId = "TestParallelStateTransitionInputReceived_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("INPUT_RECEIVED");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.validating", currentState);
         }
 
         [Fact]
         public void TestParallelStateTransitionValidInput()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.authenticated", currentState);
+            var uniqueId = "TestParallelStateTransitionValidInput_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.authenticated", currentState);
         }
 
         [Fact]
         public void TestParallelStateTransitionInvalidInput()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("INVALID");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
+            var uniqueId = "TestParallelStateTransitionInvalidInput_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("INVALID");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.awaitingInput", currentState);
         }
 
         #endregion
@@ -102,142 +123,169 @@ namespace SuperComplexStateMachineTests
         [Fact]
         public void TestTransitionToProcessing()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.processing.taskSelection", currentState);
+            var uniqueId = "TestTransitionToProcessing_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.processing.taskSelection", currentState);
         }
 
         [Fact]
         public void TestTaskASelectedStep1()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_A_SELECTED");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.processing.taskA.step1", currentState);
+            var uniqueId = "TestTaskASelectedStep1_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_A_SELECTED");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.processing.taskA.step1", currentState);
         }
 
         [Fact]
         public void TestTaskANextStep()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_A_SELECTED");
-            _stateMachine!.Send("NEXT");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.processing.taskA.step2", currentState);
+            var uniqueId = "TestTaskANextStep_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_A_SELECTED");
+            stateMachine!.Send("NEXT");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.processing.taskA.step2", currentState);
         }
 
         [Fact]
         public void TestTaskACompletion()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_A_SELECTED");
-            _stateMachine!.Send("NEXT");
-            _stateMachine!.Send("NEXT");
-            _stateMachine!.Send("COMPLETE");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.ready", currentState);
+            var uniqueId = "TestTaskACompletion_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_A_SELECTED");
+            stateMachine!.Send("NEXT");
+            stateMachine!.Send("NEXT");
+            stateMachine!.Send("COMPLETE");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.ready", currentState);
         }
 
         [Fact]
         public void TestTaskBSelectedSubtask1()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_B_SELECTED");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.processing.taskB.subtask1", currentState);
+            var uniqueId = "TestTaskBSelectedSubtask1_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_B_SELECTED");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.processing.taskB.subtask1", currentState);
         }
 
         [Fact]
         public void TestTaskBSubtask2Parallel()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_B_SELECTED");
-            _stateMachine!.Send("NEXT");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
+            var uniqueId = "TestTaskBSubtask2Parallel_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_B_SELECTED");
+            stateMachine!.Send("NEXT");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
         }
 
         [Fact]
         public void TestTaskBSubtask2ParallelCompleteA()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_B_SELECTED");
-            _stateMachine!.Send("NEXT");
-            _stateMachine!.Send("COMPLETE_A");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.completed", currentState);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
+            var uniqueId = "TestTaskBSubtask2ParallelCompleteA_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_B_SELECTED");
+            stateMachine!.Send("NEXT");
+            stateMachine!.Send("COMPLETE_A");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskA.completed", currentState);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskB.working", currentState);
         }
 
         [Fact]
         public void TestTaskBSubtask2ParallelCompleteB()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_B_SELECTED");
-            _stateMachine!.Send("NEXT");
-            _stateMachine!.Send("COMPLETE_B");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskB.completed", currentState);
-            Assert.Contains("#superComplexFSM.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
+            var uniqueId = "TestTaskBSubtask2ParallelCompleteB_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_B_SELECTED");
+            stateMachine!.Send("NEXT");
+            stateMachine!.Send("COMPLETE_B");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskB.completed", currentState);
+            Assert.Contains($"#{uniqueId}.processing.taskB.subtask2.parallelSubtaskA.working", currentState);
         }
 
         [Fact]
         public void TestTaskBCompletion()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("START_PROCESS");
-            _stateMachine!.Send("TASK_B_SELECTED");
-            _stateMachine!.Send("NEXT");
-            _stateMachine!.Send("COMPLETE_A");
-            _stateMachine!.Send("COMPLETE_B");
-            _stateMachine!.Send("COMPLETE");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.ready", currentState);
+            var uniqueId = "TestTaskBCompletion_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("START_PROCESS");
+            stateMachine!.Send("TASK_B_SELECTED");
+            stateMachine!.Send("NEXT");
+            stateMachine!.Send("COMPLETE_A");
+            stateMachine!.Send("COMPLETE_B");
+            stateMachine!.Send("COMPLETE");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.ready", currentState);
         }
 
         #endregion
@@ -247,71 +295,86 @@ namespace SuperComplexStateMachineTests
         [Fact]
         public void TestReadyToShuttingDown()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("SHUTDOWN");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.shuttingDown.cleaningUp", currentState);
+            var uniqueId = "TestReadyToShuttingDown_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("SHUTDOWN");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.shuttingDown.cleaningUp", currentState);
         }
 
         [Fact]
         public void TestCleaningUpToSavingState()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");   // add to original
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("SHUTDOWN");
-            _stateMachine!.Send("CLEANUP_DONE");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.shuttingDown.savingState", currentState);
+            var uniqueId = "TestCleaningUpToSavingState_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");   // add to original
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("SHUTDOWN");
+            stateMachine!.Send("CLEANUP_DONE");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.shuttingDown.savingState", currentState);
         }
 
         [Fact]
         public void TestSavingStateToDone()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("SHUTDOWN");
-            _stateMachine!.Send("CLEANUP_DONE");
-            _stateMachine!.Send("SAVE_COMPLETE");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.shuttingDown.done", currentState);
+            var uniqueId = "TestSavingStateToDone_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("SHUTDOWN");
+            stateMachine!.Send("CLEANUP_DONE");
+            stateMachine!.Send("SAVE_COMPLETE");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.shuttingDown.done", currentState);
         }
 
         [Fact]
         public void TestReady()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.ready", currentState);
+            var uniqueId = "TestReady_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.ready", currentState);
         }
 
         [Fact]
         public void TestFinalShutdown()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
-            _stateMachine!.Send("SHUTDOWN");
-            _stateMachine!.Send("CLEANUP_DONE");
-            _stateMachine!.Send("SAVE_COMPLETE");
-            _stateMachine!.Send("SHUTDOWN_CONFIRMED");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.shutdownComplete", currentState);
+            var uniqueId = "TestFinalShutdown_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
+            stateMachine!.Send("SHUTDOWN");
+            stateMachine!.Send("CLEANUP_DONE");
+            stateMachine!.Send("SAVE_COMPLETE");
+            stateMachine!.Send("SHUTDOWN_CONFIRMED");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.shutdownComplete", currentState);
         }
 
         #endregion
@@ -321,32 +384,41 @@ namespace SuperComplexStateMachineTests
         [Fact]
         public void TestInvalidTransitionFromStartup()
         {
-            _stateMachine!.Send("START_PROCESS");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.startup", currentState);
+            var uniqueId = "TestInvalidTransitionFromStartup_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("START_PROCESS");
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.startup", currentState);
         }
 
         [Fact]
         public void TestInvalidTransitionInParallelState()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("INVALID_EVENT");
-            var currentState = _stateMachine!.GetActiveStateString(false);
-            Assert.Contains("#superComplexFSM.initializing.systemCheck.checkingMemory", currentState);
-            Assert.Contains("#superComplexFSM.initializing.userAuth.awaitingInput", currentState);
+            var uniqueId = "TestInvalidTransitionInParallelState_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("INVALID_EVENT");
+            var currentState = stateMachine!.GetActiveStateString(false);
+            Assert.Contains($"#{uniqueId}.initializing.systemCheck.checkingMemory", currentState);
+            Assert.Contains($"#{uniqueId}.initializing.userAuth.awaitingInput", currentState);
         }
 
         [Fact]
         public void TestInvalidEventInReadyState()
         {
-            _stateMachine!.Send("INIT_COMPLETE");
-            _stateMachine!.Send("MEMORY_OK");
-            _stateMachine!.Send("CPU_OK");
-            _stateMachine!.Send("INPUT_RECEIVED");
-            _stateMachine!.Send("VALID");
+            var uniqueId = "TestInvalidEventInReadyState_" + Guid.NewGuid().ToString("N");
+            var stateMachine = CreateStateMachine(uniqueId);
+
+            stateMachine!.Send("INIT_COMPLETE");
+            stateMachine!.Send("MEMORY_OK");
+            stateMachine!.Send("CPU_OK");
+            stateMachine!.Send("INPUT_RECEIVED");
+            stateMachine!.Send("VALID");
             //_stateMachine.Send("INVALID_EVENT");
-            var currentState = _stateMachine!.GetActiveStateString();
-            Assert.Equal("#superComplexFSM.ready", currentState);
+            var currentState = stateMachine!.GetActiveStateString();
+            Assert.Equal($"#{uniqueId}.ready", currentState);
         }
 
         #endregion
@@ -358,104 +430,104 @@ namespace SuperComplexStateMachineTests
         #endregion
 
         // JSON Script for the super complex state machine
-        private const string json = @"{
-            'id': 'superComplexFSM',
-            'initial': 'startup',
-            'states': {
-                'startup': {
-                    'on': { 'INIT_COMPLETE': 'initializing' }
-                },
-                'initializing': {
-                    'type': 'parallel',
-                    'states': {
-                        'systemCheck': {
-                            'initial': 'checkingMemory',
-                            'states': {
-                                'checkingMemory': { 'on': { 'MEMORY_OK': 'checkingCPU' } },
-                                'checkingCPU': { 'on': { 'CPU_OK': 'done' } },
-                                'done': { 'type': 'final' }
-                            }
-                        },
-                        'userAuth': {
-                            'initial': 'awaitingInput',
-                            'states': {
-                                'awaitingInput': { 'on': { 'INPUT_RECEIVED': 'validating' } },
-                                'validating': {
-                                    'on': {
-                                        'VALID': 'authenticated',
-                                        'INVALID': 'awaitingInput'
-                                    }
-                                },
-                                'authenticated': { 'type': 'final' }
-                            }
-                        }
-                    },
-                    'onDone': 'ready'
-                },
-                'ready': {
-                    'on': { 'START_PROCESS': 'processing', 'SHUTDOWN': 'shuttingDown' }
-                },
-                'processing': {
-                    'initial': 'taskSelection',
-                    'states': {
-                        'taskSelection': { 'on': { 'TASK_A_SELECTED': 'taskA', 'TASK_B_SELECTED': 'taskB' } },
-                        'taskA': {
-                            'initial': 'step1',
-                            'states': {
-                                'step1': { 'on': { 'NEXT': 'step2' } },
-                                'step2': { 'on': { 'NEXT': 'completed' } },
-                                'completed': {
-                                    'type': 'final',
-                                    'on': { 'COMPLETE': '#superComplexFSM.ready' }
-                                }
-                            }
-                        },
-                        'taskB': {
-                            'initial': 'subtask1',
-                            'states': {
-                                'subtask1': { 'on': { 'NEXT': 'subtask2' } },
-                                'subtask2': {
-                                    'type': 'parallel',
-                                    'states': {
-                                        'parallelSubtaskA': {
-                                            'initial': 'working',
-                                            'states': {
-                                                'working': { 'on': { 'COMPLETE_A': 'completed' } },
-                                                'completed': { 'type': 'final' }
-                                            }
-                                        },
-                                        'parallelSubtaskB': {
-                                            'initial': 'working',
-                                            'states': {
-                                                'working': { 'on': { 'COMPLETE_B': 'completed' } },
-                                                'completed': { 'type': 'final' }
-                                            }
-                                        }
-                                    },
-                                    'onDone': 'completed'
-                                },
-                                'completed': {
-                                    'type': 'final',
-                                    'on': { 'COMPLETE': '#superComplexFSM.ready' }
-                                }
-                            }
-                        }
-                    }
-                },
-                'shuttingDown': {
-                    'initial': 'cleaningUp',
-                    'states': {
-                        'cleaningUp': { 'on': { 'CLEANUP_DONE': 'savingState' } },
-                        'savingState': { 'on': { 'SAVE_COMPLETE': 'done' } },
-                        'done': {
-                            'type': 'final',
-                            'on': { 'SHUTDOWN_CONFIRMED': '#superComplexFSM.shutdownComplete' }
-                        }
-                    }
-                },
-                'shutdownComplete': { 'type': 'final' }
-            }
-        }";
+        private string GetJsonScript(string uniqueId) => @$"{{
+            id: '{uniqueId}',
+            initial: 'startup',
+            states: {{
+                startup: {{
+                    on: {{ INIT_COMPLETE: 'initializing' }}
+                }},
+                initializing: {{
+                    type: 'parallel',
+                    states: {{
+                        systemCheck: {{
+                            initial: 'checkingMemory',
+                            states: {{
+                                checkingMemory: {{ on: {{ MEMORY_OK: 'checkingCPU' }} }},
+                                checkingCPU: {{ on: {{ CPU_OK: 'done' }} }},
+                                done: {{ type: 'final' }}
+                            }}
+                        }},
+                        userAuth: {{
+                            initial: 'awaitingInput',
+                            states: {{
+                                awaitingInput: {{ on: {{ INPUT_RECEIVED: 'validating' }} }},
+                                validating: {{
+                                    on: {{
+                                        VALID: 'authenticated',
+                                        INVALID: 'awaitingInput'
+                                    }}
+                                }},
+                                authenticated: {{ type: 'final' }}
+                            }}
+                        }}
+                    }},
+                    onDone: 'ready'
+                }},
+                ready: {{
+                    on: {{ START_PROCESS: 'processing', SHUTDOWN: 'shuttingDown' }}
+                }},
+                processing: {{
+                    initial: 'taskSelection',
+                    states: {{
+                        taskSelection: {{ on: {{ TASK_A_SELECTED: 'taskA', TASK_B_SELECTED: 'taskB' }} }},
+                        taskA: {{
+                            initial: 'step1',
+                            states: {{
+                                step1: {{ on: {{ NEXT: 'step2' }} }},
+                                step2: {{ on: {{ NEXT: 'completed' }} }},
+                                completed: {{
+                                    type: 'final',
+                                    on: {{ COMPLETE: '#{uniqueId}.ready' }}
+                                }}
+                            }}
+                        }},
+                        taskB: {{
+                            initial: 'subtask1',
+                            states: {{
+                                subtask1: {{ on: {{ NEXT: 'subtask2' }} }},
+                                subtask2: {{
+                                    type: 'parallel',
+                                    states: {{
+                                        parallelSubtaskA: {{
+                                            initial: 'working',
+                                            states: {{
+                                                working: {{ on: {{ COMPLETE_A: 'completed' }} }},
+                                                completed: {{ type: 'final' }}
+                                            }}
+                                        }},
+                                        parallelSubtaskB: {{
+                                            initial: 'working',
+                                            states: {{
+                                                working: {{ on: {{ COMPLETE_B: 'completed' }} }},
+                                                completed: {{ type: 'final' }}
+                                            }}
+                                        }}
+                                    }},
+                                    onDone: 'completed'
+                                }},
+                                completed: {{
+                                    type: 'final',
+                                    on: {{ COMPLETE: '#{uniqueId}.ready' }}
+                                }}
+                            }}
+                        }}
+                    }}
+                }},
+                shuttingDown: {{
+                    initial: 'cleaningUp',
+                    states: {{
+                        cleaningUp: {{ on: {{ CLEANUP_DONE: 'savingState' }} }},
+                        savingState: {{ on: {{ SAVE_COMPLETE: 'done' }} }},
+                        done: {{
+                            type: 'final',
+                            on: {{ SHUTDOWN_CONFIRMED: '#{uniqueId}.shutdownComplete' }}
+                        }}
+                    }}
+                }},
+                shutdownComplete: {{ type: 'final' }}
+            }}
+        }}";
 
 
         public void Dispose()
