@@ -19,8 +19,15 @@ namespace XStateNet.Distributed.Tests.Resilience
             var cb = new CircuitBreaker("test", new CircuitBreakerOptions
             {
                 FailureThreshold = 2,
-                BreakDuration = TimeSpan.FromMilliseconds(100)
+                BreakDuration = TimeSpan.FromMilliseconds(50) // Shorter duration for faster test
             });
+
+            var stateChangedTcs = new TaskCompletionSource<CircuitState>();
+            cb.StateChanged += (sender, args) =>
+            {
+                if (args.ToState == CircuitState.Open)
+                    stateChangedTcs.TrySetResult(args.ToState);
+            };
 
             // Act - Cause failures to open circuit
             for (int i = 0; i < 2; i++)
@@ -37,15 +44,55 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch { }
             }
 
+            // Wait for state change event with timeout
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
+            {
+                await stateChangedTcs.Task.ConfigureAwait(false);
+            }
+
             // Assert - Circuit should be open
             Assert.Equal(CircuitState.Open, cb.State);
 
-            // Wait for circuit to recover
-            await Task.Delay(150);
+            // Test that circuit rejects calls when open
+            await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
+            {
+                await cb.ExecuteAsync(() => Task.FromResult("should fail"));
+            });
 
-            // Circuit should allow retry
-            var result = await cb.ExecuteAsync(() => Task.FromResult("success"));
-            Assert.Equal("success", result);
+            // Create a new task completion source for half-open transition
+            var halfOpenTcs = new TaskCompletionSource<CircuitState>();
+            cb.StateChanged += (sender, args) =>
+            {
+                if (args.ToState == CircuitState.HalfOpen || args.ToState == CircuitState.Closed)
+                    halfOpenTcs.TrySetResult(args.ToState);
+            };
+
+            // Wait for break duration to elapse and retry
+            // The circuit should transition to half-open after break duration
+            var retryAttempts = 0;
+            var maxRetries = 10;
+            var success = false;
+
+            while (!success && retryAttempts < maxRetries)
+            {
+                await Task.Yield(); // Allow other work to proceed
+                retryAttempts++;
+
+                try
+                {
+                    // This will succeed when circuit transitions to half-open
+                    var result = await cb.ExecuteAsync(() => Task.FromResult("success"));
+                    Assert.Equal("success", result);
+                    success = true;
+                }
+                catch (CircuitBreakerOpenException)
+                {
+                    // Circuit still open, wait a bit more
+                    await Task.Delay(10);
+                }
+            }
+
+            Assert.True(success, $"Circuit breaker did not recover after {retryAttempts} attempts");
         }
 
         [Fact]
@@ -111,18 +158,34 @@ namespace XStateNet.Distributed.Tests.Resilience
             );
             Assert.Equal("fast", result);
 
-            // Slow operation times out
-            await Assert.ThrowsAsync<TimeoutException>(async () =>
-            {
-                await timeout.ExecuteAsync(
-                    async ct =>
-                    {
-                        await Task.Delay(200, ct);
-                        return "slow";
-                    },
-                    TimeSpan.FromMilliseconds(50)
-                );
-            });
+            // Test cancellation token propagation
+            var tcs = new TaskCompletionSource<string>();
+            var timeoutTask = timeout.ExecuteAsync(
+                async ct =>
+                {
+                    ct.Register(() => tcs.TrySetCanceled());
+                    return await tcs.Task;
+                },
+                TimeSpan.FromMilliseconds(50)
+            );
+
+            // Verify timeout occurs
+            await Assert.ThrowsAsync<TimeoutException>(async () => await timeoutTask);
+
+            // Verify cancellation was triggered
+            Assert.True(tcs.Task.IsCanceled);
+
+            // Test with manual completion before timeout
+            var quickTcs = new TaskCompletionSource<string>();
+            var quickTask = timeout.ExecuteAsync(
+                ct => quickTcs.Task,
+                TimeSpan.FromSeconds(1)
+            );
+
+            // Complete task before timeout
+            quickTcs.SetResult("completed");
+            var quickResult = await quickTask;
+            Assert.Equal("completed", quickResult);
         }
 
         [Fact]
