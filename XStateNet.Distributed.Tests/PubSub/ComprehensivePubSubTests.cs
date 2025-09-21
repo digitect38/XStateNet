@@ -167,21 +167,21 @@ namespace XStateNet.Distributed.Tests.PubSub
             {
                 // Initial state when started
                 var firstChange = stateChanges[0];
-                Assert.Contains("idle", firstChange.NewState);
+                Assert.Contains(".idle", firstChange.NewState);
             }
 
             if (stateChanges.Count > 1)
             {
                 // After GO event: idle -> running
                 var secondChange = stateChanges[1];
-                Assert.Contains("running", secondChange.NewState);
+                Assert.Contains(".running", secondChange.NewState);
             }
 
             if (stateChanges.Count > 2)
             {
                 // After STOP event: running -> idle
                 var thirdChange = stateChanges[2];
-                Assert.Contains("idle", thirdChange.NewState);
+                Assert.Contains(".idle", thirdChange.NewState);
             }
 
             // Cleanup
