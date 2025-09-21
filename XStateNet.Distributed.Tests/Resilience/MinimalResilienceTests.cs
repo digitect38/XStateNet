@@ -125,7 +125,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             });
         }
 
-        [Fact(Skip = "Test hangs - channel implementation issue with test runner")]
+        [Fact]
         public async Task BoundedChannel_Works()
         {
             // Arrange

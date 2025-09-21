@@ -114,14 +114,15 @@ namespace XStateNet.Distributed.Tests.Resilience
             });
         }
 
-                [Fact(Skip = "Test hangs - channel implementation issue with test runner")]
+        [Fact]
         public async Task BoundedChannel_Handles_Backpressure()
         {
             // Arrange
             var channel = new BoundedChannelManager<string>("test", new CustomBoundedChannelOptions
             {
                 Capacity = 2,
-                BackpressureStrategy = BackpressureStrategy.Drop
+                BackpressureStrategy = BackpressureStrategy.Drop,
+                EnableCustomBackpressure = true
             });
 
             // Act
@@ -182,7 +183,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(failureCount > 0);
         }
 
-                [Fact(Skip = "Test hangs - channel implementation issue with test runner")]
+        [Fact]
         public async Task Full_Resilience_Pipeline()
         {
             // Arrange
