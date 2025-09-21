@@ -165,28 +165,40 @@ namespace XStateNet.Distributed.Tests.Resilience
         public async Task CreateScope_SharesTimeoutAcrossOperations()
         {
             // Arrange
-            var options = new TimeoutOptions { DefaultTimeout = TimeSpan.FromMilliseconds(400) };
+            var options = new TimeoutOptions { DefaultTimeout = TimeSpan.FromMilliseconds(200) };
             var timeoutProtection = new TimeoutProtection(options);
 
+            // Use TaskCompletionSource for deterministic timing control
+            var firstOperationTcs = new TaskCompletionSource<bool>();
+            var secondOperationTcs = new TaskCompletionSource<bool>();
+
             // Act & Assert
-            using (var scope = timeoutProtection.CreateScope(TimeSpan.FromMilliseconds(400)))
+            using (var scope = timeoutProtection.CreateScope(TimeSpan.FromMilliseconds(200)))
             {
-                // First operation uses most of the time, with enough buffer to avoid flakiness
-                await scope.ExecuteAsync(async (ct) =>
+                // First operation - control when it completes
+                var firstTask = scope.ExecuteAsync(async (ct) =>
                 {
-                    await Task.Delay(300, ct);
-                    return true;
+                    ct.Register(() => firstOperationTcs.TrySetCanceled());
+                    return await firstOperationTcs.Task;
                 });
 
-                // Second operation should timeout as the remaining time is < 100ms + overhead
-                await Assert.ThrowsAsync<TimeoutException>(async () =>
+                // Complete first operation after 150ms (using most of the timeout)
+                await Task.Delay(150);
+                firstOperationTcs.SetResult(true);
+                var firstResult = await firstTask;
+                Assert.True(firstResult);
+
+                // Second operation - should timeout immediately as time is exhausted
+                var secondTask = scope.ExecuteAsync(async (ct) =>
                 {
-                    await scope.ExecuteAsync(async (ct) =>
-                    {
-                        await Task.Delay(100, ct);
-                        return false;
-                    });
+                    ct.Register(() => secondOperationTcs.TrySetCanceled());
+                    // This won't complete in time
+                    await Task.Delay(100, ct);
+                    return false;
                 });
+
+                // The scope should timeout the second operation
+                await Assert.ThrowsAsync<TimeoutException>(async () => await secondTask);
             }
         }
 
