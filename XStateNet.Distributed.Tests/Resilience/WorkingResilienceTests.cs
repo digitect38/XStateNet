@@ -257,6 +257,9 @@ namespace XStateNet.Distributed.Tests.Resilience
                 }
             }
 
+            // Wait for DLQ to process the message
+            await Task.Delay(100);
+
             // Assert
             Assert.Equal(2, processedCount);
             Assert.Equal(1, failedCount);
