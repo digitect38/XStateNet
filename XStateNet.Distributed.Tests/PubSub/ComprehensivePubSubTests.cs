@@ -139,12 +139,13 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotification_CapturesAllStateChanges()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
+            var uniqueId = "test-rapid_" + Guid.NewGuid().ToString("N");
+            var machine = CreateTestStateMachine(uniqueId);
             var eventBus = new InMemoryEventBus();
-            var service = new EventNotificationService(machine, eventBus, "test-1", _loggerFactory.CreateLogger<EventNotificationService>());
+            var service = new EventNotificationService(machine, eventBus, uniqueId, _loggerFactory.CreateLogger<EventNotificationService>());
 
             var stateChanges = new List<StateChangeEvent>();
-            var subscription = await eventBus.SubscribeToStateChangesAsync("test-1", evt =>
+            var subscription = await eventBus.SubscribeToStateChangesAsync(uniqueId, evt =>
             {
                 stateChanges.Add(evt);
             });
@@ -193,9 +194,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotification_HandlesRapidStateChanges()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
-            var eventBus = new OptimizedInMemoryEventBus();
             var uniqueId = "test-rapid_" + Guid.NewGuid().ToString();
+            var machine = CreateTestStateMachine(uniqueId);
+            var eventBus = new OptimizedInMemoryEventBus();
             var service = new OptimizedEventNotificationService(machine, eventBus, uniqueId);
 
             var stateChangeCount = 0;
@@ -715,7 +716,8 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventAggregator_BatchesEventsCorrectly()
         {
             // Arrange
-            var machine = CreateTestStateMachine();
+            string uniqueId = $"test-agg-{Guid.NewGuid():N}";
+            var machine = CreateTestStateMachine(uniqueId);
             var eventBus = new InMemoryEventBus();
             var service = new EventNotificationService(machine, eventBus, "test-agg", _loggerFactory.CreateLogger<EventNotificationService>());
 
@@ -765,9 +767,8 @@ namespace XStateNet.Distributed.Tests.PubSub
 
         #region Helpers
 
-        private IStateMachine CreateTestStateMachine()
+        private IStateMachine CreateTestStateMachine(string uniqueId)
         {
-            string uniqueId = $"{Guid.NewGuid():N}";
             var json = @"{
                 id: '" + uniqueId + @"',
                 initial: 'idle',
