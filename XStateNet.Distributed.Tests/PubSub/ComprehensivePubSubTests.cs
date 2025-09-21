@@ -194,7 +194,7 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotification_HandlesRapidStateChanges()
         {
             // Arrange
-            var uniqueId = "test-rapid_" + Guid.NewGuid().ToString();
+            var uniqueId = "test-rapid_" + Guid.NewGuid().ToString("N");
             var machine = CreateTestStateMachine(uniqueId);
             var eventBus = new OptimizedInMemoryEventBus();
             var service = new OptimizedEventNotificationService(machine, eventBus, uniqueId);
