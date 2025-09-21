@@ -373,16 +373,16 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
             var saga = new SagaDefinition
             {
                 Id = "payment-saga",
-                Steps = new List<SagaStep>
+                Steps = new List<SagaDefinitionStep>
                 {
-                    new SagaStep 
+                    new SagaDefinitionStep 
                     { 
                         StepId = "charge",
                         MachineId = "payment-service",
                         Action = "CHARGE",
                         CompensationAction = "REFUND"
                     },
-                    new SagaStep
+                    new SagaDefinitionStep
                     {
                         StepId = "fail-step",
                         MachineId = "non-existent-service",

@@ -223,6 +223,8 @@ namespace XStateNet.Distributed.Orchestration
         public int HealthyMachines { get; set; }
         public int DegradedMachines { get; set; }
         public int UnhealthyMachines { get; set; }
+        public int ActiveWorkflows { get; set; }
+        public int ActiveSagas { get; set; }
         public long TotalEventsProcessed { get; set; }
         public double SystemEventRate { get; set; }
         public Dictionary<string, int> MachinesByNode { get; set; } = new();
@@ -324,11 +326,11 @@ namespace XStateNet.Distributed.Orchestration
     {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public List<SagaStep> Steps { get; set; } = new();
+        public List<SagaDefinitionStep> Steps { get; set; } = new();
         public TimeSpan? Timeout { get; set; }
     }
     
-    public class SagaStep
+    public class SagaDefinitionStep
     {
         public string StepId { get; set; } = string.Empty;
         public string MachineId { get; set; } = string.Empty;

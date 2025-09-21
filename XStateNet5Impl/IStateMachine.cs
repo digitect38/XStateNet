@@ -30,8 +30,9 @@ public interface IStateMachine : IDisposable
     bool IsRunning { get; }
 
     /// <summary>
-    /// Starts the state machine
+    /// Starts the state machine (DEPRECATED - Use StartAsync instead)
     /// </summary>
+    [Obsolete("Use StartAsync() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
     IStateMachine Start();
 
     /// <summary>
@@ -46,10 +47,11 @@ public interface IStateMachine : IDisposable
     void Stop();
 
     /// <summary>
-    /// Sends an event to the state machine
+    /// Sends an event to the state machine (DEPRECATED - Use SendAsync or SendAsyncWithState instead)
     /// </summary>
     /// <param name="eventName">The event name</param>
     /// <param name="eventData">Optional event data</param>
+    [Obsolete("Use SendAsync() or SendAsyncWithState() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
     void Send(string eventName, object? eventData = null);
 
     /// <summary>

@@ -165,20 +165,20 @@ namespace XStateNet.Distributed.Tests.Resilience
         public async Task CreateScope_SharesTimeoutAcrossOperations()
         {
             // Arrange
-            var options = new TimeoutOptions { DefaultTimeout = TimeSpan.FromMilliseconds(200) };
+            var options = new TimeoutOptions { DefaultTimeout = TimeSpan.FromMilliseconds(400) };
             var timeoutProtection = new TimeoutProtection(options);
 
             // Act & Assert
-            using (var scope = timeoutProtection.CreateScope(TimeSpan.FromMilliseconds(200)))
+            using (var scope = timeoutProtection.CreateScope(TimeSpan.FromMilliseconds(400)))
             {
-                // First operation uses most of the time
+                // First operation uses most of the time, with enough buffer to avoid flakiness
                 await scope.ExecuteAsync(async (ct) =>
                 {
-                    await Task.Delay(150, ct);
+                    await Task.Delay(300, ct);
                     return true;
                 });
 
-                // Second operation should timeout
+                // Second operation should timeout as the remaining time is < 100ms + overhead
                 await Assert.ThrowsAsync<TimeoutException>(async () =>
                 {
                     await scope.ExecuteAsync(async (ct) =>

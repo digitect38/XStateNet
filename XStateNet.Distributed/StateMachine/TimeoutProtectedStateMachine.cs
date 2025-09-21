@@ -531,7 +531,9 @@ namespace XStateNet.Distributed.StateMachines
             return summary;
         }
 
+#pragma warning disable CS0618 // Type or member is obsolete
         public IStateMachine Start()
+#pragma warning restore CS0618
         {
             _innerMachine.Start();
             return this;
@@ -545,7 +547,9 @@ namespace XStateNet.Distributed.StateMachines
         public void Stop() => _innerMachine.Stop();
 
         // IStateMachine methods
+#pragma warning disable CS0618 // Type or member is obsolete
         public void Send(string eventName, object? eventData = null)
+#pragma warning restore CS0618
         {
             _innerMachine.Send(eventName, eventData);
         }

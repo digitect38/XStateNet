@@ -377,16 +377,16 @@ namespace XStateNet.Distributed.Tests.Orchestration
             var saga = new SagaDefinition
             {
                 Id = "test-saga",
-                Steps = new List<SagaStep>
+                Steps = new List<SagaDefinitionStep>
                 {
-                    new SagaStep 
+                    new SagaDefinitionStep 
                     { 
                         StepId = "payment", 
                         MachineId = "payment-service",
                         Action = "CHARGE",
                         CompensationAction = "REFUND"
                     },
-                    new SagaStep
+                    new SagaDefinitionStep
                     {
                         StepId = "inventory",
                         MachineId = "inventory-service",
@@ -419,10 +419,10 @@ namespace XStateNet.Distributed.Tests.Orchestration
             var saga = new SagaDefinition
             {
                 Id = "test-saga",
-                Steps = new List<SagaStep>
+                Steps = new List<SagaDefinitionStep>
                 {
-                    new SagaStep { StepId = "step1", MachineId = "m1", Action = "ACTION1", CompensationAction = "UNDO1" },
-                    new SagaStep { StepId = "step2", MachineId = "m2", Action = "ACTION2", CompensationAction = "UNDO2" }
+                    new SagaDefinitionStep { StepId = "step1", MachineId = "m1", Action = "ACTION1", CompensationAction = "UNDO1" },
+                    new SagaDefinitionStep { StepId = "step2", MachineId = "m2", Action = "ACTION2", CompensationAction = "UNDO2" }
                 }
             };
 

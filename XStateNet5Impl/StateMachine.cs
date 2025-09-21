@@ -365,10 +365,12 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <returns></returns>
+#pragma warning disable CS0618 // Type or member is obsolete
     public IStateMachine Start()
+#pragma warning restore CS0618
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => ">>> Start state machine");
 
@@ -426,10 +428,12 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="eventName"></param>
+#pragma warning disable CS0618 // Type or member is obsolete
     public void Send(string eventName, object? eventData = null)
+#pragma warning restore CS0618
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
 
