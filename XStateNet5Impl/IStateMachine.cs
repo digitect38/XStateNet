@@ -35,6 +35,12 @@ public interface IStateMachine : IDisposable
     IStateMachine Start();
 
     /// <summary>
+    /// Starts the state machine asynchronously and returns the initial state
+    /// </summary>
+    /// <returns>The initial state string after starting</returns>
+    Task<string> StartAsync();
+
+    /// <summary>
     /// Stops the state machine
     /// </summary>
     void Stop();
@@ -52,6 +58,14 @@ public interface IStateMachine : IDisposable
     /// <param name="eventName">The event name</param>
     /// <param name="eventData">Optional event data</param>
     Task SendAsync(string eventName, object? eventData = null);
+
+    /// <summary>
+    /// Sends an event asynchronously and returns the new state
+    /// </summary>
+    /// <param name="eventName">The event name</param>
+    /// <param name="eventData">Optional event data</param>
+    /// <returns>The state string after transition</returns>
+    Task<string> SendAsyncWithState(string eventName, object? eventData = null);
 
     /// <summary>
     /// Gets the active state as a string

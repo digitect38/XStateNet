@@ -71,7 +71,7 @@ namespace XStateNet.Distributed.Tests
         }
 
         [Fact]
-        public void Send_LocalEvent_Should_ProcessLocally()
+        public async Task Send_LocalEvent_Should_ProcessLocally()
         {
             // Arrange
             var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
@@ -99,8 +99,8 @@ namespace XStateNet.Distributed.Tests
             machine.Start();
             
             // Act
-            machine.Send("START");
-            
+            await machine.SendAsync("START");
+
             // Assert
             // Verify state transition occurred by not throwing
         }
@@ -165,7 +165,7 @@ namespace XStateNet.Distributed.Tests
         }
 
         [Fact]
-        public void Send_RemoteEventFormat_Should_ParseCorrectly()
+        public async Task Send_RemoteEventFormat_Should_ParseCorrectly()
         {
             // Arrange
             var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
@@ -187,8 +187,8 @@ namespace XStateNet.Distributed.Tests
             machine.Start();
             
             // Act & Assert (should not throw)
-            Action act = () => machine.Send("remoteMachine@EVENT");
-            act.Should().NotThrow();
+            Func<Task> act = async () => await machine.SendAsync("remoteMachine@EVENT");
+            await act.Should().NotThrowAsync();
         }
 
         [Fact]

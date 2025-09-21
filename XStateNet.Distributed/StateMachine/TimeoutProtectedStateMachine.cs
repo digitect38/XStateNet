@@ -537,6 +537,11 @@ namespace XStateNet.Distributed.StateMachines
             return this;
         }
 
+        public async Task<string> StartAsync()
+        {
+            return await _innerMachine.StartAsync();
+        }
+
         public void Stop() => _innerMachine.Stop();
 
         // IStateMachine methods
@@ -548,6 +553,11 @@ namespace XStateNet.Distributed.StateMachines
         public async Task SendAsync(string eventName, object? eventData = null)
         {
             await _innerMachine.SendAsync(eventName, eventData);
+        }
+
+        public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
+        {
+            return await _innerMachine.SendAsyncWithState(eventName, eventData);
         }
 
         public string GetActiveStateString()

@@ -110,7 +110,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 "Test reason"
             );
 
-            await Task.Delay(100); // Wait for async processing
+            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1)); // Wait for async processing
 
             Assert.NotNull(messageId);
             Assert.True(dlq.QueueDepth > 0);

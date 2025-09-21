@@ -132,7 +132,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
             Assert.True(result.Success);
         }
 
-        //[Fact(Skip = "Requires refactoring to access internal state")]
+        //[Fact(Skip = "Requires refactoring to access internal state"]
         [Fact]
         public async Task MigrateStateMachineAsync_Should_MigrateMachine()
         {
@@ -156,7 +156,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
             _eventBusMock.Setup(x => x.RequestAsync<DistributedStateMachineOrchestrator.StateSnapshot>(
                 It.IsAny<string>(), 
                 It.IsAny<string>(), 
-                It.IsAny<object>(), 
+                It.IsAny<object>(),
                 It.IsAny<TimeSpan>()))
                 .ReturnsAsync(new DistributedStateMachineOrchestrator.StateSnapshot 
                 { 

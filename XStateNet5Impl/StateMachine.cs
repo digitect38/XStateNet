@@ -419,6 +419,12 @@ public partial class StateMachine : IStateMachine
         return this;
     }
 
+    public async Task<string> StartAsync()
+    {
+        Start();
+        return await Task.FromResult(GetActiveStateString());
+    }
+
     /// <summary>
     /// 
     /// </summary>
@@ -470,6 +476,17 @@ public partial class StateMachine : IStateMachine
     /// </summary>
     public async Task SendAsync(string eventName, object? eventData = null)
     {
+        await SendAsyncWithState(eventName, eventData);
+    }
+
+    /// <summary>
+    /// Sends an event asynchronously and returns the new state after transition
+    /// </summary>
+    /// <param name="eventName">The event name to send</param>
+    /// <param name="eventData">Optional event data</param>
+    /// <returns>The active state string after the transition completes</returns>
+    public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
+    {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event async: {eventName}");
 
         // Notify event received (before handling RESET to ensure it's captured)
@@ -479,7 +496,7 @@ public partial class StateMachine : IStateMachine
         if (eventName == "RESET")
         {
             await Task.Run(() => Reset());
-            return;
+            return GetCurrentStateString();
         }
 
         _stateLock.EnterReadLock();
@@ -488,7 +505,7 @@ public partial class StateMachine : IStateMachine
             if (machineState != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
-                return;
+                return GetCurrentStateString();
             }
         }
         finally
@@ -516,6 +533,8 @@ public partial class StateMachine : IStateMachine
                 }
             });
         }
+
+        return GetCurrentStateString();
     }
     
     /// <summary>
@@ -787,11 +806,31 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
+    /// Gets the current state as a string (internal use)
+    /// </summary>
+    private string GetCurrentStateString()
+    {
+        // Use pooled list to reduce allocations
+        var strings = PerformanceOptimizations.RentStringList();
+        try
+        {
+            RootState?.GetActiveSubStateNames(strings);
+            return strings.ToCsvString(this, true, ";");
+        }
+        finally
+        {
+            // Return the list to the pool
+            PerformanceOptimizations.ReturnStringList(strings);
+        }
+    }
+
+    /// <summary>
     /// GetActiveStateString
     /// </summary>
     /// <param name="leafOnly">true: leaf level state name only, false: full level state names</param>
     /// <param name="separator"></param>
     /// <returns></returns>
+    [Obsolete("Use SendAsyncWithState() to get state after transitions, or StateChanged event for reactive tracking. This method will be removed in the next major version.")]
     public string GetActiveStateString(bool leafOnly = true, string separator = ";")
     {
         // Use pooled list to reduce allocations

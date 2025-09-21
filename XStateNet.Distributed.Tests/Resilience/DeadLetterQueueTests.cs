@@ -39,7 +39,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Act
             await _dlq.EnqueueAsync(message, "TestSource", "Test reason");
-            await Task.Delay(100); // Wait for async processing
+            await _dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1)); // Wait for async processing
 
             // Assert
             Assert.NotNull(storedEntry);
@@ -64,7 +64,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Act
             await _dlq.EnqueueAsync(message, "TestSource", "Failed", exception);
-            await Task.Delay(100); // Wait for async processing
+            await _dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1)); // Wait for async processing
 
             // Assert
             Assert.NotNull(storedEntry);
@@ -90,7 +90,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Act
             await _dlq.EnqueueAsync(message, "TestSource", "Test", null, metadata);
-            await Task.Delay(100); // Wait for async processing
+            await _dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1)); // Wait for async processing
 
             // Assert
             Assert.NotNull(storedEntry);
@@ -121,7 +121,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             ).ToArray();
 
             await Task.WhenAll(tasks);
-            await Task.Delay(200); // Wait for async processing
+            await _dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(2)); // Wait for async processing
 
             // Assert
             Assert.Equal(messageCount, enqueuedCount);

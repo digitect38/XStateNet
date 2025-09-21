@@ -14,7 +14,7 @@ public class DiagrammingFrameworkTests : IDisposable
         var actionMap = new ActionMap();
         var guardMap = new GuardMap();
 
-        // �׼� �߰�
+        // Add actions
         actionMap["setLButtonDown"] = [new("setLButtonDown", SetLButtonDown)];
         actionMap["startSelection"] = [new("startSelection", StartSelection)];
         actionMap["updateSelection"] = [new("updateSelection", UpdateSelection)];
@@ -30,7 +30,7 @@ public class DiagrammingFrameworkTests : IDisposable
         actionMap["startResizing"] = [new("startResizing", StartResizing)];
         actionMap["endResizing"] = [new("endResizing", EndResizing)];
 
-        // ���� �߰�
+        // Add guards
         guardMap["onShapeBody"] = new NamedGuard("onShapeBody", OnShapeBody);
         guardMap["onCanvas"] = new NamedGuard("onCanvas", OnCanvas);
 
@@ -52,15 +52,15 @@ public class DiagrammingFrameworkTests : IDisposable
 
         var script = GetScript(uniqueId);
 
-        // ���� �ӽ� �ʱ�ȭ
+        // Initialize state machine
         var stateMachine = (StateMachine)StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
         return stateMachine;
     }
 
 
-    // ���� �׽�Ʈ �޼���
+    // Test methods
     [Fact]
-    public void TestInitialState()
+    public async Task TestInitialState()
     {
         var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -70,7 +70,7 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void TestLButtonDownOnShapeBody()
+    public async Task TestLButtonDownOnShapeBody()
     {
         var uniqueId = "TestLButtonDownOnShapeBody_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -83,7 +83,7 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void TestLButtonDownOnCanvas()
+    public async Task TestLButtonDownOnCanvas()
     {
         var uniqueId = "TestLButtonDownOnCanvas_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -96,7 +96,7 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void TestSelectionToIdle()
+    public async Task TestSelectionToIdle()
     {
         var uniqueId = "TestSelectionToIdle_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -106,13 +106,12 @@ public class DiagrammingFrameworkTests : IDisposable
         stateMachine.Send("L_BUTTON_DOWN");
         stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 0;
-        stateMachine.Send("L_BUTTON_UP");
-        var states = stateMachine.GetActiveStateString();
+        var states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
-    public void TestSelectionToSelected()
+    public async Task TestSelectionToSelected()
     {
         var uniqueId = "TestSelectionToSelected_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -122,46 +121,41 @@ public class DiagrammingFrameworkTests : IDisposable
         stateMachine.Send("L_BUTTON_DOWN");
         stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 1;
-        stateMachine.Send("L_BUTTON_UP");
-        var states = stateMachine.GetActiveStateString();
+        var states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.selecting");
     }
 
     [Fact]
-    public void TestMovingState()
+    public async Task TestMovingState()
     {
         var uniqueId = "stateMachine_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        stateMachine.Send("L_BUTTON_DOWN");
-
-        var states = stateMachine.GetActiveStateString();
+        var states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
         _context["onResize"] = false;
 
-        stateMachine.Send("MOUSE_MOVE");
-        states = stateMachine.GetActiveStateString();
+        states = await stateMachine.SendAsyncWithState("MOUSE_MOVE");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
-        stateMachine.Send("L_BUTTON_UP");
-        states = stateMachine.GetActiveStateString();
+        states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
     [Fact]
-    public void TestResizingState()
+    public async Task TestResizingState()
     {
         var uniqueId = "TestResizingState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        stateMachine.Send("L_BUTTON_DOWN");
+        var states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
 
-        var states = stateMachine.GetActiveStateString();
+        //var states = stateMachine.GetActiveStateString();
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
 
@@ -170,17 +164,17 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["l_button_down"] = false;
 
         stateMachine.Send("MOUSE_MOVE");
+        states = await stateMachine.SendAsyncWithState("MOUSE_MOVE");
 
-        states = stateMachine.GetActiveStateString();
+        //states = stateMachine.GetActiveStateString();
         states.AssertEquivalence($"#{uniqueId}.selected.resizing.idle");
 
-        stateMachine.Send("L_BUTTON_DOWN");
-        states = stateMachine.GetActiveStateString();
+        states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
         states.AssertEquivalence($"#{uniqueId}.selected.resizing.resizing");
     }
 
 
-    // �׼� �޼���
+    // Action methods
     private void SetLButtonDown(StateMachine sm)
     {
         _context["l_button_down"] = true;
@@ -193,27 +187,27 @@ public class DiagrammingFrameworkTests : IDisposable
 
     private void UpdateSelection(StateMachine sm)
     {
-        // selectionCount ������Ʈ ���� �߰�
+        // Add selectionCount update logic
     }
 
     private void EndSelection(StateMachine sm)
     {
-        // selectionCount ���� ���� �߰�
+        // Add selectionCount decrease logic
     }
 
     private void StartMoving(StateMachine sm)
     {
-        // �̵� ���� ���� �߰�
+        // Add move start logic
     }
 
     private void EndMoving(StateMachine sm)
     {
-        // �̵� ���� ���� �߰�
+        // Add move end logic
     }
 
     private void UpdateMoving(StateMachine sm)
     {
-        // �̵� ������Ʈ ���� �߰�
+        // Add move update logic
     }
 
     private void StartConnecting(StateMachine sm)
@@ -236,7 +230,7 @@ public class DiagrammingFrameworkTests : IDisposable
 
     }
 
-    // ���� �޼���
+    // Guard methods
     private bool OnShapeBody(StateMachine sm)
     {
         bool val = (bool)(_context["onShapeBody"] ?? false);

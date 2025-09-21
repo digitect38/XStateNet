@@ -84,7 +84,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Act
             var id = await dlq.EnqueueAsync("test-message", "source", "reason");
-            await Task.Delay(100); // Wait for async processing
+            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1)); // Wait for async processing
 
             // Assert
             Assert.NotNull(id);
@@ -221,6 +221,9 @@ namespace XStateNet.Distributed.Tests.Resilience
                     await dlq.EnqueueAsync(message, "Pipeline", "Failed processing");
                 }
             }
+
+            // Wait for any async operations like DLQ to complete
+            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1));
 
             // Assert
             Assert.Equal(2, processed);

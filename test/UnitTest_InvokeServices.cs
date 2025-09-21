@@ -237,7 +237,7 @@ public class UnitTest_InvokeServices : IDisposable
     }
     
     [Fact]
-    public void TestServiceCancellationOnStateExit()
+    public async Task TestServiceCancellationOnStateExit()
     {
         var cancellableService = new ServiceMap
         {

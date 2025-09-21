@@ -23,14 +23,11 @@ public class MinimalHsmsTest
         // Start passive listener
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
-        
-        // Give passive side time to start listening
-        await Task.Delay(100);
-        
+
         // Connect active side
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
-        
+
         // Wait for passive side to accept
         await passiveConnectTask;
         
@@ -73,19 +70,16 @@ public class MinimalHsmsTest
         };
         
         var passiveConnectTask = passiveConnection.ConnectAsync();
-        
-        // Give passive side time to start listening
-        await Task.Delay(100);
-        
+
         // Connect active side
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         
-        HsmsMessage? receivedResponse = null;
+        var responseReceived = new TaskCompletionSource<HsmsMessage>();
         activeConnection.MessageReceived += (sender, msg) =>
         {
             if (msg.MessageType == HsmsMessageType.LinktestRsp)
             {
-                receivedResponse = msg;
+                responseReceived.TrySetResult(msg);
             }
         };
         
@@ -104,15 +98,13 @@ public class MinimalHsmsTest
         // Wait for message to be received
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var receivedMsg = await messageReceived.Task.WaitAsync(cts.Token);
-        
-        // Wait a bit for response
-        await Task.Delay(100);
-        
+        var receivedResponse = await responseReceived.Task.WaitAsync(cts.Token);
+
         // Assert
         Assert.NotNull(receivedMsg);
         Assert.Equal(HsmsMessageType.LinktestReq, receivedMsg.MessageType);
         Assert.Equal(12345u, receivedMsg.SystemBytes);
-        
+
         Assert.NotNull(receivedResponse);
         Assert.Equal(HsmsMessageType.LinktestRsp, receivedResponse.MessageType);
         Assert.Equal(12345u, receivedResponse.SystemBytes);
@@ -135,8 +127,6 @@ public class MinimalHsmsTest
         // Start passive listener
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
-        
-        await Task.Delay(100);
         
         // Connect active side
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
@@ -204,7 +194,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -303,7 +292,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -383,7 +371,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -414,9 +401,7 @@ public class MinimalHsmsTest
             SystemBytes = 111
         };
         
-        // Wait a bit for disconnection to be detected  
         // Note: TCP disconnection detection is not immediate
-        await Task.Delay(1000);
         
         // Try to send - this should either throw or detect disconnection
         try
@@ -449,7 +434,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -487,7 +471,14 @@ public class MinimalHsmsTest
         }
         
         await Task.WhenAll(tasks);
-        await Task.Delay(500); // Allow time for all messages to be received
+
+        // Wait for all messages to be received using proper synchronization
+        var timeout = TimeSpan.FromSeconds(2);
+        var startTime = DateTime.UtcNow;
+        while (receivedMessages.Count < 10 && DateTime.UtcNow - startTime < timeout)
+        {
+            await Task.Delay(10);
+        }
         
         // Assert
         Assert.Equal(10, receivedMessages.Count);
@@ -513,7 +504,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -573,7 +563,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         activeConnection.T3Timeout = 1000; // 1 second T3 timeout
@@ -613,8 +602,8 @@ public class MinimalHsmsTest
         
         await activeConnection.SendMessageAsync(hsmsMessage);
         
-        // Wait for T3 timeout to occur
-        await Task.Delay(1500);
+        // Wait for T3 timeout to occur (should be handled by the connection)
+        await Task.Delay(1100); // Slightly longer than T3 timeout
         
         // Assert - T3 timeout should have been detected
         // Note: Current implementation may not expose T3 timeout directly
@@ -637,7 +626,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -719,7 +707,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -750,7 +737,7 @@ public class MinimalHsmsTest
         Assert.True(received);
         
         // After separate, connection should be terminated
-        await Task.Delay(500);
+        // Note: Connection termination is handled by the separate protocol
         
         // Clean up
         activeConnection.Dispose();
@@ -767,7 +754,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();
@@ -842,7 +828,6 @@ public class MinimalHsmsTest
         var passiveConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
         var passiveConnectTask = passiveConnection.ConnectAsync();
         
-        await Task.Delay(100);
         
         var activeConnection = new HsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         await activeConnection.ConnectAsync();

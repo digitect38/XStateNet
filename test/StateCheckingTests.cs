@@ -106,16 +106,14 @@ public class StateCheckingTests
         var initialState = machine.GetActiveStateString(leafOnly: true);
         Assert.Contains("idle", initialState);
         
-        // Act - Start working
-        machine.Send("START");
-        await Task.Delay(50);
-        
-        // Assert - Working state
-        var workingState = machine.GetActiveStateString(leafOnly: true);
+        // Act - Start working and get new state
+        var workingState = await machine.SendAsyncWithState("START");
+
+        // Assert - Working state (SendAsyncWithState returns full state by default)
         Assert.Contains("processing", workingState);
-        
-        // Get full path
-        var fullPath = machine.GetActiveStateString(leafOnly: false);
+
+        // Get full path (already have it from SendAsyncWithState)
+        var fullPath = workingState;
         Assert.Contains("working", fullPath);
         Assert.Contains("processing", fullPath);
     }

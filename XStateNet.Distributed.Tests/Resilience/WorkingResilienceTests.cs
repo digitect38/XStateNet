@@ -84,7 +84,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             );
 
             // Wait for async background processing
-            await Task.Delay(100);
+            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1));
 
             // Assert
             Assert.NotNull(messageId);
@@ -257,8 +257,8 @@ namespace XStateNet.Distributed.Tests.Resilience
                 }
             }
 
-            // Wait for DLQ to process the message
-            await Task.Delay(100);
+            // Wait for DLQ to process the message using completion event
+            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1));
 
             // Assert
             Assert.Equal(2, processedCount);

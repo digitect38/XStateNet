@@ -62,10 +62,8 @@ namespace XStateNet.Distributed.Tests.PubSub
             var initialReceived = await Task.WhenAny(initialStateReceived.Task, Task.Delay(1000));
             Assert.True(initialReceived == initialStateReceived.Task, "Initial state was not received");
 
-            // Small delay to ensure state is fully established
-            await Task.Delay(50);
-
-            machine.Send("GO");
+            // Send event asynchronously - transition completes before returning
+            await machine.SendAsync("GO");
 
             // Wait for event with timeout
             var received = await Task.WhenAny(eventReceived.Task, Task.Delay(5000));

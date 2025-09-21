@@ -410,6 +410,50 @@ namespace XStateNet.Distributed.Resilience
             };
         }
 
+        public async Task WaitForPendingOperationsAsync(TimeSpan timeout = default)
+        {
+            if (timeout == default)
+            {
+                timeout = TimeSpan.FromSeconds(5);
+            }
+
+            var cts = new CancellationTokenSource(timeout);
+
+            try
+            {
+                // Wait for channel to be empty by checking if we can read
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    // Try to wait for data with a short timeout
+                    var waitTask = _incomingChannel.Reader.WaitToReadAsync(cts.Token).AsTask();
+                    var delayTask = Task.Delay(50, cts.Token);
+
+                    var completedTask = await Task.WhenAny(waitTask, delayTask);
+
+                    if (completedTask == delayTask)
+                    {
+                        // Delay completed first, channel is likely empty
+                        // Double-check by trying once more
+                        var secondCheck = _incomingChannel.Reader.WaitToReadAsync(cts.Token).AsTask();
+                        var secondDelay = Task.Delay(10, cts.Token);
+
+                        var secondCompleted = await Task.WhenAny(secondCheck, secondDelay);
+                        if (secondCompleted == secondDelay)
+                        {
+                            // Channel appears to be empty
+                            return;
+                        }
+                    }
+
+                    // Small delay before next check
+                    await Task.Delay(10, cts.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         private async Task ProcessIncomingAsync(CancellationToken cancellationToken)
         {
             await foreach (var entry in _incomingChannel.Reader.ReadAllAsync(cancellationToken))
@@ -625,6 +669,8 @@ namespace XStateNet.Distributed.Resilience
             CancellationToken cancellationToken = default);
 
         DeadLetterQueueStatistics GetStatistics();
+
+        Task WaitForPendingOperationsAsync(TimeSpan timeout = default);
     }
 
     public class DeadLetterEntry

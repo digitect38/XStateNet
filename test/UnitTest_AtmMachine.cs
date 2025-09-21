@@ -34,7 +34,7 @@ public class AtmStateMachineTests : IDisposable
     }
 
     [Fact]
-    public void TestInitialState()
+    public async Task TestInitialState()
     {
         var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -43,41 +43,38 @@ public class AtmStateMachineTests : IDisposable
     }
 
     [Fact]
-    public void TestCardInserted()
+    public async Task TestCardInserted()
     {
         var uniqueId = "TestCardInserted_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        var currentState = stateMachine.GetActiveStateString();
+        var currentState = await stateMachine.SendAsyncWithState("CARD_INSERTED");
         currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin");
     }
 
     [Fact]
-    public void TestPinEnteredCorrectly()
+    public async Task TestPinEnteredCorrectly()
     {
         var uniqueId = "TestPinEnteredCorrectly_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("PIN_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("PIN_CORRECT");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestPinEnteredIncorrectly()
+    public async Task TestPinEnteredIncorrectly()
     {
         var uniqueId = "TestPinEnteredIncorrectly_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_INCORRECT");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("PIN_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("PIN_INCORRECT");
         currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin");
     }
 
     [Fact]
-    public void TestWithdrawTransactionSuccess()
+    public async Task TestWithdrawTransactionSuccess()
     {
         var uniqueId = "TestWithdrawTransactionSuccess_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -85,14 +82,13 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("WITHDRAW");
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("SUCCESS");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("SUCCESS");
         currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
-    public void TestDepositTransactionFailure()
+    public async Task TestDepositTransactionFailure()
     {
         var uniqueId = "TestDepositTransactionFailure_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -100,105 +96,97 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("DEPOSIT");
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("FAILURE");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.depositing;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestCancelDuringTransaction()
+    public async Task TestCancelDuringTransaction()
     {
         var uniqueId = "TestCancelDuringTransaction_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("WITHDRAW");
-        stateMachine.Send("CANCEL");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("WITHDRAW");
+        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestRequestReceipt()
+    public async Task TestRequestReceipt()
     {
         var uniqueId = "TestRequestReceipt_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("REQUEST_RECEIPT");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("PIN_CORRECT");
+        var currentState = await stateMachine.SendAsyncWithState("REQUEST_RECEIPT");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.printingReceipt");
     }
 
     [Fact]
-    public void TestReceiptPrinted()
+    public async Task TestReceiptPrinted()
     {
         var uniqueId = "TestReceiptPrinted_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("REQUEST_RECEIPT");
-        stateMachine.Send("RECEIPT_PRINTED");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("REQUEST_RECEIPT");
+        var currentState = await stateMachine.SendAsyncWithState("RECEIPT_PRINTED");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestBalanceCheck()
+    public async Task TestBalanceCheck()
     {
         var uniqueId = "TestBalanceCheck_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("BALANCE");
-        stateMachine.Send("BALANCE_SHOWN");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("BALANCE");
+        var currentState = await stateMachine.SendAsyncWithState("BALANCE_SHOWN");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestNestedCancelDuringTransaction()
+    public async Task TestNestedCancelDuringTransaction()
     {
         var uniqueId = "TestNestedCancelDuringTransaction_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("WITHDRAW");
-        stateMachine.Send("CANCEL");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("WITHDRAW");
+        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.selectingTransaction;#{uniqueId}.operational.receipt.noReceipt");
     }
 
     [Fact]
-    public void TestInvalidTransition()
+    public async Task TestInvalidTransition()
     {
         var uniqueId = "TestInvalidTransition_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("INVALID_EVENT");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("CARD_INSERTED");
+        var currentState = await stateMachine.SendAsyncWithState("INVALID_EVENT");
         currentState.AssertEquivalence($"#{uniqueId}.authenticating.enteringPin"); // Should remain in the same state
     }
 
     [Fact]
-    public void TestCancelAfterCardInserted()
+    public async Task TestCancelAfterCardInserted()
     {
         var uniqueId = "TestCancelAfterCardInserted_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("CANCEL");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("CARD_INSERTED");
+        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
         currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
-    public void TestWithdrawFailureAndRetry()
+    public async Task TestWithdrawFailureAndRetry()
     {
         var uniqueId = "TestWithdrawFailureAndRetry_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -206,19 +194,17 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("WITHDRAW");
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("FAILURE");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.withdrawing;#{uniqueId}.operational.receipt.noReceipt");
 
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("SUCCESS");
-        currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        currentState = await stateMachine.SendAsyncWithState("SUCCESS");
         currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 
     [Fact]
-    public void TestDepositFailureAndRetry()
+    public async Task TestDepositFailureAndRetry()
     {
         var uniqueId = "TestDepositFailureAndRetry_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -226,14 +212,12 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("DEPOSIT");
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("FAILURE");
-        var currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
         currentState.AssertEquivalence($"#{uniqueId}.operational.transaction.depositing;#{uniqueId}.operational.receipt.noReceipt");
 
-        stateMachine.Send("AMOUNT_ENTERED");
-        stateMachine.Send("SUCCESS");
-        currentState = stateMachine.GetActiveStateString();
+        await stateMachine.SendAsync("AMOUNT_ENTERED");
+        currentState = await stateMachine.SendAsyncWithState("SUCCESS");
         currentState.AssertEquivalence($"#{uniqueId}.idle");
     }
 

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using XStateNet;
+using XStateNet.Distributed.Testing;
 
 namespace XStateNet.Distributed.EventBus.Optimized
 {
@@ -188,6 +189,41 @@ namespace XStateNet.Distributed.EventBus.Optimized
         {
             if (_isConnected == 0) return Task.CompletedTask;
 
+            // Check for deterministic test mode
+            if (DeterministicTestMode.IsEnabled)
+            {
+                // Process broadcast synchronously in deterministic mode
+                var evt = new StateMachineEvent
+                {
+                    EventName = eventName,
+                    Payload = payload,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    evt.Headers["Filter"] = filter;
+                }
+
+                // Notify all subscriptions synchronously
+                foreach (var kvp in _topicSubscriptions)
+                {
+                    kvp.Value.Notify(evt);
+                }
+
+                foreach (var kvp in _patternSubscriptions)
+                {
+                    if (kvp.Key == "*" || kvp.Value.Matches(eventName))
+                    {
+                        kvp.Value.Notify(evt);
+                    }
+                }
+
+                Interlocked.Increment(ref _totalEventsPublished);
+                return Task.CompletedTask;
+            }
+
+            // Normal async processing
             var workItem = new BroadcastWorkItem
             {
                 EventName = eventName,
@@ -499,11 +535,92 @@ namespace XStateNet.Distributed.EventBus.Optimized
 
         #endregion
 
+        #region Deterministic Mode Support
+
+        private async Task ProcessPublishDeterministic(string topic, StateMachineEvent evt, PublishMode mode)
+        {
+            // In deterministic mode, process directly without channels
+            await ExecuteSynchronousPublish(topic, evt, mode);
+        }
+
+        private Task ExecuteSynchronousPublish(string topic, StateMachineEvent evt, PublishMode mode)
+        {
+            var subscriptionsToNotify = _listPool.Get();
+
+            try
+            {
+                // Direct topic match
+                if (_topicSubscriptions.TryGetValue(topic, out var topicSubs))
+                {
+                    topicSubs.CopyTo(subscriptionsToNotify);
+                }
+
+                // Pattern matches including wildcard "*" pattern
+                foreach (var kvp in _patternSubscriptions)
+                {
+                    if (kvp.Value.Matches(topic))
+                    {
+                        kvp.Value.CopyTo(subscriptionsToNotify);
+                    }
+                }
+
+                // Create a copy of the event for deterministic mode
+                // This prevents pooling issues
+                var deterministicEvent = new StateMachineEvent
+                {
+                    EventId = evt.EventId,
+                    EventName = evt.EventName,
+                    SourceMachineId = evt.SourceMachineId,
+                    TargetMachineId = evt.TargetMachineId,
+                    Payload = evt.Payload,
+                    Timestamp = evt.Timestamp,
+                    CorrelationId = evt.CorrelationId,
+                    CausationId = evt.CausationId
+                };
+
+                // Copy headers
+                foreach (var kvp in evt.Headers)
+                {
+                    deterministicEvent.Headers[kvp.Key] = kvp.Value;
+                }
+
+                // Notify all subscriptions synchronously
+                NotifySubscriptions(subscriptionsToNotify, deterministicEvent);
+
+                // In deterministic mode, we don't return to pool here
+                // The original event will be returned when PublishEventAsync completes
+                if (mode != PublishMode.External)
+                {
+                    // Return the original event to pool after deterministic processing
+                    _eventPool.Return(evt);
+                }
+
+                Interlocked.Increment(ref _totalEventsPublished);
+            }
+            finally
+            {
+                _listPool.Return(subscriptionsToNotify);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        #endregion
+
         #region Internal Methods
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private async Task PublishInternalAsync(string topic, StateMachineEvent evt, PublishMode mode)
         {
+            // Check for deterministic test mode
+            if (DeterministicTestMode.IsEnabled)
+            {
+                // In deterministic mode, process synchronously
+                await ProcessPublishDeterministic(topic, evt, mode);
+                return;
+            }
+
+            // Normal async processing
             var workItem = new PublishWorkItem
             {
                 Topic = topic,
