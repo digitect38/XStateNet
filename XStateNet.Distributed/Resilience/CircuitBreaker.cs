@@ -44,6 +44,12 @@ namespace XStateNet.Distributed.Resilience
 
         public async Task<T> ExecuteAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken = default)
         {
+            // For backward compatibility, create a wrapper that ignores the token
+            return await ExecuteAsync(_ => operation(), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default)
+        {
             if (_state == (int)CircuitState.Open)
             {
                 if (ShouldAttemptReset())
@@ -60,7 +66,7 @@ namespace XStateNet.Distributed.Resilience
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                var result = await operation().ConfigureAwait(false);
+                var result = await operation(cancellationToken).ConfigureAwait(false);
                 OnSuccess();
 
                 _metrics.RecordSuccess(_name, stopwatch.Elapsed);
@@ -81,9 +87,18 @@ namespace XStateNet.Distributed.Resilience
 
         public async Task ExecuteAsync(Func<Task> operation, CancellationToken cancellationToken = default)
         {
-            await ExecuteAsync(async () =>
+            await ExecuteAsync(async ct =>
             {
                 await operation().ConfigureAwait(false);
+                return true;
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task ExecuteAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
+        {
+            await ExecuteAsync(async ct =>
+            {
+                await operation(ct).ConfigureAwait(false);
                 return true;
             }, cancellationToken).ConfigureAwait(false);
         }

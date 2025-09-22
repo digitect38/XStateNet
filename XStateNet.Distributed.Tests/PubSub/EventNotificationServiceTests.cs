@@ -506,7 +506,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 ["canPause"] = new NamedGuard("canPause", sm => true)
             };
 
-            return XStateNet.StateMachine.CreateFromScript(json, actionMap, guardMap);
+            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true, actionMap, guardMap);
         }
 
         public void Dispose()

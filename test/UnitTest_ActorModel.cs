@@ -33,10 +33,9 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestBasicActorCreation()
     {
-        var uniqueId = $"testActor-{Guid.NewGuid():N}";
         string script = @"
         {
-            'id': '" + uniqueId + @"',
+            'id': 'testActor',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -52,7 +51,7 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
         
-        var stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        var stateMachine = StateMachine.CreateFromScript(script, guidIsolate: true, _actions, _guards);
         var actor = ActorSystem.Instance.Spawn("actor1", id => new StateMachineActor(id, stateMachine));
         
         Assert.Equal("actor1", actor.Id);
@@ -73,14 +72,9 @@ public class UnitTest_ActorModel : IDisposable
     [Fact]
     public async Task TestActorCommunication()
     {
-        // Use unique IDs to avoid conflicts with parallel tests
-        var testId = Guid.NewGuid().ToString().Substring(0, 8);
-        
-        var uniqueId = $"ping_{Guid.NewGuid():N}";
-
         string pingScript = @"
         {
-            'id': '" + uniqueId + @"',
+            'id': 'ping',
             'initial': 'waiting',
             'states': {
                 'waiting': {
@@ -97,11 +91,9 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
 
-        uniqueId = $"pong_{Guid.NewGuid():N}";
-
         string pongScript = @"
         {
-            'id': '" + uniqueId + @"',
+            'id': 'pong',
             'initial': 'waiting',
             'states': {
                 'waiting': {
@@ -124,7 +116,7 @@ public class UnitTest_ActorModel : IDisposable
         var pingActions = new ActionMap
         {
             ["sendPong"] = new List<NamedAction> { new NamedAction("sendPong", async (sm) => {
-                await ActorSystem.Instance.SendToActor($"pong_{testId}", "PING");
+                await ActorSystem.Instance.SendToActor("pongActor", "PING");
             }) }
         };
 
@@ -132,16 +124,16 @@ public class UnitTest_ActorModel : IDisposable
         {
             ["sendPing"] = new List<NamedAction> { new NamedAction("sendPing", async (sm) => {
                 pingReceived = true;
-                await ActorSystem.Instance.SendToActor($"ping_{testId}", "PONG_RECEIVED");
+                await ActorSystem.Instance.SendToActor("pingActor", "PONG_RECEIVED");
                 pongReceived = true;
             }) }
         };
 
-        var pingMachine = StateMachine.CreateFromScript(pingScript, pingActions, _guards);
-        var pongMachine = StateMachine.CreateFromScript(pongScript, pongActions, _guards);
+        var pingMachine = StateMachine.CreateFromScript(pingScript, guidIsolate: true, pingActions, _guards);
+        var pongMachine = StateMachine.CreateFromScript(pongScript, guidIsolate: true, pongActions, _guards);
 
-        var pingActor = ActorSystem.Instance.Spawn($"ping_{testId}", id => new StateMachineActor(id, pingMachine));
-        var pongActor = ActorSystem.Instance.Spawn($"pong_{testId}", id => new StateMachineActor(id, pongMachine));
+        var pingActor = ActorSystem.Instance.Spawn("pingActor", id => new StateMachineActor(id, pingMachine));
+        var pongActor = ActorSystem.Instance.Spawn("pongActor", id => new StateMachineActor(id, pongMachine));
         
         await pingActor.StartAsync();
         await pongActor.StartAsync();

@@ -38,7 +38,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                     {
                         await Task.Yield();
                         throw new Exception("fail");
-                        return "never";
+                        //return "never";
                     });
                 }
                 catch { }

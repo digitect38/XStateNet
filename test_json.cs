@@ -7,26 +7,24 @@ class TestJson
     {
         var jsonWithSingleQuotes = @"
         {
-            'id': 'test',
-            'states': {
-                'idle': {
-                    'on': {
-                        'START': 'running'
+            id: 'test',
+            states: {
+                idle: {
+                    on: {
+                        START: 'running'
                     }
                 }
             }
         }";
         
-        var jsonWithDoubleQuotes = jsonWithSingleQuotes.Replace("'", "\"");
-        
-        Console.WriteLine("Original with single quotes:");
+        Console.WriteLine("JSON with cleaned format:");
         Console.WriteLine(jsonWithSingleQuotes);
-        Console.WriteLine("\nConverted with double quotes:");
-        Console.WriteLine(jsonWithDoubleQuotes);
-        
-        try 
+
+        try
         {
-            var parsed = JObject.Parse(jsonWithDoubleQuotes);
+            // For JSON parsing, we still need double quotes around values
+            var jsonForParsing = jsonWithSingleQuotes.Replace("'", "\"");
+            var parsed = JObject.Parse(jsonForParsing);
             Console.WriteLine("\nParsing successful!");
             Console.WriteLine("States: " + parsed["states"]);
         }

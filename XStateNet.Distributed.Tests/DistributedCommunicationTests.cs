@@ -36,10 +36,9 @@ namespace XStateNet.Distributed.Tests
             var machine2Events = new List<string>();
 
             // Machine 1 - Traffic Light
-            var trafficLight1Id = "trafficLight1_" + Guid.NewGuid().ToString("N");
             var machine1Json = @"
             {
-                id: '" + trafficLight1Id + @"',
+                id: 'trafficLight1',
                 initial: 'red',
                 states: {
                     'red': {
@@ -74,7 +73,7 @@ namespace XStateNet.Distributed.Tests
                 new NamedAction("notifySync", (sm) => machine1Events.Add("SYNC_RECEIVED"))
             };
 
-            var baseMachine1 = StateMachine.CreateFromScript(machine1Json, machine1Actions);
+            var baseMachine1 = StateMachine.CreateFromScript(machine1Json, guidIsolate: true, machine1Actions);
             var distributedMachine1 = new DistributedStateMachine(
                 baseMachine1,
                 "trafficLight1",
@@ -83,10 +82,9 @@ namespace XStateNet.Distributed.Tests
             _machines.Add(distributedMachine1);
 
             // Machine 2 - Traffic Light
-            var trafficLight2Id = "trafficLight2_" + Guid.NewGuid().ToString("N");
             var machine2Json = @"
             {
-                id: '" + trafficLight2Id + @"',
+                id: 'trafficLight2',
                 initial: 'green',
                 states: {
                     'red': {
@@ -128,7 +126,7 @@ namespace XStateNet.Distributed.Tests
                 })
             };
 
-            var baseMachine2 = StateMachine.CreateFromScript(machine2Json, machine2Actions);
+            var baseMachine2 = StateMachine.CreateFromScript(machine2Json, guidIsolate: true, machine2Actions);
             distributedMachine2 = new DistributedStateMachine(
                 baseMachine2,
                 "trafficLight2",
@@ -179,10 +177,9 @@ namespace XStateNet.Distributed.Tests
             var childCompleted = new TaskCompletionSource<bool>();
 
             // Parent machine
-            var parentId = "parent_" + Guid.NewGuid().ToString("N");
             var parentJson = @"
             {
-                id: '" + parentId + @"',
+                id: 'parent',
                 initial: 'idle',
                 states: {
                     'idle': {
@@ -243,7 +240,7 @@ namespace XStateNet.Distributed.Tests
             parentGuards["allChildrenComplete"] = new NamedGuard("allChildrenComplete", 
                 (sm) => childrenStatus.Values.All(v => v));
 
-            var parentBase = StateMachine.CreateFromScript(parentJson, parentActions, parentGuards);
+            var parentBase = StateMachine.CreateFromScript(parentJson, guidIsolate: true, parentActions, parentGuards);
             var parentMachine = new DistributedStateMachine(
                 parentBase,
                 "parent",
@@ -254,7 +251,7 @@ namespace XStateNet.Distributed.Tests
             // Child machines
             for (int i = 1; i <= 2; i++)
             {
-                var childId = $"child{i}_{Guid.NewGuid():N}";
+                var childId = $"child{i}";
                 var childJson = $@"
                 {{
                     id: '{childId}',
@@ -283,7 +280,7 @@ namespace XStateNet.Distributed.Tests
                     })
                 };
 
-                var childBase = StateMachine.CreateFromScript(childJson, childActions);
+                var childBase = StateMachine.CreateFromScript(childJson, guidIsolate: true, childActions);
                 var childMachine = new DistributedStateMachine(
                     childBase,
                     childId,
@@ -318,7 +315,7 @@ namespace XStateNet.Distributed.Tests
             // Create worker machines
             for (int i = 1; i <= 3; i++)
             {
-                var workerId = $"worker{i}_{Guid.NewGuid():N}";
+                var workerId = $"worker{i}";
                 var workerJson = @"
                 {
                     id: '" + workerId + @"',
@@ -364,7 +361,7 @@ namespace XStateNet.Distributed.Tests
                     })
                 };
 
-                var workerBase = StateMachine.CreateFromScript(workerJson, workerActions);
+                var workerBase = StateMachine.CreateFromScript(workerJson, guidIsolate: true, workerActions);
                 var workerMachine = new DistributedStateMachine(
                     workerBase,
                     workerId,
@@ -436,10 +433,9 @@ namespace XStateNet.Distributed.Tests
         public async Task CircuitBreaker_Pattern_Should_HandleFailures()
         {
             // Arrange
-            var circuitBreakerId = "circuitBreaker_" + Guid.NewGuid().ToString("N");
             var circuitBreakerJson = @"
             {
-                id: '" + circuitBreakerId + @"',
+                id: 'circuitBreaker',
                 initial: 'closed',
                 states: {
                     'closed': {
@@ -516,7 +512,7 @@ namespace XStateNet.Distributed.Tests
             var guards = new GuardMap();
             guards["isHealthy"] = new NamedGuard("isHealthy", (sm) => failureCount < 3);
 
-            var baseCircuitBreaker = StateMachine.CreateFromScript(circuitBreakerJson, actions, guards);
+            var baseCircuitBreaker = StateMachine.CreateFromScript(circuitBreakerJson, guidIsolate: true, actions, guards);
             var circuitBreaker = new DistributedStateMachine(
                 baseCircuitBreaker,
                 "circuitBreaker",
@@ -571,7 +567,7 @@ namespace XStateNet.Distributed.Tests
                 }}
             }}";
 
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var distributedMachine = new DistributedStateMachine(
                 baseMachine,
                 id,

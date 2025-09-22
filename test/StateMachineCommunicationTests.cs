@@ -224,25 +224,25 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
     
     private StateMachine CreateTestMachine(string id, TestCoordinator coordinator)
     {
-        var json = $@"{{
-            'id': '{id}',
+        var json = @"{
+            'id': '" + id +  @"',
             'initial': 'idle',
-            'states': {{
-                'idle': {{
-                    'on': {{
-                        'TRIGGER': {{
+            'states': {
+                'idle': {
+                    'on': {
+                        'TRIGGER': {
                             'target': 'active',
                             'actions': 'notify'
-                        }}
-                    }}
-                }},
-                'active': {{
-                    'on': {{
+                        }
+                    }
+                },
+                'active': {
+                    'on': {
                         'RESET': 'idle'
-                    }}
-                }}
-            }}
-        }}";
+                    }
+                }
+            }
+        }";
         
         var actionMap = new ActionMap();
         actionMap["notify"] = new List<NamedAction>
@@ -253,7 +253,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             })
         };
         
-        return StateMachine.CreateFromScript(json, actionMap);
+        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
     }
     
     private StateMachine CreateParentMachine()
@@ -276,33 +276,33 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     'type': 'final'
                 }
             }
-        }".Replace("'", "\"");
+        }";
         
-        return StateMachine.CreateFromScript(json);
+        return StateMachine.CreateFromScript(json, guidIsolate: true);
     }
     
     private StateMachine CreateChildMachine(string id, StateMachine parent)
     {
-        var json = $@"{{
-            'id': '{id}',
+        var json = @"{
+            'id': '" +id + @"',
             'initial': 'idle',
-            'states': {{
-                'idle': {{
-                    'on': {{
+            'states': {
+                'idle': {
+                    'on': {
                         'START': 'working'
-                    }}
-                }},
-                'working': {{
-                    'on': {{
+                    }
+                },
+                'working': {
+                    'on': {
                         'COMPLETE': 'done'
-                    }}
-                }},
-                'done': {{
+                    }
+                },
+                'done': {
                     'entry': 'notifyParent',
                     'type': 'final'
-                }}
-            }}
-        }}";
+                }
+            }
+        }";
         
         var actionMap = new ActionMap();
         actionMap["notifyParent"] = new List<NamedAction>
@@ -313,7 +313,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             })
         };
         
-        return StateMachine.CreateFromScript(json, actionMap);
+        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
     }
     
     private StateMachine CreateBroadcaster()
@@ -335,32 +335,32 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
                     }
                 }
             }
-        }".Replace("'", "\"");
+        }";
         
-        return StateMachine.CreateFromScript(json);
+        return StateMachine.CreateFromScript(json, guidIsolate: true);
     }
     
     private StateMachine CreateSubscriber(string id, Action onReceive)
     {
-        var json = $@"{{
-            'id': '{id}',
+        var json = @"{
+            'id':'" + id + @"',
             'initial': 'listening',
-            'states': {{
-                'listening': {{
-                    'on': {{
+            'states': {
+                'listening': {
+                    'on': {
                         'RECEIVE_BROADCAST': 'processing'
-                    }}
-                }},
-                'processing': {{
+                    }
+                },
+                'processing': {
                     'entry': 'process',
-                    'after': {{
-                        '50': {{
+                    'after': {
+                        '50': {
                             'target': 'listening'
-                        }}
-                    }}
-                }}
-            }}
-        }}";
+                        }
+                    }
+                }
+            }
+        }";
         
         var actionMap = new ActionMap();
         actionMap["process"] = new List<NamedAction>
@@ -368,33 +368,33 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             new NamedAction("process", (sm) => onReceive())
         };
         
-        return StateMachine.CreateFromScript(json, actionMap);
+        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
     }
     
     private StateMachine CreateChainedMachine(string id, Action onComplete, string? nextId)
     {
-        var json = $@"{{
-            'id': '{id}',
+        var json = @"{
+            'id': '" + id + @"',
             'initial': 'waiting',
-            'states': {{
-                'waiting': {{
-                    'on': {{
+            'states': {
+                'waiting': {
+                    'on': {
                         'START': 'processing'
-                    }}
-                }},
-                'processing': {{
-                    'after': {{
-                        '50': {{
+                    }
+                },
+                'processing': {
+                    'after': {
+                        '50': {
                             'target': 'complete'
-                        }}
-                    }}
-                }},
-                'complete': {{
+                        }
+                    }
+                },
+                'complete': {
                     'entry': 'notifyComplete',
                     'type': 'final'
-                }}
-            }}
-        }}";
+                }
+            }
+        }";
         
         var actionMap = new ActionMap();
         actionMap["notifyComplete"] = new List<NamedAction>
@@ -402,7 +402,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             new NamedAction("notifyComplete", (sm) => onComplete())
         };
         
-        return StateMachine.CreateFromScript(json, actionMap);
+        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
     }
     
     // Test coordinator helper class

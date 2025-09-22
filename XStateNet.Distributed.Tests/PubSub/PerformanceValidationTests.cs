@@ -610,7 +610,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 }
             }";
 
-            return XStateNet.StateMachine.CreateFromScript(json);
+            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true);
         }
 
         public void Dispose()

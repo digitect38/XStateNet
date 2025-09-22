@@ -109,8 +109,8 @@ public class PingPongTests : XStateNet.Tests.TestBase
         };
         
         // Create and start machines
-        pingMachine = StateMachine.CreateFromScript(pingJson, pingActions);
-        pongMachine = StateMachine.CreateFromScript(pongJson, pongActions);
+        pingMachine = StateMachine.CreateFromScript(pingJson, guidIsolate: true, pingActions);
+        pongMachine = StateMachine.CreateFromScript(pongJson, guidIsolate: true, pongActions);
         
         pingMachine.Start();
         pongMachine.Start();
@@ -288,8 +288,8 @@ public class PingPongTests : XStateNet.Tests.TestBase
         };
         
         // Create and start machines
-        pingMachine = StateMachine.CreateFromScript(pingJson, pingActions, pingGuards);
-        pongMachine = StateMachine.CreateFromScript(pongJson, pongActions, pongGuards);
+        pingMachine = StateMachine.CreateFromScript(pingJson, guidIsolate: true, pingActions, pingGuards);
+        pongMachine = StateMachine.CreateFromScript(pongJson, guidIsolate: true, pongActions, pongGuards);
         
         pingMachine.Start();
         pongMachine.Start();
@@ -397,17 +397,21 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         // Create machines
         ping1 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping1'"), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping1'"),
+            guidIsolate: true,
             ping1Actions);
         pong1 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong1'"), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong1'"),
+            guidIsolate: true,
             pong1Actions);
-        
+
         ping2 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping2'"), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'ping2'"),
+            guidIsolate: true,
             ping2Actions);
         pong2 = StateMachine.CreateFromScript(
-            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong2'"), 
+            simplePingPongJson.Replace("'id': 'player'", "'id': 'pong2'"),
+            guidIsolate: true,
             pong2Actions);
         
         // Start all machines

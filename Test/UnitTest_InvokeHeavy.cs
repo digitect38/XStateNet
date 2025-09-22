@@ -405,7 +405,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.Contains("service:retryable:attempt:2", _eventLog);
         Assert.Contains("service:retryable:attempt:3", _eventLog);
         Assert.Contains("service:retryable:success", _eventLog);
-        Assert.True(_stateMachine.IsInState(_stateMachine, "#retryMachine.success"));
+        var machineId = _stateMachine.machineId;
+        Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.success"));
         Assert.Equal("success-after-3-attempts", _serviceResults.GetValueOrDefault("last", ""));
     }
 
@@ -461,7 +462,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.True(_eventLog.Any(e => e.Contains("service:long:step:")), "Should have executed at least one step");
 
         // Check that we're in cancelling state after sending CANCEL
-        Assert.True(_stateMachine.IsInState(_stateMachine, "#cancellableMachine.cancelling"));
+        var machineId = _stateMachine.machineId;
+        Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.cancelling"));
 
         // The service shouldn't complete since we cancelled it
         Assert.DoesNotContain("service:long:completed", _eventLog);
@@ -573,7 +575,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.Contains("service:context:input:prepared-data", _eventLog);
         Assert.Contains("data:processed:processed-prepared-data", _eventLog); // processServiceData action logs this
         Assert.Contains("processing:processed-prepared-data-processed", _eventLog); // logProcessing uses processedData from context
-        Assert.True(_stateMachine.IsInState(_stateMachine, "#contextFlow.processing"));
+        var machineId = _stateMachine.machineId;
+        Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.processing"));
     }
 
     [Fact]
@@ -628,7 +631,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.Contains("service:failing:started", _eventLog);
         Assert.Contains("service:failing:throwing", _eventLog);
         Assert.Contains("level2Error:handled", _eventLog);
-        Assert.True(_stateMachine.IsInState(_stateMachine, "#errorChain.level1.level2Error"));
+        var machineId = _stateMachine.machineId;
+        Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.level1.level2Error"));
     }
 
     [Fact]
@@ -820,7 +824,8 @@ public class UnitTest_InvokeHeavy : IDisposable
             Assert.Equal(10, iterations);
             Assert.Equal(10, quickStartCount);
             Assert.Equal(10, quickCompleteCount);
-            Assert.True(_stateMachine.IsInState(_stateMachine, "#memoryTest.done"));
+            var machineId = _stateMachine.machineId;
+            Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.done"));
         }
     }
 

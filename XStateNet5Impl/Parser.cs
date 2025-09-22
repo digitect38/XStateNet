@@ -31,6 +31,18 @@ public partial class StateMachine
         ActivityMap? activityCallbacks = null
     )
     {
+        return ParseStateMachine(stateMachine, jsonScript, false, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+    }
+
+    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
+        bool guidIsolate,
+        ActionMap? actionCallbacks,
+        GuardMap? guardCallbacks,
+        ServiceMap? serviceCallbacks,
+        DelayMap? delayCallbacks,
+        ActivityMap? activityCallbacks = null
+    )
+    {
         if (string.IsNullOrWhiteSpace(jsonScript))
         {
             throw new ArgumentException("JSON script cannot be null or empty", nameof(jsonScript));
@@ -40,7 +52,7 @@ public partial class StateMachine
         {
             throw new ArgumentNullException(nameof(stateMachine), "StateMachine cannot be null");
         }
-        
+
         // Validate JSON input for security
         Security.ValidateJsonInput(jsonScript);
 
@@ -59,7 +71,13 @@ public partial class StateMachine
                 throw new JsonException("JSON script must contain an 'id' field");
             }
 
-            stateMachine.machineId = $"#{rootToken["id"]}";
+            // If guidIsolate is true, append a unique GUID to the machine ID
+            string machineId = rootToken["id"]?.ToString() ?? "machine";
+            if (guidIsolate)
+            {
+                machineId = $"{machineId}_{Guid.NewGuid():N}";
+            }
+            stateMachine.machineId = $"#{machineId}";
             stateMachine.ActionMap = actionCallbacks;
             stateMachine.GuardMap = guardCallbacks;
             stateMachine.ServiceMap = serviceCallbacks;
@@ -126,6 +144,19 @@ public partial class StateMachine
     {
         var stateMachine = new StateMachine() { };
         return ParseStateMachine(stateMachine, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+    }
+
+    public static StateMachine ParseStateMachine(string? jsonScript,
+        bool guidIsolate,
+        ActionMap? actionCallbacks,
+        GuardMap? guardCallbacks,
+        ServiceMap? serviceCallbacks,
+        DelayMap? delayCallbacks,
+        ActivityMap? activityCallbacks = null
+    )
+    {
+        var stateMachine = new StateMachine() { };
+        return ParseStateMachine(stateMachine, jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
     /// <summary>
     /// 

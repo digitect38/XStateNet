@@ -59,7 +59,8 @@ public class UnitTest_InvokeOnError
         // Assert
         Assert.Contains("service:started", log);
         Assert.Contains("action:logError", log);
-        Assert.True(stateMachine.IsInState(stateMachine, "#errorMachine.failed"));
+        var machineId = stateMachine.machineId;
+        Assert.True(stateMachine.IsInState(stateMachine, $"{machineId}.failed"));
     }
 
     [Fact]
@@ -111,7 +112,8 @@ public class UnitTest_InvokeOnError
         // Assert
         Assert.Contains("service:started", log);
         Assert.Contains("action:logDone", log);
-        Assert.True(stateMachine.IsInState(stateMachine, "#successMachine.succeeded"));
+        var machineId = stateMachine.machineId;
+        Assert.True(stateMachine.IsInState(stateMachine, $"{machineId}.succeeded"));
     }
 
     [Fact]
@@ -168,6 +170,7 @@ public class UnitTest_InvokeOnError
         // Assert
         Assert.Contains("service:started", log);
         Assert.Contains("action:logData:some data", log);
-        Assert.True(stateMachine.IsInState(stateMachine, "#dataMachine.succeeded"));
+        var machineId = stateMachine.machineId;
+        Assert.True(stateMachine.IsInState(stateMachine, $"{machineId}.succeeded"));
     }
 }

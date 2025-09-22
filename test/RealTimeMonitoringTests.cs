@@ -72,7 +72,7 @@ namespace XStateNet.Tests
                 ["canPause"] = new NamedGuard("canPause", sm => true)
             };
 
-            var machine = StateMachine.CreateFromScript(json, actionMap, guardMap);
+            var machine = StateMachine.CreateFromScript(json, guidIsolate: true, actionMap, guardMap);
             machine.Start();
             _machines.Add(machine);
             return machine;

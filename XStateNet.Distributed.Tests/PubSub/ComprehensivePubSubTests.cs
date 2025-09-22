@@ -567,7 +567,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             var subscriptions = new ConcurrentBag<IDisposable>();
             var errors = new ConcurrentBag<Exception>();
-            var uniqueId = "machine-" + Guid.NewGuid().ToString();
+            var uniqueId = "machine";
             // Act - Concurrent subscribe/unsubscribe
             var tasks = new Task[20];
             for (int i = 0; i < 20; i++)
@@ -926,7 +926,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 ["cleanup"] = new List<NamedAction> { new NamedAction("cleanup", _ => { }) }
             };
 
-            return XStateNet.StateMachine.CreateFromScript(json, actionMap);
+            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
         }
 
         public void Dispose()
@@ -1008,10 +1008,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         {
             using (DeterministicTestMode.Enable())
             {
-                var uniqueId = "test-machine-" + Guid.NewGuid().ToString("N");
                 var processor = DeterministicTestMode.Processor;
                 var json = @"{
-                    'id': '" + uniqueId +  @"',
+                    'id': 'test-machine',
                     'initial': 'idle',
                     'states': {
                         'idle': {
@@ -1033,16 +1032,16 @@ namespace XStateNet.Distributed.Tests.PubSub
                     }
                 }";
 
-                var machine = StateMachine.CreateFromScript(json);
+                var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
                 machine.Start();
 
                 var stateHistory = new List<string>();
                 var stateIndex = 0;
                 var expectedStates = new[] {
-                    $"#{uniqueId}.running",
-                    $"#{uniqueId}.paused",
-                    $"#{uniqueId}.running",
-                    $"#{uniqueId}.idle"
+                    $"{machine.machineId}.running",
+                    $"{machine.machineId}.paused",
+                    $"{machine.machineId}.running",
+                    $"{machine.machineId}.idle"
                 };
 
                 // Subscribe to state changes and verify they occur in expected order
@@ -1060,16 +1059,16 @@ namespace XStateNet.Distributed.Tests.PubSub
                 // Send events - state changes are captured and verified via subscription
                 // Also demonstrate the new SendAsyncWithState that returns the new state
                 var state1 = await machine.SendAsyncWithState("START");
-                Assert.Equal($"#{uniqueId}.running", state1);
+                Assert.Equal($"{machine.machineId}.running", state1);
 
                 var state2 = await machine.SendAsyncWithState("PAUSE");
-                Assert.Equal($"#{uniqueId}.paused", state2);
+                Assert.Equal($"{machine.machineId}.paused", state2);
 
                 var state3 = await machine.SendAsyncWithState("RESUME");
-                Assert.Equal($"#{uniqueId}.running", state3);
+                Assert.Equal($"{machine.machineId}.running", state3);
 
                 var state4 = await machine.SendAsyncWithState("STOP");
-                Assert.Equal($"#{uniqueId}.idle", state4);
+                Assert.Equal($"{machine.machineId}.idle", state4);
 
                 // Verify all expected transitions occurred
                 Assert.Equal(4, stateHistory.Count);

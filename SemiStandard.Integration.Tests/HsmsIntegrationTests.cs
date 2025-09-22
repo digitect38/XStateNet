@@ -3,6 +3,7 @@ using System.Net;
 using Xunit.Abstractions;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
+using System.Threading.Channels;
 
 namespace SemiStandard.Integration.Tests;
 
@@ -20,6 +21,8 @@ public class HsmsIntegrationTests : IAsyncDisposable
     private HsmsConnection? _hostConnection;
     private TaskCompletionSource<HsmsMessage>? _selectResponse;
     private uint _selectSystemBytes;
+    private readonly Channel<bool> _simulatorReady = Channel.CreateUnbounded<bool>();
+    private readonly Channel<bool> _connectionReady = Channel.CreateUnbounded<bool>();
 
     public HsmsIntegrationTests(ITestOutputHelper output)
     {
@@ -39,6 +42,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
 
         // Act & Assert
@@ -53,8 +57,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200); // Allow connection to stabilize
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         // Act
         var s1f1 = SecsMessageLibrary.S1F1();
@@ -85,7 +90,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         // Act
         var s1f13 = SecsMessageLibrary.S1F13();
@@ -113,8 +118,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         // Act
         var s1f3 = SecsMessageLibrary.S1F3(1, 2, 3, 4, 5, 6);
@@ -138,8 +144,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         // Act
         var s2f13 = SecsMessageLibrary.S2F13(1, 2, 3);
@@ -163,8 +170,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         var alarmReceived = new TaskCompletionSource<SecsMessage>();
         
@@ -197,8 +205,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         var eventReceived = new TaskCompletionSource<SecsMessage>();
         
@@ -230,27 +239,28 @@ public class HsmsIntegrationTests : IAsyncDisposable
         _logger.LogInformation("✓ S6F11 event received successfully");
     }
 
-    [Fact]  
+    [Fact]
     public async Task Should_HandleMultipleSequentialMessages()
     {
         // Arrange
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await StartSimulatorAsync();
+        await _simulatorReady.Reader.ReadAsync(cts.Token);
         await ConnectHostDirectAsync(cts.Token);
-        await Task.Delay(200);
+        await _connectionReady.Reader.ReadAsync(cts.Token);
 
         // Act & Assert - Send multiple messages in sequence
         var s1f1Response = await SendAndReceiveAsync(SecsMessageLibrary.S1F1(), TimeSpan.FromSeconds(5));
         Assert.NotNull(s1f1Response);
         Assert.Equal(2, s1f1Response.Function);
 
-        await Task.Delay(100); // Small delay between messages
+        // No delay needed - messages are sequenced properly through system bytes
 
         var s1f13Response = await SendAndReceiveAsync(SecsMessageLibrary.S1F13(), TimeSpan.FromSeconds(5));
         Assert.NotNull(s1f13Response);
         Assert.Equal(14, s1f13Response.Function);
 
-        await Task.Delay(100);
+        // No delay needed
 
         var s1f3Response = await SendAndReceiveAsync(SecsMessageLibrary.S1F3(1, 2, 3), TimeSpan.FromSeconds(5));
         Assert.NotNull(s1f3Response);
@@ -268,7 +278,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         };
 
         await _simulator.StartAsync();
-        await Task.Delay(100); // Give simulator time to start listening
+        _simulatorReady.Writer.TryWrite(true);
         _logger.LogInformation("Non-blocking simulator started on {Endpoint}", _testEndpoint);
     }
 
@@ -305,8 +315,9 @@ public class HsmsIntegrationTests : IAsyncDisposable
         {
             throw new InvalidOperationException($"Selection failed: {response.MessageType}");
         }
-        
+
         _logger.LogInformation("Host connection selected");
+        _connectionReady.Writer.TryWrite(true);
     }
     
     private void OnHostMessageReceived(object? sender, HsmsMessage message)

@@ -14,10 +14,9 @@ public class StateCheckingTests
     [Fact]
     public async Task IsInState_Should_CheckCurrentState()
     {
-        string uniqueId = $"trafficLight-{Guid.NewGuid()}";
         // Arrange
         var json = @"{
-            'id': '" + uniqueId + @"',
+            'id': 'trafficLight',
             'initial': 'red',
             'states': {
                 'red': {
@@ -37,32 +36,32 @@ public class StateCheckingTests
                 }
             }
         }";
-        
-        var machine = StateMachine.CreateFromScript(json);
+
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
-        
+
         // Assert - Initial state (use full path with machine ID)
-        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.red"));
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.yellow"));
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.green"));
+        Assert.True(machine.IsInState(machine,  $"{machine.machineId}.red"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.yellow"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.green"));
         
         // Act - Transition to yellow
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After first transition
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.red"));
-        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.yellow"));
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.green"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.red"));
+        Assert.True(machine.IsInState(machine,  $"{machine.machineId}.yellow"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.green"));
 
         // Act - Transition to green
         machine.Send("TIMER");
         await Task.Delay(50);
         
         // Assert - After second transition
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.red"));
-        Assert.False(machine.IsInState(machine, $"#{uniqueId}.yellow"));
-        Assert.True(machine.IsInState(machine,  $"#{uniqueId}.green"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.red"));
+        Assert.False(machine.IsInState(machine, $"{machine.machineId}.yellow"));
+        Assert.True(machine.IsInState(machine,  $"{machine.machineId}.green"));
     }
     
     [Fact]
@@ -98,10 +97,10 @@ public class StateCheckingTests
                 }
             }
         }";
-        
-        var machine = StateMachine.CreateFromScript(json);
+
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
-        
+
         // Assert - Initial state
         var initialState = machine.GetActiveStateString(leafOnly: true);
         Assert.Contains("idle", initialState);
@@ -144,11 +143,11 @@ public class StateCheckingTests
                 }
             }
         }";
-        
-        var machine = StateMachine.CreateFromScript(json);
+
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         await Task.Delay(50);
-        
+
         // Act - Get current state hierarchy
         var states = machine.GetSourceSubStateCollection(null);
         var stateString = states.ToCsvString(machine, true);
@@ -159,9 +158,9 @@ public class StateCheckingTests
         Assert.Contains("level3", stateString);
         
         // Check nested state (use full paths)
-        Assert.True(machine.IsInState(machine, "#nestedMachine.level1"));
-        Assert.True(machine.IsInState(machine, "#nestedMachine.level1.level2"));
-        Assert.True(machine.IsInState(machine, "#nestedMachine.level1.level2.level3"));
+        Assert.True(machine.IsInState(machine, $"{machine.machineId}.level1"));
+        Assert.True(machine.IsInState(machine, $"{machine.machineId}.level1.level2"));
+        Assert.True(machine.IsInState(machine, $"{machine.machineId}.level1.level2.level3"));
     }
     
     [Fact]
@@ -194,31 +193,31 @@ public class StateCheckingTests
             }
         }";
         
-        var machine1 = StateMachine.CreateFromScript(machine1Json);
-        var machine2 = StateMachine.CreateFromScript(machine2Json);
+        var machine1 = StateMachine.CreateFromScript(machine1Json, guidIsolate: true);
+        var machine2 = StateMachine.CreateFromScript(machine2Json, guidIsolate: true);
         
         machine1.Start();
         machine2.Start();
         
         // Act & Assert - Check states independently
-        Assert.True(machine1.IsInState(machine1, "#machine1.on"));
-        Assert.True(machine2.IsInState(machine2, "#machine2.inactive"));
+        Assert.True(machine1.IsInState(machine1, $"{machine1.machineId}.on"));
+        Assert.True(machine2.IsInState(machine2, $"{machine2.machineId}.inactive"));
         
         // Toggle machine1
         machine1.Send("TOGGLE");
-        Assert.True(machine1.IsInState(machine1, "#machine1.off"));
-        Assert.False(machine1.IsInState(machine1, "#machine1.on"));
+        Assert.True(machine1.IsInState(machine1, $"{machine1.machineId}.off"));
+        Assert.False(machine1.IsInState(machine1, $"{machine1.machineId}.on"));
         
         // Machine2 should be unaffected
-        Assert.True(machine2.IsInState(machine2, "#machine2.inactive"));
+        Assert.True(machine2.IsInState(machine2, $"{machine2.machineId}.inactive"));
         
         // Activate machine2
         machine2.Send("ACTIVATE");
-        Assert.True(machine2.IsInState(machine2, "#machine2.active"));
-        Assert.False(machine2.IsInState(machine2, "#machine2.inactive"));
+        Assert.True(machine2.IsInState(machine2, $"{machine2.machineId}.active"));
+        Assert.False(machine2.IsInState(machine2, $"{machine2.machineId}.inactive"));
         
         // Machine1 should still be off
-        Assert.True(machine1.IsInState(machine1, "#machine1.off"));
+        Assert.True(machine1.IsInState(machine1, $"{machine1.machineId}.off"));
     }
     
     [Fact]
@@ -241,28 +240,29 @@ public class StateCheckingTests
                 }
             }
         }";
-        
-        var door = StateMachine.CreateFromScript(json);
+
+        var door = StateMachine.CreateFromScript(json, guidIsolate: true);
         door.Start();
-        
+
         // Act - Conditional logic based on state
         var result = "";
-        
-        if (door.IsInState(door, "#door.closed"))
+        var doorId = door.machineId;
+
+        if (door.IsInState(door, $"{doorId}.closed"))
         {
             result = "Door is closed, opening...";
             door.Send("OPEN");
         }
         await Task.Delay(50);
-        
-        if (door.IsInState(door, "#door.open"))
+
+        if (door.IsInState(door, $"{doorId}.open"))
         {
             result += " Door is now open!";
         }
-        
+
         // Assert
         Assert.Equal("Door is closed, opening... Door is now open!", result);
-        Assert.True(door.IsInState(door, "#door.open"));
+        Assert.True(door.IsInState(door, $"{doorId}.open"));
     }
     
     [Fact]
@@ -297,11 +297,12 @@ public class StateCheckingTests
                 }
             }
         }";
-        
-        var machine = StateMachine.CreateFromScript(json);
+
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
+        var machineId = machine.machineId;
         await Task.Delay(50);
-        
+
         // Assert - Both parallel regions should be active
         var activeStates = machine.GetActiveStateString(leafOnly: false);
         Assert.Contains("lights", activeStates);
@@ -314,15 +315,15 @@ public class StateCheckingTests
         await Task.Delay(50);
         
         // Assert - Lights should be on, heating still idle
-        Assert.True(machine.IsInState(machine, "#parallelMachine.lights.on"));
-        Assert.True(machine.IsInState(machine, "#parallelMachine.heating.idle"));
+        Assert.True(machine.IsInState(machine, $"{machineId}.lights.on"));
+        Assert.True(machine.IsInState(machine, $"{machineId}.heating.idle"));
         
         // Act - Start heating
         machine.Send("HEAT");
         await Task.Delay(50);
         
         // Assert - Both should be in their active states
-        Assert.True(machine.IsInState(machine, "#parallelMachine.lights.on"));
-        Assert.True(machine.IsInState(machine, "#parallelMachine.heating.heating"));
+        Assert.True(machine.IsInState(machine, $"{machineId}.lights.on"));
+        Assert.True(machine.IsInState(machine, $"{machineId}.heating.heating"));
     }
 }

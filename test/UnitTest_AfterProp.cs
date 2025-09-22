@@ -134,28 +134,29 @@ public class AfterTests : IDisposable
     {
         // Arrange
         // Use a unique ID to avoid conflicts when tests run in parallel
-        var uniqueId = $"trafficLight_{Guid.NewGuid():N}";
-        var stateMachineJson = $@"
-        {{
-            'id': '{uniqueId}',
-            'context': {{ 'isReady': false, 'log': '' }},
-            'states': {{
-                'red': {{
+
+        var stateMachineJson = @"
+        {
+            'id': 'trafficLight',
+            'context': { 'isReady': false, 'log': '' },
+            'states': {
+                'red': {
                     'entry': 'logEntryRed',
                     'exit': 'logExitRed',
-                    'after': {{
-                        '500': {{ 'target': 'green', 'guard': 'isReady', 'actions': 'logTransitionAfterRedToGreen' }}
-                    }}
-                }},
-                'green': {{
+                    'after': {
+                        '500': { 'target': 'green', 'guard': 'isReady', 'actions': 'logTransitionAfterRedToGreen' }
+                    }
+                },
+                'green': {
                     'entry': [],
                     'exit': []
-                }}
-            }},
+                }
+            },
             'initial': 'red'
-        }}";
+        }";
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
+        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, true, actions, guards);
+        _stateMachine.Start();
 
         // Wait for the after transition to occur
         await Task.Delay(600); // Wait longer than the 'after' delay
@@ -165,7 +166,7 @@ public class AfterTests : IDisposable
         var currentState = _stateMachine!.GetActiveStateString();
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
-        Assert.Equal($"#{uniqueId}.red", currentState);
+        Assert.Equal($"{_stateMachine!.machineId}.red", currentState);
         Assert.Equal("Entering red; ", log);
     }
 }

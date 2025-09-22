@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using XStateNet.Distributed.Resilience;
+using XStateNet.Distributed.Tests.TestHelpers;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
@@ -88,10 +90,17 @@ namespace XStateNet.Distributed.Tests.Resilience
             var options = new CircuitBreakerOptions
             {
                 FailureThreshold = 1,
-                BreakDuration = TimeSpan.FromMilliseconds(100),
+                BreakDuration = TimeSpan.FromMilliseconds(50),
                 SuccessCountInHalfOpen = 1
             };
             var circuitBreaker = new CircuitBreaker("test", options);
+
+            var halfOpenTcs = new TaskCompletionSource<CircuitState>();
+            circuitBreaker.StateChanged += (sender, args) =>
+            {
+                if (args.ToState == CircuitState.HalfOpen || args.ToState == CircuitState.Closed)
+                    halfOpenTcs.TrySetResult(args.ToState);
+            };
 
             // Act - Open the circuit
             try
@@ -105,13 +114,29 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             Assert.Equal(CircuitState.Open, circuitBreaker.State);
 
-            // Wait for break duration
-            await Task.Delay(150);
-
-            // Execute successful call - should transition to half-open then closed
-            var result = await circuitBreaker.ExecuteAsync(() => Task.FromResult("success"));
+            // Try to execute until circuit allows it (transitions to half-open)
+            string? result = null;
+            await DeterministicTestHelpers.WaitForConditionAsync(
+                () =>
+                {
+                    try
+                    {
+                        var task = circuitBreaker.ExecuteAsync(() => Task.FromResult("success"));
+                        if (task.IsCompleted && !task.IsFaulted)
+                        {
+                            result = task.Result;
+                            return true;
+                        }
+                    }
+                    catch { }
+                    return false;
+                },
+                TimeSpan.FromMilliseconds(200),
+                "Circuit did not transition to half-open");
+            result = await circuitBreaker.ExecuteAsync(() => Task.FromResult("success"));
 
             // Assert
+            Assert.NotNull(result);
             Assert.Equal("success", result);
             Assert.Equal(CircuitState.Closed, circuitBreaker.State);
         }
@@ -128,6 +153,16 @@ namespace XStateNet.Distributed.Tests.Resilience
             };
             var circuitBreaker = new CircuitBreaker("test", options);
 
+            var stateChanges = new TaskCompletionSource<bool>();
+            var statesObserved = new List<CircuitState>();
+
+            circuitBreaker.StateChanged += (sender, args) =>
+            {
+                statesObserved.Add(args.ToState);
+                if (args.ToState == CircuitState.Closed && statesObserved.Contains(CircuitState.HalfOpen))
+                    stateChanges.TrySetResult(true);
+            };
+
             // Open circuit
             try
             {
@@ -138,14 +173,29 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            // Wait for half-open
-            await Task.Delay(100);
+            // Retry until circuit transitions to half-open and we can execute
+            var successfulCalls = 0;
 
-            // Execute successful calls in half-open
-            await circuitBreaker.ExecuteAsync(() => Task.FromResult(1));
-            await circuitBreaker.ExecuteAsync(() => Task.FromResult(2));
+            await DeterministicTestHelpers.WaitForConditionAsync(
+                () =>
+                {
+                    try
+                    {
+                        var task = circuitBreaker.ExecuteAsync(() => Task.FromResult(successfulCalls + 1));
+                        if (task.IsCompleted && !task.IsFaulted)
+                        {
+                            successfulCalls++;
+                            return successfulCalls >= 2;
+                        }
+                    }
+                    catch { }
+                    return false;
+                },
+                TimeSpan.FromMilliseconds(200),
+                "Circuit did not allow enough successful calls");
 
             // Assert
+            Assert.Equal(2, successfulCalls);
             Assert.Equal(CircuitState.Closed, circuitBreaker.State);
         }
 
@@ -160,6 +210,23 @@ namespace XStateNet.Distributed.Tests.Resilience
             };
             var circuitBreaker = new CircuitBreaker("test", options);
 
+            var halfOpenObserved = new TaskCompletionSource<bool>();
+            var reopenedObserved = new TaskCompletionSource<bool>();
+            var wasHalfOpen = false;
+
+            circuitBreaker.StateChanged += (sender, args) =>
+            {
+                if (args.ToState == CircuitState.HalfOpen)
+                {
+                    wasHalfOpen = true;
+                    halfOpenObserved.TrySetResult(true);
+                }
+                else if (args.ToState == CircuitState.Open && wasHalfOpen)
+                {
+                    reopenedObserved.TrySetResult(true);
+                }
+            };
+
             // Open circuit
             try
             {
@@ -170,20 +237,34 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            // Wait for half-open
-            await Task.Delay(100);
+            // Retry until circuit transitions to half-open, then fail
+            var failedInHalfOpen = false;
 
-            // Fail in half-open
-            try
-            {
-                await circuitBreaker.ExecuteAsync(async () =>
+            await DeterministicTestHelpers.WaitForConditionAsync(
+                () =>
                 {
-                    throw new InvalidOperationException("Fail in half-open");
-                });
-            }
-            catch { }
+                    try
+                    {
+                        var task = circuitBreaker.ExecuteAsync(async () =>
+                        {
+                            // If we get here, circuit is half-open, so fail
+                            throw new InvalidOperationException("Fail in half-open");
+                        });
+                        task.Wait(10);
+                    }
+                    catch (AggregateException ex) when (ex.InnerException?.Message == "Fail in half-open")
+                    {
+                        failedInHalfOpen = true;
+                        return true;
+                    }
+                    catch { }
+                    return false;
+                },
+                TimeSpan.FromMilliseconds(200),
+                "Circuit did not transition to half-open for failure test");
 
-            // Assert - should be open again
+            // Assert - should have failed in half-open and reopened
+            Assert.True(failedInHalfOpen);
             Assert.Equal(CircuitState.Open, circuitBreaker.State);
         }
 

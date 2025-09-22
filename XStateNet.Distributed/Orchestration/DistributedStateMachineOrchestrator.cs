@@ -13,7 +13,7 @@ namespace XStateNet.Distributed.Orchestration
     /// <summary>
     /// Distributed state machine orchestrator implementation
     /// </summary>
-    public class DistributedStateMachineOrchestrator : IStateMachineOrchestrator
+    public class DistributedStateMachineOrchestrator : IStateMachineOrchestrator, IDisposable
     {
         private readonly IStateMachineRegistry _registry;
         private readonly IStateMachineEventBus _eventBus;
@@ -27,6 +27,9 @@ namespace XStateNet.Distributed.Orchestration
         private readonly ConcurrentDictionary<string, Alert> _activeAlerts = new();
         private readonly Timer _healthCheckTimer;
         private readonly TimeSpan _healthCheckInterval = TimeSpan.FromSeconds(30);
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
+        private readonly List<Task> _backgroundTasks = new();
+        private bool _disposed;
         
         public DistributedStateMachineOrchestrator(
             IStateMachineRegistry registry,
@@ -110,7 +113,28 @@ namespace XStateNet.Distributed.Orchestration
                 // Set up health check if enabled
                 if (options.EnableMonitoring && options.HealthCheck != null)
                 {
-                    _ = Task.Run(async () => await MonitorHealthAsync(machineId, options.HealthCheck));
+                    var monitoringTask = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await MonitorHealthAsync(machineId, options.HealthCheck, _cancellationTokenSource.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Expected when disposing
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError(ex, "Health monitoring failed for machine {MachineId}", machineId);
+                        }
+                    }, _cancellationTokenSource.Token);
+
+                    lock (_backgroundTasks)
+                    {
+                        _backgroundTasks.Add(monitoringTask);
+                        // Clean up completed tasks
+                        _backgroundTasks.RemoveAll(t => t.IsCompleted);
+                    }
                 }
                 
                 return new DeploymentResult
@@ -965,17 +989,17 @@ namespace XStateNet.Distributed.Orchestration
             return sorted;
         }
         
-        private async Task MonitorHealthAsync(string machineId, HealthCheckOptions options)
+        private async Task MonitorHealthAsync(string machineId, HealthCheckOptions options, CancellationToken cancellationToken)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(options.Interval);
-                
+                await Task.Delay(options.Interval, cancellationToken);
+
                 var health = await CheckHealthAsync(machineId);
-                
+
                 if (health.Status == HealthStatus.Unhealthy)
                 {
-                    CreateAlert(AlertSeverity.Error, $"Machine {machineId} unhealthy", 
+                    CreateAlert(AlertSeverity.Error, $"Machine {machineId} unhealthy",
                         $"Health check failed for machine {machineId}");
                 }
             }
@@ -1002,12 +1026,12 @@ namespace XStateNet.Distributed.Orchestration
             {
                 var activeMachines = await _registry.GetActiveAsync(TimeSpan.FromMinutes(2));
                 
-                foreach (var machine in activeMachines)
+                var healthCheckTasks = activeMachines.Select(machine => Task.Run(async () =>
                 {
-                    _ = Task.Run(async () =>
+                    try
                     {
                         var health = await CheckHealthAsync(machine.MachineId);
-                        
+
                         if (health.Status == HealthStatus.Unhealthy)
                         {
                             await _registry.UpdateStatusAsync(machine.MachineId, MachineStatus.Unhealthy);
@@ -1016,8 +1040,15 @@ namespace XStateNet.Distributed.Orchestration
                         {
                             await _registry.UpdateStatusAsync(machine.MachineId, MachineStatus.Degraded);
                         }
-                    });
-                }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Health check failed for machine {MachineId}", machine.MachineId);
+                    }
+                }, _cancellationTokenSource.Token)).ToList();
+
+                // Wait for all health checks to complete with timeout
+                await Task.WhenAll(healthCheckTasks).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1048,6 +1079,45 @@ namespace XStateNet.Distributed.Orchestration
             public string CurrentState { get; set; } = string.Empty;
             public Dictionary<string, object> Context { get; set; } = new();
             public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                try
+                {
+                    // Signal cancellation to all background tasks
+                    _cancellationTokenSource?.Cancel();
+
+                    // Dispose the health check timer
+                    _healthCheckTimer?.Dispose();
+
+                    // Wait for background tasks to complete (with timeout)
+                    if (_backgroundTasks.Count > 0)
+                    {
+                        Task.WaitAll(_backgroundTasks.ToArray(), TimeSpan.FromSeconds(5));
+                    }
+
+                    // Dispose the cancellation token source
+                    _cancellationTokenSource?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error during orchestrator disposal");
+                }
+            }
+
+            _disposed = true;
         }
     }
 }

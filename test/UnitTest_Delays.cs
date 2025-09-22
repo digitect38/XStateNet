@@ -13,22 +13,22 @@ namespace DelaysTest
         {
             var transitionLog = new List<string>();
 
-            string script = $@"
-            {{
-                id : '{uniqueId}',
-                initial: 'a',
-                states: {{
-                    a: {{
-                        after: {{
-                            delay1234 : {{
-                                target: 'b',
-                                actions : 'transAction'
-                            }}
-                        }},
-                    }},
-                    b:{{}}
-                }}
-            }}";
+            string script = @"
+            {
+                'id' : '" + uniqueId + @"',
+                'initial': 'a',
+                'states': {
+                    'a': {
+                        'after': {
+                            'delay1234' : {
+                                'target': 'b',
+                                'actions' : 'transAction'
+                            }
+                        },
+                    },
+                    'b':{}
+                }
+            }";
 
             var actionCallbacks = new ActionMap()
             {

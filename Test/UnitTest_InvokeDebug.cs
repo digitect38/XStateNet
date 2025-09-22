@@ -120,7 +120,8 @@ namespace XStateV5_Test.AdvancedFeatures
             Assert.Contains("counter:incremented:1", _eventLog);
             Assert.Contains("service:started", _eventLog);
             Assert.Contains("service:completed", _eventLog);
-            Assert.True(_stateMachine.IsInState(_stateMachine, "#simpleInvoke.done"));
+            var machineId = _stateMachine.machineId;
+            Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.done"));
         }
 
         [Fact]

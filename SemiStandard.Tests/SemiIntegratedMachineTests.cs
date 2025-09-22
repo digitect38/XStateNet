@@ -289,25 +289,26 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestInitialState()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             var currentState = await _stateMachine!.StartAsync();
-            currentState.Should().Contain("equipment.INIT");
-            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
-            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
-            currentState.Should().Contain("controlJob.NO_JOBS");
-            currentState.Should().Contain("processJob.NO_PROCESS");
-            currentState.Should().Contain("recipeManagement.NO_RECIPE");
-            currentState.Should().Contain("performanceMonitoring.MONITORING");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.equipment.INIT");
+            currentState.Should().Contain($"{machineId}.carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain($"{machineId}.substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
+            currentState.Should().Contain($"{machineId}.processJob.NO_PROCESS");
+            currentState.Should().Contain($"{machineId}.recipeManagement.NO_RECIPE");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
         }
         
         [Fact]
         public async Task TestEquipmentInitialization()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -324,7 +325,7 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestCarrierArrival()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -342,7 +343,7 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestProductionStart()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -351,14 +352,15 @@ namespace SemiStandard.Tests
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             var currentState = await _stateMachine!.SendAsyncWithState("START_PRODUCTION");
+            var machineId = _stateMachine.machineId;
 
-            currentState.Should().Contain("equipment.PRODUCTIVE");
+            currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE");
         }
         
         [Fact]
         public async Task TestEmergencyStop()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -369,9 +371,10 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("START_PRODUCTION");
             await _stateMachine!.SendAsync("STARTUP_COMPLETE");
             var currentState = await _stateMachine!.SendAsyncWithState("EMERGENCY_STOP");
+            var machineId = _stateMachine.machineId;
 
             // Check that equipment moved to FAULT state
-            currentState.Should().Contain("equipment.FAULT");
+            currentState.Should().Contain($"{machineId}.equipment.FAULT");
             
             // Check that the emergency stop actions were executed
             // Note: equipmentState will be "FAULT" because the FAULT state's entry action sets it
@@ -384,7 +387,7 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestSystemReset()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -400,9 +403,10 @@ namespace SemiStandard.Tests
             _stateMachine.ContextMap!["totalErrors"] = 2;
 
             var currentState = await _stateMachine!.SendAsyncWithState("SYSTEM_RESET");
+            var machineId = _stateMachine.machineId;
 
             // Check that system reset to INIT state
-            currentState.Should().Contain("equipment.INIT");
+            currentState.Should().Contain($"{machineId}.equipment.INIT");
 
             // Check that the reset actions were executed
             _stateMachine.ContextMap!["totalProcessed"].Should().Be(0);
@@ -416,7 +420,7 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestCarrierManagementWorkflow()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -429,35 +433,36 @@ namespace SemiStandard.Tests
 
             // Carrier arrives
             var currentState = await _stateMachine!.SendAsyncWithState("CARRIER_DETECTED");
-            currentState.Should().Contain("carrierManagement.CARRIER_ARRIVING");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.carrierManagement.CARRIER_ARRIVING");
 
             currentState = await _stateMachine!.SendAsyncWithState("CARRIER_ARRIVED");
-            currentState.Should().Contain("carrierManagement.WAITING_FOR_HOST");
+            currentState.Should().Contain($"{machineId}.carrierManagement.WAITING_FOR_HOST");
 
             // Proceed with carrier
             currentState = await _stateMachine!.SendAsyncWithState("PROCEED_WITH_CARRIER");
-            currentState.Should().Contain("carrierManagement.ID_VERIFICATION.READING_ID");
+            currentState.Should().Contain($"{machineId}.carrierManagement.ID_VERIFICATION.READING_ID");
 
             // ID verification flow
             currentState = await _stateMachine!.SendAsyncWithState("ID_READ_SUCCESS");
-            currentState.Should().Contain("carrierManagement.ID_VERIFICATION.VERIFYING_ID");
+            currentState.Should().Contain($"{machineId}.carrierManagement.ID_VERIFICATION.VERIFYING_ID");
 
             currentState = await _stateMachine!.SendAsyncWithState("ID_VERIFIED");
-            currentState.Should().Contain("carrierManagement.SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
+            currentState.Should().Contain($"{machineId}.carrierManagement.SLOT_MAP_VERIFICATION.READING_SLOT_MAP");
 
             // Slot map verification
             currentState = await _stateMachine!.SendAsyncWithState("SLOT_MAP_READ");
-            currentState.Should().Contain("carrierManagement.SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
+            currentState.Should().Contain($"{machineId}.carrierManagement.SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
 
             currentState = await _stateMachine!.SendAsyncWithState("SLOT_MAP_VERIFIED");
-            currentState.Should().Contain("carrierManagement.READY_FOR_PROCESSING");
+            currentState.Should().Contain($"{machineId}.carrierManagement.READY_FOR_PROCESSING");
             ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeTrue();
         }
         
         [Fact]
         public async Task TestSubstrateTrackingWorkflow()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -471,35 +476,36 @@ namespace SemiStandard.Tests
 
             // Substrate arrives
             var currentState = await _stateMachine!.SendAsyncWithState("SUBSTRATE_DETECTED");
-            currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_SOURCE");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.substrateTracking.SUBSTRATE_AT_SOURCE");
 
             // Substrate needs processing
             currentState = await _stateMachine!.SendAsyncWithState("SUBSTRATE_NEEDS_PROCESSING");
-            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.WAITING");
+            currentState.Should().Contain($"{machineId}.substrateTracking.SUBSTRATE_PROCESSING.WAITING");
             ((bool)(_stateMachine.ContextMap!["substrateReady"] ?? false)).Should().BeTrue();
 
             // Start processing (requires processActive)
             _stateMachine.ContextMap!["processActive"] = true;
             currentState = await _stateMachine!.SendAsyncWithState("START_SUBSTRATE_PROCESS");
-            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS");
+            currentState.Should().Contain($"{machineId}.substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS");
 
             // Complete processing
             currentState = await _stateMachine!.SendAsyncWithState("SUBSTRATE_PROCESS_COMPLETE");
-            currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.PROCESSED");
+            currentState.Should().Contain($"{machineId}.substrateTracking.SUBSTRATE_PROCESSING.PROCESSED");
 
             // Move to destination
             currentState = await _stateMachine!.SendAsyncWithState("SUBSTRATE_MOVE_TO_DESTINATION");
-            currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
+            currentState.Should().Contain($"{machineId}.substrateTracking.SUBSTRATE_AT_DESTINATION");
 
             // Substrate departs
             currentState = await _stateMachine!.SendAsyncWithState("SUBSTRATE_DEPARTED");
-            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain($"{machineId}.substrateTracking.NO_SUBSTRATES");
         }
         
         [Fact]
         public async Task TestControlJobWorkflow()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -512,37 +518,38 @@ namespace SemiStandard.Tests
 
             // Create job
             var currentState = await _stateMachine!.SendAsyncWithState("CREATE_JOB");
-            currentState.Should().Contain("controlJob.JOB_QUEUED");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_QUEUED");
 
             // Select job
             currentState = await _stateMachine!.SendAsyncWithState("SELECT_JOB");
-            currentState.Should().Contain("controlJob.JOB_SELECTED");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_SELECTED");
 
             // Start job (requires equipment ready and carrier available)
             currentState = await _stateMachine!.SendAsyncWithState("START_JOB");
-            currentState.Should().Contain("controlJob.JOB_EXECUTING.ACTIVE");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_EXECUTING.ACTIVE");
 
             // Pause job
             currentState = await _stateMachine!.SendAsyncWithState("PAUSE_JOB");
-            currentState.Should().Contain("controlJob.JOB_EXECUTING.PAUSED");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_EXECUTING.PAUSED");
 
             // Resume job
             currentState = await _stateMachine!.SendAsyncWithState("RESUME_JOB");
-            currentState.Should().Contain("controlJob.JOB_EXECUTING.ACTIVE");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_EXECUTING.ACTIVE");
 
             // Complete job
             currentState = await _stateMachine!.SendAsyncWithState("JOB_COMPLETE");
-            currentState.Should().Contain("controlJob.JOB_COMPLETED");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_COMPLETED");
 
             // Remove job
             currentState = await _stateMachine!.SendAsyncWithState("REMOVE_JOB");
-            currentState.Should().Contain("controlJob.NO_JOBS");
+            currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
         }
         
         [Fact]
         public async Task TestRecipeManagementWorkflow()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -551,36 +558,37 @@ namespace SemiStandard.Tests
 
             // Load recipe
             var currentState = await _stateMachine!.SendAsyncWithState("LOAD_RECIPE");
-            currentState.Should().Contain("recipeManagement.UNVERIFIED");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.recipeManagement.UNVERIFIED");
             ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeFalse();
 
             // Verify recipe
             currentState = await _stateMachine!.SendAsyncWithState("VERIFY_RECIPE");
-            currentState.Should().Contain("recipeManagement.VERIFYING");
+            currentState.Should().Contain($"{machineId}.recipeManagement.VERIFYING");
 
             // Verification passes
             currentState = await _stateMachine!.SendAsyncWithState("VERIFICATION_PASS");
-            currentState.Should().Contain("recipeManagement.VERIFIED");
+            currentState.Should().Contain($"{machineId}.recipeManagement.VERIFIED");
             ((bool)(_stateMachine.ContextMap!["recipeVerified"] ?? false)).Should().BeTrue();
 
             // Select recipe
             currentState = await _stateMachine!.SendAsyncWithState("SELECT_RECIPE");
-            currentState.Should().Contain("recipeManagement.SELECTED");
+            currentState.Should().Contain($"{machineId}.recipeManagement.SELECTED");
 
             // Start recipe process (requires process active)
             _stateMachine.ContextMap!["processActive"] = true;
             currentState = await _stateMachine!.SendAsyncWithState("START_RECIPE_PROCESS");
-            currentState.Should().Contain("recipeManagement.ACTIVE");
+            currentState.Should().Contain($"{machineId}.recipeManagement.ACTIVE");
 
             // Complete recipe process
             currentState = await _stateMachine!.SendAsyncWithState("RECIPE_PROCESS_COMPLETE");
-            currentState.Should().Contain("recipeManagement.VERIFIED");
+            currentState.Should().Contain($"{machineId}.recipeManagement.VERIFIED");
         }
         
         [Fact]
         public async Task TestProcessJobWorkflow()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -594,70 +602,72 @@ namespace SemiStandard.Tests
 
             // Create process
             var currentState = await _stateMachine!.SendAsyncWithState("CREATE_PROCESS");
-            currentState.Should().Contain("processJob.SETTING_UP");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.processJob.SETTING_UP");
 
             // Setup complete
             currentState = await _stateMachine!.SendAsyncWithState("SETUP_COMPLETE");
-            currentState.Should().Contain("processJob.WAITING_FOR_START");
+            currentState.Should().Contain($"{machineId}.processJob.WAITING_FOR_START");
 
             // Start process
             currentState = await _stateMachine!.SendAsyncWithState("START_PROCESS");
-            currentState.Should().Contain("processJob.PROCESSING.EXECUTING");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESSING.EXECUTING");
 
             // Pause process
             currentState = await _stateMachine!.SendAsyncWithState("PAUSE_PROCESS");
-            currentState.Should().Contain("processJob.PROCESSING.PAUSING");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESSING.PAUSING");
 
             currentState = await _stateMachine!.SendAsyncWithState("PROCESS_PAUSED");
-            currentState.Should().Contain("processJob.PROCESSING.PAUSED");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESSING.PAUSED");
 
             // Resume process
             currentState = await _stateMachine!.SendAsyncWithState("RESUME_PROCESS");
-            currentState.Should().Contain("processJob.PROCESSING.RESUMING");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESSING.RESUMING");
 
             currentState = await _stateMachine!.SendAsyncWithState("PROCESS_RESUMED");
-            currentState.Should().Contain("processJob.PROCESSING.EXECUTING");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESSING.EXECUTING");
 
             // Complete process
             currentState = await _stateMachine!.SendAsyncWithState("PROCESS_COMPLETE");
-            currentState.Should().Contain("processJob.PROCESS_COMPLETE");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESS_COMPLETE");
 
             currentState = await _stateMachine!.SendAsyncWithState("VERIFY_PROCESS_OK");
-            currentState.Should().Contain("processJob.PROCESS_COMPLETED");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESS_COMPLETED");
         }
         
         [Fact]
         public async Task TestParallelStateCoordination()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             // Verify all parallel regions start correctly
             var currentState = await _stateMachine!.StartAsync();
-            currentState.Should().Contain("equipment.INIT");
-            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
-            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
-            currentState.Should().Contain("controlJob.NO_JOBS");
-            currentState.Should().Contain("processJob.NO_PROCESS");
-            currentState.Should().Contain("recipeManagement.NO_RECIPE");
-            currentState.Should().Contain("performanceMonitoring.MONITORING");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.equipment.INIT");
+            currentState.Should().Contain($"{machineId}.carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain($"{machineId}.substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
+            currentState.Should().Contain($"{machineId}.processJob.NO_PROCESS");
+            currentState.Should().Contain($"{machineId}.recipeManagement.NO_RECIPE");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
 
             // Initialize equipment and verify it doesn't affect other regions
             currentState = await _stateMachine!.SendAsyncWithState("INIT_COMPLETE");
-            currentState.Should().Contain("equipment.IDLE");
-            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain($"{machineId}.equipment.IDLE");
+            currentState.Should().Contain($"{machineId}.carrierManagement.NO_CARRIERS");
 
             // Start multiple workflows in parallel
             await _stateMachine!.SendAsync("CARRIER_DETECTED");
             await _stateMachine!.SendAsync("LOAD_RECIPE");
             currentState = await _stateMachine!.SendAsyncWithState("CREATE_JOB");
 
-            currentState.Should().Contain("equipment.IDLE");
-            currentState.Should().Contain("carrierManagement.CARRIER_ARRIVING");
-            currentState.Should().Contain("recipeManagement.UNVERIFIED");
-            currentState.Should().Contain("controlJob.JOB_QUEUED");
+            currentState.Should().Contain($"{machineId}.equipment.IDLE");
+            currentState.Should().Contain($"{machineId}.carrierManagement.CARRIER_ARRIVING");
+            currentState.Should().Contain($"{machineId}.recipeManagement.UNVERIFIED");
+            currentState.Should().Contain($"{machineId}.controlJob.JOB_QUEUED");
 
             // Test that process coordination flags work correctly
             ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeFalse();
@@ -673,17 +683,17 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("STARTUP_COMPLETE");
             currentState = await _stateMachine!.SendAsyncWithState("EMERGENCY_STOP");
 
-            currentState.Should().Contain("equipment.FAULT");
-            currentState.Should().Contain("carrierManagement.NO_CARRIERS");
-            currentState.Should().Contain("substrateTracking.NO_SUBSTRATES");
-            currentState.Should().Contain("controlJob.NO_JOBS");
-            currentState.Should().Contain("processJob.PROCESS_ABORTING");
+            currentState.Should().Contain($"{machineId}.equipment.FAULT");
+            currentState.Should().Contain($"{machineId}.carrierManagement.NO_CARRIERS");
+            currentState.Should().Contain($"{machineId}.substrateTracking.NO_SUBSTRATES");
+            currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
+            currentState.Should().Contain($"{machineId}.processJob.PROCESS_ABORTING");
         }
         
         [Fact]
         public async Task TestProductionCycle()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -713,16 +723,17 @@ namespace SemiStandard.Tests
             // Start production
             await _stateMachine!.SendAsync("START_PRODUCTION");
             var currentState = await _stateMachine!.SendAsyncWithState("STARTUP_COMPLETE");
-            currentState.Should().Contain("equipment.PRODUCTIVE.STANDBY");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE.STANDBY");
 
             // Run production
             currentState = await _stateMachine!.SendAsyncWithState("RUN");
-            currentState.Should().Contain("equipment.PRODUCTIVE.PRODUCTIVE_RUN");
+            currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE.PRODUCTIVE_RUN");
             ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeTrue();
 
             // Complete production
             currentState = await _stateMachine!.SendAsyncWithState("PROCESS_COMPLETE");
-            currentState.Should().Contain("equipment.PRODUCTIVE.STANDBY");
+            currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE.STANDBY");
             _stateMachine.ContextMap!["totalProcessed"].Should().Be(1);
             ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
@@ -730,7 +741,7 @@ namespace SemiStandard.Tests
         [Fact]
         public async Task TestFaultRecovery()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -743,32 +754,34 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("STARTUP_COMPLETE");
 
             // Simulate fault
+            var machineId = _stateMachine.machineId;
             var currentState = await _stateMachine!.SendAsyncWithState("FAULT_DETECTED");
-            currentState.Should().Contain("equipment.FAULT");
+            currentState.Should().Contain($"{machineId}.equipment.FAULT");
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
             ((int)(_stateMachine.ContextMap!["totalErrors"] ?? 0)).Should().BeGreaterThan(0);
 
             // Clear fault
             currentState = await _stateMachine!.SendAsyncWithState("FAULT_CLEARED");
-            currentState.Should().Contain("equipment.IDLE");
+            currentState.Should().Contain($"{machineId}.equipment.IDLE");
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
 
             // Verify system can restart production
             currentState = await _stateMachine!.SendAsyncWithState("START_PRODUCTION");
-            currentState.Should().Contain("equipment.PRODUCTIVE");
+            currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE");
         }
         
         [Fact]
         public async Task TestPerformanceMonitoring()
         {
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             // Verify monitoring starts active
             var currentState = await _stateMachine!.StartAsync();
-            currentState.Should().Contain("performanceMonitoring.MONITORING");
+            var machineId = _stateMachine.machineId;
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
 
             // Update metrics
             await _stateMachine!.SendAsync("UPDATE_METRICS");
@@ -779,27 +792,27 @@ namespace SemiStandard.Tests
             _stateMachine.ContextMap!["quality"] = 0.7;
 
             currentState = await _stateMachine!.SendAsyncWithState("PERFORMANCE_ALERT");
-            currentState.Should().Contain("performanceMonitoring.ALERT_STATE");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.ALERT_STATE");
 
             // Acknowledge alert
             currentState = await _stateMachine!.SendAsyncWithState("ACKNOWLEDGE_ALERT");
-            currentState.Should().Contain("performanceMonitoring.MONITORING");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
 
             // Test investigate flow
             _stateMachine.ContextMap!["availability"] = 0.5;
             await _stateMachine!.SendAsync("PERFORMANCE_ALERT");
             currentState = await _stateMachine!.SendAsyncWithState("INVESTIGATE_ISSUE");
-            currentState.Should().Contain("performanceMonitoring.ANALYZING");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.ANALYZING");
 
             currentState = await _stateMachine!.SendAsyncWithState("ANALYSIS_COMPLETE");
-            currentState.Should().Contain("performanceMonitoring.MONITORING");
+            currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
         }
         
         [Fact]
         public async Task TestE10StateTracking()
         {
             // SEMI E10 - Equipment Events and State Definitions
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -809,7 +822,8 @@ namespace SemiStandard.Tests
 
             // Non-scheduled downtime
             var initialState = await _stateMachine!.StartAsync();
-            initialState.Should().Contain("equipment.INIT");
+            var machineId = _stateMachine.machineId;
+            initialState.Should().Contain(machineId + ".equipment.INIT");
             stateHistory.Add(("INIT", DateTime.Now));
 
             // Productive time
@@ -821,17 +835,17 @@ namespace SemiStandard.Tests
             
             // Engineering time
             var currentState = await _stateMachine!.SendAsyncWithState("STARTUP_FAIL");
-            currentState.Should().Contain("equipment.FAULT");
+            currentState.Should().Contain($"{machineId}.equipment.FAULT");
             stateHistory.Add(("FAULT", DateTime.Now));
-            
+
             currentState = await _stateMachine!.SendAsyncWithState("ENTER_REPAIR");
-            currentState.Should().Contain("equipment.ENGINEERING");
+            currentState.Should().Contain($"{machineId}.equipment.ENGINEERING");
             stateHistory.Add(("ENGINEERING", DateTime.Now));
-            
+
             // Scheduled downtime
             await _stateMachine!.SendAsync("ENGINEERING_COMPLETE");
             currentState = await _stateMachine!.SendAsyncWithState("ENTER_SETUP");
-            currentState.Should().Contain("equipment.SETUP");
+            currentState.Should().Contain($"{machineId}.equipment.SETUP");
             stateHistory.Add(("SETUP", DateTime.Now));
             
             // Verify we can track all E10 state categories
@@ -845,7 +859,7 @@ namespace SemiStandard.Tests
         public async Task TestE84LoadPortHandshake()
         {
             // SEMI E84 - Enhanced Carrier Handoff
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -878,7 +892,7 @@ namespace SemiStandard.Tests
         public async Task TestE142SubstrateMapping()
         {
             // SEMI E142 - Substrate Mapping
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -931,7 +945,7 @@ namespace SemiStandard.Tests
         public async Task TestCommunicationStates()
         {
             // SEMI E5/E37 - Communication States (SECS/HSMS)
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -966,7 +980,7 @@ namespace SemiStandard.Tests
         public async Task TestModuleProcessTracking()
         {
             // SEMI E157 - Module Process Tracking (simplified)
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1004,7 +1018,7 @@ namespace SemiStandard.Tests
         public async Task TestDataAcquisition()
         {
             // SEMI E164 - EDA (Equipment Data Acquisition) concepts
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1051,7 +1065,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_Equipment()
         {
             // Test ALL states and transitions in equipment region
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1161,7 +1175,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_CarrierManagement()
         {
             // Test ALL states and transitions in carrier management
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1279,7 +1293,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_SubstrateTracking()
         {
             // Test ALL states and transitions in substrate tracking
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1361,7 +1375,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_ControlJob()
         {
             // Test ALL states and transitions in control job
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1445,7 +1459,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_ProcessJob()
         {
             // Test ALL states and transitions in process job
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1569,7 +1583,7 @@ namespace SemiStandard.Tests
         public async Task TestFullStateVisitingCoverage_RecipeManagement()
         {
             // Test ALL states and transitions in recipe management
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
@@ -1657,7 +1671,7 @@ namespace SemiStandard.Tests
         public async Task TestSystemLevelTransitions()
         {
             // Test SYSTEM_INITIALIZE and global transitions
-            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, _actions, _guards);
+            _stateMachine = StateMachine.CreateFromScript(semiIntegratedScript, guidIsolate: true, _actions, _guards);
             foreach (var kvp in _context)
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;

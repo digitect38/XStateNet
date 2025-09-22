@@ -26,38 +26,38 @@ public class CommunicatingMachinesExample
         private void InitializeStateMachine()
         {
             var jsonScript = @"{
-                'id': 'parentMachine',
-                'initial': 'idle',
-                'states': {
-                    'idle': {
-                        'on': {
-                            'START': 'coordinating'
+                id: 'parentMachine',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: {
+                            START: 'coordinating'
                         }
                     },
-                    'coordinating': {
-                        'entry': 'startChildren',
-                        'on': {
-                            'CHILD_READY': 'processing',
-                            'CHILD_ERROR': 'error'
+                    coordinating: {
+                        entry: 'startChildren',
+                        on: {
+                            CHILD_READY: 'processing',
+                            CHILD_ERROR: 'error'
                         }
                     },
-                    'processing': {
-                        'on': {
-                            'ALL_COMPLETE': 'complete',
-                            'CHILD_ERROR': 'error'
+                    processing: {
+                        on: {
+                            ALL_COMPLETE: 'complete',
+                            CHILD_ERROR: 'error'
                         }
                     },
-                    'error': {
-                        'entry': 'stopChildren',
-                        'on': {
-                            'RESET': 'idle'
+                    error: {
+                        entry: 'stopChildren',
+                        on: {
+                            RESET: 'idle'
                         }
                     },
-                    'complete': {
-                        'type': 'final'
+                    complete: {
+                        type: 'final'
                     }
                 }
-            }".Replace("'", "\"");
+            }";
             
             var actionMap = new ActionMap();
             actionMap["startChildren"] = new List<NamedAction>
@@ -145,50 +145,50 @@ public class CommunicatingMachinesExample
         private void InitializeStateMachine()
         {
             var jsonScript = @"{
-                'id': 'childMachine',
-                'initial': 'waiting',
-                'states': {
-                    'waiting': {
-                        'on': {
-                            'START': 'initializing'
+                id: 'childMachine',
+                initial: 'waiting',
+                states: {
+                    waiting: {
+                        on: {
+                            START: 'initializing'
                         }
                     },
-                    'initializing': {
-                        'after': {
+                    initializing: {
+                        after: {
                             '1000': {
-                                'target': 'ready'
+                                target: 'ready'
                             }
                         }
                     },
-                    'ready': {
-                        'entry': 'notifyReady',
-                        'on': {
-                            'PROCESS': 'processing'
+                    ready: {
+                        entry: 'notifyReady',
+                        on: {
+                            PROCESS: 'processing'
                         }
                     },
-                    'processing': {
-                        'entry': 'doWork',
-                        'on': {
-                            'SUCCESS': 'complete',
-                            'FAIL': 'error'
+                    processing: {
+                        entry: 'doWork',
+                        on: {
+                            SUCCESS: 'complete',
+                            FAIL: 'error'
                         }
                     },
-                    'error': {
-                        'entry': 'notifyError',
-                        'on': {
-                            'RETRY': 'processing',
-                            'STOP': 'stopped'
+                    error: {
+                        entry: 'notifyError',
+                        on: {
+                            RETRY: 'processing',
+                            STOP: 'stopped'
                         }
                     },
-                    'complete': {
-                        'entry': 'notifyComplete',
-                        'type': 'final'
+                    complete: {
+                        entry: 'notifyComplete',
+                        type: 'final'
                     },
-                    'stopped': {
-                        'type': 'final'
+                    stopped: {
+                        type: 'final'
                     }
                 }
-            }".Replace("'", "\"");
+            }";
             
             var actionMap = new ActionMap();
             
@@ -381,29 +381,29 @@ public class CommunicatingMachinesExample
     private static StateMachine CreateProducerActor()
     {
         var json = @"{
-            'id': 'producer',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': {
-                        'START': 'producing'
+            id: 'producer',
+            initial: 'idle',
+            states: {
+                idle: {
+                    on: {
+                        START: 'producing'
                     }
                 },
-                'producing': {
-                    'entry': 'produce',
-                    'on': {
-                        'NEW_DATA': 'broadcasting'
+                producing: {
+                    entry: 'produce',
+                    on: {
+                        NEW_DATA: 'broadcasting'
                     }
                 },
-                'broadcasting': {
-                    'after': {
+                broadcasting: {
+                    after: {
                         '500': {
-                            'target': 'producing'
+                            target: 'producing'
                         }
                     }
                 }
             }
-        }".Replace("'", "\"");
+        }";
         
         var actionMap = new ActionMap();
         actionMap["produce"] = new List<NamedAction>
@@ -419,33 +419,33 @@ public class CommunicatingMachinesExample
     private static StateMachine CreateConsumerActor(string name)
     {
         var json = @"{
-            'id': 'consumer',
-            'initial': 'waiting',
-            'states': {
-                'waiting': {
-                    'on': {
-                        'NEW_DATA': 'processing',
-                        'SYNC': 'syncing'
+            id: 'consumer',
+            initial: 'waiting',
+            states: {
+                waiting: {
+                    on: {
+                        NEW_DATA: 'processing',
+                        SYNC: 'syncing'
                     }
                 },
-                'processing': {
-                    'entry': 'process',
-                    'after': {
+                processing: {
+                    entry: 'process',
+                    after: {
                         '1000': {
-                            'target': 'waiting'
+                            target: 'waiting'
                         }
                     }
                 },
-                'syncing': {
-                    'entry': 'sync',
-                    'after': {
+                syncing: {
+                    entry: 'sync',
+                    after: {
                         '500': {
-                            'target': 'waiting'
+                            target: 'waiting'
                         }
                     }
                 }
             }
-        }".Replace("'", "\"");
+        }";
         
         var actionMap = new ActionMap();
         actionMap["process"] = new List<NamedAction>

@@ -305,7 +305,31 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
+    /// Parse Json Script and return State Machine with optional GUID isolation
+    /// </summary>
+    /// <param name="jsonScript">State Machine Definition by Json format</param>
+    /// <param name="guidIsolate">If true, appends a unique GUID to the machine ID to allow multiple instances</param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <param name="serviceCallbacks"></param>
+    /// <param name="delayCallbacks"></param>
+    /// <param name="activityCallbacks"></param>
+    /// <returns></returns>
+    public static StateMachine CreateFromScript(
+        string? jsonScript,
+        bool guidIsolate,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
+    )
+    {
+        return ParseStateMachine(jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+    }
+
+    /// <summary>
+    ///
     /// </summary>
     /// <param name="sm"></param>
     /// <param name="jsonFilePath"></param>

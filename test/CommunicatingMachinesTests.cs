@@ -87,7 +87,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 })
             };
             
-            _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
+            _stateMachine = StateMachine.CreateFromScript(jsonScript, guidIsolate: true, actionMap);
             _stateMachine.Start();
         }
         
@@ -263,7 +263,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 })
             };
             
-            _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
+            _stateMachine = StateMachine.CreateFromScript(jsonScript, guidIsolate: true, actionMap);
         }
         
         public void Start()
@@ -632,7 +632,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             }}
         }}";
         
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         return machine;
     }

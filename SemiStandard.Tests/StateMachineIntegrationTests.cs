@@ -354,8 +354,8 @@ public class StateMachineIntegrationTests
                 }
             }
         }";
-        
-        var machine = StateMachine.CreateFromScript(json);
+
+        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         return machine;
     }

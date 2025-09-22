@@ -69,7 +69,7 @@ namespace XStateNet.Semi.Testing.Console
                 var controllerTask = controller.StartAsync();
                 
                 // Give the controller a moment to start listening
-                await Task.Delay(1000);
+                //await Task.Delay(1000);
                 System.Console.WriteLine("✓ Equipment controller is listening...\n");
 
                 // Display initial states

@@ -53,48 +53,48 @@ namespace AdvancedFeatures
 
 
 
-        private string GetScript(string uniqueId) => @$"
-            {{
-                id: '{uniqueId}',
-                initial: 'A',
-                states: {{
-                    A: {{
-                        type: 'parallel',
-                        on: {{
-                            TO_B: 'B'
-                        }},
-                        states: {{
-                            A1: {{
-                                initial: 'A1a',
-                                on: {{
-                                    TO_B1: '#{uniqueId}.B.B1'
-                                }},
-                                states: {{
-                                    A1a: {{
-                                        on: {{ TO_A1b: 'A1b' }}
-                                    }},
-                                    A1b: {{
-                                        on: {{ TO_A1a: 'A1a' }}
-                                    }}
-                                }}
-                            }},
-                            A2: {{}}
-                        }}
-                    }},
-                    B: {{
-                        on: {{ TO_A: 'A' }},
-                        initial: 'B1',
-                        states: {{
-                            B1: {{
-                                on: {{ TO_B2: 'B2' }}
-                            }},
-                            B2: {{
-                                on: {{ TO_B1: 'B1' }}
-                            }}
-                        }}
-                    }}
-                }}
-            }}";
+        private string GetScript(string uniqueId) => @"
+            {
+                'id': '" + uniqueId + @"',
+                'initial': 'A',
+                'states': {
+                    'A': {
+                        'type': 'parallel',
+                        'on': {
+                            'TO_B': 'B'
+                        },
+                        'states': {
+                            'A1': {
+                                'initial': 'A1a',
+                                'on': {
+                                    'TO_B1': '#{uniqueId}.B.B1'
+                                },
+                                'states': {
+                                    'A1a': {
+                                        'on': { 'TO_A1b': 'A1b' }
+                                    },
+                                    'A1b': {
+                                        'on': { 'TO_A1a': 'A1a' }
+                                    }
+                                }
+                            },
+                            'A2': {}
+                        }
+                    },
+                    'B': {
+                        'on': { 'TO_A': 'A' },
+                        'initial': 'B1',
+                        'states': {
+                            'B1': {
+                                'on': { 'TO_B2': 'B2' }
+                            },
+                            'B2': {
+                                'on': { 'TO_B1': 'B1' }
+                            }
+                        }
+                    }
+                }
+            }";
 
 
         public void Dispose()

@@ -14,10 +14,9 @@ namespace XStateNet.Distributed.Tests
         public void CreateFromScript_Should_CreateDistributedMachine()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {
@@ -34,7 +33,7 @@ namespace XStateNet.Distributed.Tests
             }";
             
             // Act
-            var machine = new DistributedStateMachine(StateMachine.CreateFromScript(json), "test-machine", "local://test");
+            var machine = new DistributedStateMachine(StateMachine.CreateFromScript(json, guidIsolate: true), "test-machine", "local://test");
             _machines.Add(machine);
             
             // Assert
@@ -46,16 +45,15 @@ namespace XStateNet.Distributed.Tests
         public void Start_Should_StartMachine()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -74,10 +72,9 @@ namespace XStateNet.Distributed.Tests
         public async Task Send_LocalEvent_Should_ProcessLocally()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {
@@ -88,7 +85,7 @@ namespace XStateNet.Distributed.Tests
                     'running': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             
             var machine = new DistributedStateMachine(
                 baseMachine,
@@ -109,10 +106,9 @@ namespace XStateNet.Distributed.Tests
         public async Task SendToMachine_Should_SendToRemoteMachine()
         {
             // Arrange
-            var machine1Id = "machine1_" + Guid.NewGuid().ToString("N");
             var json1 = @"
             {
-                id: '" + machine1Id + @"',
+                id: 'machine1',
                 initial: 'idle',
                 states: {
                     'idle': {
@@ -123,7 +119,7 @@ namespace XStateNet.Distributed.Tests
                     'active': {}
                 }
             }";
-            var baseMachine1 = StateMachine.CreateFromScript(json1);
+            var baseMachine1 = StateMachine.CreateFromScript(json1, guidIsolate: true);
             
             var machine1 = new DistributedStateMachine(
                 baseMachine1,
@@ -145,7 +141,7 @@ namespace XStateNet.Distributed.Tests
                     'running': {}
                 }
             }";
-            var baseMachine2 = StateMachine.CreateFromScript(json2);
+            var baseMachine2 = StateMachine.CreateFromScript(json2, guidIsolate: true);
             
             var machine2 = new DistributedStateMachine(
                 baseMachine2,
@@ -168,16 +164,15 @@ namespace XStateNet.Distributed.Tests
         public async Task Send_RemoteEventFormat_Should_ParseCorrectly()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -195,16 +190,15 @@ namespace XStateNet.Distributed.Tests
         public async Task DiscoverMachines_Should_ReturnEndpoints()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -225,16 +219,15 @@ namespace XStateNet.Distributed.Tests
         public async Task GetHealth_Should_ReturnHealthStatus()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -255,16 +248,15 @@ namespace XStateNet.Distributed.Tests
         public void Stop_Should_StopMachine()
         {
             // Arrange
-            var uniqueId = "simple_" + Guid.NewGuid().ToString("N");
             var json = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'simple',
                 initial: 'idle',
                 states: {
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json);
+            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",

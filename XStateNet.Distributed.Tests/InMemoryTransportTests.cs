@@ -1,6 +1,10 @@
 using FluentAssertions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using XStateNet.Distributed.Core;
 using XStateNet.Distributed.Transports;
+using XStateNet.Distributed.Tests.TestHelpers;
 using Xunit;
 
 namespace XStateNet.Distributed.Tests
@@ -56,46 +60,50 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var transport1 = new InMemoryTransport();
             using var transport2 = new InMemoryTransport();
-            
+
             await transport1.ConnectAsync("local://node1");
             await transport2.ConnectAsync("local://node2");
-            
-            var messages = new List<StateMachineMessage>();
+
+            var messageCollector = new DeterministicTestHelpers.EventCollector<StateMachineMessage>();
+            var subscriptionStarted = new TaskCompletionSource<bool>();
+
             var subscriptionTask = Task.Run(async () =>
             {
+                subscriptionStarted.SetResult(true);
                 await foreach (var msg in transport2.SubscribeAsync("TEST_*"))
                 {
-                    messages.Add(msg);
-                    if (messages.Count >= 2) break;
+                    messageCollector.Add(msg);
+                    if (messageCollector.GetAll().Count >= 2) break;
                 }
             });
-            
-            // Act
-            await Task.Delay(100); // Give subscription time to start
-            
+
+            // Act - Wait for subscription to start
+            await subscriptionStarted.Task;
+
             await transport1.SendAsync(new StateMachineMessage
             {
                 From = "local://node1",
                 To = "local://node2",
                 EventName = "TEST_EVENT1"
             });
-            
+
             await transport1.SendAsync(new StateMachineMessage
             {
                 From = "local://node1",
                 To = "local://node2",
                 EventName = "TEST_EVENT2"
             });
-            
+
             await transport1.SendAsync(new StateMachineMessage
             {
                 From = "local://node1",
                 To = "local://node2",
                 EventName = "OTHER_EVENT"
             });
-            
-            await Task.WhenAny(subscriptionTask, Task.Delay(2000));
-            
+
+            // Wait for expected messages with timeout
+            var messages = await messageCollector.WaitForCountAsync(2, TimeSpan.FromSeconds(2));
+
             // Assert
             messages.Should().HaveCount(2);
             messages.Should().AllSatisfy(m => m.EventName.Should().StartWith("TEST_"));
@@ -107,13 +115,16 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var client = new InMemoryTransport();
             using var server = new InMemoryTransport();
-            
+
             await client.ConnectAsync("local://client");
             await server.ConnectAsync("local://server");
-            
+
+            var serverReady = new TaskCompletionSource<bool>();
+
             // Setup server to respond to requests
             _ = Task.Run(async () =>
             {
+                serverReady.SetResult(true);
                 await foreach (var msg in server.SubscribeAsync("*"))
                 {
                     if (msg.ReplyTo != null && msg.CorrelationId != null)
@@ -130,6 +141,9 @@ namespace XStateNet.Distributed.Tests
                     }
                 }
             });
+
+            // Wait for server to be ready
+            await serverReady.Task;
             
             // Act
             var response = await client.RequestAsync<string, string>(
