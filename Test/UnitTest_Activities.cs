@@ -337,11 +337,10 @@ public class UnitTest_Activities : IDisposable
     [Fact]
     public void Activities_InParallelStates_RunIndependently()
     {
-        var uniqueId = "parallelActivityMachine" + Guid.NewGuid().ToString("N");
         // Arrange
         var script = @"
         {
-            id: '" + uniqueId + @"',
+            id: 'parallelMachine',
             initial: 'active',
             states: {
                 active: {
@@ -372,7 +371,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -424,7 +423,7 @@ public class UnitTest_Activities : IDisposable
         var uniqueId = "contextMachine" + Guid.NewGuid().ToString("N");
         var script = @"
         {
-            id: '" + uniqueId + @"',
+            id: 'contextMachine',
             initial: 'active',
             context: {
                 value: 42
@@ -450,7 +449,7 @@ public class UnitTest_Activities : IDisposable
             })
         };
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -492,10 +491,9 @@ public class UnitTest_Activities : IDisposable
 
         _activities["errorActivity"] = errorActivity;
 
-        var uniqueId = "errorMachine" + Guid.NewGuid().ToString("N");
         var script = @"
         {
-            id: '" + uniqueId + @"',
+            id: 'uniqueId',
             initial: 'active',
             states: {
                 active: {
@@ -508,7 +506,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -531,11 +529,10 @@ public class UnitTest_Activities : IDisposable
     [Fact]
     public void Activity_RestartOnReentry_WorksCorrectly()
     {
-        var uniqueId = "reentryMachine" + Guid.NewGuid().ToString("N");
         // Arrange
         var script = @"
         {
-            id: '" + uniqueId + @"',
+            id: 'reentryMachine',
             initial: 'idle',
             states: {
                 idle: {
@@ -552,7 +549,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
         _stateMachine.Start();
 
         // Act - First entry

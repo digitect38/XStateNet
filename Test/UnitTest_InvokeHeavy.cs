@@ -321,7 +321,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.ContextMap!["serviceInput"] = "test-input";
         _stateMachine.Start();
 
@@ -394,7 +394,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -448,7 +448,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -512,7 +512,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -563,7 +563,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -621,7 +621,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, false, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -687,7 +687,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -775,7 +775,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
 
         // Act - Start the machine and send START event
         _stateMachine.Start();
@@ -910,7 +910,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
+        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.ContextMap!["serviceInput"] = "workflow-data";
 
         // Act
