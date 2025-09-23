@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Xunit;
 using XStateNet;
 using XStateNet.Semi;
+using System.Collections.Concurrent;
 
 namespace SemiStandard.Tests;
 
@@ -14,8 +15,8 @@ public class StateMachineIntegrationTests
     /// </summary>
     public class StateMachineCoordinator
     {
-        private readonly Dictionary<string, StateMachine> _machines = new();
-        private readonly Dictionary<string, List<(string targetId, string eventName)>> _eventMappings = new();
+        private readonly ConcurrentDictionary<string, StateMachine> _machines = new();
+        private readonly ConcurrentDictionary<string, List<(string targetId, string eventName)>> _eventMappings = new();
         public List<string> EventLog { get; } = new();
         
         public void RegisterMachine(string id, StateMachine machine)

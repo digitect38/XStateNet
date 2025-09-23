@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -16,7 +17,7 @@ namespace SemiStandard.Simulator.Wpf
     public partial class StateTimeChartWindow : Window
     {
         private readonly string _machineName;
-        private readonly Dictionary<string, StateTimeData> _stateTimeData = new();
+        private readonly ConcurrentDictionary<string, StateTimeData> _stateTimeData = new();
         private readonly ObservableCollection<StateBreakdownItem> _stateBreakdownItems = new();
         private readonly List<StateTransitionEvent> _stateTransitions = new();
         

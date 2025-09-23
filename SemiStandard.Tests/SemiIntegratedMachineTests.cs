@@ -5,6 +5,7 @@ using XStateNet.Semi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Concurrent;
 
 namespace SemiStandard.Tests
 {
@@ -15,11 +16,11 @@ namespace SemiStandard.Tests
         private GuardMap _guards;
         
         // Context variables
-        private Dictionary<string, object?> _context;
+        private ConcurrentDictionary<string, object?> _context;
         
         public SemiIntegratedMachineTests()
         {
-            _context = new Dictionary<string, object?>
+            _context = new ConcurrentDictionary<string, object?>
             {
                 ["systemId"] = "SEMI_SYSTEM_001",
                 ["systemName"] = "Integrated SEMI Control System",
@@ -898,7 +899,7 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             // Add slot map context
-            _stateMachine.ContextMap!["slotMap"] = new Dictionary<int, string>
+            _stateMachine.ContextMap!["slotMap"] = new ConcurrentDictionary<int, string>
             {
                 [1] = "PRESENT",
                 [2] = "PRESENT", 
@@ -927,7 +928,7 @@ namespace SemiStandard.Tests
             currentState.Should().Contain("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
             
             // Check slot map for errors
-            var slotMap = _stateMachine.ContextMap!["slotMap"] as Dictionary<int, string>;
+            var slotMap = _stateMachine.ContextMap!["slotMap"] as ConcurrentDictionary<int, string>;
             slotMap.Should().NotBeNull();
             
             // Verify error detection

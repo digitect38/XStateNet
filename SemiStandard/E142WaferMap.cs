@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,7 @@ namespace SemiStandard.E142
         private readonly string _mapId;
         private WaferMapData? _mapData;
         private readonly List<BinData> _binDefinitions = new();
-        private readonly Dictionary<(int x, int y), DieData> _dieMap = new();
+        private readonly ConcurrentDictionary<(int x, int y), DieData> _dieMap = new();
         private DateTime? _loadTime;
         private DateTime? _applyTime;
         private int _updateCount = 0;
@@ -337,7 +338,7 @@ namespace SemiStandard.E142
             };
             
             // Calculate bin statistics
-            var binCounts = new Dictionary<int, int>();
+            var binCounts = new ConcurrentDictionary<int, int>();
             foreach (var die in _dieMap.Values)
             {
                 if (!binCounts.ContainsKey(die.BinCode))
@@ -430,7 +431,7 @@ namespace SemiStandard.E142
             public int UpdateCount { get; set; }
             public DateTime? LoadTime { get; set; }
             public DateTime? ApplyTime { get; set; }
-            public Dictionary<int, int> BinCounts { get; set; } = new();
+            public ConcurrentDictionary<int, int> BinCounts { get; set; } = new();
         }
     }
 }

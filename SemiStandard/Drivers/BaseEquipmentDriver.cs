@@ -153,13 +153,13 @@ namespace XStateNet.Semi.Drivers
             }
         }
         
-        public virtual async Task<CommandResult> ExecuteCommandAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+        public virtual async Task<CommandResult> ExecuteCommandAsync(string command, ConcurrentDictionary<string, object> parameters, CancellationToken cancellationToken = default)
         {
             await _commandSemaphore.WaitAsync(cancellationToken);
             try
             {
                 // Convert parameters to SECS items
-                var secsParams = new Dictionary<string, SecsItem>();
+                var secsParams = new ConcurrentDictionary<string, SecsItem>();
                 foreach (var kvp in parameters)
                 {
                     secsParams[kvp.Key] = ConvertToSecsItem(kvp.Value);
@@ -221,7 +221,7 @@ namespace XStateNet.Semi.Drivers
         
         public virtual async Task<bool> WriteConstantAsync(uint ecid, object value, CancellationToken cancellationToken = default)
         {
-            var ecidValues = new Dictionary<uint, SecsItem>
+            var ecidValues = new ConcurrentDictionary<uint, SecsItem>
             {
                 [ecid] = ConvertToSecsItem(value)
             };
@@ -308,7 +308,7 @@ namespace XStateNet.Semi.Drivers
             return false;
         }
         
-        public abstract Task<bool> StartProcessAsync(string ppid, Dictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
+        public abstract Task<bool> StartProcessAsync(string ppid, ConcurrentDictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
         public abstract Task<bool> StopProcessAsync(CancellationToken cancellationToken = default);
         public abstract Task<bool> PauseProcessAsync(CancellationToken cancellationToken = default);
         public abstract Task<bool> ResumeProcessAsync(CancellationToken cancellationToken = default);
@@ -329,7 +329,7 @@ namespace XStateNet.Semi.Drivers
             });
         }
         
-        public virtual async Task ReportEventAsync(uint eventId, Dictionary<string, object>? data = null)
+        public virtual async Task ReportEventAsync(uint eventId, ConcurrentDictionary<string, object>? data = null)
         {
             var reports = new List<SecsItem>();
             if (data != null)

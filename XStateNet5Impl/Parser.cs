@@ -74,8 +74,8 @@ public partial class StateMachine
             // If guidIsolate is true, append a unique GUID to the machine ID
             string machineId = rootToken["id"]?.ToString() ?? "machine";
             if (guidIsolate)
-            {
-                machineId = $"{machineId}_{Guid.NewGuid():N}";
+            { 
+                machineId = $"{machineId}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
             }
             stateMachine.machineId = $"#{machineId}";
             stateMachine.ActionMap = actionCallbacks;
@@ -412,7 +412,9 @@ public partial class StateMachine
             if (ActionMap.ContainsKey(actionName))
             {
                 result ??= new List<NamedAction>();
-                result.AddRange(ActionMap[actionName]);
+                // Use thread-safe GetActions method
+                var actions = ActionMap.GetActions(actionName);
+                result.AddRange(actions);
             }
         }
         return result ?? new List<NamedAction>();
@@ -634,11 +636,8 @@ public partial class StateMachine
         {
             case TransitionType.On:
                 {
-                    if (!source.OnTransitionMap.ContainsKey(@event))
-                    {
-                        source.OnTransitionMap[@event] = new List<Transition>(2); // Pre-allocate with typical size
-                    }
-                    source.OnTransitionMap[@event].Add(transition);
+                    // Use thread-safe AddTransition method
+                    source.OnTransitionMap.AddTransition(@event, transition);
                 }
                 break;
             case TransitionType.After:
@@ -659,11 +658,8 @@ public partial class StateMachine
             case TransitionType.OnError:
                 {
                     // OnError transitions are stored in the OnTransitionMap
-                    if (!source.OnTransitionMap.ContainsKey("onError"))
-                    {
-                        source.OnTransitionMap["onError"] = new List<Transition>(1);
-                    }
-                    source.OnTransitionMap["onError"].Add(transition);
+                    // Use thread-safe AddTransition method
+                    source.OnTransitionMap.AddTransition("onError", transition);
                 }
                 break;
 
@@ -701,7 +697,9 @@ public partial class StateMachine
                 {
                     if (ActionMap.ContainsKey(actionName))
                     {
-                        actions.AddRange(ActionMap[actionName]);
+                        // Use thread-safe GetActions method
+                        var actionList = ActionMap.GetActions(actionName);
+                        actions.AddRange(actionList);
                     }
                 }
 

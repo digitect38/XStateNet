@@ -35,7 +35,7 @@ namespace XStateNet.Distributed.Monitoring
         private readonly SystemMetricsCollector _systemMetrics;
 
         // Circuit breakers for monitoring resilience
-        private readonly Dictionary<string, ICircuitBreaker> _monitoringCircuitBreakers;
+        private readonly ConcurrentDictionary<string, ICircuitBreaker> _monitoringCircuitBreakers;
 
         // Performance tracking
         private long _totalHealthChecks;
@@ -58,7 +58,7 @@ namespace XStateNet.Distributed.Monitoring
             _activeAlerts = new ConcurrentDictionary<string, Alert>(StringComparer.Ordinal);
             _alertHistory = new ConcurrentQueue<Alert>();
             _systemMetrics = new SystemMetricsCollector();
-            _monitoringCircuitBreakers = new Dictionary<string, ICircuitBreaker>();
+            _monitoringCircuitBreakers = new ConcurrentDictionary<string, ICircuitBreaker>();
 
             // Initialize circuit breakers for critical monitoring paths
             InitializeMonitoringCircuitBreakers();
@@ -110,7 +110,8 @@ namespace XStateNet.Distributed.Monitoring
             {
                 Status = overallStatus,
                 Timestamp = DateTime.UtcNow,
-                Results = results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
+                Results = new ConcurrentDictionary<string, HealthCheckResult>(
+                    results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)),
                 Duration = TimeSpan.FromMilliseconds(results.Values.Sum(r => r.Duration.TotalMilliseconds))
             };
         }
@@ -476,7 +477,7 @@ namespace XStateNet.Distributed.Monitoring
     {
         public HealthStatus Status { get; set; }
         public string? Description { get; set; }
-        public Dictionary<string, object> Data { get; set; } = new();
+        public ConcurrentDictionary<string, object> Data { get; set; } = new();
         public TimeSpan Duration { get; set; }
 
         public static HealthCheckResult Healthy(string? description = null) =>
@@ -500,7 +501,7 @@ namespace XStateNet.Distributed.Monitoring
     {
         public HealthStatus Status { get; set; }
         public DateTime Timestamp { get; set; }
-        public Dictionary<string, HealthCheckResult> Results { get; set; } = new();
+        public ConcurrentDictionary<string, HealthCheckResult> Results { get; set; } = new();
         public TimeSpan Duration { get; set; }
     }
 

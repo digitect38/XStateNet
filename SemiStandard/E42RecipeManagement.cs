@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,7 +17,7 @@ namespace SemiStandard.E42
         private readonly StateMachineAdapter _stateMachine;
         private readonly string _recipeId;
         private RecipeData? _recipeData;
-        private readonly Dictionary<string, ParameterData> _parameters = new();
+        private readonly ConcurrentDictionary<string, ParameterData> _parameters = new();
         private readonly List<ValidationResult> _validationResults = new();
         private DateTime? _downloadTime;
         private DateTime? _verifyTime;

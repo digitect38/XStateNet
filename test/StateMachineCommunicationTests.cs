@@ -5,6 +5,7 @@ using Xunit;
 
 using XStateNet;
 using XStateNet.Semi;
+using XStateNet.Tests.TestHelpers;
 
 namespace InterMachineTests;
 
@@ -26,15 +27,22 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             
             machine1.Start();
             machine2.Start();
-            await Task.Delay(50); // Allow machines to initialize
-            
+
             // Act - Send multiple events to test communication
             machine1.Send("TRIGGER");
-            await Task.Delay(200); // Allow for event propagation and action execution
-            
+
+            // Wait for coordinator to receive events from machine1
+            await DeterministicWait.WaitForConditionAsync(
+                () => coordinator.ReceivedEvents.Count > 0,
+                timeoutMs: 1000);
+
             // Also test machine2
             machine2.Send("TRIGGER");
-            await Task.Delay(200);
+
+            // Wait for more events from machine2
+            await DeterministicWait.WaitForConditionAsync(
+                () => coordinator.ReceivedEvents.Count >= 2,
+                timeoutMs: 1000);
             
             // Assert - Check if any events were received
             Assert.NotEmpty(coordinator.ReceivedEvents /*, "machines should notify coordinator when transitioning to active state" */);
@@ -77,16 +85,23 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             
             // Act
             parent.Send("START_CHILDREN");
-            await Task.Delay(200);
-            
+
+            // Wait for parent to transition to coordinating state
+            await DeterministicWait.WaitForStateAsync(parent, "coordinating");
+
             // Send START to children first to move them from idle to working
             child1.Send("START");
             child2.Send("START");
-            await Task.Delay(100);
-            
+
+            // Wait for children to be in working state
+            await DeterministicWait.WaitForStateAsync(child1, "working");
+            await DeterministicWait.WaitForStateAsync(child2, "working");
+
             child1.Send("COMPLETE");
             child2.Send("COMPLETE");
-            await Task.Delay(200);
+
+            // Wait for parent to reach allComplete state
+            await DeterministicWait.WaitForStateAsync(parent, "allComplete");
             
             // Assert
             Assert.Contains("allComplete", parent.GetSourceSubStateCollection(null).ToCsvString(parent, true));
@@ -150,15 +165,21 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             
             // Act
             broadcaster.Send("BROADCAST");
-            await Task.Delay(100);
-            
+
+            // Wait for broadcaster to be ready
+            await DeterministicWait.WaitForStateAsync(broadcaster, "broadcasting");
+
             // Simulate broadcast to all subscribers
             foreach (var sub in subscribers)
             {
                 sub.Send("RECEIVE_BROADCAST");
-                await Task.Delay(20); // Small delay between each send
             }
-            await Task.Delay(200); // Give more time for all subscribers to process
+
+            // Wait for at least 4 subscribers to receive the broadcast
+            await DeterministicWait.WaitForValueAsync(
+                () => receivedCount,
+                expectedValue: 4,
+                timeoutMs: 2000);
             
             // Assert - At least 4 out of 5 should receive (timing dependent)
             Assert.True(receivedCount >= 4);
@@ -200,11 +221,13 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             foreach (var machine in chain)
             {
                 machine.Send("START");
-                await Task.Delay(100); // Give each machine time to process
             }
-            
-            // Wait for all machines to complete their transitions
-            await Task.Delay(200);
+
+            // Wait for at least 2 machines to complete
+            await DeterministicWait.WaitForValueAsync(
+                () => completedCount,
+                expectedValue: 2,
+                timeoutMs: 2000);
             
             // Assert - At least 2 out of 3 should complete (timing dependent)
             Assert.True(completedCount >= 2);

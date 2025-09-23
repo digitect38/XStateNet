@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +43,7 @@ namespace XStateNet.Semi.Drivers
         /// <summary>
         /// Execute a remote command
         /// </summary>
-        Task<CommandResult> ExecuteCommandAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
+        Task<CommandResult> ExecuteCommandAsync(string command, ConcurrentDictionary<string, object> parameters, CancellationToken cancellationToken = default);
         
         /// <summary>
         /// Read equipment constant value
@@ -72,7 +73,7 @@ namespace XStateNet.Semi.Drivers
         /// <summary>
         /// Start process execution
         /// </summary>
-        Task<bool> StartProcessAsync(string ppid, Dictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
+        Task<bool> StartProcessAsync(string ppid, ConcurrentDictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
         
         /// <summary>
         /// Stop process execution
@@ -97,7 +98,7 @@ namespace XStateNet.Semi.Drivers
         /// <summary>
         /// Report an event
         /// </summary>
-        Task ReportEventAsync(uint eventId, Dictionary<string, object>? data = null);
+        Task ReportEventAsync(uint eventId, ConcurrentDictionary<string, object>? data = null);
         
         /// <summary>
         /// Equipment state changed event
@@ -167,7 +168,7 @@ namespace XStateNet.Semi.Drivers
         public int T8Timeout { get; set; } = 5000;  // Network intercharacter timeout
         public int RetryCount { get; set; } = 3;
         public int RetryDelay { get; set; } = 1000;
-        public Dictionary<string, object> CustomSettings { get; set; } = new();
+        public ConcurrentDictionary<string, object> CustomSettings { get; set; } = new();
     }
     
     /// <summary>
@@ -177,7 +178,7 @@ namespace XStateNet.Semi.Drivers
     {
         public bool Success { get; set; }
         public string? ErrorMessage { get; set; }
-        public Dictionary<string, object>? ReturnData { get; set; }
+        public ConcurrentDictionary<string, object>? ReturnData { get; set; }
         public int ErrorCode { get; set; }
     }
     
@@ -198,7 +199,7 @@ namespace XStateNet.Semi.Drivers
     public class EventReportArgs : EventArgs
     {
         public uint EventId { get; set; }
-        public Dictionary<string, object>? Data { get; set; }
+        public ConcurrentDictionary<string, object>? Data { get; set; }
         public DateTime Timestamp { get; set; }
     }
     

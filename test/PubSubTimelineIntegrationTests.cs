@@ -8,6 +8,7 @@ using TimelineWPF;
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
 using XStateNet;
+using XStateNet.Tests.TestHelpers;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using Microsoft.Extensions.Logging;
@@ -72,7 +73,10 @@ namespace TimelineWPF.Tests
                 Timestamp = DateTime.UtcNow
             });
 
-            await Task.Delay(100); // Let event propagate
+            // Wait for event to propagate
+            await DeterministicWait.WaitForConditionAsync(
+                () => viewModel.GetStateMachines().Any(),
+                timeoutMs: 1000);
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();

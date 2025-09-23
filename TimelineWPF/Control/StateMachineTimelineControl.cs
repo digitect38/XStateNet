@@ -5,13 +5,14 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
 using TimelineWPF.Models;
+using System.Collections.Concurrent;
 
 namespace TimelineWPF.Control
 {
     public class StateMachineTimelineControl : FrameworkElement
     {
         private readonly Typeface _typeface = new Typeface(new FontFamily("Inter"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-        private readonly Dictionary<string, Brush> _stateBrushes = new Dictionary<string, Brush>();
+        private readonly ConcurrentDictionary<string, Brush> _stateBrushes = new ConcurrentDictionary<string, Brush>();
         private double _offsetFromTimelineBorderLeft; // Field to store the calculated offset
 
         // Brushes and Pens (cache for performance)

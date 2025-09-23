@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using XStateNet;
 
@@ -9,9 +10,9 @@ namespace SemiStandard.Simulator.Wpf
     /// </summary>
     public static class StateMachineDefinitions
     {
-        public static Dictionary<string, string> GetStateMachineScripts()
+        public static ConcurrentDictionary<string, string> GetStateMachineScripts()
         {
-            return new Dictionary<string, string>
+            return new ConcurrentDictionary<string, string>
             {
                 ["EquipmentController"] = @"{
                     'id': 'EquipmentController',
@@ -376,11 +377,11 @@ namespace SemiStandard.Simulator.Wpf
             };
         }
 
-        public static Dictionary<string, StateMachine> CreateAllStateMachines(
+        public static ConcurrentDictionary<string, StateMachine> CreateAllStateMachines(
             Action<string, string, string, string>? onStateChange = null)
         {
             var scripts = GetStateMachineScripts();
-            var machines = new Dictionary<string, StateMachine>();
+            var machines = new ConcurrentDictionary<string, StateMachine>();
 
             foreach (var kvp in scripts)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -69,14 +70,14 @@ namespace XStateNet.Distributed.Registry
         public string NodeId { get; set; } = string.Empty;
         public string Endpoint { get; set; } = string.Empty;
         public string Version { get; set; } = "1.0.0";
-        public Dictionary<string, object> Metadata { get; set; } = new();
+        public ConcurrentDictionary<string, object> Metadata { get; set; } = new();
         public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
         public DateTime LastHeartbeat { get; set; } = DateTime.UtcNow;
         public MachineStatus Status { get; set; } = MachineStatus.Stopped;
         public string? CurrentState { get; set; }
         public string? ParentMachineId { get; set; }
         public List<string> ChildMachineIds { get; set; } = new();
-        public Dictionary<string, string> Tags { get; set; } = new();
+        public ConcurrentDictionary<string, string> Tags { get; set; } = new();
         public ResourceUsage? Resources { get; set; }
     }
     

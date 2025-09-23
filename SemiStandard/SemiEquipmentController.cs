@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
@@ -270,15 +271,14 @@ public class SemiEquipmentController
         // Report carrier arrived event
         if (_communication != null)
         {
-            await _communication.ReportEvent(100, new Dictionary<int, object> 
-            { 
-                { 1000, carrierId }, 
-                { 1001, portId } 
-            });
+            var eventData100 = new ConcurrentDictionary<int, object>();
+            eventData100.TryAdd(1000, carrierId);
+            eventData100.TryAdd(1001, portId);
+            await _communication.ReportEvent(100, eventData100);
         }
         
         // Simulate slot mapping
-        var slotMap = new Dictionary<int, SlotState>();
+        var slotMap = new ConcurrentDictionary<int, SlotState>();
         for (int i = 1; i <= 25; i++)
         {
             slotMap[i] = i <= 20 ? SlotState.Present : SlotState.Empty;
@@ -319,11 +319,10 @@ public class SemiEquipmentController
         // Report process started
         if (_communication != null)
         {
-            await _communication.ReportEvent(200, new Dictionary<int, object>
-            {
-                { 2000, substrateid },
-                { 2001, recipeId }
-            });
+            var eventData200 = new ConcurrentDictionary<int, object>();
+            eventData200.TryAdd(2000, substrateid);
+            eventData200.TryAdd(2001, recipeId);
+            await _communication.ReportEvent(200, eventData200);
         }
         
         // Simulate processing
@@ -335,10 +334,9 @@ public class SemiEquipmentController
         // Report process completed
         if (_communication != null)
         {
-            await _communication.ReportEvent(201, new Dictionary<int, object>
-            {
-                { 2000, substrateid }
-            });
+            var eventData201 = new ConcurrentDictionary<int, object>();
+            eventData201.TryAdd(2000, substrateid);
+            await _communication.ReportEvent(201, eventData201);
         }
         
         return true;

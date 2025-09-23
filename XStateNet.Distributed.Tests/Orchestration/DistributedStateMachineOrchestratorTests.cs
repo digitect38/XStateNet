@@ -9,6 +9,7 @@ using Xunit;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests.Orchestration
 {
@@ -40,7 +41,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
                 Id = "test-machine",
                 Name = "Test Machine",
                 JsonScript = "{ \"id\": \"test\" }",
-                Configuration = new Dictionary<string, object> { ["key"] = "value" }
+                Configuration = new ConcurrentDictionary<string, object> { ["key"] = "value" }
             };
 
             var options = new DeploymentOptions
@@ -161,7 +162,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
                 .ReturnsAsync(new DistributedStateMachineOrchestrator.StateSnapshot 
                 { 
                     CurrentState = "running", 
-                    Context = new Dictionary<string, object>()
+                    Context = new ConcurrentDictionary<string, object>()
                 });
 
             _eventBusMock.Setup(x => x.PublishEventAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
@@ -231,9 +232,9 @@ namespace XStateNet.Distributed.Tests.Orchestration
             _registryMock.Setup(x => x.GetAsync(machineId))
                 .ReturnsAsync(info);
 
-            _eventBusMock.Setup(x => x.RequestAsync<Dictionary<string, object>>(
+            _eventBusMock.Setup(x => x.RequestAsync<ConcurrentDictionary<string, object>>(
                 It.IsAny<string>(), "HealthCheck", It.IsAny<object>(), It.IsAny<TimeSpan>()))
-                .ReturnsAsync(new Dictionary<string, object> { ["status"] = "healthy" });
+                .ReturnsAsync(new ConcurrentDictionary<string, object> { ["status"] = "healthy" });
 
             // Act
             var result = await _orchestrator.CheckHealthAsync(machineId);
@@ -454,17 +455,17 @@ namespace XStateNet.Distributed.Tests.Orchestration
                 new StateMachineInfo 
                 { 
                     MachineId = "m1", 
-                    Metadata = new Dictionary<string, object> { ["capabilities"] = "process,validate" }
+                    Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process,validate" }
                 },
                 new StateMachineInfo 
                 { 
                     MachineId = "m2", 
-                    Metadata = new Dictionary<string, object> { ["capabilities"] = "process" }
+                    Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process" }
                 },
                 new StateMachineInfo 
                 { 
                     MachineId = "m3", 
-                    Metadata = new Dictionary<string, object> { ["capabilities"] = "notify" }
+                    Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "notify" }
                 }
             };
 
@@ -488,7 +489,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
             {
                 EventName = "PROCESS",
                 Strategy = RoutingStrategy.Capability,
-                Requirements = new Dictionary<string, string> { ["capability"] = "process" }
+                Requirements = new ConcurrentDictionary<string, string> { ["capability"] = "process" }
             };
 
             var machines = new[]
@@ -496,7 +497,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
                 new StateMachineInfo 
                 { 
                     MachineId = "m1",
-                    Metadata = new Dictionary<string, object> { ["capabilities"] = "process" }
+                    Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process" }
                 }
             };
 
@@ -517,7 +518,7 @@ namespace XStateNet.Distributed.Tests.Orchestration
         {
             // Arrange
             var machineId = "test-machine";
-            var config = new Dictionary<string, object> { ["setting"] = "value" };
+            var config = new ConcurrentDictionary<string, object> { ["setting"] = "value" };
 
             // Act
             var result = await _orchestrator.UpdateConfigurationAsync(machineId, config);
@@ -533,9 +534,9 @@ namespace XStateNet.Distributed.Tests.Orchestration
         {
             // Arrange
             var machineId = "test-machine";
-            var config = new Dictionary<string, object> { ["setting"] = "value" };
+            var config = new ConcurrentDictionary<string, object> { ["setting"] = "value" };
 
-            _eventBusMock.Setup(x => x.RequestAsync<Dictionary<string, object>>(
+            _eventBusMock.Setup(x => x.RequestAsync<ConcurrentDictionary<string, object>>(
                 It.IsAny<string>(), "GetConfiguration", It.IsAny<object>(), It.IsAny<TimeSpan>()))
                 .ReturnsAsync(config);
 

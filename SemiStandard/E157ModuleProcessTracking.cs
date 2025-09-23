@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -44,8 +45,8 @@ namespace SemiStandard.E157
             public string StepName { get; set; } = string.Empty;
             public DateTime StartTime { get; set; }
             public DateTime? EndTime { get; set; }
-            public Dictionary<string, object> Parameters { get; set; } = new();
-            public Dictionary<string, object> Results { get; set; } = new();
+            public ConcurrentDictionary<string, object> Parameters { get; set; } = new();
+            public ConcurrentDictionary<string, object> Results { get; set; } = new();
             public string? ErrorCode { get; set; }
         }
 
@@ -319,32 +320,32 @@ namespace SemiStandard.E157
             UpdateState();
         }
         
-        public void PreProcessComplete(Dictionary<string, object>? results = null)
+        public void PreProcessComplete(ConcurrentDictionary<string, object>? results = null)
         {
             _stateMachine.Send(new StateMachineEvent
             {
                 Name = "PRE_PROCESS_COMPLETE",
-                Data = new ProcessResults { Data = results ?? new Dictionary<string, object>() }
+                Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
         
-        public void ProcessComplete(Dictionary<string, object>? results = null)
+        public void ProcessComplete(ConcurrentDictionary<string, object>? results = null)
         {
             _stateMachine.Send(new StateMachineEvent
             {
                 Name = "PROCESS_COMPLETE",
-                Data = new ProcessResults { Data = results ?? new Dictionary<string, object>() }
+                Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
         
-        public void PostProcessComplete(Dictionary<string, object>? results = null)
+        public void PostProcessComplete(ConcurrentDictionary<string, object>? results = null)
         {
             _stateMachine.Send(new StateMachineEvent
             {
                 Name = "POST_PROCESS_COMPLETE",
-                Data = new ProcessResults { Data = results ?? new Dictionary<string, object>() }
+                Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
@@ -462,7 +463,7 @@ namespace SemiStandard.E157
         
         public class ProcessResults
         {
-            public Dictionary<string, object> Data { get; set; } = new();
+            public ConcurrentDictionary<string, object> Data { get; set; } = new();
         }
         
         public class ErrorInfo

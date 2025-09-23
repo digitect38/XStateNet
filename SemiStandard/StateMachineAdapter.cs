@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using XStateNet;
@@ -14,9 +15,9 @@ namespace SemiStandard
         private XStateNet.StateMachine? _stateMachine;
         private readonly ActionMap _actionMap;
         private readonly GuardMap _guardMap;
-        private readonly Dictionary<string, Func<Dictionary<string, object>, object, bool>> _conditions;
+        private readonly ConcurrentDictionary<string, Func<ConcurrentDictionary<string, object>, object, bool>> _conditions;
         private readonly string _jsonConfig;
-        private Dictionary<string, object> _context;
+        private ConcurrentDictionary<string, object> _context;
         private string? _currentState;
         
         public StateMachineAdapter(string jsonConfig)
@@ -24,11 +25,11 @@ namespace SemiStandard
             _jsonConfig = jsonConfig;
             _actionMap = new ActionMap();
             _guardMap = new GuardMap();
-            _conditions = new Dictionary<string, Func<Dictionary<string, object>, object, bool>>();
-            _context = new Dictionary<string, object>();
+            _conditions = new ConcurrentDictionary<string, Func<ConcurrentDictionary<string, object>, object, bool>>();
+            _context = new ConcurrentDictionary<string, object>();
         }
         
-        public void RegisterAction(string name, Action<Dictionary<string, object>, dynamic> action)
+        public void RegisterAction(string name, Action<ConcurrentDictionary<string, object>, dynamic> action)
         {
             var namedAction = new NamedAction(name, (stateMachine) =>
             {
@@ -36,7 +37,7 @@ namespace SemiStandard
                 var contextMap = stateMachine.ContextMap;
                 if (contextMap != null)
                 {
-                    var context = new Dictionary<string, object>();
+                    var context = new ConcurrentDictionary<string, object>();
                     foreach (var kvp in contextMap)
                     {
                         if (kvp.Value != null)
@@ -54,7 +55,7 @@ namespace SemiStandard
             _actionMap[name].Add(namedAction);
         }
         
-        public void RegisterCondition(string name, Func<Dictionary<string, object>, dynamic, bool> condition)
+        public void RegisterCondition(string name, Func<ConcurrentDictionary<string, object>, dynamic, bool> condition)
         {
             _conditions[name] = (context, @event) =>
             {
@@ -68,7 +69,7 @@ namespace SemiStandard
                 var contextMap = stateMachine.ContextMap;
                 if (contextMap != null)
                 {
-                    var context = new Dictionary<string, object>();
+                    var context = new ConcurrentDictionary<string, object>();
                     foreach (var kvp in contextMap)
                     {
                         if (kvp.Value != null)
@@ -93,7 +94,7 @@ namespace SemiStandard
             }
         }
         
-        public void RegisterActivity(string name, Action<Dictionary<string, object>, dynamic> activity)
+        public void RegisterActivity(string name, Action<ConcurrentDictionary<string, object>, dynamic> activity)
         {
             // Activities are treated as special actions in XStateNet
             RegisterAction(name, activity);

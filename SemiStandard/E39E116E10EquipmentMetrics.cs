@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace SemiStandard.E39E116E10
         private readonly StateMachineAdapter _stateMachine;
         private readonly string _equipmentId;
         private readonly List<StateTransition> _stateHistory = new();
-        private readonly Dictionary<E10State, TimeSpan> _stateDurations = new();
+        private readonly ConcurrentDictionary<E10State, TimeSpan> _stateDurations = new();
         private DateTime _currentStateStartTime;
         private E10State _previousState;
         
@@ -511,7 +512,7 @@ namespace SemiStandard.E39E116E10
                 CurrentState = CurrentState,
                 ReportTime = DateTime.UtcNow,
                 TotalTime = GetTotalTime(),
-                StateDurations = new Dictionary<E10State, TimeSpan>(_stateDurations),
+                StateDurations = new ConcurrentDictionary<E10State, TimeSpan>(_stateDurations),
                 PerformanceMetrics = PerformanceMetrics,
                 StateHistory = _stateHistory.ToList()
             };
@@ -583,7 +584,7 @@ namespace SemiStandard.E39E116E10
             public E10State CurrentState { get; set; }
             public DateTime ReportTime { get; set; }
             public TimeSpan TotalTime { get; set; }
-            public Dictionary<E10State, TimeSpan> StateDurations { get; set; } = new();
+            public ConcurrentDictionary<E10State, TimeSpan> StateDurations { get; set; } = new();
             public E116PerformanceMetrics PerformanceMetrics { get; set; } = new();
             public List<StateTransition> StateHistory { get; set; } = new();
             

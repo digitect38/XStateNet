@@ -21,16 +21,11 @@ namespace XStateNet.Distributed.Channels
         private readonly IChannelMetrics _metrics;
         private readonly ILogger<BoundedChannelManager<T>>? _logger;
 
-        // Backpressure handling
-        private readonly SemaphoreSlim? _writeSemaphore;
-        private readonly ConcurrentQueue<TaskCompletionSource<bool>> _waitingWriters;
-
         // Performance counters
         private long _totalItemsWritten;
         private long _totalItemsRead;
         private long _totalWritesFailed;
         private long _totalReadsCompleted;
-        private long _totalBackpressureEvents;
         private long _totalDroppedItems;
 
         // Monitoring
@@ -48,7 +43,6 @@ namespace XStateNet.Distributed.Channels
         {
             get
             {
-                // Try to get actual count from reader if available
                 try
                 {
                     if (_channel.Reader.CanCount)
@@ -58,7 +52,6 @@ namespace XStateNet.Distributed.Channels
                 }
                 catch { }
 
-                // Fallback to calculated depth (may be inaccurate with drops)
                 var calculated = _totalItemsWritten - _totalItemsRead - _totalDroppedItems;
                 return Math.Max(0, calculated);
             }
@@ -76,9 +69,6 @@ namespace XStateNet.Distributed.Channels
             _metrics = metrics ?? new NullChannelMetrics();
             _logger = logger;
 
-            _waitingWriters = new ConcurrentQueue<TaskCompletionSource<bool>>();
-
-            // Create the bounded channel
             var channelOptions = new System.Threading.Channels.BoundedChannelOptions(options.Capacity)
             {
                 FullMode = ConvertFullMode(options.FullMode),
@@ -89,13 +79,6 @@ namespace XStateNet.Distributed.Channels
 
             _channel = Channel.CreateBounded<T>(channelOptions);
 
-            // Initialize write semaphore for custom backpressure handling
-            if (_options.EnableCustomBackpressure)
-            {
-                _writeSemaphore = new SemaphoreSlim(_options.Capacity, _options.Capacity);
-            }
-
-            // Start monitoring if enabled
             if (_options.EnableMonitoring)
             {
                 _lastMonitoringTime = DateTime.UtcNow;
@@ -106,8 +89,8 @@ namespace XStateNet.Distributed.Channels
                     _options.MonitoringInterval);
             }
 
-            _logger?.LogInformation("BoundedChannel '{ChannelName}' created with capacity {Capacity}",
-                _channelName, _options.Capacity);
+            _logger?.LogInformation("BoundedChannel '{ChannelName}' created with capacity {Capacity} and FullMode {FullMode}",
+                _channelName, _options.Capacity, _options.FullMode);
         }
 
         private static BoundedChannelFullMode ConvertFullMode(ChannelFullMode mode)
@@ -116,7 +99,8 @@ namespace XStateNet.Distributed.Channels
             {
                 ChannelFullMode.Wait => BoundedChannelFullMode.Wait,
                 ChannelFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
-                ChannelFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
+                // For DropNewest, use Wait mode and handle dropping manually
+                ChannelFullMode.DropNewest => BoundedChannelFullMode.Wait,
                 _ => BoundedChannelFullMode.Wait
             };
         }
@@ -125,83 +109,106 @@ namespace XStateNet.Distributed.Channels
         public async ValueTask<bool> WriteAsync(T item, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
-
             try
             {
-                // Custom backpressure handling
-                if (_writeSemaphore != null)
+                // Check if channel is at capacity before writing
+                bool wasAtCapacity = false;
+                if (_options.FullMode == ChannelFullMode.DropNewest && _channel.Reader.CanCount)
                 {
-                    if (!await _writeSemaphore.WaitAsync(0, cancellationToken))
-                    {
-                        Interlocked.Increment(ref _totalBackpressureEvents);
-                        _metrics.RecordBackpressure(_channelName);
-
-                        // Apply backpressure strategy
-                        var backpressureHandled = await HandleBackpressureAsync(item, cancellationToken);
-
-                        // For Redirect, return immediately after redirecting
-                        if (_options.BackpressureStrategy == BackpressureStrategy.Redirect)
-                        {
-                            return backpressureHandled;
-                        }
-
-                        // For Drop, return false to indicate the item was dropped
-                        if (_options.BackpressureStrategy == BackpressureStrategy.Drop)
-                        {
-                            // Item has been dropped, return false
-                            return false;
-                        }
-
-                        // For Throttle, we've delayed, now try to write anyway (might overwrite)
-                        if (_options.BackpressureStrategy == BackpressureStrategy.Throttle)
-                        {
-                            // Don't wait for semaphore, just try to write
-                            // The channel might use DropNewest or other full mode
-                        }
-                        // For Wait strategy, continue to wait for semaphore
-                        else if (_options.BackpressureStrategy == BackpressureStrategy.Wait)
-                        {
-                            if (!backpressureHandled)
-                            {
-                                return false;
-                            }
-                            await _writeSemaphore.WaitAsync(cancellationToken);
-                        }
-                    }
+                    wasAtCapacity = _channel.Reader.Count >= _options.Capacity;
                 }
 
-                // Try to write to channel
-                while (await _channel.Writer.WaitToWriteAsync(cancellationToken))
+                bool writeSucceeded = _channel.Writer.TryWrite(item);
+
+                if (writeSucceeded)
                 {
-                    var depthBeforeWrite = CurrentQueueDepth;
-                    var wasAtCapacity = depthBeforeWrite >= _options.Capacity;
-
-                    if (_channel.Writer.TryWrite(item))
+                    // With DropWrite mode, write might succeed but drop an item
+                    if (wasAtCapacity && _options.FullMode == ChannelFullMode.DropNewest)
                     {
-                        Interlocked.Increment(ref _totalItemsWritten);
-                        _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                        // The write succeeded by dropping the newest item
+                        Interlocked.Increment(ref _totalDroppedItems);
+                        _metrics.RecordDrop(_channelName);
+                    }
 
-                        // Check if item was dropped (DropNewest mode at capacity)
-                        if (_options.FullMode == ChannelFullMode.DropNewest && wasAtCapacity)
+                    Interlocked.Increment(ref _totalItemsWritten);
+                    _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                    return true;
+                }
+
+                // If TryWrite failed, the channel is full. Handle based on FullMode.
+                switch (_options.FullMode)
+                {
+                    case ChannelFullMode.DropNewest:
+                        // DropNewest means: drop the newest item in the channel to make room
+                        // This is complex with standard channels - we need to read all items,
+                        // drop the last one, and write them back plus the new item
+                        var items = new List<T>();
+                        while (_channel.Reader.TryRead(out var existingItem))
                         {
+                            items.Add(existingItem);
+                        }
+
+                        if (items.Count > 0)
+                        {
+                            // Drop the newest (last) item from the channel
+                            items.RemoveAt(items.Count - 1);
                             Interlocked.Increment(ref _totalDroppedItems);
                             _metrics.RecordDrop(_channelName);
+
+                            // Write back the remaining items
+                            foreach (var oldItem in items)
+                            {
+                                _channel.Writer.TryWrite(oldItem);
+                            }
+
+                            // Now write the new item
+                            if (_channel.Writer.TryWrite(item))
+                            {
+                                Interlocked.Increment(ref _totalItemsWritten);
+                                _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                                return true;
+                            }
                         }
 
-                        // Notify waiting readers if any
-                        NotifyWaitingReaders();
-
+                        // If we couldn't handle it, just drop the new item
+                        Interlocked.Increment(ref _totalDroppedItems);
+                        Interlocked.Increment(ref _totalItemsWritten);
+                        _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
                         return true;
-                    }
 
-                    // Channel is full, apply full mode strategy
-                    if (!await HandleFullChannelAsync(item, cancellationToken))
-                    {
+                    case ChannelFullMode.DropOldest:
+                        // Try to make space by dropping the oldest item.
+                        if (_channel.Reader.TryRead(out _))
+                        {
+                            Interlocked.Increment(ref _totalDroppedItems);
+                            // Now try to write the new item.
+                            if (_channel.Writer.TryWrite(item))
+                            {
+                                Interlocked.Increment(ref _totalItemsWritten);
+                                _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                                return true;
+                            }
+                        }
+                        // If we couldn't make space, the write fails for this attempt.
                         return false;
-                    }
-                }
 
-                return false;
+                    case ChannelFullMode.Wait:
+                        // Asynchronously wait for space to be available.
+                        if (await _channel.Writer.WaitToWriteAsync(cancellationToken))
+                        {
+                            // After waiting, try writing again. This should succeed unless another writer got there first.
+                            if (_channel.Writer.TryWrite(item))
+                            {
+                                Interlocked.Increment(ref _totalItemsWritten);
+                                _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                                return true;
+                            }
+                        }
+                        return false;
+
+                    default: // Includes Reject, which is not a standard option but we'll treat as fail
+                        return false;
+                }
             }
             catch (ChannelClosedException)
             {
@@ -223,33 +230,20 @@ namespace XStateNet.Distributed.Channels
         {
             try
             {
-                var depthBeforeWrite = CurrentQueueDepth;
-                var wasAtCapacity = depthBeforeWrite >= _options.Capacity;
-
                 if (_channel.Writer.TryWrite(item))
                 {
                     Interlocked.Increment(ref _totalItemsWritten);
                     _metrics.RecordWrite(_channelName, TimeSpan.Zero);
-
-                    // Check if item was dropped (DropNewest mode at capacity)
-                    if (_options.FullMode == ChannelFullMode.DropNewest && wasAtCapacity)
-                    {
-                        Interlocked.Increment(ref _totalDroppedItems);
-                        _metrics.RecordDrop(_channelName);
-                    }
-
-                    NotifyWaitingReaders();
                     return true;
                 }
 
-                // Handle full channel based on mode
+                // If TryWrite returns false, it means the channel is full.
+                // In DropNewest mode, this is expected. In other modes, it indicates a problem.
                 if (_options.FullMode == ChannelFullMode.DropNewest)
                 {
                     Interlocked.Increment(ref _totalDroppedItems);
                     _metrics.RecordDrop(_channelName);
-                    return false;
                 }
-
                 return false;
             }
             catch (Exception ex)
@@ -266,36 +260,13 @@ namespace XStateNet.Distributed.Channels
 
             try
             {
-                // WORKAROUND: WaitToReadAsync seems to hang even when items are available
-                // Check if we can read directly first
-                if (_channel.Reader.TryRead(out var item))
-                {
-                    Interlocked.Increment(ref _totalItemsRead);
-                    _metrics.RecordRead(_channelName, stopwatch.Elapsed);
-
-                    // Release semaphore if using custom backpressure
-                    _writeSemaphore?.Release();
-
-                    // Notify waiting writers if any
-                    NotifyWaitingWriters();
-
-                    return (true, item);
-                }
-
-                // If no items immediately available, then wait
+                // Asynchronously wait for an item to become available
                 if (await _channel.Reader.WaitToReadAsync(cancellationToken))
                 {
-                    if (_channel.Reader.TryRead(out item))
+                    if (_channel.Reader.TryRead(out var item))
                     {
                         Interlocked.Increment(ref _totalItemsRead);
                         _metrics.RecordRead(_channelName, stopwatch.Elapsed);
-
-                        // Release semaphore if using custom backpressure
-                        _writeSemaphore?.Release();
-
-                        // Notify waiting writers if any
-                        NotifyWaitingWriters();
-
                         return (true, item);
                     }
                 }
@@ -323,8 +294,6 @@ namespace XStateNet.Distributed.Channels
                 {
                     Interlocked.Increment(ref _totalItemsRead);
                     _metrics.RecordRead(_channelName, TimeSpan.Zero);
-                    _writeSemaphore?.Release();
-                    NotifyWaitingWriters();
                     return true;
                 }
 
@@ -344,8 +313,6 @@ namespace XStateNet.Distributed.Channels
             await foreach (var item in _channel.Reader.ReadAllAsync(cancellationToken))
             {
                 Interlocked.Increment(ref _totalItemsRead);
-                _writeSemaphore?.Release();
-                NotifyWaitingWriters();
                 yield return item;
             }
         }
@@ -364,24 +331,15 @@ namespace XStateNet.Distributed.Channels
                     {
                         batch.Add(item);
                         Interlocked.Increment(ref _totalItemsRead);
-                        _writeSemaphore?.Release();
                     }
                     else
                     {
-                        try
+                        if (await _channel.Reader.WaitToReadAsync(cts.Token))
                         {
-                            if (await _channel.Reader.WaitToReadAsync(cts.Token))
-                            {
-                                continue;
-                            }
-                            else
-                            {
-                                break;
-                            }
+                            continue;
                         }
-                        catch (OperationCanceledException)
+                        else
                         {
-                            // Timeout occurred
                             break;
                         }
                     }
@@ -390,14 +348,12 @@ namespace XStateNet.Distributed.Channels
                 if (batch.Count > 0)
                 {
                     _metrics.RecordBatchRead(_channelName, batch.Count);
-                    NotifyWaitingWriters();
                 }
 
                 return batch;
             }
             catch (OperationCanceledException)
             {
-                // Return whatever we have collected (might be empty on timeout)
                 if (batch.Count > 0)
                 {
                     _metrics.RecordBatchRead(_channelName, batch.Count);
@@ -409,13 +365,6 @@ namespace XStateNet.Distributed.Channels
         public void Complete(Exception? exception = null)
         {
             _channel.Writer.TryComplete(exception);
-
-            // Cancel all waiting writers
-            while (_waitingWriters.TryDequeue(out var tcs))
-            {
-                tcs.TrySetCanceled();
-            }
-
             _logger?.LogInformation("Channel '{ChannelName}' completed. Total items: Written={Written}, Read={Read}",
                 _channelName, _totalItemsWritten, _totalItemsRead);
         }
@@ -435,7 +384,6 @@ namespace XStateNet.Distributed.Channels
                 TotalItemsWritten = _totalItemsWritten,
                 TotalItemsRead = _totalItemsRead,
                 TotalItemsDropped = _totalDroppedItems,
-                TotalBackpressureEvents = _totalBackpressureEvents,
                 TotalWritesFailed = _totalWritesFailed,
                 WriteRate = timeSinceLastMonitoring.TotalSeconds > 0
                     ? itemsWrittenSinceLastMonitoring / timeSinceLastMonitoring.TotalSeconds
@@ -450,100 +398,7 @@ namespace XStateNet.Distributed.Channels
                 IsCompleted = _channel.Reader.Completion.IsCompleted
             };
         }
-
-        private async ValueTask<bool> HandleBackpressureAsync(T item, CancellationToken cancellationToken)
-        {
-            switch (_options.BackpressureStrategy)
-            {
-                case BackpressureStrategy.Wait:
-                    // Already handled by semaphore wait
-                    return true;
-
-                case BackpressureStrategy.Drop:
-                    Interlocked.Increment(ref _totalDroppedItems);
-                    _metrics.RecordDrop(_channelName);
-                    _logger?.LogWarning("Dropped item due to backpressure in channel '{ChannelName}'", _channelName);
-                    return false;
-
-                case BackpressureStrategy.Throttle:
-                    var delay = CalculateThrottleDelay();
-                    await Task.Delay(delay, cancellationToken);
-                    return true;
-
-                case BackpressureStrategy.Redirect:
-                    if (_options.OverflowChannel != null)
-                    {
-                        // Cast item to object for the overflow channel
-                        return await _options.OverflowChannel.WriteAsync((object)(item!), cancellationToken);
-                    }
-                    return false;
-
-                default:
-                    return true;
-            }
-        }
-
-        private ValueTask<bool> HandleFullChannelAsync(T item, CancellationToken cancellationToken)
-        {
-            switch (_options.FullMode)
-            {
-                case ChannelFullMode.Wait:
-                    // Default behavior - wait for space
-                    return ValueTask.FromResult(true);
-
-                case ChannelFullMode.DropOldest:
-                    // Try to read and discard oldest item
-                    if (_channel.Reader.TryRead(out _))
-                    {
-                        Interlocked.Increment(ref _totalItemsRead);
-                        Interlocked.Increment(ref _totalDroppedItems);
-                        _metrics.RecordDrop(_channelName);
-                        return ValueTask.FromResult(true);
-                    }
-                    return ValueTask.FromResult(false);
-
-                case ChannelFullMode.DropNewest:
-                    // Drop the current item
-                    Interlocked.Increment(ref _totalDroppedItems);
-                    _metrics.RecordDrop(_channelName);
-                    return ValueTask.FromResult(false);
-
-                case ChannelFullMode.Reject:
-                    throw new ChannelFullException($"Channel '{_channelName}' is full");
-
-                default:
-                    return ValueTask.FromResult(false);
-            }
-        }
-
-        private TimeSpan CalculateThrottleDelay()
-        {
-            var utilization = (double)CurrentQueueDepth / _options.Capacity;
-
-            // Exponential throttle based on utilization
-            if (utilization > 0.9)
-                return TimeSpan.FromMilliseconds(100);
-            if (utilization > 0.8)
-                return TimeSpan.FromMilliseconds(50);
-            if (utilization > 0.7)
-                return TimeSpan.FromMilliseconds(20);
-
-            return TimeSpan.FromMilliseconds(10);
-        }
-
-        private void NotifyWaitingWriters()
-        {
-            if (_waitingWriters.TryDequeue(out var tcs))
-            {
-                tcs.TrySetResult(true);
-            }
-        }
-
-        private void NotifyWaitingReaders()
-        {
-            // Implement if needed for custom reader notification
-        }
-
+        
         private void MonitoringCallback(object? state)
         {
             try
@@ -570,7 +425,6 @@ namespace XStateNet.Distributed.Channels
         public void Dispose()
         {
             _monitoringTimer?.Dispose();
-            _writeSemaphore?.Dispose();
             Complete();
         }
     }
@@ -603,11 +457,9 @@ namespace XStateNet.Distributed.Channels
     {
         public int Capacity { get; set; } = 1000;
         public ChannelFullMode FullMode { get; set; } = ChannelFullMode.Wait;
-        public BackpressureStrategy BackpressureStrategy { get; set; } = BackpressureStrategy.Wait;
         public bool SingleReader { get; set; } = false;
         public bool SingleWriter { get; set; } = false;
         public bool AllowSynchronousContinuations { get; set; } = false;
-        public bool EnableCustomBackpressure { get; set; } = false;
         public bool EnableMonitoring { get; set; } = true;
         public TimeSpan MonitoringInterval { get; set; } = TimeSpan.FromSeconds(10);
         public double HighWatermark { get; set; } = 80.0; // Percent
@@ -620,15 +472,7 @@ namespace XStateNet.Distributed.Channels
         Wait,
         DropOldest,
         DropNewest,
-        Reject
-    }
-
-    public enum BackpressureStrategy
-    {
-        Wait,
-        Drop,
-        Throttle,
-        Redirect
+        Reject // Note: Reject is not a standard BoundedChannelFullMode, custom handling would be needed if this is desired.
     }
 
     public class ChannelStatistics

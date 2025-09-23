@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -14,7 +15,7 @@ namespace SemiStandard.Simulator.Wpf;
 public partial class UmlTimingDiagramWindow : Window
 {
     private readonly DispatcherTimer _updateTimer;
-    private readonly Dictionary<string, SwimmingLane> _lanes = new();
+    private readonly ConcurrentDictionary<string, SwimmingLane> _lanes = new();
     private readonly List<StateTransition> _transitions = new();
     private double _pixelsPerSecond = 20;
     private double _timeWindowSeconds = 120; // Increased for better visibility
@@ -31,7 +32,7 @@ public partial class UmlTimingDiagramWindow : Window
         public List<StateSegment> Segments { get; set; } = new();
         public Border HeaderControl { get; set; } = null!;
         public Canvas LaneCanvas { get; set; } = null!;
-        public Dictionary<string, double> StateYLevels { get; set; } = new();
+        public ConcurrentDictionary<string, double> StateYLevels { get; set; } = new();
         public string[] PossibleStates { get; set; } = Array.Empty<string>();
     }
     
@@ -53,7 +54,7 @@ public partial class UmlTimingDiagramWindow : Window
         public DateTime Timestamp { get; set; }
     }
     
-    public UmlTimingDiagramWindow(Dictionary<string, StateMachine>? stateMachines = null)
+    public UmlTimingDiagramWindow(ConcurrentDictionary<string, StateMachine>? stateMachines = null)
     {
         InitializeComponent();
         
@@ -86,9 +87,9 @@ public partial class UmlTimingDiagramWindow : Window
         _updateTimer.Start();
     }
     
-    private Dictionary<string, string[]> GetStateMachineStates()
+    private ConcurrentDictionary<string, string[]> GetStateMachineStates()
     {
-        var stateMachineDefinitions = new Dictionary<string, string[]>();
+        var stateMachineDefinitions = new ConcurrentDictionary<string, string[]>();
         var scripts = StateMachineDefinitions.GetStateMachineScripts();
         
         foreach (var kvp in scripts)
@@ -647,7 +648,7 @@ public partial class UmlTimingDiagramWindow : Window
         }
     }
     
-    private void ConnectToStateMachines(Dictionary<string, StateMachine> stateMachines)
+    private void ConnectToStateMachines(ConcurrentDictionary<string, StateMachine> stateMachines)
     {
         System.Diagnostics.Debug.WriteLine($"[UML_TIMING] ConnectToStateMachines called with {stateMachines.Count} machines");
         System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Available lanes: {string.Join(", ", _lanes.Keys)}");

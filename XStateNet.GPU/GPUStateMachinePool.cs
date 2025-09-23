@@ -235,7 +235,7 @@ namespace XStateNet.GPU
         /// <summary>
         /// Get statistics about state distribution
         /// </summary>
-        public async Task<Dictionary<string, int>> GetStateDistributionAsync()
+        public async Task<ConcurrentDictionary<string, int>> GetStateDistributionAsync()
         {
             // Clear histogram
             _stateHistogram.MemSetToZero();
@@ -253,7 +253,7 @@ namespace XStateNet.GPU
             _stateHistogram.CopyToCPU(histogram);
 
             // Convert to dictionary
-            var result = new Dictionary<string, int>();
+            var result = new ConcurrentDictionary<string, int>();
             for (int i = 0; i < _definition.StateCount; i++)
             {
                 if (histogram[i] > 0)

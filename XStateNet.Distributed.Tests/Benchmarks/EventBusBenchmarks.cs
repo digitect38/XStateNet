@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -302,7 +303,7 @@ namespace XStateNet.Distributed.Tests.Benchmarks
                 tasks[i] = Task.Run(async () =>
                 {
                     await _standardEventBus.PublishEventAsync($"target-{index}", $"EVENT_{index}",
-                        new Dictionary<string, object> { ["value"] = index, ["timestamp"] = DateTime.UtcNow });
+                        new ConcurrentDictionary<string, object> { ["value"] = index, ["timestamp"] = DateTime.UtcNow });
                 });
             }
             Task.WaitAll(tasks);
@@ -318,7 +319,7 @@ namespace XStateNet.Distributed.Tests.Benchmarks
                 tasks[i] = Task.Run(async () =>
                 {
                     await _optimizedEventBus.PublishEventAsync($"target-{index}", $"EVENT_{index}",
-                        new Dictionary<string, object> { ["value"] = index, ["timestamp"] = DateTime.UtcNow });
+                        new ConcurrentDictionary<string, object> { ["value"] = index, ["timestamp"] = DateTime.UtcNow });
                 });
             }
             Task.WaitAll(tasks);

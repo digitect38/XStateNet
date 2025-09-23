@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -321,7 +322,7 @@ namespace XStateNet.Semi.Testing
             await RunTest("S2F41_REMOTE_COMMAND", async () =>
             {
                 // Send remote command
-                var s2f41 = SecsMessageLibrary.S2F41("START", new Dictionary<string, SecsItem>
+                var s2f41 = SecsMessageLibrary.S2F41("START", new ConcurrentDictionary<string, SecsItem>
                 {
                     ["PPID"] = new SecsAscii("RECIPE001"),
                     ["LOTID"] = new SecsAscii("LOT123")

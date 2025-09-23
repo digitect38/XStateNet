@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -41,13 +42,13 @@ namespace XStateNet.Distributed.Metrics
         private readonly MetricServer? _metricServer;
 
         // Performance optimization: pre-allocated label values
-        private readonly Dictionary<string, string[]> _labelCache;
+        private readonly ConcurrentDictionary<string, string[]> _labelCache;
         private readonly ReaderWriterLockSlim _labelCacheLock;
 
         public PrometheusMetricsCollector(PrometheusMetricsOptions options)
         {
             _registry = options.UseDefaultRegistry ? Prometheus.Metrics.DefaultRegistry : new CollectorRegistry();
-            _labelCache = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            _labelCache = new ConcurrentDictionary<string, string[]>(StringComparer.Ordinal);
             _labelCacheLock = new ReaderWriterLockSlim();
 
             var factory = options.UseDefaultRegistry ? Prometheus.Metrics.WithCustomRegistry(_registry) : Prometheus.Metrics.WithCustomRegistry(_registry);

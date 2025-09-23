@@ -19,6 +19,7 @@ using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 using XStateNet.Semi.Testing;
 using XStateNet;
+using System.Collections.Concurrent;
 
 namespace SemiStandard.Simulator.Wpf;
 
@@ -47,8 +48,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _messageErrors;
     
     // Real XStateNet state machines
-    private Dictionary<string, StateMachine> _stateMachines = new();
-    private Dictionary<string, string> _currentStates = new();
+    private ConcurrentDictionary<string, StateMachine> _stateMachines = new();
+    private ConcurrentDictionary<string, string> _currentStates = new();
     
     // Message rate chart data (removed LiveCharts series)
     

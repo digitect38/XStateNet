@@ -26,6 +26,7 @@ using SecsMessageLibrary = XStateNet.Semi.Secs.SecsMessageLibrary;
 using HsmsMessage = XStateNet.Semi.Transport.HsmsMessage;
 using HsmsMessageType = XStateNet.Semi.Transport.HsmsMessageType;
 using HsmsConnection = XStateNet.Semi.Transport.HsmsConnection;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Semi.Testing
 {
@@ -37,11 +38,11 @@ namespace XStateNet.Semi.Testing
         private HsmsConnection? _connection;
         private readonly IPEndPoint _endpoint;
         private readonly ILogger<EquipmentSimulator>? _logger;
-        private readonly Dictionary<string, Func<SecsMessage, Task<SecsMessage>>> _messageHandlers = new();
-        private readonly Dictionary<uint, object> _statusVariables = new();
-        private readonly Dictionary<uint, object> _equipmentConstants = new();
-        private readonly Dictionary<uint, AlarmInfo> _alarms = new();
-        private readonly Dictionary<uint, EventInfo> _events = new();
+        private readonly ConcurrentDictionary<string, Func<SecsMessage, Task<SecsMessage>>> _messageHandlers = new();
+        private readonly ConcurrentDictionary<uint, object> _statusVariables = new();
+        private readonly ConcurrentDictionary<uint, object> _equipmentConstants = new();
+        private readonly ConcurrentDictionary<uint, AlarmInfo> _alarms = new();
+        private readonly ConcurrentDictionary<uint, EventInfo> _events = new();
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _messageProcessingTask;
         private bool _disposed;

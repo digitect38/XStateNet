@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,11 +16,11 @@ namespace XStateNet.GPU.Integration
     public class XStateNetGPUBridge : IDisposable
     {
         private readonly GPUStateMachinePool _gpuPool;
-        private readonly Dictionary<int, StateMachine> _cpuMachines;
+        private readonly ConcurrentDictionary<int, StateMachine> _cpuMachines;
         private readonly string _machineDefinitionJson;
         private GPUStateMachineDefinition _gpuDefinition;
-        private Dictionary<string, int> _stateNameToId;
-        private Dictionary<string, int> _eventNameToId;
+        private ConcurrentDictionary<string, int> _stateNameToId;
+        private ConcurrentDictionary<string, int> _eventNameToId;
         private bool _disposed;
 
         public int InstanceCount => _gpuPool?.InstanceCount ?? 0;
@@ -28,9 +29,9 @@ namespace XStateNet.GPU.Integration
         {
             _machineDefinitionJson = machineDefinitionJson;
             _gpuPool = new GPUStateMachinePool();
-            _cpuMachines = new Dictionary<int, StateMachine>();
-            _stateNameToId = new Dictionary<string, int>();
-            _eventNameToId = new Dictionary<string, int>();
+            _cpuMachines = new ConcurrentDictionary<int, StateMachine>();
+            _stateNameToId = new ConcurrentDictionary<string, int>();
+            _eventNameToId = new ConcurrentDictionary<string, int>();
         }
 
         /// <summary>
@@ -228,7 +229,7 @@ namespace XStateNet.GPU.Integration
         /// <summary>
         /// Get state distribution across all instances
         /// </summary>
-        public async Task<Dictionary<string, int>> GetStateDistributionAsync()
+        public async Task<ConcurrentDictionary<string, int>> GetStateDistributionAsync()
         {
             return await _gpuPool.GetStateDistributionAsync();
         }

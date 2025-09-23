@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -17,7 +18,7 @@ public interface IStateMachine : IDisposable
     /// <summary>
     /// Gets or sets the context map for storing data
     /// </summary>
-    Dictionary<string, object?>? ContextMap { get; set; }
+    ConcurrentDictionary<string, object?>? ContextMap { get; set; }
 
     /// <summary>
     /// Gets the root state of the state machine
@@ -28,13 +29,13 @@ public interface IStateMachine : IDisposable
     /// Gets whether the state machine is running
     /// </summary>
     bool IsRunning { get; }
-
+    
     /// <summary>
     /// Starts the state machine (DEPRECATED - Use StartAsync instead)
     /// </summary>
     [Obsolete("Use StartAsync() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
     IStateMachine Start();
-
+    
     /// <summary>
     /// Starts the state machine asynchronously and returns the initial state
     /// </summary>

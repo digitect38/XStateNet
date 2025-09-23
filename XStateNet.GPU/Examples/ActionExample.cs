@@ -189,7 +189,7 @@ namespace XStateNet.GPU.Examples
             Console.WriteLine($"\nAction Log Summary:");
             Console.WriteLine($"Total actions executed: {_actionLog.Count}");
 
-            var actionCounts = new System.Collections.Generic.Dictionary<string, int>();
+            var actionCounts = new ConcurrentDictionary<string, int>();
             foreach (var log in _actionLog)
             {
                 var actionType = log.Substring(log.LastIndexOf(']') + 2);

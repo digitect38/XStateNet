@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -21,26 +23,24 @@ namespace XStateV5_Test.AdvancedFeatures;
 public class UnitTest_Activities : IDisposable
 {
     private StateMachine? _stateMachine;
-    private readonly List<string> _activityLog;
-    private readonly Dictionary<string, CancellationTokenSource> _activityTokens;
-    private readonly Dictionary<string, int> _activityCounters;
+    private readonly ConcurrentBag<string> _activityLog;
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _activityTokens;
+    private readonly ConcurrentDictionary<string, int> _activityCounters;
     private ActionMap _actions;
     private ActivityMap _activities;
     private GuardMap _guards;
 
     public UnitTest_Activities()
     {
-        _activityLog = new List<string>();
-        _activityTokens = new Dictionary<string, CancellationTokenSource>();
-        _activityCounters = new Dictionary<string, int>();
+        _activityLog = new ConcurrentBag<string>();
+        _activityTokens = new ConcurrentDictionary<string, CancellationTokenSource>();
+        _activityCounters = new ConcurrentDictionary<string, int>();
 
         // Initialize action map
-        _actions = new ActionMap
-        {
-            ["logAction"] = new List<NamedAction> { new NamedAction("logAction", (sm) => {
-                _activityLog.Add("action:logAction");
-            }) }
-        };
+        _actions = new ActionMap();
+        _actions.SetActions("logAction", new List<NamedAction> { new NamedAction("logAction", (sm) => {
+            _activityLog.Add("action:logAction");
+        }) });
 
         // Initialize activity map - Activities should return a cleanup function
         _activities = new ActivityMap
@@ -49,16 +49,16 @@ public class UnitTest_Activities : IDisposable
             {
                 _activityLog.Add("start:monitorActivity");
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                _activityTokens["monitorActivity"] = cts;
-                _activityCounters["monitorActivity"] = 0;
+                _activityTokens.TryAdd("monitorActivity", cts);
+                _activityCounters.TryAdd("monitorActivity", 0);
 
                 // Simulate continuous monitoring
                 Task.Run(async () =>
                 {
                     while (!cts.Token.IsCancellationRequested)
                     {
-                        _activityCounters["monitorActivity"]++;
-                        _activityLog.Add($"tick:monitorActivity:{_activityCounters["monitorActivity"]}");
+                        var count = _activityCounters.AddOrUpdate("monitorActivity", 1, (k, v) => v + 1);
+                        _activityLog.Add($"tick:monitorActivity:{count}");
                         await Task.Delay(100, cts.Token);
                     }
                 }, cts.Token);
@@ -69,7 +69,7 @@ public class UnitTest_Activities : IDisposable
                     _activityLog.Add("stop:monitorActivity");
                     cts.Cancel();
                     cts.Dispose();
-                    _activityTokens.Remove("monitorActivity");
+                    _activityTokens.TryRemove("monitorActivity", out _);
                 };
             }),
 
@@ -77,15 +77,15 @@ public class UnitTest_Activities : IDisposable
             {
                 _activityLog.Add("start:pollingActivity");
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                _activityTokens["pollingActivity"] = cts;
-                _activityCounters["pollingActivity"] = 0;
+                _activityTokens.TryAdd("pollingActivity", cts);
+                _activityCounters.TryAdd("pollingActivity", 0);
 
                 Task.Run(async () =>
                 {
                     while (!cts.Token.IsCancellationRequested)
                     {
-                        _activityCounters["pollingActivity"]++;
-                        _activityLog.Add($"poll:pollingActivity:{_activityCounters["pollingActivity"]}");
+                        var count = _activityCounters.AddOrUpdate("pollingActivity", 1, (k, v) => v + 1);
+                        _activityLog.Add($"poll:pollingActivity:{count}");
                         await Task.Delay(150, cts.Token);
                     }
                 }, cts.Token);
@@ -95,7 +95,7 @@ public class UnitTest_Activities : IDisposable
                     _activityLog.Add("stop:pollingActivity");
                     cts.Cancel();
                     cts.Dispose();
-                    _activityTokens.Remove("pollingActivity");
+                    _activityTokens.TryRemove("pollingActivity", out _);
                 };
             }),
 
@@ -226,11 +226,12 @@ public class UnitTest_Activities : IDisposable
 
         // Assert
         Assert.Contains("start:monitorActivity", _activityLog);
-        Assert.True(_activityCounters["monitorActivity"] >= 3,
-            $"Expected at least 3 ticks, but got {_activityCounters["monitorActivity"]}");
+        Assert.True(_activityCounters.TryGetValue("monitorActivity", out var monitorCount) && monitorCount >= 3,
+            $"Expected at least 3 ticks, but got {monitorCount}");
 
         // Verify continuous execution
-        for (int i = 1; i <= _activityCounters["monitorActivity"]; i++)
+        _activityCounters.TryGetValue("monitorActivity", out var activityCount);
+        for (int i = 1; i <= activityCount; i++)
         {
             Assert.Contains($"tick:monitorActivity:{i}", _activityLog);
         }
@@ -268,8 +269,8 @@ public class UnitTest_Activities : IDisposable
         Assert.Contains("start:loggingActivity", _activityLog);
 
         // All activities should be running
-        Assert.True(_activityCounters["monitorActivity"] >= 2);
-        Assert.True(_activityCounters["pollingActivity"] >= 1);
+        Assert.True(_activityCounters.TryGetValue("monitorActivity", out var monitorCount2) && monitorCount2 >= 2);
+        Assert.True(_activityCounters.TryGetValue("pollingActivity", out var pollingCount) && pollingCount >= 1);
         Assert.Contains("log:loggingActivity:active", _activityLog);
     }
 
@@ -380,8 +381,8 @@ public class UnitTest_Activities : IDisposable
         // Assert - Both parallel activities should be running
         Assert.Contains("start:monitorActivity", _activityLog);
         Assert.Contains("start:pollingActivity", _activityLog);
-        Assert.True(_activityCounters["monitorActivity"] >= 1);
-        Assert.True(_activityCounters["pollingActivity"] >= 1);
+        Assert.True(_activityCounters.TryGetValue("monitorActivity", out var monitorCount3) && monitorCount3 >= 1);
+        Assert.True(_activityCounters.TryGetValue("pollingActivity", out var pollingCount2) && pollingCount2 >= 1);
 
         // Stop all
         _stateMachine.Send("STOP");
@@ -442,12 +443,12 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _actions["updateValue"] = new List<NamedAction> {
+        _actions.SetActions("updateValue", new List<NamedAction> {
             new NamedAction("updateValue", (sm) => {
                 if (sm.ContextMap != null)
                     sm.ContextMap["value"] = 100;
             })
-        };
+        });
 
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
 
@@ -555,27 +556,27 @@ public class UnitTest_Activities : IDisposable
         // Act - First entry
         _stateMachine.Send("START");
         Thread.Sleep(150);
-        var firstCount = _activityCounters["monitorActivity"];
+        _activityCounters.TryGetValue("monitorActivity", out var firstCount);
 
         // Exit
         _stateMachine.Send("STOP");
         Thread.Sleep(50);
 
         // Clear counter for second entry
-        _activityCounters["monitorActivity"] = 0;
+        _activityCounters.AddOrUpdate("monitorActivity", 0, (k, v) => 0);
 
         // Re-enter
         _stateMachine.Send("START");
         Thread.Sleep(150);
-        var secondCount = _activityCounters["monitorActivity"];
+        _activityCounters.TryGetValue("monitorActivity", out var secondCount);
 
         // Assert
         Assert.True(firstCount >= 1, "Activity should run on first entry");
         Assert.True(secondCount >= 1, "Activity should restart on re-entry");
 
         // Check proper start/stop sequence
-        var startCount = _activityLog.FindAll(x => x == "start:monitorActivity").Count;
-        var stopCount = _activityLog.FindAll(x => x == "stop:monitorActivity").Count;
+        var startCount = _activityLog.Where(x => x == "start:monitorActivity").Count();
+        var stopCount = _activityLog.Where(x => x == "stop:monitorActivity").Count();
 
         Assert.Equal(2, startCount); // Started twice
         Assert.Equal(1, stopCount);  // Stopped once (still running after second start)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 using XStateNet.GPU.Integration;
@@ -10,7 +11,7 @@ namespace XStateNet.GPU.Examples
     /// </summary>
     public class XStateNetGPUExample
     {
-        private static int GetOrDefault(System.Collections.Generic.Dictionary<string, int> dict, string key)
+        private static int GetOrDefault(ConcurrentDictionary<string, int> dict, string key)
         {
             return dict.ContainsKey(key) ? dict[key] : 0;
         }

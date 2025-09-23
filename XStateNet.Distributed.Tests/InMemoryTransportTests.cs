@@ -6,6 +6,7 @@ using XStateNet.Distributed.Core;
 using XStateNet.Distributed.Transports;
 using XStateNet.Distributed.Tests.TestHelpers;
 using Xunit;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests
 {
@@ -170,14 +171,14 @@ namespace XStateNet.Distributed.Tests
             {
                 Id = "node1",
                 Address = "local://node1",
-                Metadata = new Dictionary<string, string> { ["type"] = "test" }
+                Metadata = new ConcurrentDictionary<string, string> { ["type"] = "test" }
             });
             
             await transport2.RegisterAsync(new StateMachineEndpoint
             {
                 Id = "node2",
                 Address = "local://node2",
-                Metadata = new Dictionary<string, string> { ["type"] = "test" }
+                Metadata = new ConcurrentDictionary<string, string> { ["type"] = "test" }
             });
             
             // Act

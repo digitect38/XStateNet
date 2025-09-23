@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -79,12 +80,12 @@ namespace XStateNet.Distributed.Kubernetes
                                     OpenAPIV3Schema = new V1JSONSchemaProps
                                     {
                                         Type = "object",
-                                        Properties = new Dictionary<string, V1JSONSchemaProps>
+                                        Properties = new ConcurrentDictionary<string, V1JSONSchemaProps>
                                         {
                                             ["spec"] = new V1JSONSchemaProps
                                             {
                                                 Type = "object",
-                                                Properties = new Dictionary<string, V1JSONSchemaProps>
+                                                Properties = new ConcurrentDictionary<string, V1JSONSchemaProps>
                                                 {
                                                     ["definition"] = new V1JSONSchemaProps { Type = "string" },
                                                     ["replicas"] = new V1JSONSchemaProps { Type = "integer", DefaultProperty = 1 },
@@ -92,7 +93,7 @@ namespace XStateNet.Distributed.Kubernetes
                                                     ["resources"] = new V1JSONSchemaProps
                                                     {
                                                         Type = "object",
-                                                        Properties = new Dictionary<string, V1JSONSchemaProps>
+                                                        Properties = new ConcurrentDictionary<string, V1JSONSchemaProps>
                                                         {
                                                             ["cpu"] = new V1JSONSchemaProps { Type = "string" },
                                                             ["memory"] = new V1JSONSchemaProps { Type = "string" }
@@ -106,7 +107,7 @@ namespace XStateNet.Distributed.Kubernetes
                                                     ["persistence"] = new V1JSONSchemaProps
                                                     {
                                                         Type = "object",
-                                                        Properties = new Dictionary<string, V1JSONSchemaProps>
+                                                        Properties = new ConcurrentDictionary<string, V1JSONSchemaProps>
                                                         {
                                                             ["enabled"] = new V1JSONSchemaProps { Type = "boolean" },
                                                             ["storageClass"] = new V1JSONSchemaProps { Type = "string" },
@@ -118,7 +119,7 @@ namespace XStateNet.Distributed.Kubernetes
                                             ["status"] = new V1JSONSchemaProps
                                             {
                                                 Type = "object",
-                                                Properties = new Dictionary<string, V1JSONSchemaProps>
+                                                Properties = new ConcurrentDictionary<string, V1JSONSchemaProps>
                                                 {
                                                     ["phase"] = new V1JSONSchemaProps { Type = "string" },
                                                     ["readyReplicas"] = new V1JSONSchemaProps { Type = "integer" },
@@ -258,7 +259,7 @@ namespace XStateNet.Distributed.Kubernetes
                 {
                     Name = $"sm-{resource.Metadata.Name}",
                     NamespaceProperty = _namespace,
-                    Labels = new Dictionary<string, string>
+                    Labels = new ConcurrentDictionary<string, string>
                     {
                         ["app"] = "xstatenet",
                         ["statemachine"] = resource.Metadata.Name,
@@ -270,7 +271,7 @@ namespace XStateNet.Distributed.Kubernetes
                     Replicas = resource.Spec.Replicas,
                     Selector = new V1LabelSelector
                     {
-                        MatchLabels = new Dictionary<string, string>
+                        MatchLabels = new ConcurrentDictionary<string, string>
                         {
                             ["statemachine"] = resource.Metadata.Name
                         }
@@ -279,7 +280,7 @@ namespace XStateNet.Distributed.Kubernetes
                     {
                         Metadata = new V1ObjectMeta
                         {
-                            Labels = new Dictionary<string, string>
+                            Labels = new ConcurrentDictionary<string, string>
                             {
                                 ["app"] = "xstatenet",
                                 ["statemachine"] = resource.Metadata.Name
@@ -308,12 +309,12 @@ namespace XStateNet.Distributed.Kubernetes
                                     },
                                     Resources = new V1ResourceRequirements
                                     {
-                                        Requests = new Dictionary<string, ResourceQuantity>
+                                        Requests = new ConcurrentDictionary<string, ResourceQuantity>
                                         {
                                             ["cpu"] = new ResourceQuantity(resource.Spec.Resources?.Cpu ?? "100m"),
                                             ["memory"] = new ResourceQuantity(resource.Spec.Resources?.Memory ?? "128Mi")
                                         },
-                                        Limits = new Dictionary<string, ResourceQuantity>
+                                        Limits = new ConcurrentDictionary<string, ResourceQuantity>
                                         {
                                             ["cpu"] = new ResourceQuantity(resource.Spec.Resources?.Cpu ?? "500m"),
                                             ["memory"] = new ResourceQuantity(resource.Spec.Resources?.Memory ?? "512Mi")
@@ -421,7 +422,7 @@ namespace XStateNet.Distributed.Kubernetes
                     {
                         Name = serviceName,
                         NamespaceProperty = _namespace,
-                        Labels = new Dictionary<string, string>
+                        Labels = new ConcurrentDictionary<string, string>
                         {
                             ["app"] = "xstatenet",
                             ["statemachine"] = resource.Metadata.Name
@@ -429,7 +430,7 @@ namespace XStateNet.Distributed.Kubernetes
                     },
                     Spec = new V1ServiceSpec
                     {
-                        Selector = new Dictionary<string, string>
+                        Selector = new ConcurrentDictionary<string, string>
                         {
                             ["statemachine"] = resource.Metadata.Name
                         },
@@ -459,7 +460,7 @@ namespace XStateNet.Distributed.Kubernetes
                     Name = configMapName,
                     NamespaceProperty = _namespace
                 },
-                Data = new Dictionary<string, string>
+                Data = new ConcurrentDictionary<string, string>
                 {
                     ["definition.json"] = resource.Spec.Definition,
                     ["config.json"] = System.Text.Json.JsonSerializer.Serialize(resource.Spec.Config)
@@ -491,7 +492,7 @@ namespace XStateNet.Distributed.Kubernetes
                     StorageClassName = resource.Spec.Persistence?.StorageClass,
                     Resources = new V1VolumeResourceRequirements
                     {
-                        Requests = new Dictionary<string, ResourceQuantity>
+                        Requests = new ConcurrentDictionary<string, ResourceQuantity>
                         {
                             ["storage"] = new ResourceQuantity(resource.Spec.Persistence?.Size ?? "1Gi")
                         }
@@ -570,7 +571,7 @@ namespace XStateNet.Distributed.Kubernetes
     {
         public string Definition { get; set; } = string.Empty;
         public int Replicas { get; set; } = 1;
-        public Dictionary<string, object> Config { get; set; } = new();
+        public ConcurrentDictionary<string, object> Config { get; set; } = new();
         public ResourceRequirements? Resources { get; set; }
         public string Transport { get; set; } = "zeromq";
         public PersistenceConfig? Persistence { get; set; }

@@ -366,7 +366,7 @@ namespace XStateNet.Distributed.Channels
     /// </summary>
     public sealed class MultiplexingChannelManager<T> : IMultiplexingChannelManager<T>
     {
-        private readonly Dictionary<string, IChannelManager<T>> _channels;
+        private readonly ConcurrentDictionary<string, IChannelManager<T>> _channels;
         private readonly MultiplexingOptions _options;
         private readonly ILogger<MultiplexingChannelManager<T>>? _logger;
         private readonly SemaphoreSlim _semaphore;
@@ -381,7 +381,7 @@ namespace XStateNet.Distributed.Channels
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _logger = logger;
-            _channels = new Dictionary<string, IChannelManager<T>>();
+            _channels = new ConcurrentDictionary<string, IChannelManager<T>>();
             _channelKeys = new List<string>();
             _semaphore = new SemaphoreSlim(1, 1);
 
@@ -404,7 +404,7 @@ namespace XStateNet.Distributed.Channels
 
         public bool RemoveChannel(string name)
         {
-            if (_channels.Remove(name))
+            if (_channels.TryRemove(name, out _))
             {
                 _channelKeys.Remove(name);
                 _logger?.LogDebug("Removed channel '{ChannelName}' from multiplexer", name);

@@ -284,7 +284,7 @@ public class ObjectPool<T> where T : class
 /// </summary>
 public class StateLookupOptimizer
 {
-    private readonly Dictionary<string, StateNode> _lookupCache = new();
+    private readonly ConcurrentDictionary<string, StateNode> _lookupCache = new();
     private readonly StateMachine _machine;
     
     public StateLookupOptimizer(StateMachine machine)

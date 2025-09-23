@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -43,7 +44,7 @@ namespace XStateNet.Distributed.Orchestration
     {
         public string WorkflowId { get; set; } = string.Empty;
         public string Definition { get; set; } = string.Empty;
-        public Dictionary<string, object?> Context { get; set; } = new();
+        public ConcurrentDictionary<string, object?> Context { get; set; } = new();
         public string CurrentStep { get; set; } = string.Empty;
         public WorkflowStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -61,7 +62,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<SagaStep> Steps { get; set; } = new();
         public int CurrentStepIndex { get; set; }
         public SagaStatus Status { get; set; }
-        public Dictionary<string, object?> Context { get; set; } = new();
+        public ConcurrentDictionary<string, object?> Context { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public List<CompensationRecord> CompensationLog { get; set; } = new();
@@ -91,7 +92,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<string> MachineIds { get; set; } = new();
         public GroupBehavior Behavior { get; set; }
         public DateTime CreatedAt { get; set; }
-        public Dictionary<string, object?> Metadata { get; set; } = new();
+        public ConcurrentDictionary<string, object?> Metadata { get; set; } = new();
     }
 
     public enum WorkflowStatus

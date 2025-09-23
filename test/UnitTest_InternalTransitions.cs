@@ -3,6 +3,7 @@ using Xunit;
 using System;
 using System.Collections.Generic;
 using XStateNet;
+using System.Collections.Concurrent;
 namespace ActorModelTests;
 
 public class UnitTest_InternalTransitions : IDisposable
@@ -13,59 +14,57 @@ public class UnitTest_InternalTransitions : IDisposable
     private int _entryCount;
     private int _exitCount;
     private int _actionCount;
-    private List<string> _actionLog;
-    private Dictionary<string, int> _contextValues;
+    private ConcurrentBag<string> _actionLog;
+    private ConcurrentDictionary<string, int> _contextValues;
     
     public UnitTest_InternalTransitions()
     {
         _entryCount = 0;
         _exitCount = 0;
         _actionCount = 0;
-        _actionLog = new List<string>();
-        _contextValues = new Dictionary<string, int> { ["counter"] = 0 };
+        _actionLog = new ConcurrentBag<string>();
+        _contextValues = new ConcurrentDictionary<string, int> { ["counter"] = 0 };
         
-        _actions = new ActionMap
-        {
-            ["entryAction"] = new List<NamedAction> { new NamedAction("entryAction", (sm) => {
-                _entryCount++;
-                _actionLog.Add("entry");
-            }) },
-            ["exitAction"] = new List<NamedAction> { new NamedAction("exitAction", (sm) => {
-                _exitCount++;
-                _actionLog.Add("exit");
-            }) },
-            ["incrementCounter"] = new List<NamedAction> { new NamedAction("incrementCounter", (sm) => {
-                _actionCount++;
-                var currentValue = sm.ContextMap!["counter"];
-                int counter = currentValue is Newtonsoft.Json.Linq.JValue jval 
-                    ? jval.ToObject<int>() 
-                    : Convert.ToInt32(currentValue ?? 0);
-                sm.ContextMap["counter"] = counter + 1;
-                _contextValues["counter"] = counter + 1;
-                _actionLog.Add($"increment:{sm.ContextMap["counter"]}");
-            }) },
-            ["updateValue"] = new List<NamedAction> { new NamedAction("updateValue", (sm) => {
-                sm.ContextMap!["value"] = "updated";
-                _actionLog.Add("update");
-            }) },
-            ["log"] = new List<NamedAction> { new NamedAction("log", (sm) => {
-                _actionLog.Add($"log:{sm.GetActiveStateString()}");
-            }) },
-            ["incrementInternal"] = new List<NamedAction> { new NamedAction("incrementInternal", (sm) => {
-                var currentValue = sm.ContextMap!["internalCount"];
-                int internalCount = currentValue is Newtonsoft.Json.Linq.JValue jval 
-                    ? jval.ToObject<int>() 
-                    : Convert.ToInt32(currentValue ?? 0);
-                sm.ContextMap["internalCount"] = internalCount + 1;
-            }) },
-            ["incrementExternal"] = new List<NamedAction> { new NamedAction("incrementExternal", (sm) => {
-                var currentValue = sm.ContextMap!["externalCount"];
-                int externalCount = currentValue is Newtonsoft.Json.Linq.JValue jval 
-                    ? jval.ToObject<int>() 
-                    : Convert.ToInt32(currentValue ?? 0);
-                sm.ContextMap["externalCount"] = externalCount + 1;
-            }) }
-        };
+        _actions = new ActionMap();
+        _actions.SetActions("entryAction", new List<NamedAction> { new NamedAction("entryAction", (sm) => {
+            _entryCount++;
+            _actionLog.Add("entry");
+        }) });
+        _actions.SetActions("exitAction", new List<NamedAction> { new NamedAction("exitAction", (sm) => {
+            _exitCount++;
+            _actionLog.Add("exit");
+        }) });
+        _actions.SetActions("incrementCounter", new List<NamedAction> { new NamedAction("incrementCounter", (sm) => {
+            _actionCount++;
+            var currentValue = sm.ContextMap!["counter"];
+            int counter = currentValue is Newtonsoft.Json.Linq.JValue jval
+                ? jval.ToObject<int>()
+                : Convert.ToInt32(currentValue ?? 0);
+            sm.ContextMap["counter"] = counter + 1;
+            _contextValues["counter"] = counter + 1;
+            _actionLog.Add($"increment:{sm.ContextMap["counter"]}");
+        }) });
+        _actions.SetActions("updateValue", new List<NamedAction> { new NamedAction("updateValue", (sm) => {
+            sm.ContextMap!["value"] = "updated";
+            _actionLog.Add("update");
+        }) });
+        _actions.SetActions("log", new List<NamedAction> { new NamedAction("log", (sm) => {
+            _actionLog.Add($"log:{sm.GetActiveStateString()}");
+        }) });
+        _actions.SetActions("incrementInternal", new List<NamedAction> { new NamedAction("incrementInternal", (sm) => {
+            var currentValue = sm.ContextMap!["internalCount"];
+            int internalCount = currentValue is Newtonsoft.Json.Linq.JValue jval
+                ? jval.ToObject<int>()
+                : Convert.ToInt32(currentValue ?? 0);
+            sm.ContextMap["internalCount"] = internalCount + 1;
+        }) });
+        _actions.SetActions("incrementExternal", new List<NamedAction> { new NamedAction("incrementExternal", (sm) => {
+            var currentValue = sm.ContextMap!["externalCount"];
+            int externalCount = currentValue is Newtonsoft.Json.Linq.JValue jval
+                ? jval.ToObject<int>()
+                : Convert.ToInt32(currentValue ?? 0);
+            sm.ContextMap["externalCount"] = externalCount + 1;
+        }) });
         
         _guards = new GuardMap
         {

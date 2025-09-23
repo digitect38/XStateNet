@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using XStateNet.Distributed.PubSub.FalseSharingOptimized;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests.PubSub
 {
@@ -144,7 +145,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             await detector.RunTest(1000, 2);
 
             // Test with different thread counts
-            var results = new Dictionary<int, double>();
+            var results = new ConcurrentDictionary<int, double>();
 
             for (int threads = 1; threads <= Environment.ProcessorCount; threads *= 2)
             {
@@ -527,7 +528,7 @@ namespace XStateNet.Distributed.Tests.PubSub
         private class SingleLockCounter
         {
             private readonly object _lock = new object();
-            private readonly Dictionary<string, int> _counters = new Dictionary<string, int>();
+            private readonly ConcurrentDictionary<string, int> _counters = new ConcurrentDictionary<string, int>();
 
             public void Increment(string key)
             {
@@ -543,16 +544,16 @@ namespace XStateNet.Distributed.Tests.PubSub
         private class StripedLockCounter
         {
             private readonly object[] _locks;
-            private readonly Dictionary<string, int>[] _counters;
+            private readonly ConcurrentDictionary<string, int>[] _counters;
 
             public StripedLockCounter(int stripeCount)
             {
                 _locks = new object[stripeCount];
-                _counters = new Dictionary<string, int>[stripeCount];
+                _counters = new ConcurrentDictionary<string, int>[stripeCount];
                 for (int i = 0; i < stripeCount; i++)
                 {
                     _locks[i] = new object();
-                    _counters[i] = new Dictionary<string, int>();
+                    _counters[i] = new ConcurrentDictionary<string, int>();
                 }
             }
 

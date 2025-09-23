@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
@@ -26,7 +27,7 @@ namespace XStateNet.GPU.Core
             public ComplexityLevel Level { get; set; }
             public bool GpuSuitable { get; set; }
             public List<string> Reasons { get; set; } = new List<string>();
-            public Dictionary<string, int> Metrics { get; set; } = new Dictionary<string, int>();
+            public ConcurrentDictionary<string, int> Metrics { get; set; } = new ConcurrentDictionary<string, int>();
 
             // Feature flags
             public bool HasHierarchicalStates { get; set; }

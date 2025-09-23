@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Xunit;
 using FluentAssertions;
 using XStateNet.Semi;
+using System.Collections.Concurrent;
 
 namespace SemiStandard.Tests;
 
@@ -75,14 +76,12 @@ public class E87CarrierManagementTests : IDisposable
         _management.RegisterLoadPort("LP1", "Load Port 1");
         var carrier = _management.CarrierArrived("CAR001", "LP1");
         
-        var slotMap = new Dictionary<int, SlotState>
-        {
-            { 1, SlotState.Present },
-            { 2, SlotState.Present },
-            { 3, SlotState.Empty },
-            { 4, SlotState.Empty },
-            { 5, SlotState.Present }
-        };
+        var slotMap = new ConcurrentDictionary<int, SlotState>();
+        slotMap.TryAdd(1, SlotState.Present);
+        slotMap.TryAdd(2, SlotState.Present);
+        slotMap.TryAdd(3, SlotState.Empty);
+        slotMap.TryAdd(4, SlotState.Empty);
+        slotMap.TryAdd(5, SlotState.Present);
         
         // Act
         _management.UpdateSlotMap("CAR001", slotMap);

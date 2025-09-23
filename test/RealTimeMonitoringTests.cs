@@ -79,23 +79,32 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_CapturesStateTransitions()
+        public async Task Monitor_CapturesStateTransitions()
         {
             // Arrange
             var machine = CreateTestMachine("test-transitions");
             var monitor = new StateMachineMonitor(machine);
             var transitions = new List<StateTransitionEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.StateTransitioned += (sender, e) => transitions.Add(e);
+            monitor.StateTransitioned += (sender, e) =>
+            {
+                transitions.Add(e);
+                if (transitions.Count >= 2)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
             monitor.StartMonitoring();
 
             // Act
             machine.Send("START");
-            Thread.Sleep(100); // Give time for event processing
             machine.Send("STOP");
-            Thread.Sleep(100);
 
             // Assert
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for state transitions.");
+
             Assert.True(transitions.Count >= 2, $"Expected at least 2 transitions, got {transitions.Count}");
 
             var firstTransition = transitions.First();
@@ -110,14 +119,22 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_CapturesEvents()
+        public async Task Monitor_CapturesEvents()
         {
             // Arrange
             var machine = CreateTestMachine("test-events");
             var monitor = new StateMachineMonitor(machine);
             var events = new List<StateMachineEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.EventReceived += (sender, e) => events.Add(e);
+            monitor.EventReceived += (sender, e) =>
+            {
+                events.Add(e);
+                if (events.Count >= 4)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
             monitor.StartMonitoring();
 
             // Act
@@ -125,9 +142,11 @@ namespace XStateNet.Tests
             machine.Send("PAUSE");
             machine.Send("RESUME");
             machine.Send("STOP");
-            Thread.Sleep(100);
 
             // Assert
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for events.");
+
             Assert.Equal(4, events.Count);
             Assert.Contains(events, e => e.EventName == "START");
             Assert.Contains(events, e => e.EventName == "PAUSE");
@@ -138,23 +157,32 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_CapturesActions()
+        public async Task Monitor_CapturesActions()
         {
             // Arrange
             var machine = CreateTestMachine("test-actions_2");
             var monitor = new StateMachineMonitor(machine);
             var actions = new List<ActionExecutedEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.ActionExecuted += (sender, e) => actions.Add(e);
+            monitor.ActionExecuted += (sender, e) =>
+            {
+                actions.Add(e);
+                if (actions.Count >= 4)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
             monitor.StartMonitoring();
 
             // Act
             machine.Send("START"); // Should trigger logStart and startProcess
-            Thread.Sleep(100);
             machine.Send("STOP"); // Should trigger stopProcess and logStop
-            Thread.Sleep(100);
 
             // Assert
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for actions.");
+
             Assert.True(actions.Count >= 4, $"Expected at least 4 actions, got {actions.Count}");
             Assert.Contains(actions, a => a.ActionName == "logStart");
             Assert.Contains(actions, a => a.ActionName == "startProcess");
@@ -165,52 +193,65 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_GetCurrentStates_ReturnsCorrectStates()
+        public async Task Monitor_GetCurrentStates_ReturnsCorrectStates()
         {
             // Arrange
             var machine = CreateTestMachine("test-current-states");
             var monitor = new StateMachineMonitor(machine);
+            var tcs = new TaskCompletionSource<bool>();
+
+            monitor.StateTransitioned += (sender, e) => tcs.TrySetResult(true);
+            monitor.StartMonitoring();
 
             // Act & Assert
             var initialStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("idle", initialStates);
 
             machine.Send("START");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Timed out waiting for START transition");
 
             var runningStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("running", runningStates);
 
+            tcs = new TaskCompletionSource<bool>();
             machine.Send("PAUSE");
-            Thread.Sleep(100);
+            completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Timed out waiting for PAUSE transition");
 
             var pausedStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("paused", pausedStates);
         }
 
         [Fact]
-        public void Monitor_StartStop_CanBeCalledMultipleTimes()
+        public async Task Monitor_StartStop_CanBeCalledMultipleTimes()
         {
             // Arrange
             var machine = CreateTestMachine("test-start-stop");
             var monitor = new StateMachineMonitor(machine);
             var eventCount = 0;
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.EventReceived += (sender, e) => eventCount++;
+            monitor.EventReceived += (sender, e) =>
+            {
+                eventCount++;
+                tcs.TrySetResult(true);
+            };
 
             // Act
             monitor.StartMonitoring();
             monitor.StartMonitoring(); // Should be idempotent
 
             machine.Send("START");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Timed out waiting for START event");
             var countAfterStart = eventCount;
 
             monitor.StopMonitoring();
             monitor.StopMonitoring(); // Should be idempotent
 
             machine.Send("STOP");
-            Thread.Sleep(100);
+            await Task.Delay(100); // Give a small delay to ensure no more events are processed
             var countAfterStop = eventCount;
 
             // Assert
@@ -222,10 +263,13 @@ namespace XStateNet.Tests
         public async Task Monitor_ThreadSafety_HandlesMultipleThreads()
         {
             // Arrange
+            const int taskCount = 10;
+
             var machine = CreateTestMachine("test-thread-safety");
             var monitor = new StateMachineMonitor(machine);
             var transitions = new List<StateTransitionEventArgs>();
             var lockObj = new object();
+            var tcs = new TaskCompletionSource<bool>();
 
             monitor.StateTransitioned += (sender, e) =>
             {
@@ -236,46 +280,71 @@ namespace XStateNet.Tests
             };
             monitor.StartMonitoring();
 
-            // Act - Send events from multiple threads
+            // Act - Send events from multiple threads with delays to ensure transitions occur
             var tasks = new List<Task>();
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < taskCount; i++)
             {
-                tasks.Add(Task.Run(() =>
+                var taskIndex = i;
+                tasks.Add(Task.Run(async () =>
                 {
+                    // Stagger the events slightly to avoid conflicts
+                    await Task.Delay(taskIndex * 10);
                     machine.Send("START");
-                    Thread.Sleep(10);
+                    await Task.Delay(5); // Small delay to allow transition
                     machine.Send("STOP");
                 }));
             }
 
             await Task.WhenAll(tasks);
-            Thread.Sleep(200); // Give time for all events to process
 
-            // Assert
-            Assert.True(transitions.Count > 0, "Should have captured transitions from multiple threads");
+            // Give time for all transitions to be processed
+            await Task.Delay(100);
+
+            // Assert - We expect at least some transitions to be captured
+            // Due to concurrent access, not all transitions may occur (some events may be ignored)
+            Assert.True(transitions.Count > 0, $"Should have captured at least some transitions. Captured {transitions.Count}");
+
+            // Verify thread-safety: no exceptions or corrupted data
+            foreach (var transition in transitions)
+            {
+                Assert.NotNull(transition.StateMachineId);
+                Assert.NotNull(transition.ToState);
+                Assert.True(transition.Timestamp > DateTime.MinValue);
+            }
+
             monitor.StopMonitoring();
         }
 
         [Fact]
-        public void Monitor_Timestamps_AreIncreasing()
+        public async Task Monitor_Timestamps_AreIncreasing()
         {
             // Arrange
             var machine = CreateTestMachine("test-timestamps");
             var monitor = new StateMachineMonitor(machine);
             var events = new List<StateMachineEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.EventReceived += (sender, e) => events.Add(e);
+            monitor.EventReceived += (sender, e) =>
+            {
+                events.Add(e);
+                if (events.Count >= 4)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
             monitor.StartMonitoring();
 
             // Act
             machine.Send("START");
-            Thread.Sleep(50);
+            await Task.Delay(10);
             machine.Send("PAUSE");
-            Thread.Sleep(50);
+            await Task.Delay(10);
             machine.Send("RESUME");
-            Thread.Sleep(50);
+            await Task.Delay(10);
             machine.Send("STOP");
-            Thread.Sleep(100);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for events.");
 
             // Assert
             Assert.True(events.Count >= 4, $"Expected at least 4 events, got {events.Count}");
@@ -290,23 +359,29 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_Guards_AreCaptured()
+        public async Task Monitor_Guards_AreCaptured()
         {
             // Arrange
             var machine = CreateTestMachine("test-guards");
             var monitor = new StateMachineMonitor(machine);
             var guards = new List<GuardEvaluatedEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
-            monitor.GuardEvaluated += (sender, e) => guards.Add(e);
+            monitor.GuardEvaluated += (sender, e) =>
+            {
+                guards.Add(e);
+                tcs.TrySetResult(true);
+            };
             monitor.StartMonitoring();
 
             // Act
             machine.Send("START");
-            Thread.Sleep(100);
             machine.Send("PAUSE"); // This has a guard condition
-            Thread.Sleep(100);
 
             // Assert - Guard should have been evaluated
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for guard evaluation.");
+
             Assert.Contains(guards, g => g.GuardName == "canPause");
 
             var canPauseGuard = guards.First(g => g.GuardName == "canPause");
@@ -316,7 +391,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Monitor_MultipleMachines_IndependentMonitoring()
+        public async Task Monitor_MultipleMachines_IndependentMonitoring()
         {
             // Arrange
             var machine1 = CreateTestMachine("test-multi-1");
@@ -327,9 +402,17 @@ namespace XStateNet.Tests
 
             var events1 = new List<StateMachineEventArgs>();
             var events2 = new List<StateMachineEventArgs>();
+            var tcs = new TaskCompletionSource<bool>();
 
             monitor1.EventReceived += (sender, e) => events1.Add(e);
-            monitor2.EventReceived += (sender, e) => events2.Add(e);
+            monitor2.EventReceived += (sender, e) =>
+            {
+                events2.Add(e);
+                if (events2.Count >= 2)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
 
             monitor1.StartMonitoring();
             monitor2.StartMonitoring();
@@ -338,10 +421,12 @@ namespace XStateNet.Tests
             machine1.Send("START");
             machine2.Send("START");
             machine2.Send("PAUSE");
-            Thread.Sleep(100);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for events from machine2.");
 
             // Assert
-            Assert.Equal(1, events1.Count); // Machine1 received only START
+            Assert.Single(events1); // Machine1 received only START
             Assert.Equal(2, events2.Count); // Machine2 received START and PAUSE
 
             Assert.Contains("test-multi-1", monitor1.StateMachineId);

@@ -205,7 +205,6 @@ namespace XStateNet.Distributed.Examples
             var channel = new BoundedChannelManager<string>("demo-channel", new CustomBoundedChannelOptions
             {
                 Capacity = 3,
-                BackpressureStrategy = BackpressureStrategy.Drop,
                 EnableMonitoring = true
             });
 
@@ -240,7 +239,6 @@ namespace XStateNet.Distributed.Examples
             var channel = new BoundedChannelManager<string>("pipeline", new CustomBoundedChannelOptions
             {
                 Capacity = 10,
-                BackpressureStrategy = BackpressureStrategy.Wait
             });
 
             var circuitBreaker = new CircuitBreaker("pipeline-cb", new CircuitBreakerOptions

@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using Xunit;
@@ -11,13 +14,77 @@ namespace InterMachineTests;
 public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
 {
     /// <summary>
+    /// Helper class for deterministic waiting in tests
+    /// </summary>
+    public static class TestHelpers
+    {
+        public static async Task WaitForConditionAsync(
+            Func<bool> condition,
+            int timeoutMs = 5000,
+            int pollIntervalMs = 10)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            while (!condition() && stopwatch.ElapsedMilliseconds < timeoutMs)
+            {
+                await Task.Delay(pollIntervalMs);
+            }
+
+            if (!condition())
+            {
+                throw new TimeoutException($"Condition not met within {timeoutMs}ms timeout");
+            }
+        }
+
+        public static async Task WaitForStateAsync(
+            ParentMachine parent,
+            string expectedState,
+            int timeoutMs = 5000)
+        {
+            await WaitForConditionAsync(
+                () => parent.GetCurrentState().Contains(expectedState),
+                timeoutMs);
+        }
+
+        public static async Task WaitForEventLogAsync(
+            ParentMachine parent,
+            string expectedLog,
+            int timeoutMs = 5000)
+        {
+            await WaitForConditionAsync(
+                () => parent.EventLog.Any(e => e.Contains(expectedLog)),
+                timeoutMs);
+        }
+
+        public static async Task WaitForEventLogAsync(
+            ParentMachine parent,
+            Func<string, bool> predicate,
+            int timeoutMs = 5000)
+        {
+            await WaitForConditionAsync(
+                () => parent.EventLog.Any(predicate),
+                timeoutMs);
+        }
+
+        public static async Task WaitForActorMessageAsync(
+            ActorSystem actorSystem,
+            string actorName,
+            string expectedMessage,
+            int timeoutMs = 5000)
+        {
+            // Wait for the message to appear in the actor system's message log
+            await WaitForConditionAsync(
+                () => actorSystem.MessageLog.Any(m => m.Contains($"-> {actorName}:") && m.Contains(expectedMessage)),
+                timeoutMs);
+        }
+    }
+    /// <summary>
     /// Parent state machine that coordinates child machines
     /// </summary>
     public class ParentMachine : IDisposable
     {
         private StateMachine _stateMachine = null!;
         private readonly List<ChildMachine> _children = new();
-        public List<string> EventLog { get; } = new();
+        public ConcurrentBag<string> EventLog { get; } = new();
         public string Id { get; }
         
         public ParentMachine(string id)
@@ -26,7 +93,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             InitializeStateMachine();
         }
         
-        private void InitializeStateMachine()
+        private async void InitializeStateMachine()
         {
             var jsonScript = $@"{{
                 'id': '{Id}',
@@ -88,7 +155,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             };
             
             _stateMachine = StateMachine.CreateFromScript(jsonScript, guidIsolate: true, actionMap);
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
         }
         
         public void AddChild(ChildMachine child)
@@ -306,9 +373,9 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
     /// </summary>
     public class ActorSystem : IDisposable
     {
-        private readonly Dictionary<string, StateMachine> _actors = new();
-        private readonly Dictionary<string, List<string>> _subscriptions = new();
-        public List<string> MessageLog { get; } = new();
+        private readonly ConcurrentDictionary<string, StateMachine> _actors = new();
+        private readonly ConcurrentDictionary<string, List<string>> _subscriptions = new();
+        public ConcurrentBag<string> MessageLog { get; } = new();
         
         public void RegisterActor(string actorId, StateMachine stateMachine)
         {
@@ -382,8 +449,10 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             
             // Act
             parent.Start();
-            await Task.Delay(1000); // Allow state transitions to complete
-            
+
+            // Wait for specific state transitions deterministically
+            await TestHelpers.WaitForStateAsync(parent, "complete");
+
             // Assert
             Assert.Contains("complete", parent.GetCurrentState());
             Assert.Contains("Parent: Starting all children", parent.EventLog);
@@ -416,12 +485,15 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             
             // Act
             parent.Start();
-            await Task.Delay(500);
-            
+
+            // Wait for error state and error log entry
+            await TestHelpers.WaitForStateAsync(parent, "error");
+            await TestHelpers.WaitForEventLogAsync(parent, $"errorChild_{testId} changed to error");
+
             // Assert
             Assert.Contains("error", parent.GetCurrentState());
             Assert.Contains("Parent: Stopping all children", parent.EventLog);
-            Assert.Contains(parent.EventLog, e => e.Contains("changed to error"));
+            Assert.Contains(parent.EventLog, e => e.Contains($"errorChild_{testId} changed to error"));
         }
         finally
         {
@@ -446,13 +518,15 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             
             // Act
             parent.Start();
-            await Task.Delay(600); // Wait longer for child transitions (100ms init + 200ms ready + processing)
-            
+
+            // Wait for error state
+            await TestHelpers.WaitForStateAsync(parent, "error");
             var errorState = parent.GetCurrentState();
-            
+
             parent.Reset();
-            await Task.Delay(100);
-            
+
+            // Wait for idle state after reset
+            await TestHelpers.WaitForStateAsync(parent, "idle");
             var resetState = parent.GetCurrentState();
             
             // Assert
@@ -485,10 +559,12 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             // Act
             actorSystem.RegisterActor("Producer", producer);
             actorSystem.RegisterActor("Consumer", consumer);
-            
+
             actorSystem.SendMessage("Producer", "Consumer", "TEST_MESSAGE");
-            await Task.Delay(100);
-            
+
+            // Wait for message to be received
+            await TestHelpers.WaitForActorMessageAsync(actorSystem, "Consumer", "TEST_MESSAGE");
+
             // Assert
             Assert.Contains("Producer -> Consumer: TEST_MESSAGE", actorSystem.MessageLog);
         }
@@ -524,8 +600,11 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             
             // Act
             actorSystem.Broadcast("Producer", "BROADCAST_MESSAGE");
-            await Task.Delay(100);
-            
+
+            // Wait for both consumers to receive the message
+            await TestHelpers.WaitForActorMessageAsync(actorSystem, "Consumer1", "BROADCAST_MESSAGE");
+            await TestHelpers.WaitForActorMessageAsync(actorSystem, "Consumer2", "BROADCAST_MESSAGE");
+
             // Assert
             Assert.Equal(2, actorSystem.GetSubscriberCount("Producer"));
             Assert.Contains("Producer -> Consumer1: BROADCAST_MESSAGE", actorSystem.MessageLog);
@@ -588,8 +667,17 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             
             // Act
             parent.Start();
-            await Task.Delay(2000); // Allow time for all children to complete (100ms init + 200ms ready delay per child)
-            
+
+            // Wait for all children to complete
+            await TestHelpers.WaitForStateAsync(parent, "complete");
+
+            // Also wait for all complete messages in log
+            for (int i = 1; i <= 5; i++)  // Fixed: Child IDs start from 1, not 0
+            {
+                var childId = $"child{i}_{testId}";
+                await TestHelpers.WaitForEventLogAsync(parent, $"{childId} changed to complete");
+            }
+
             // Assert - debug output if fails
             if (!children.All(c => c.IsComplete))
             {

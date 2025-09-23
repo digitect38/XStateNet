@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using XStateNet;
 using XStateNet.Semi.Transport;
 using XStateNet.Semi.Secs;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Semi.Testing
 {
@@ -20,11 +21,11 @@ namespace XStateNet.Semi.Testing
         private readonly ILogger<XStateEquipmentController>? _logger;
         private readonly IPEndPoint _endpoint;
         private HsmsConnection? _connection;
-        private readonly Dictionary<string, StateMachine> _stateMachines = new();
-        private readonly Dictionary<string, ActionMap> _actions = new();
-        private readonly Dictionary<string, GuardMap> _guards = new();
-        private readonly Dictionary<uint, object> _statusVariables = new();
-        private readonly Dictionary<uint, object> _equipmentConstants = new();
+        private readonly ConcurrentDictionary<string, StateMachine> _stateMachines = new();
+        private readonly ConcurrentDictionary<string, ActionMap> _actions = new();
+        private readonly ConcurrentDictionary<string, GuardMap> _guards = new();
+        private readonly ConcurrentDictionary<uint, object> _statusVariables = new();
+        private readonly ConcurrentDictionary<uint, object> _equipmentConstants = new();
         private CancellationTokenSource? _cancellationTokenSource;
         private bool _disposed;
 
@@ -882,9 +883,9 @@ namespace XStateNet.Semi.Testing
         /// <summary>
         /// Get all machine states
         /// </summary>
-        public Dictionary<string, string> GetAllMachineStates()
+        public ConcurrentDictionary<string, string> GetAllMachineStates()
         {
-            var states = new Dictionary<string, string>();
+            var states = new ConcurrentDictionary<string, string>();
             foreach (var (name, machine) in _stateMachines)
             {
                 states[name] = machine.GetActiveStateString();

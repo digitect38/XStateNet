@@ -48,7 +48,7 @@ namespace XStateNet.Distributed.StateMachines
 
         // IStateMachine implementation
         public string machineId => _innerMachine.machineId;
-        public Dictionary<string, object?>? ContextMap
+        public ConcurrentDictionary<string, object?>? ContextMap
         {
             get => _innerMachine.ContextMap;
             set => _innerMachine.ContextMap = value;
@@ -514,9 +514,9 @@ namespace XStateNet.Distributed.StateMachines
             return _options.DefaultTransitionTimeout;
         }
 
-        private Dictionary<string, AdaptiveTimeoutStatistics> GetAdaptiveTimeoutSummary()
+        private ConcurrentDictionary<string, AdaptiveTimeoutStatistics> GetAdaptiveTimeoutSummary()
         {
-            var summary = new Dictionary<string, AdaptiveTimeoutStatistics>();
+            var summary = new ConcurrentDictionary<string, AdaptiveTimeoutStatistics>();
 
             foreach (var state in _stateTimeouts.Keys)
             {
@@ -691,7 +691,7 @@ namespace XStateNet.Distributed.StateMachines
         public double RecoveryRate { get; set; }
         public int ActiveTimeoutScopes { get; set; }
         public TimeoutStatistics BaseStatistics { get; set; } = new();
-        public Dictionary<string, AdaptiveTimeoutStatistics> AdaptiveTimeouts { get; set; } = new();
+        public ConcurrentDictionary<string, AdaptiveTimeoutStatistics> AdaptiveTimeouts { get; set; } = new();
     }
 
     // Event types for DLQ
@@ -736,9 +736,9 @@ namespace XStateNet.Distributed.StateMachines
         public bool UseAdaptiveTimeouts { get; set; } = false;
         public double RecoveryTimeoutMultiplier { get; set; } = 1.5;
         public string StateTimeoutEvent { get; set; } = "TIMEOUT";
-        public Dictionary<string, TimeSpan> StateTimeouts { get; set; } = new();
-        public Dictionary<string, TimeSpan> TransitionTimeouts { get; set; } = new();
-        public Dictionary<string, TimeSpan> ActionTimeouts { get; set; } = new();
+        public ConcurrentDictionary<string, TimeSpan> StateTimeouts { get; set; } = new();
+        public ConcurrentDictionary<string, TimeSpan> TransitionTimeouts { get; set; } = new();
+        public ConcurrentDictionary<string, TimeSpan> ActionTimeouts { get; set; } = new();
     }
 
     public class AdaptiveTimeoutManager : IAdaptiveTimeoutManager

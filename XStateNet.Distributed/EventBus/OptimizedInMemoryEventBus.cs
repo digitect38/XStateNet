@@ -399,7 +399,7 @@ namespace XStateNet.Distributed.EventBus.Optimized
                     // Batch processing for efficiency
                     if (buffer.Count >= 100 || !_publishChannel.Reader.TryPeek(out _))
                     {
-                        ProcessPublishBatch(buffer);
+                        await ProcessPublishBatch(buffer);
                         buffer.Clear();
                     }
                 }
@@ -412,7 +412,7 @@ namespace XStateNet.Distributed.EventBus.Optimized
             {
                 if (buffer.Count > 0)
                 {
-                    ProcessPublishBatch(buffer);
+                    await ProcessPublishBatch(buffer);
                 }
             }
         }
@@ -433,10 +433,11 @@ namespace XStateNet.Distributed.EventBus.Optimized
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private void ProcessPublishBatch(List<PublishWorkItem> items)
+        private async Task ProcessPublishBatch(List<PublishWorkItem> items)
         {
             var subscriptionsToNotify = _listPool.Get();
             var eventsToReturn = new List<StateMachineEvent>();
+            var notificationTasks = new List<Task>();
 
             try
             {
@@ -459,10 +460,9 @@ namespace XStateNet.Distributed.EventBus.Optimized
                         }
                     }
 
-                    // Notify all subscriptions synchronously
-                    NotifySubscriptions(subscriptionsToNotify, item.Event);
+                    // Notify all subscriptions and collect the task
+                    notificationTasks.Add(NotifySubscriptions(subscriptionsToNotify, item.Event));
 
-                    // Queue event for return to pool after all handlers complete
                     if (item.ReturnToPool)
                     {
                         eventsToReturn.Add(item.Event);
@@ -471,8 +471,10 @@ namespace XStateNet.Distributed.EventBus.Optimized
                     Interlocked.Increment(ref _totalEventsPublished);
                 }
 
-                // Return events to pool after all notifications complete
-                // This ensures handlers have finished processing before events are reused
+                // Wait for all notifications to complete for this batch
+                await Task.WhenAll(notificationTasks);
+
+                // Now it's safe to return events to the pool
                 foreach (var evt in eventsToReturn)
                 {
                     _eventPool.Return(evt);
@@ -517,20 +519,46 @@ namespace XStateNet.Distributed.EventBus.Optimized
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void NotifySubscriptions(List<ISubscription> subscriptions, StateMachineEvent evt)
+        private Task NotifySubscriptions(List<ISubscription> subscriptions, StateMachineEvent evt)
         {
+            // In deterministic mode, process synchronously for predictable test behavior
+            if (DeterministicTestMode.IsEnabled)
+            {
+                foreach (var sub in subscriptions)
+                {
+                    try
+                    {
+                        sub.Notify(evt);
+                        Interlocked.Increment(ref _totalEventsDelivered);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Error notifying subscription");
+                    }
+                }
+                return Task.CompletedTask;
+            }
+
+            // Normal async processing
+            var notificationTasks = new List<Task>(subscriptions.Count);
             foreach (var sub in subscriptions)
             {
-                try
+                // Offload handler invocation to the thread pool to prevent one slow
+                // subscriber from blocking the entire event bus worker thread.
+                notificationTasks.Add(Task.Run(() =>
                 {
-                    sub.Notify(evt);
-                    Interlocked.Increment(ref _totalEventsDelivered);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Error notifying subscription");
-                }
+                    try
+                    {
+                        sub.Notify(evt);
+                        Interlocked.Increment(ref _totalEventsDelivered);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Error notifying subscription");
+                    }
+                }));
             }
+            return Task.WhenAll(notificationTasks);
         }
 
         #endregion

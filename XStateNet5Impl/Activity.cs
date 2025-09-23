@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -23,7 +24,7 @@ public class NamedActivity
 /// <summary>
 /// Activity map for storing named activities
 /// </summary>
-public class ActivityMap : Dictionary<string, NamedActivity>
+public class ActivityMap : ConcurrentDictionary<string, NamedActivity>
 {
     public ActivityMap() : base() { }
 
@@ -38,7 +39,7 @@ public class ActivityMap : Dictionary<string, NamedActivity>
     /// <summary>
     /// Add multiple activities at once
     /// </summary>
-    public void AddRange(Dictionary<string, Func<StateMachine, CancellationToken, Action>> activities)
+    public void AddRange(ConcurrentDictionary<string, Func<StateMachine, CancellationToken, Action>> activities)
     {
         foreach (var kvp in activities)
         {

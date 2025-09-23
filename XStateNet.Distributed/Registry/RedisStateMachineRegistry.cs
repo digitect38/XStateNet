@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -19,7 +20,7 @@ namespace XStateNet.Distributed.Registry
         private readonly ILogger<RedisStateMachineRegistry>? _logger;
         private readonly string _keyPrefix;
         private readonly TimeSpan _defaultHeartbeatTtl;
-        private readonly Dictionary<string, List<Action<RegistryChangeEvent>>> _changeHandlers = new();
+        private readonly ConcurrentDictionary<string, List<Action<RegistryChangeEvent>>> _changeHandlers = new();
         private readonly object _handlersLock = new();
         
         // Redis keys

@@ -121,7 +121,7 @@ namespace XStateNet.Semi.Transport
         /// <summary>
         /// Batch cache multiple messages
         /// </summary>
-        public void CacheMessageBatch(Dictionary<string, SecsMessage> messages, CachePriority priority = CachePriority.Normal)
+        public void CacheMessageBatch(ConcurrentDictionary<string, SecsMessage> messages, CachePriority priority = CachePriority.Normal)
         {
             if (_disposed || messages == null)
                 return;
@@ -201,7 +201,7 @@ namespace XStateNet.Semi.Transport
         public void PreloadCommonMessages()
         {
             // Preload common SECS messages for better performance
-            var commonMessages = new Dictionary<string, SecsMessage>
+            var commonMessages = new ConcurrentDictionary<string, SecsMessage>
             {
                 ["S1F1"] = SecsMessageLibrary.S1F1(),
                 ["S1F2"] = SecsMessageLibrary.S1F2(),

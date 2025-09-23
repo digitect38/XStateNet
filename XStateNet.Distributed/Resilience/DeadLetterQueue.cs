@@ -18,7 +18,7 @@ namespace XStateNet.Distributed.Resilience
         public long PendingRetry { get; set; }
         public long PermanentlyFailed { get; set; }
         public long SuccessfullyRedriven { get; set; }
-        public Dictionary<string, long> MessagesBySource { get; set; } = new();
+        public ConcurrentDictionary<string, long> MessagesBySource { get; set; } = new();
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ namespace XStateNet.Distributed.Resilience
             string source,
             string reason,
             Exception? exception = null,
-            Dictionary<string, string>? metadata = null,
+            ConcurrentDictionary<string, string>? metadata = null,
             CancellationToken cancellationToken = default)
         {
             // Check queue capacity
@@ -120,7 +120,7 @@ namespace XStateNet.Distributed.Resilience
                 Source = source,
                 Reason = reason,
                 Exception = exception?.ToString(),
-                Metadata = metadata ?? new Dictionary<string, string>(),
+                Metadata = metadata ?? new ConcurrentDictionary<string, string>(),
                 EnqueuedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.Add(_options.MessageTTL),
                 RetryCount = 0,
@@ -398,15 +398,18 @@ namespace XStateNet.Distributed.Resilience
                 OldestMessageAge = entries.Any()
                     ? now - entries.Min(e => e.EnqueuedAt)
                     : TimeSpan.Zero,
-                MessagesBySource = entries
-                    .GroupBy(e => e.Source)
-                    .ToDictionary(g => g.Key, g => g.Count()),
-                MessagesByReason = entries
-                    .GroupBy(e => e.Reason)
-                    .ToDictionary(g => g.Key, g => g.Count()),
-                RetryDistribution = entries
-                    .GroupBy(e => e.RetryCount)
-                    .ToDictionary(g => g.Key, g => g.Count())
+                MessagesBySource = new ConcurrentDictionary<string, int>(
+                    entries
+                        .GroupBy(e => e.Source)
+                        .ToDictionary(g => g.Key, g => g.Count())),
+                MessagesByReason = new ConcurrentDictionary<string, int>(
+                    entries
+                        .GroupBy(e => e.Reason)
+                        .ToDictionary(g => g.Key, g => g.Count())),
+                RetryDistribution = new ConcurrentDictionary<int, int>(
+                    entries
+                        .GroupBy(e => e.RetryCount)
+                        .ToDictionary(g => g.Key, g => g.Count()))
             };
         }
 
@@ -648,7 +651,7 @@ namespace XStateNet.Distributed.Resilience
         long TotalProcessed { get; }
 
         Task<string> EnqueueAsync<T>(T message, string source, string reason,
-            Exception? exception = null, Dictionary<string, string>? metadata = null,
+            Exception? exception = null, ConcurrentDictionary<string, string>? metadata = null,
             CancellationToken cancellationToken = default);
 
         Task<T?> DequeueAsync<T>(string messageId, CancellationToken cancellationToken = default);
@@ -682,7 +685,7 @@ namespace XStateNet.Distributed.Resilience
         public string Reason { get; set; } = string.Empty;
         public string? Exception { get; set; }
         public string? LastError { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public ConcurrentDictionary<string, string> Metadata { get; set; } = new();
         public DateTime EnqueuedAt { get; set; }
         public DateTime ExpiresAt { get; set; }
         public DateTime? LastRetryAt { get; set; }
@@ -729,9 +732,9 @@ namespace XStateNet.Distributed.Resilience
         public long TotalExpired { get; set; }
         public long TotalRedriven { get; set; }
         public TimeSpan OldestMessageAge { get; set; }
-        public Dictionary<string, int> MessagesBySource { get; set; } = new();
-        public Dictionary<string, int> MessagesByReason { get; set; } = new();
-        public Dictionary<int, int> RetryDistribution { get; set; } = new();
+        public ConcurrentDictionary<string, int> MessagesBySource { get; set; } = new();
+        public ConcurrentDictionary<string, int> MessagesByReason { get; set; } = new();
+        public ConcurrentDictionary<int, int> RetryDistribution { get; set; } = new();
     }
 
     public class DeadLetterQueueFullException : Exception

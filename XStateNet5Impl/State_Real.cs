@@ -13,7 +13,7 @@ public abstract class RealState : StateNode
     public bool IsInitial => Parent != null && Parent.InitialStateName == Name;
     public bool IsActive { set; get; }
 
-    public ConcurrentDictionary<string, List<Transition>> OnTransitionMap { get; set; } = new();
+    public TransitionMap OnTransitionMap { get; set; } = new();
 
     public AfterTransition? AfterTransition { get; set; }   // Added for after transitions
     public AlwaysTransition? AlwaysTransition { get; set; } // Added for always transitions
@@ -26,7 +26,7 @@ public abstract class RealState : StateNode
     public List<NamedActivity>? Activities { get; set; }
 
     protected System.Timers.Timer? _afterTransitionTimer;
-    private readonly Dictionary<string, Action> _activeActivityCleanups = new();
+    private readonly ConcurrentDictionary<string, Action> _activeActivityCleanups = new();
     private CancellationTokenSource? _activityCancellationSource;
 
     public RealState(string? name, string? parentName, string? stateMachineId) 
@@ -279,7 +279,7 @@ public abstract class CompoundState : RealState
         SubStateNames = new List<string>();
         EntryActions = new List<NamedAction>();
         ExitActions = new List<NamedAction>();
-        OnTransitionMap = new ConcurrentDictionary<string, List<Transition>>();
+        OnTransitionMap = new TransitionMap();
         AfterTransition = null;
         AlwaysTransition = null;
         OnDoneTransition = null;
@@ -479,24 +479,21 @@ public abstract class CompoundState : RealState
         }
 
         //StateMachine.Log(">>>- State.Real.BuildTransitionList: " + Name);
-        // self second
-        OnTransitionMap.TryGetValue(eventName, out var transitions);
+        // self second - use thread-safe GetTransitions method
+        var transitions = OnTransitionMap.GetTransitions(eventName);
 
-        if (transitions != null)
+        foreach (var transition in transitions)
         {
-            foreach (var transition in transitions)
+            bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
+            if (transition.Guard != null)
             {
-                bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
-                if (transition.Guard != null)
-                {
-                    // Notify guard evaluation
-                    StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
-                }
+                // Notify guard evaluation
+                StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+            }
 
-                if (guardPassed)
-                {
-                    transitionList.Add((this, transition, eventName));
-                }
+            if (guardPassed)
+            {
+                transitionList.Add((this, transition, eventName));
             }
         }
 
@@ -594,11 +591,8 @@ public abstract class Parser_RealState : Parser_StateBase
                         onDoneTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, onDoneToken);
                     }
                     
-                    if (!state.OnTransitionMap.ContainsKey("onDone"))
-                    {
-                        state.OnTransitionMap["onDone"] = new List<Transition>();
-                    }
-                    state.OnTransitionMap["onDone"].Add(onDoneTransition);
+                    // Use thread-safe AddTransition method
+                    state.OnTransitionMap.AddTransition("onDone", onDoneTransition);
                 }
             }
             
@@ -606,12 +600,6 @@ public abstract class Parser_RealState : Parser_StateBase
             var onErrorToken = invokeToken["onError"];
             if (onErrorToken != null)
             {
-                // Initialize onError transition list if not exists
-                if (!state.OnTransitionMap.ContainsKey("onError"))
-                {
-                    state.OnTransitionMap["onError"] = new List<Transition>();
-                }
-
                 // Handle array of onError transitions (like guarded transitions)
                 if (onErrorToken.Type == JTokenType.Array)
                 {
@@ -620,7 +608,8 @@ public abstract class Parser_RealState : Parser_StateBase
                         var onErrorTransition = ParseSingleOnErrorTransition(errorItem, state.Name ?? string.Empty, machineId ?? string.Empty, StateMachine);
                         if (onErrorTransition != null)
                         {
-                            state.OnTransitionMap["onError"].Add(onErrorTransition);
+                            // Use thread-safe AddTransition method
+                            state.OnTransitionMap.AddTransition("onError", onErrorTransition);
                         }
                     }
                 }
@@ -630,7 +619,8 @@ public abstract class Parser_RealState : Parser_StateBase
                     var onErrorTransition = ParseSingleOnErrorTransition(onErrorToken, state.Name ?? string.Empty, machineId ?? string.Empty, StateMachine);
                     if (onErrorTransition != null)
                     {
-                        state.OnTransitionMap["onError"].Add(onErrorTransition);
+                        // Use thread-safe AddTransition method
+                        state.OnTransitionMap.AddTransition("onError", onErrorTransition);
                     }
                 }
             }

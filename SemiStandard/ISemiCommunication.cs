@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -22,7 +23,7 @@ public interface ISemiCommunication
     /// <summary>
     /// Report collection event
     /// </summary>
-    Task ReportEvent(int ceid, Dictionary<int, object>? variables = null);
+    Task ReportEvent(int ceid, ConcurrentDictionary<int, object>? variables = null);
     
     /// <summary>
     /// Set alarm

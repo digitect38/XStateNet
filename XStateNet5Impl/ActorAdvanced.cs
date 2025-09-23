@@ -61,7 +61,7 @@ public class ActorContext
     public ActorRef Self { get; }
     public ActorRef? Parent { get; }
     public ActorSystemV2 System { get; }
-    public Dictionary<string, ActorRef> Children { get; }
+    public ConcurrentDictionary<string, ActorRef> Children { get; }
     public ActorRef? Sender { get; internal set; }
 
     internal ActorContext(ActorRef self, ActorRef? parent, ActorSystemV2 system)
@@ -69,7 +69,7 @@ public class ActorContext
         Self = self;
         Parent = parent;
         System = system;
-        Children = new Dictionary<string, ActorRef>();
+        Children = new ConcurrentDictionary<string, ActorRef>();
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public class ActorContext
         if (Children.TryGetValue(name, out var childRef))
         {
             await System.StopActor(childRef.Path);
-            Children.Remove(name);
+            Children.TryRemove(name, out _);
         }
     }
 

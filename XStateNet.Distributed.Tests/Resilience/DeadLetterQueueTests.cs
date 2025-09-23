@@ -7,6 +7,7 @@ using Xunit;
 using Moq;
 using MessagePack;
 using XStateNet.Distributed.Resilience;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
@@ -77,7 +78,7 @@ namespace XStateNet.Distributed.Tests.Resilience
         {
             // Arrange
             var message = new TestMessage { Id = "test-1" };
-            var metadata = new Dictionary<string, string>
+            var metadata = new ConcurrentDictionary<string, string>
             {
                 ["UserId"] = "user123",
                 ["CorrelationId"] = "corr456"

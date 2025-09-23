@@ -404,7 +404,7 @@ namespace XStateNet.Distributed.Transports
             {
                 IsHealthy = IsConnected,
                 Latency = TimeSpan.FromMilliseconds(5), // RabbitMQ typical latency
-                Diagnostics = new Dictionary<string, object>
+                Diagnostics = new ConcurrentDictionary<string, object>
                 {
                     ["QueueName"] = _queueName,
                     ["ExchangeName"] = _exchangeName,

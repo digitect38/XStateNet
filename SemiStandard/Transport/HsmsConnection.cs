@@ -68,7 +68,7 @@ namespace XStateNet.Semi.Transport
             // Add mode to log context for identification
             if (_logger != null)
             {
-                using (_logger.BeginScope(new Dictionary<string, object> { ["Mode"] = mode.ToString() }))
+                using (_logger.BeginScope(new ConcurrentDictionary<string, object> { ["Mode"] = mode.ToString() }))
                 {
                     _logger.LogDebug("HsmsConnection created in {Mode} mode", mode);
                 }

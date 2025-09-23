@@ -632,7 +632,7 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.Contains("service:failing:throwing", _eventLog);
         Assert.Contains("level2Error:handled", _eventLog);
         var machineId = _stateMachine.machineId;
-        Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.level1.level2Error"));
+        Assert.True(_stateMachine.IsInState(_stateMachine, $"#errorChain.level1.level2Error"));
     }
 
     [Fact]

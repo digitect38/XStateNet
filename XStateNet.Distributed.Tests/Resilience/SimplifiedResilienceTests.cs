@@ -162,7 +162,6 @@ namespace XStateNet.Distributed.Tests.Resilience
             var options = new CustomBoundedChannelOptions
             {
                 Capacity = 5,
-                BackpressureStrategy = BackpressureStrategy.Drop
             };
             var channel = new BoundedChannelManager<int>("test", options);
 
@@ -254,7 +253,6 @@ namespace XStateNet.Distributed.Tests.Resilience
                 new CustomBoundedChannelOptions
                 {
                     Capacity = 10,
-                    BackpressureStrategy = BackpressureStrategy.Wait
                 });
 
             var circuitBreaker = new CircuitBreaker("pipeline",

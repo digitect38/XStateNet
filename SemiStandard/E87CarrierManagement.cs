@@ -125,7 +125,7 @@ public class E87CarrierManagement
     /// <summary>
     /// Update carrier slot map after mapping
     /// </summary>
-    public void UpdateSlotMap(string carrierId, Dictionary<int, SlotState> slotMap)
+    public void UpdateSlotMap(string carrierId, ConcurrentDictionary<int, SlotState> slotMap)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
@@ -349,22 +349,22 @@ public class CarrierStateMachine
     public string LoadPortId { get; }
     public StateMachine StateMachine { get; }
     public int SlotCount { get; }
-    public Dictionary<int, SlotState> SlotMap { get; }
-    public Dictionary<int, string> SubstrateIds { get; }
+    public ConcurrentDictionary<int, SlotState> SlotMap { get; }
+    public ConcurrentDictionary<int, string> SubstrateIds { get; }
     public int SubstrateCount { get; set; }
     public DateTime ArrivedTime { get; }
     public DateTime? MappingCompleteTime { get; set; }
     public DateTime? DepartedTime { get; set; }
-    public Dictionary<string, object> Properties { get; }
+    public ConcurrentDictionary<string, object> Properties { get; }
     
     public CarrierStateMachine(string id, string loadPortId, int slotCount = 25, string? jsonScript = null)
     {
         Id = id;
         LoadPortId = loadPortId;
         SlotCount = slotCount;
-        SlotMap = new Dictionary<int, SlotState>();
-        SubstrateIds = new Dictionary<int, string>();
-        Properties = new Dictionary<string, object>();
+        SlotMap = new ConcurrentDictionary<int, SlotState>();
+        SubstrateIds = new ConcurrentDictionary<int, string>();
+        Properties = new ConcurrentDictionary<string, object>();
         ArrivedTime = DateTime.UtcNow;
         
         // Initialize slot map
@@ -429,14 +429,14 @@ public class LoadPortStateMachine
     public string? CurrentCarrierId { get; set; }
     public int Capacity { get; }
     public bool IsReserved { get; set; }
-    public Dictionary<string, object> Properties { get; }
+    public ConcurrentDictionary<string, object> Properties { get; }
     
     public LoadPortStateMachine(string id, string name, int capacity = 25, string? jsonScript = null)
     {
         Id = id;
         Name = name;
         Capacity = capacity;
-        Properties = new Dictionary<string, object>();
+        Properties = new ConcurrentDictionary<string, object>();
         
         // Create load port state machine from JSON script
         StateMachine = CreateLoadPortStateMachine(id, jsonScript);

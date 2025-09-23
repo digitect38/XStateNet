@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using XStateNet;
@@ -11,14 +12,14 @@ namespace TimelineWPF.PubSub
     public class StateMachinePublisher
     {
         private readonly ITimelineEventBus _eventBus;
-        private readonly Dictionary<string, StateMachine> _registeredMachines;
+        private readonly ConcurrentDictionary<string, StateMachine> _registeredMachines;
         private readonly Stopwatch _stopwatch;
         private readonly object _lock = new object();
 
         public StateMachinePublisher(ITimelineEventBus eventBus)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
-            _registeredMachines = new Dictionary<string, StateMachine>();
+            _registeredMachines = new ConcurrentDictionary<string, StateMachine>();
             _stopwatch = Stopwatch.StartNew();
         }
 
@@ -71,10 +72,8 @@ namespace TimelineWPF.PubSub
         {
             lock (_lock)
             {
-                if (_registeredMachines.TryGetValue(machineName, out var machine))
+                if (_registeredMachines.TryRemove(machineName, out var machine))
                 {
-                    _registeredMachines.Remove(machineName);
-
                     // Publish unregistration message
                     var unregistrationMessage = new MachineUnregisteredMessage(
                         machineName,

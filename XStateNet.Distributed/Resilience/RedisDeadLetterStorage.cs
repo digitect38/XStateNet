@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -303,11 +304,11 @@ namespace XStateNet.Distributed.Resilience
             }
         }
 
-        public async Task<Dictionary<string, long>> GetCountBySourceAsync(CancellationToken cancellationToken = default)
+        public async Task<ConcurrentDictionary<string, long>> GetCountBySourceAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = new Dictionary<string, long>();
+                var result = new ConcurrentDictionary<string, long>();
 
                 // Get all source index keys
                 var server = _redis.GetServer(_redis.GetEndPoints().First());

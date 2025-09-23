@@ -15,16 +15,16 @@ namespace XStateNet.GPU.Core
     /// </summary>
     public class ActionExecutor
     {
-        private readonly Dictionary<int, Func<object, Task>> _actionMap;
+        private readonly ConcurrentDictionary<int, Func<object, Task>> _actionMap;
         private readonly ConcurrentQueue<PendingAction> _actionQueue;
-        private readonly Dictionary<string, int> _actionNameToId;
+        private readonly ConcurrentDictionary<string, int> _actionNameToId;
         private int _nextActionId;
 
         public ActionExecutor()
         {
-            _actionMap = new Dictionary<int, Func<object, Task>>();
+            _actionMap = new ConcurrentDictionary<int, Func<object, Task>>();
             _actionQueue = new ConcurrentQueue<PendingAction>();
-            _actionNameToId = new Dictionary<string, int>();
+            _actionNameToId = new ConcurrentDictionary<string, int>();
             _nextActionId = 0;
         }
 

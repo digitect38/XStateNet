@@ -20,6 +20,7 @@ using XStateNet;
 using XStateNet.Semi.Testing;
 using XStateNet.Semi.Transport;
 using XStateNet.Semi.Secs;
+using System.Collections.Concurrent;
 
 namespace SemiStandard.Simulator.Wpf
 {
@@ -41,13 +42,13 @@ namespace SemiStandard.Simulator.Wpf
         private readonly ObservableCollection<StateTransitionViewModel> _stateTransitions = new();
         
         // XState machine definitions
-        private readonly Dictionary<string, string> _xStateScripts = new();
+        private readonly ConcurrentDictionary<string, string> _xStateScripts = new();
         
         // State-time tracking
         private UmlTimingDiagramWindow? _umlTimingWindow;
         private TimelineWPF.TimelineWindow? _timelineWindow;
         private StateMachineTimelineWindow? _debugTimelineWindow;
-        private readonly Dictionary<string, List<(string fromState, string toState, DateTime timestamp)>> _stateHistory = new();
+        private readonly ConcurrentDictionary<string, ConcurrentBag<(string fromState, string toState, DateTime timestamp)>> _stateHistory = new();
         
         // Charts
         private PlotModel _temperaturePlotModel = null!;
@@ -70,50 +71,54 @@ namespace SemiStandard.Simulator.Wpf
         private DateTime _stateMachineStartTime = DateTime.Now;
         private DispatcherTimer? _stateLogTimer;
         private Lot? _currentLot = null;
-        
+
         // Track current states for each state machine
-        private readonly Dictionary<string, string> _currentStates = new Dictionary<string, string>
-        {
-            { "EquipmentController", "OFFLINE" },
-            { "ProcessManager", "NOT_READY" },
-            { "TransportHandler", "IDLE" },
-            { "RecipeExecutor", "WAITING" }
-        };
-        
+        private readonly ConcurrentDictionary<string, string> _currentStates =
+            new ConcurrentDictionary<string, string>(
+                new Dictionary<string, string>
+                {
+                    { "EquipmentController", "OFFLINE" },
+                    { "ProcessManager", "NOT_READY" },
+                    { "TransportHandler", "IDLE" },
+                    { "RecipeExecutor", "WAITING" }
+                });
+
         // XStateNet state machines
-        private Dictionary<string, StateMachine> _stateMachines = new();
-        
+        private ConcurrentDictionary<string, StateMachine> _stateMachines = new();
+
         // State color mapping
-        private readonly Dictionary<string, Brush> _stateColors = new Dictionary<string, Brush>
-        {
-            // Common states
-            { "IDLE", Brushes.LightBlue },
-            { "READY", Brushes.LimeGreen },
-            { "BUSY", Brushes.Orange },
-            { "PROCESSING", Brushes.Gold },
-            { "ERROR", Brushes.Red },
-            { "OFFLINE", Brushes.Gray },
-            { "ONLINE", Brushes.SpringGreen },
-            { "INITIALIZING", Brushes.Yellow },
-            { "SETUP", Brushes.Cyan },
-            { "EXECUTING", Brushes.Magenta },
-            { "LOADING", Brushes.SkyBlue },
-            { "UNLOADING", Brushes.LightSalmon },
-            { "WAITING", Brushes.LightGray },
-            { "MOVING", Brushes.HotPink },
-            { "STOPPED", Brushes.IndianRed },
-            { "PAUSED", Brushes.Khaki },
-            { "COMPLETED", Brushes.MediumSeaGreen },
-            { "NOT_READY", Brushes.Tomato },
-            { "TRANSFER_COMPLETE", Brushes.DarkSeaGreen },
-            { "RECIPE_DONE", Brushes.MediumPurple },
-            { "WAFER_IN", Brushes.Aquamarine },
-            { "WAFER_OUT", Brushes.PaleGreen },
-            { "PROCESS_COMPLETE", Brushes.LightGreen },
-            { "INIT_SUCCESS", Brushes.GreenYellow },
-            { "INIT_COMPLETE", Brushes.YellowGreen },
-            { "SYSTEM_READY", Brushes.Chartreuse }
-        };
+        private readonly ConcurrentDictionary<string, Brush> _stateColors = 
+            new ConcurrentDictionary<string, Brush>(
+                new Dictionary<string, Brush>
+                {
+                    // Common states
+                    { "IDLE", Brushes.LightBlue },
+                    { "READY", Brushes.LimeGreen },
+                    { "BUSY", Brushes.Orange },
+                    { "PROCESSING", Brushes.Gold },
+                    { "ERROR", Brushes.Red },
+                    { "OFFLINE", Brushes.Gray },
+                    { "ONLINE", Brushes.SpringGreen },
+                    { "INITIALIZING", Brushes.Yellow },
+                    { "SETUP", Brushes.Cyan },
+                    { "EXECUTING", Brushes.Magenta },
+                    { "LOADING", Brushes.SkyBlue },
+                    { "UNLOADING", Brushes.LightSalmon },
+                    { "WAITING", Brushes.LightGray },
+                    { "MOVING", Brushes.HotPink },
+                    { "STOPPED", Brushes.IndianRed },
+                    { "PAUSED", Brushes.Khaki },
+                    { "COMPLETED", Brushes.MediumSeaGreen },
+                    { "NOT_READY", Brushes.Tomato },
+                    { "TRANSFER_COMPLETE", Brushes.DarkSeaGreen },
+                    { "RECIPE_DONE", Brushes.MediumPurple },
+                    { "WAFER_IN", Brushes.Aquamarine },
+                    { "WAFER_OUT", Brushes.PaleGreen },
+                    { "PROCESS_COMPLETE", Brushes.LightGreen },
+                    { "INIT_SUCCESS", Brushes.GreenYellow },
+                    { "INIT_COMPLETE", Brushes.YellowGreen },
+                    { "SYSTEM_READY", Brushes.Chartreuse }
+                });
         
         // Wafer slot visualization
         private readonly List<Ellipse> _waferSlots = new();
@@ -1169,7 +1174,7 @@ namespace SemiStandard.Simulator.Wpf
             AddTimelineEntry("New lot added to scheduler queue");
         }
         
-        private void UpdateSchedulerPanel(List<Lot> scheduledQueue, Dictionary<string, object> metrics)
+        private void UpdateSchedulerPanel(List<Lot> scheduledQueue, ConcurrentDictionary<string, object> metrics)
         {
             // Update lot queue display
             var lotViewModels = new ObservableCollection<LotViewModel>();
@@ -1341,7 +1346,7 @@ namespace SemiStandard.Simulator.Wpf
                 // Track state history for time chart
                 if (!_stateHistory.ContainsKey(stateMachine))
                 {
-                    _stateHistory[stateMachine] = new List<(string, string, DateTime)>();
+                    _stateHistory[stateMachine] = new ConcurrentBag<(string, string, DateTime)>();
                 }
                 _stateHistory[stateMachine].Add((fromState, toState, DateTime.Now));
                 
@@ -1717,7 +1722,7 @@ namespace SemiStandard.Simulator.Wpf
                 var eventId = (list.Items[0] as SecsU4)?.Value ?? 0;
                 string eventName = "Event";
                 Logger.Log($"[REALISTIC] Processing event ID: {eventId}");
-                var data = new Dictionary<string, string>();
+                var data = new ConcurrentDictionary<string, string>();
                 
                 // Parse event data
                 for (int i = 1; i < list.Items.Count - 1; i += 2)

@@ -97,7 +97,7 @@ namespace XStateNet.Distributed.PubSub
         /// <summary>
         /// Publish a state change event
         /// </summary>
-        public async Task PublishStateChangeAsync(string? oldState, string newState, string? transition, Dictionary<string, object>? context = null)
+        public async Task PublishStateChangeAsync(string? oldState, string newState, string? transition, ConcurrentDictionary<string, object>? context = null)
         {
             var evt = new StateChangeEvent
             {
@@ -184,14 +184,14 @@ namespace XStateNet.Distributed.PubSub
         /// <summary>
         /// Publish a custom event
         /// </summary>
-        public async Task PublishCustomEventAsync(string eventName, object? payload = null, Dictionary<string, string>? headers = null)
+        public async Task PublishCustomEventAsync(string eventName, object? payload = null, ConcurrentDictionary<string, string>? headers = null)
         {
             var evt = new StateMachineEvent
             {
                 EventName = eventName,
                 SourceMachineId = _machineId,
                 Payload = payload,
-                Headers = headers ?? new Dictionary<string, string>(),
+                Headers = headers ?? new ConcurrentDictionary<string, string>(),
                 Timestamp = DateTime.UtcNow
             };
 
@@ -406,11 +406,11 @@ namespace XStateNet.Distributed.PubSub
                         await PublishTransitionAsync(source.Name ?? "", target.Name ?? "", eventName ?? "");
 
                         // Also publish state change
-                        // Convert ContextMap to Dictionary<string, object>
-                        Dictionary<string, object>? context = null;
+                        // Convert ContextMap to ConcurrentDictionary<string, object>
+                        ConcurrentDictionary<string, object>? context = null;
                         if (_stateMachine.ContextMap != null)
                         {
-                            context = new Dictionary<string, object>();
+                            context = new ConcurrentDictionary<string, object>();
                             foreach (var kvp in _stateMachine.ContextMap)
                             {
                                 context[kvp.Key] = kvp.Value;

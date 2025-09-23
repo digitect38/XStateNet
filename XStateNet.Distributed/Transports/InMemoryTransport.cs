@@ -227,7 +227,7 @@ namespace XStateNet.Distributed.Transports
             {
                 IsHealthy = _isConnected,
                 Latency = TimeSpan.Zero,
-                Diagnostics = new Dictionary<string, object>
+                Diagnostics = new ConcurrentDictionary<string, object>
                 {
                     ["ActiveChannels"] = _channels.Count,
                     ["RegisteredEndpoints"] = _registry.Count,

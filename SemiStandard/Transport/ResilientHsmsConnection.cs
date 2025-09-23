@@ -22,12 +22,15 @@ namespace XStateNet.Semi.Transport
         private readonly IAsyncPolicy<bool> _circuitBreakerPolicy;
         private readonly SemaphoreSlim _connectionSemaphore = new(1, 1);
         private CancellationTokenSource? _cancellationTokenSource;
+        private Task? _supervisorTask;
         private Task? _monitoringTask;
         private bool _disposed;
         private int _reconnectAttempts;
         private TaskCompletionSource<bool>? _selectionTcs;
         private uint _selectionSystemBytes;
-        
+        private readonly TaskCompletionSource<bool> _initialConnectionSignal = new();
+        private readonly TaskCompletionSource<bool> _disconnectedSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         // Configuration
         public int MaxRetryAttempts { get; set; } = 3;
         public int RetryDelayMs { get; set; } = 1000;
@@ -120,44 +123,88 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(ResilientHsmsConnection));
-                
+
             await _connectionSemaphore.WaitAsync(cancellationToken);
             try
             {
-                if (IsConnected)
-                    return true;
-                    
+                if (_supervisorTask != null)
+                {
+                    // Already connecting or connected
+                    return await _initialConnectionSignal.Task;
+                }
+
                 SetState(ConnectionState.Connecting);
                 _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                
-                // Use circuit breaker with retry policy
-                var result = await Policy.WrapAsync(_circuitBreakerPolicy, _retryPolicy)
-                    .ExecuteAsync(async (ct) => await ConnectInternalAsync(ct), _cancellationTokenSource.Token);
-                
-                if (result)
-                {
-                    SetState(ConnectionState.Connected);
-                    StartHealthMonitoring();
-                    _reconnectAttempts = 0;
-                    _logger?.LogInformation("Successfully connected to {Endpoint}", _endpoint);
-                    return true;
-                }
-                else
-                {
-                    SetState(ConnectionState.Failed);
-                    _logger?.LogError("Failed to connect to {Endpoint} after {Attempts} attempts",
-                        _endpoint, MaxRetryAttempts);
-                    return false;
-                }
-            }
-            catch (BrokenCircuitException)
-            {
-                _logger?.LogWarning("Cannot connect - circuit breaker is open");
-                return false;
+
+                // Start the supervisor task
+                _supervisorTask = Task.Run(() => ConnectionSupervisorAsync(_cancellationTokenSource.Token));
+
+                // Wait for the initial connection signal
+                return await _initialConnectionSignal.Task;
             }
             finally
             {
                 _connectionSemaphore.Release();
+            }
+        }
+
+        private async Task ConnectionSupervisorAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var result = await Policy.WrapAsync(_circuitBreakerPolicy, _retryPolicy)
+                        .ExecuteAsync(async (ct) => await ConnectInternalAsync(ct), cancellationToken);
+
+                    if (result)
+                    {
+                        SetState(ConnectionState.Connected);
+                        StartHealthMonitoring();
+                        _reconnectAttempts = 0;
+                        _logger?.LogInformation("Successfully connected to {Endpoint}", _endpoint);
+                        _initialConnectionSignal.TrySetResult(true); // Signal successful initial connection
+
+                        // Wait here until we get a disconnection signal
+                        await _disconnectedSignal.Task; 
+                    }
+                    else
+                    {
+                        SetState(ConnectionState.Failed);
+                        _logger?.LogError("Failed to connect to {Endpoint} after {Attempts} attempts",
+                            _endpoint, MaxRetryAttempts);
+                        _initialConnectionSignal.TrySetResult(false); // Signal failed initial connection
+                        await Task.Delay(ReconnectDelayMs, cancellationToken); // Wait before retrying the whole policy
+                    }
+                }
+                catch (BrokenCircuitException)
+                {
+                    _logger?.LogWarning("Cannot connect - circuit breaker is open. Waiting for it to close.");
+                    _initialConnectionSignal.TrySetResult(false);
+                    await Task.Delay(CircuitBreakerDuration, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break; // Exit loop on cancellation
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "An unexpected error occurred in the Connection Supervisor.");
+                    _initialConnectionSignal.TrySetResult(false);
+                    // Wait before retrying
+                    await Task.Delay(ReconnectDelayMs, cancellationToken);
+                }
+                finally
+                {
+                    // Clean up before next connection attempt
+                    if (_connection != null)
+                    {
+                        await _connection.DisconnectAsync();
+                        _connection.Dispose();
+                        _connection = null;
+                    }
+                    SetState(ConnectionState.Disconnected);
+                }
             }
         }
         
@@ -217,11 +264,7 @@ namespace XStateNet.Semi.Transport
         {
             if (!IsConnected)
             {
-                _logger?.LogWarning("Attempting to send message while disconnected, trying to reconnect");
-                if (!await ReconnectAsync(cancellationToken))
-                {
-                    throw new InvalidOperationException("Not connected and reconnection failed");
-                }
+                throw new InvalidOperationException("Not connected. The connection supervisor will handle reconnection.");
             }
             
             return await _retryPolicy.ExecuteAsync(async (ct) =>
@@ -239,10 +282,10 @@ namespace XStateNet.Semi.Transport
                     _logger?.LogError(ex, "Failed to send message");
                     _healthMonitor.RecordFailure(ex);
                     
-                    // Try to reconnect on connection errors
+                    // Signal disconnection to the supervisor
                     if (IsConnectionException(ex))
                     {
-                        await ReconnectAsync(ct);
+                        _disconnectedSignal.TrySetResult(true);
                     }
                     
                     return false;
@@ -250,48 +293,7 @@ namespace XStateNet.Semi.Transport
             }, cancellationToken);
         }
         
-        /// <summary>
-        /// Reconnect with exponential backoff
-        /// </summary>
-        private async Task<bool> ReconnectAsync(CancellationToken cancellationToken = default)
-        {
-            if (_reconnectAttempts >= MaxReconnectAttempts)
-            {
-                _logger?.LogError("Maximum reconnection attempts ({Max}) reached", MaxReconnectAttempts);
-                SetState(ConnectionState.Failed);
-                return false;
-            }
-            
-            await _connectionSemaphore.WaitAsync(cancellationToken);
-            try
-            {
-                if (IsConnected)
-                    return true;
-                    
-                _reconnectAttempts++;
-                SetState(ConnectionState.Reconnecting);
-                
-                var delay = ReconnectDelayMs * Math.Pow(2, Math.Min(_reconnectAttempts - 1, 5));
-                _logger?.LogInformation("Reconnection attempt {Attempt}/{Max} in {Delay}ms",
-                    _reconnectAttempts, MaxReconnectAttempts, delay);
-                
-                await Task.Delay(TimeSpan.FromMilliseconds(delay), cancellationToken);
-                
-                if (await ConnectInternalAsync(cancellationToken))
-                {
-                    SetState(ConnectionState.Connected);
-                    _reconnectAttempts = 0;
-                    Reconnected?.Invoke(this, EventArgs.Empty);
-                    return true;
-                }
-                
-                return false;
-            }
-            finally
-            {
-                _connectionSemaphore.Release();
-            }
-        }
+        
         
         /// <summary>
         /// Start health monitoring
@@ -376,26 +378,15 @@ namespace XStateNet.Semi.Transport
         /// </summary>
         public async Task DisconnectAsync()
         {
-            if (!IsConnected)
+            if (_disposed)
                 return;
-                
-            try
+
+            SetState(ConnectionState.Disconnected);
+            _cancellationTokenSource?.Cancel();
+
+            if (_supervisorTask != null)
             {
-                _cancellationTokenSource?.Cancel();
-                
-                if (_monitoringTask != null)
-                    await _monitoringTask;
-                    
-                if (_connection != null)
-                {
-                    await _connection.DisconnectAsync();
-                }
-                
-                SetState(ConnectionState.Disconnected);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error during disconnect");
+                await Task.WhenAny(_supervisorTask, Task.Delay(TimeSpan.FromSeconds(5)));
             }
         }
         
@@ -427,7 +418,7 @@ namespace XStateNet.Semi.Transport
             if (state == HsmsConnection.HsmsConnectionState.Error ||
                 state == HsmsConnection.HsmsConnectionState.NotConnected)
             {
-                Task.Run(async () => await ReconnectAsync());
+                _disconnectedSignal.TrySetResult(true);
             }
         }
         
@@ -438,7 +429,7 @@ namespace XStateNet.Semi.Transport
             
             if (IsConnectionException(ex))
             {
-                Task.Run(async () => await ReconnectAsync());
+                _disconnectedSignal.TrySetResult(true);
             }
         }
         
@@ -474,8 +465,15 @@ namespace XStateNet.Semi.Transport
                 
             _disposed = true;
             _cancellationTokenSource?.Cancel();
+            try
+            {
+                _supervisorTask?.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Exception while waiting for supervisor task to complete during dispose.");
+            }
             _cancellationTokenSource?.Dispose();
-            _monitoringTask?.Wait(TimeSpan.FromSeconds(5));
             _connection?.Dispose();
             _connectionSemaphore?.Dispose();
             _healthMonitor?.Dispose();

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,12 +96,12 @@ namespace XStateNet.Distributed.Orchestration
         /// <summary>
         /// Update state machine configuration
         /// </summary>
-        Task<bool> UpdateConfigurationAsync(string machineId, Dictionary<string, object> configuration);
+        Task<bool> UpdateConfigurationAsync(string machineId, ConcurrentDictionary<string, object> configuration);
         
         /// <summary>
         /// Get configuration
         /// </summary>
-        Task<Dictionary<string, object>> GetConfigurationAsync(string machineId);
+        Task<ConcurrentDictionary<string, object>> GetConfigurationAsync(string machineId);
     }
     
     // Data models
@@ -109,10 +110,10 @@ namespace XStateNet.Distributed.Orchestration
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string JsonScript { get; set; } = string.Empty;
-        public Dictionary<string, object> Configuration { get; set; } = new();
+        public ConcurrentDictionary<string, object> Configuration { get; set; } = new();
         public List<string> RequiredCapabilities { get; set; } = new();
         public ResourceRequirements? ResourceRequirements { get; set; }
-        public Dictionary<string, string> Labels { get; set; } = new();
+        public ConcurrentDictionary<string, string> Labels { get; set; } = new();
     }
     
     public class DeploymentOptions
@@ -121,7 +122,7 @@ namespace XStateNet.Distributed.Orchestration
         public int InitialInstances { get; set; } = 1;
         public bool AutoStart { get; set; } = true;
         public bool EnableMonitoring { get; set; } = true;
-        public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
+        public ConcurrentDictionary<string, string> EnvironmentVariables { get; set; } = new();
         public HealthCheckOptions? HealthCheck { get; set; }
         public RetryPolicy? RetryPolicy { get; set; }
     }
@@ -177,7 +178,7 @@ namespace XStateNet.Distributed.Orchestration
         public string Name { get; set; } = string.Empty;
         public bool IsHealthy { get; set; }
         public string? Message { get; set; }
-        public Dictionary<string, object> Data { get; set; } = new();
+        public ConcurrentDictionary<string, object> Data { get; set; } = new();
     }
     
     public class MetricsSnapshot
@@ -189,8 +190,8 @@ namespace XStateNet.Distributed.Orchestration
         public double EventsPerSecond { get; set; }
         public long StateTransitions { get; set; }
         public double AverageTransitionTime { get; set; }
-        public Dictionary<string, long> StateVisitCounts { get; set; } = new();
-        public Dictionary<string, double> StateAverageDuration { get; set; } = new();
+        public ConcurrentDictionary<string, long> StateVisitCounts { get; set; } = new();
+        public ConcurrentDictionary<string, double> StateAverageDuration { get; set; } = new();
         public long ErrorCount { get; set; }
         public double ErrorRate { get; set; }
         public ResourceUsage? ResourceUsage { get; set; }
@@ -205,7 +206,7 @@ namespace XStateNet.Distributed.Orchestration
         public string Description { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedAt { get; set; }
-        public Dictionary<string, object> Context { get; set; } = new();
+        public ConcurrentDictionary<string, object> Context { get; set; } = new();
     }
     
     public enum AlertSeverity
@@ -227,7 +228,7 @@ namespace XStateNet.Distributed.Orchestration
         public int ActiveSagas { get; set; }
         public long TotalEventsProcessed { get; set; }
         public double SystemEventRate { get; set; }
-        public Dictionary<string, int> MachinesByNode { get; set; } = new();
+        public ConcurrentDictionary<string, int> MachinesByNode { get; set; } = new();
         public List<Alert> RecentAlerts { get; set; } = new();
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
@@ -237,7 +238,7 @@ namespace XStateNet.Distributed.Orchestration
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public List<WorkflowStep> Steps { get; set; } = new();
-        public Dictionary<string, object> Context { get; set; } = new();
+        public ConcurrentDictionary<string, object> Context { get; set; } = new();
         public TimeSpan? Timeout { get; set; }
         public WorkflowCompensation? Compensation { get; set; }
     }
@@ -258,7 +259,7 @@ namespace XStateNet.Distributed.Orchestration
         public bool Success { get; set; }
         public string WorkflowId { get; set; } = string.Empty;
         public TimeSpan ExecutionTime { get; set; }
-        public Dictionary<string, StepResult> StepResults { get; set; } = new();
+        public ConcurrentDictionary<string, StepResult> StepResults { get; set; } = new();
         public object? FinalOutput { get; set; }
         public string? ErrorMessage { get; set; }
     }
@@ -277,7 +278,7 @@ namespace XStateNet.Distributed.Orchestration
         public GroupCoordinationType CoordinationType { get; set; } = GroupCoordinationType.Broadcast;
         public LoadBalancingStrategy? LoadBalancing { get; set; }
         public bool PersistGroup { get; set; } = true;
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public ConcurrentDictionary<string, string> Metadata { get; set; } = new();
     }
     
     public enum GroupCoordinationType
@@ -376,7 +377,7 @@ namespace XStateNet.Distributed.Orchestration
         public string EventName { get; set; } = string.Empty;
         public object? Payload { get; set; }
         public RoutingStrategy Strategy { get; set; } = RoutingStrategy.Capability;
-        public Dictionary<string, string> Requirements { get; set; } = new();
+        public ConcurrentDictionary<string, string> Requirements { get; set; } = new();
     }
     
     public enum RoutingStrategy

@@ -112,7 +112,8 @@ namespace XStateNet.Distributed.Orchestration
                     NodeId = nodeId,
                     Endpoint = $"node://{nodeId}/{machineId}",
                     Version = "1.0.0",
-                    Metadata = definition.Configuration.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
+                    Metadata = new ConcurrentDictionary<string, object>(
+                        definition.Configuration.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value)),
                     Status = options.AutoStart ? MachineStatus.Starting : MachineStatus.Stopped,
                     Tags = definition.Labels
                 };
@@ -203,7 +204,7 @@ namespace XStateNet.Distributed.Orchestration
             try
             {
                 var sortedSteps = TopologicalSort(workflow.Steps);
-                var stepResults = new Dictionary<string, StepResult>();
+                var stepResults = new ConcurrentDictionary<string, StepResult>();
 
                 foreach (var step in sortedSteps)
                 {
@@ -318,7 +319,7 @@ namespace XStateNet.Distributed.Orchestration
                 }).ToList(),
                 CurrentStepIndex = 0,
                 Status = SagaStatus.Running,
-                Context = new Dictionary<string, object?>(),
+                Context = new ConcurrentDictionary<string, object?>(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -523,7 +524,7 @@ namespace XStateNet.Distributed.Orchestration
                     _ => GroupBehavior.Parallel
                 },
                 CreatedAt = DateTime.UtcNow,
-                Metadata = new Dictionary<string, object?>()
+                Metadata = new ConcurrentDictionary<string, object?>()
             };
 
             await _stateStore.StoreGroupAsync(groupName, config);
@@ -674,21 +675,21 @@ namespace XStateNet.Distributed.Orchestration
             return await Task.FromResult(new RoutingResult { Success = true });
         }
 
-        public async Task<bool> UpdateConfigurationAsync(string machineId, Dictionary<string, object> configuration)
+        public async Task<bool> UpdateConfigurationAsync(string machineId, ConcurrentDictionary<string, object> configuration)
         {
             // Implementation remains similar
             return await Task.FromResult(true);
         }
 
-        public async Task<Dictionary<string, object>> GetConfigurationAsync(string machineId)
+        public async Task<ConcurrentDictionary<string, object>> GetConfigurationAsync(string machineId)
         {
             // Implementation remains similar
-            return await Task.FromResult(new Dictionary<string, object>());
+            return await Task.FromResult(new ConcurrentDictionary<string, object>());
         }
 
         #region Private Helper Methods
 
-        private async Task<StepResult> ExecuteWorkflowStepAsync(WorkflowStep step, Dictionary<string, object> context)
+        private async Task<StepResult> ExecuteWorkflowStepAsync(WorkflowStep step, ConcurrentDictionary<string, object> context)
         {
             var startTime = DateTime.UtcNow;
 
@@ -734,7 +735,7 @@ namespace XStateNet.Distributed.Orchestration
 
         private async Task HandleWorkflowCompensationAsync(
             WorkflowDefinition workflow,
-            Dictionary<string, StepResult> stepResults)
+            ConcurrentDictionary<string, StepResult> stepResults)
         {
             if (workflow.Compensation == null) return;
 

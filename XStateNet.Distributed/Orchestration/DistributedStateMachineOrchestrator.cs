@@ -65,7 +65,8 @@ namespace XStateNet.Distributed.Orchestration
                     NodeId = nodeId,
                     Endpoint = $"node://{nodeId}/{machineId}",
                     Version = "1.0.0",
-                    Metadata = definition.Configuration.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
+                    Metadata = new ConcurrentDictionary<string, object>(
+                        definition.Configuration.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value)),
                     Status = options.AutoStart ? MachineStatus.Starting : MachineStatus.Stopped,
                     Tags = definition.Labels
                 };
@@ -360,7 +361,7 @@ namespace XStateNet.Distributed.Orchestration
                 // Request health status from machine
                 try
                 {
-                    var healthData = await _eventBus.RequestAsync<Dictionary<string, object>>(
+                    var healthData = await _eventBus.RequestAsync<ConcurrentDictionary<string, object>>(
                         machineId, "HealthCheck", timeout: TimeSpan.FromSeconds(5));
                     
                     if (healthData != null)
@@ -485,9 +486,10 @@ namespace XStateNet.Distributed.Orchestration
                 }
                 
                 // Group by node
-                overview.MachinesByNode = machinesList
-                    .GroupBy(m => m.NodeId)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                overview.MachinesByNode = new ConcurrentDictionary<string, int>(
+                    machinesList
+                        .GroupBy(m => m.NodeId)
+                        .ToDictionary(g => g.Key, g => g.Count()));
                 
                 // Recent alerts
                 overview.RecentAlerts = _activeAlerts.Values
@@ -513,7 +515,7 @@ namespace XStateNet.Distributed.Orchestration
                 WorkflowId = workflow.Id,
                 Definition = workflow,
                 StartTime = DateTime.UtcNow,
-                StepResults = new Dictionary<string, StepResult>()
+                StepResults = new ConcurrentDictionary<string, StepResult>()
             };
             
             _activeWorkflows[workflow.Id] = execution;
@@ -810,7 +812,7 @@ namespace XStateNet.Distributed.Orchestration
             }
         }
         
-        public async Task<bool> UpdateConfigurationAsync(string machineId, Dictionary<string, object> configuration)
+        public async Task<bool> UpdateConfigurationAsync(string machineId, ConcurrentDictionary<string, object> configuration)
         {
             try
             {
@@ -830,14 +832,14 @@ namespace XStateNet.Distributed.Orchestration
             }
         }
         
-        public async Task<Dictionary<string, object>> GetConfigurationAsync(string machineId)
+        public async Task<ConcurrentDictionary<string, object>> GetConfigurationAsync(string machineId)
         {
             try
             {
-                var config = await _eventBus.RequestAsync<Dictionary<string, object>>(
+                var config = await _eventBus.RequestAsync<ConcurrentDictionary<string, object>>(
                     machineId, "GetConfiguration", timeout: TimeSpan.FromSeconds(5));
                 
-                return config ?? new Dictionary<string, object>();
+                return config ?? new ConcurrentDictionary<string, object>();
             }
             catch (Exception ex)
             {
@@ -848,11 +850,11 @@ namespace XStateNet.Distributed.Orchestration
                     return definition.Configuration;
                 }
                 
-                return new Dictionary<string, object>();
+                return new ConcurrentDictionary<string, object>();
             }
         }
         
-        private async Task<StepResult> ExecuteWorkflowStepAsync(WorkflowStep step, Dictionary<string, object> context)
+        private async Task<StepResult> ExecuteWorkflowStepAsync(WorkflowStep step, ConcurrentDictionary<string, object> context)
         {
             var startTime = DateTime.UtcNow;
             
@@ -1061,7 +1063,7 @@ namespace XStateNet.Distributed.Orchestration
             public string WorkflowId { get; set; } = string.Empty;
             public WorkflowDefinition Definition { get; set; } = new();
             public DateTime StartTime { get; set; }
-            public Dictionary<string, StepResult> StepResults { get; set; } = new();
+            public ConcurrentDictionary<string, StepResult> StepResults { get; set; } = new();
         }
         
         private class SagaExecution
@@ -1077,7 +1079,7 @@ namespace XStateNet.Distributed.Orchestration
         public class StateSnapshot
         {
             public string CurrentState { get; set; } = string.Empty;
-            public Dictionary<string, object> Context { get; set; } = new();
+            public ConcurrentDictionary<string, object> Context { get; set; } = new();
             public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         }
 

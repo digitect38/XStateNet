@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using XStateNet;
 using XStateNet.Distributed;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests
 {
@@ -213,7 +214,7 @@ namespace XStateNet.Distributed.Tests
                 }
             }";
 
-            var childrenStatus = new Dictionary<string, bool>();
+            var childrenStatus = new ConcurrentDictionary<string, bool>();
             var parentActions = new ActionMap();
             parentActions["startChildren"] = new List<NamedAction>
             {

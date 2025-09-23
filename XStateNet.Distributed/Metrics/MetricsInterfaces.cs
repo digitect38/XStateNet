@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace XStateNet.Distributed.Metrics
@@ -11,7 +12,7 @@ namespace XStateNet.Distributed.Metrics
         void SetGauge(string name, double value, params string[] labels);
         void ObserveHistogram(string name, double value, params string[] labels);
         void ObserveSummary(string name, double value, params string[] labels);
-        Dictionary<string, double> GetCurrentMetrics();
+        ConcurrentDictionary<string, double> GetCurrentMetrics();
     }
 
     public class MetricsOptions

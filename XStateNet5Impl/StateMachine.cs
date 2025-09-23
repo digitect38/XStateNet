@@ -84,25 +84,25 @@ public partial class StateMachine : IStateMachine
     public CompoundState? RootState { set; get; }
     private StateMap? StateMap { set; get; }
 
-    // IStateMachine implementation
-    Dictionary<string, object?>? IStateMachine.ContextMap
+    public ContextMap? ContextMap { get; private set; } // use object because context can have various types of data
+
+    // IStateMachine implementation - ContextMap already inherits from ConcurrentDictionary
+    ConcurrentDictionary<string, object?>? IStateMachine.ContextMap
     {
-        get
-        {
-            // ContextMap inherits from ConcurrentDictionary which implements IDictionary
-            // We need to create a new Dictionary from it
-            if (ContextMap == null) return null;
-            return new Dictionary<string, object?>(ContextMap);
-        }
+        get => ContextMap;
         set
         {
             if (value == null)
             {
                 ContextMap = null;
             }
+            else if (value is ContextMap cm)
+            {
+                ContextMap = cm;
+            }
             else
             {
-                // Convert Dictionary to ContextMap
+                // Convert ConcurrentDictionary to ContextMap
                 var contextMap = new ContextMap();
                 foreach (var kvp in value)
                 {
@@ -112,8 +112,6 @@ public partial class StateMachine : IStateMachine
             }
         }
     }
-
-    public ContextMap? ContextMap { get; private set; } // use object because context can have various types of data
     internal string? _originalContextJson; // Store original context for RESET
 
     public ActionMap? ActionMap { set; get; }
@@ -1351,7 +1349,7 @@ public partial class StateMachine : IStateMachine
         try
         {
             // Store the original script's context if available
-            var initialContext = new Dictionary<string, object>();
+            var initialContext = new ConcurrentDictionary<string, object>();
             if (ContextMap != null && _originalContextJson != null)
             {
                 // Parse initial context from the original JSON

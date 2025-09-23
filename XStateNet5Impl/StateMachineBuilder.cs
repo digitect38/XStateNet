@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -18,7 +19,7 @@ namespace XStateNet
         private ServiceMap? serviceMap;                             // Service map for services
         private DelayMap? delayMap;                                 // Delay map for delays
         private ActivityMap? activityMap;                           // Activity map for activities
-        private Dictionary<string, object> _context = new();        // Context data to be added
+        private ConcurrentDictionary<string, object> _context = new();        // Context data to be added
         private bool _autoStart = false;                            // Whether to auto-start the state machine
 
         /// <summary>

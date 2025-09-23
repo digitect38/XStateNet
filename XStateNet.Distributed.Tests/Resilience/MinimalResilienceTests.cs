@@ -241,8 +241,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             var channel = new BoundedChannelManager<string>("integration",
                 new CustomBoundedChannelOptions
                 {
-                    Capacity = 10,
-                    BackpressureStrategy = BackpressureStrategy.Wait
+                    Capacity = 10
                 });
 
             // Act - Send messages through pipeline

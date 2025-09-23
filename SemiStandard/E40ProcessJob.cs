@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,7 @@ namespace SemiStandard.E40
         private readonly string _processJobId;
         private readonly List<string> _materialIds = new();
         private string? _recipeId;
-        private Dictionary<string, object> _recipeParameters = new();
+        private ConcurrentDictionary<string, object> _recipeParameters = new();
         private DateTime? _startTime;
         private DateTime? _endTime;
         
@@ -78,7 +79,7 @@ namespace SemiStandard.E40
                     _recipeId = data.RecipeId;
                     _materialIds.Clear();
                     _materialIds.AddRange(data.MaterialIds);
-                    _recipeParameters = data.RecipeParameters ?? new Dictionary<string, object>();
+                    _recipeParameters = data.RecipeParameters ?? new ConcurrentDictionary<string, object>();
                 }
             });
             
@@ -158,7 +159,7 @@ namespace SemiStandard.E40
             }
         }
         
-        public void Create(string recipeId, List<string> materialIds, Dictionary<string, object>? recipeParameters = null)
+        public void Create(string recipeId, List<string> materialIds, ConcurrentDictionary<string, object>? recipeParameters = null)
         {
             _stateMachine.Send(new StateMachineEvent
             {
@@ -167,7 +168,7 @@ namespace SemiStandard.E40
                 {
                     RecipeId = recipeId,
                     MaterialIds = materialIds,
-                    RecipeParameters = recipeParameters ?? new Dictionary<string, object>()
+                    RecipeParameters = recipeParameters ?? new ConcurrentDictionary<string, object>()
                 }
             });
             UpdateState();
@@ -268,7 +269,7 @@ namespace SemiStandard.E40
         {
             public string RecipeId { get; set; } = string.Empty;
             public List<string> MaterialIds { get; set; } = new();
-            public Dictionary<string, object> RecipeParameters { get; set; } = new();
+            public ConcurrentDictionary<string, object> RecipeParameters { get; set; } = new();
         }
         
         public class ErrorData

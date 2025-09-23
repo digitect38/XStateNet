@@ -123,7 +123,6 @@ namespace XStateNet.Distributed.Examples
             var orderChannel = _channelFactory.Create<ResilienceExample.Order>(new CustomBoundedChannelOptions
             {
                 Capacity = 100,
-                BackpressureStrategy = BackpressureStrategy.Wait,
                 EnableMonitoring = true
             });
 

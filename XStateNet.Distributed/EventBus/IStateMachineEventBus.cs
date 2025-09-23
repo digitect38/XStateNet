@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -88,7 +89,7 @@ namespace XStateNet.Distributed.EventBus
         public string SourceMachineId { get; set; } = string.Empty;
         public string? TargetMachineId { get; set; }
         public object? Payload { get; set; }
-        public Dictionary<string, string> Headers { get; set; } = new();
+        public ConcurrentDictionary<string, string> Headers { get; set; } = new();
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public int Version { get; set; } = 1;
         public string? CorrelationId { get; set; }
@@ -103,7 +104,7 @@ namespace XStateNet.Distributed.EventBus
         public string? OldState { get; set; }
         public string NewState { get; set; } = string.Empty;
         public string? Transition { get; set; }
-        public Dictionary<string, object>? Context { get; set; }
+        public ConcurrentDictionary<string, object>? Context { get; set; }
         public TimeSpan? Duration { get; set; }
         
         public StateChangeEvent()

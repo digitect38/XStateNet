@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace TimelineWPF.PubSub
@@ -16,10 +17,10 @@ namespace TimelineWPF.PubSub
         public string FromState { get; }
         public string ToState { get; }
         public string? TriggerEvent { get; }
-        public Dictionary<string, object>? Context { get; }
+        public ConcurrentDictionary<string, object>? Context { get; }
 
         public StateTransitionMessage(string machineName, string fromState, string toState,
-            double timestamp, string? triggerEvent = null, Dictionary<string, object>? context = null)
+            double timestamp, string? triggerEvent = null, ConcurrentDictionary<string, object>? context = null)
         {
             MachineName = machineName;
             FromState = fromState;
@@ -92,10 +93,10 @@ namespace TimelineWPF.PubSub
 
         public List<string> States { get; }
         public string InitialState { get; }
-        public Dictionary<string, object>? Metadata { get; }
+        public ConcurrentDictionary<string, object>? Metadata { get; }
 
         public MachineRegisteredMessage(string machineName, List<string> states,
-            string initialState, double timestamp, Dictionary<string, object>? metadata = null)
+            string initialState, double timestamp, ConcurrentDictionary<string, object>? metadata = null)
         {
             MachineName = machineName;
             States = states;

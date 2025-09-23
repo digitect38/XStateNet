@@ -219,16 +219,14 @@ public class TrafficMachine : IDisposable
 
     }
     [Fact]
-    public void TestImplicitTargetTransition()
+    public async void TestImplicitTargetTransition()
     {
         _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
         // Send event to trigger the implicit target transition
-        _stateMachine!.Send("IMPLICIT_TARGET");
-
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = await _stateMachine!.SendAsyncWithState("IMPLICIT_TARGET");
         Assert.Contains("yellow", currentState);
     }
     

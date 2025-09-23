@@ -10,6 +10,7 @@ using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
 using XStateNet.Distributed.Transports;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests.IntegrationTests
 {
@@ -264,7 +265,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
         public async Task Workflow_Should_ExecuteInOrder()
         {
             // Arrange
-            var executionTimestamps = new Dictionary<string, DateTime>();
+            var executionTimestamps = new ConcurrentDictionary<string, DateTime>();
             var allStepsCompleted = new TaskCompletionSource<bool>();
             var completedCount = 0;
 
@@ -409,21 +410,21 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
             {
                 MachineId = "processor-1",
                 NodeId = "node-1",
-                Metadata = new Dictionary<string, object> { ["capabilities"] = "process,validate" }
+                Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process,validate" }
             });
 
             await _registry.RegisterAsync("processor-2", new StateMachineInfo
             {
                 MachineId = "processor-2",
                 NodeId = "node-2",
-                Metadata = new Dictionary<string, object> { ["capabilities"] = "process" }
+                Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process" }
             });
 
             await _registry.RegisterAsync("notifier-1", new StateMachineInfo
             {
                 MachineId = "notifier-1",
                 NodeId = "node-3",
-                Metadata = new Dictionary<string, object> { ["capabilities"] = "notify" }
+                Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "notify" }
             });
 
             // Act
@@ -471,7 +472,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
     /// </summary>
     internal class InMemoryStateMachineRegistry : IStateMachineRegistry
     {
-        private readonly Dictionary<string, StateMachineInfo> _machines = new();
+        private readonly ConcurrentDictionary<string, StateMachineInfo> _machines = new();
         private readonly List<Action<RegistryChangeEvent>> _handlers = new();
 
         public event EventHandler<StateMachineRegisteredEventArgs>? MachineRegistered;
@@ -496,15 +497,16 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
 
         public Task<bool> UnregisterAsync(string machineId)
         {
-            var removed = _machines.Remove(machineId);
-            if (removed)
+            if (_machines.TryRemove(machineId, out _))
             {
                 MachineUnregistered?.Invoke(this, new StateMachineUnregisteredEventArgs 
                 { 
                     MachineId = machineId 
                 });
+                return Task.FromResult(true);
             }
-            return Task.FromResult(removed);
+
+            return Task.FromResult(false);
         }
 
         public Task<StateMachineInfo?> GetAsync(string machineId)
@@ -574,7 +576,8 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
     /// </summary>
     internal class InMemoryEventBus : IStateMachineEventBus
     {
-        private readonly Dictionary<string, List<Action<StateMachineEvent>>> _subscriptions = new();
+        private readonly ConcurrentDictionary<string, List<Action<StateMachineEvent>>> _subscriptions = new();
+        private readonly ConcurrentDictionary<string, object> _subscriptionLocks = new();
         private bool _connected;
 
         public bool IsConnected => _connected;
@@ -691,38 +694,45 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
 
         private void AddSubscription(string key, Action<StateMachineEvent> handler)
         {
-            lock (_subscriptions)
+            var lockObj = _subscriptionLocks.GetOrAdd(key, _ => new object());
+            lock (lockObj)
             {
-                if (!_subscriptions.ContainsKey(key))
-                    _subscriptions[key] = new List<Action<StateMachineEvent>>();
-                _subscriptions[key].Add(handler);
+                var list = _subscriptions.GetOrAdd(key, _ => new List<Action<StateMachineEvent>>());
+                list.Add(handler);
             }
         }
 
         private void RemoveSubscription(string key, Action<StateMachineEvent> handler)
         {
-            lock (_subscriptions)
+            if (!_subscriptions.TryGetValue(key, out var handlers))
+                return;
+
+            var lockObj = _subscriptionLocks.GetOrAdd(key, _ => new object());
+            lock (lockObj)
             {
-                if (_subscriptions.TryGetValue(key, out var handlers))
+                handlers.Remove(handler);
+                if (handlers.Count == 0)
                 {
-                    handlers.Remove(handler);
-                    if (handlers.Count == 0)
-                        _subscriptions.Remove(key);
+                    _subscriptions.TryRemove(key, out _);
+                    _subscriptionLocks.TryRemove(key, out _);
                 }
             }
         }
 
         private void NotifySubscribers(string key, StateMachineEvent evt)
         {
-            List<Action<StateMachineEvent>> handlers;
-            lock (_subscriptions)
+            if (!_subscriptions.TryGetValue(key, out var handlers))
+                return;
+
+            List<Action<StateMachineEvent>> handlersCopy;
+            var lockObj = _subscriptionLocks.GetOrAdd(key, _ => new object());
+            lock (lockObj)
             {
-                if (!_subscriptions.TryGetValue(key, out var h))
-                    return;
-                handlers = new List<Action<StateMachineEvent>>(h);
+                // Create a copy to avoid holding lock during callback execution
+                handlersCopy = new List<Action<StateMachineEvent>>(handlers);
             }
 
-            foreach (var handler in handlers)
+            foreach (var handler in handlersCopy)
             {
                 Task.Run(() => handler(evt));
             }

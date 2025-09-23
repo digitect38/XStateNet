@@ -493,10 +493,7 @@ public class RestartingSupervisor : ActorBase
                     await Context.System.StopActor(failure.FailedActor.Path);
 
                     // Remove from children collection
-                    if (Context.Children.ContainsKey(childName))
-                    {
-                        Context.Children.Remove(childName);
-                    }
+                    Context.Children.TryRemove(childName, out _);
 
                     // Add a small delay to ensure cleanup
                     await Task.Delay(100);

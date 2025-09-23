@@ -143,8 +143,10 @@ public partial class StateMachine
 
         foreach (var actionName in actionNames)
         {
-            if (actionMap.TryGetValue(actionName, out var actionList))
+            if (actionMap.ContainsKey(actionName))
             {
+                // Use thread-safe GetActions method
+                var actionList = actionMap.GetActions(actionName);
                 actions.AddRange(actionList);
             }
             else

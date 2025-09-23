@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -292,7 +293,7 @@ namespace TimelineWPF
     /// </summary>
     public static class RealTimeStateMachineAdapterExtensions
     {
-        private static readonly Dictionary<RealTimeStateMachineAdapter, int> _machineCountCache = new();
+        private static readonly ConcurrentDictionary<RealTimeStateMachineAdapter, int> _machineCountCache = new();
 
         public static int GetRegisteredMachineCount(this RealTimeStateMachineAdapter adapter)
         {

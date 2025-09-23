@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -290,7 +291,7 @@ namespace XStateNet.Distributed.Logging
             string metricName,
             double value,
             string unit,
-            Dictionary<string, object>? tags = null)
+            ConcurrentDictionary<string, object>? tags = null)
         {
             var contextLogger = logger
                 .ForContext("MetricName", metricName)

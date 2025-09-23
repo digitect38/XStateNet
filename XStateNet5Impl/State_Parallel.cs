@@ -30,18 +30,9 @@ public class ParallelState : CompoundState
         base.BuildTransitionList(eventName, transitionList);
 
         // children next evaluation
-
-#if true // serial way - KEEP SERIAL to avoid race conditions with shared list
         foreach (string subStateName in SubStateNames) {
             GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
-#else   // parallel way - UNSAFE: List is not thread-safe
-        SubStateNames.AsParallel().ForAll(
-            subStateName => {
-                GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
-            }
-        );
-#endif
 
     }
     

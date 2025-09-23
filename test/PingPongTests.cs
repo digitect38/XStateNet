@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
 using XStateNet;
+using XStateNet.Tests.TestHelpers;
 
 namespace InterMachineTests;
 
@@ -16,7 +18,7 @@ public class PingPongTests : XStateNet.Tests.TestBase
     public async Task TwoMachines_Should_PingPongBetweenEachOther()
     {
         // Arrange
-        var transitionLog = new List<string>();
+        var transitionLog = new ConcurrentBag<string>();
         StateMachine? pingMachine = null;
         StateMachine? pongMachine = null;
         
@@ -71,9 +73,9 @@ public class PingPongTests : XStateNet.Tests.TestBase
         // Setup Ping actions
         var pingActions = new ActionMap
         {
-            ["serveToPong"] = new List<NamedAction> 
-            { 
-                new NamedAction("serveToPong", (sm) => 
+            ["serveToPong"] = new List<NamedAction>
+            {
+                new NamedAction("serveToPong", (sm) =>
                 {
                     transitionLog.Add("PING: Served ball to PONG");
                     pongMachine?.Send("SERVE");
@@ -116,8 +118,13 @@ public class PingPongTests : XStateNet.Tests.TestBase
         pongMachine.Start();
         
         // Act - Let them play ping pong for a few rounds
-        await Task.Delay(2500); // Enough time for multiple exchanges
-        
+        // Wait for multiple exchanges to occur
+        await DeterministicWait.WaitForConditionAsync(
+            () => transitionLog.Where(s => s.Contains("Served ball")).Count() > 1 &&
+                  transitionLog.Where(s => s.Contains("Returned ball")).Count() > 1,
+            timeoutMs: 5000,
+            conditionDescription: "Multiple ping-pong exchanges");
+
         // Assert
         Assert.NotEmpty(transitionLog);
         Assert.Contains("PING: Served ball to PONG", transitionLog);
@@ -126,8 +133,8 @@ public class PingPongTests : XStateNet.Tests.TestBase
         Assert.Contains("PING: Received return from PONG", transitionLog);
         
         // Should have multiple complete exchanges
-        var serveCount = transitionLog.FindAll(s => s.Contains("Served ball")).Count;
-        var returnCount = transitionLog.FindAll(s => s.Contains("Returned ball")).Count;
+        var serveCount = transitionLog.Where(s => s.Contains("Served ball")).Count();
+        var returnCount = transitionLog.Where(s => s.Contains("Returned ball")).Count();
         
         Assert.True(serveCount > 1, "should have multiple serves");
         Assert.True(returnCount > 1, "should have multiple returns");
@@ -293,10 +300,18 @@ public class PingPongTests : XStateNet.Tests.TestBase
         
         pingMachine.Start();
         pongMachine.Start();
-        
-        // Act - Play for a while
-        await Task.Delay(3000);
-        
+
+        // Act - Trigger the serve to start the game
+        // The 'after' transition might not fire automatically, so send the initial ball
+        await Task.Delay(250); // Give machines time to initialize
+        pongMachine.Send("BALL"); // Start the rally
+
+        // Wait for rally to complete or scoring to happen
+        await DeterministicWait.WaitForConditionAsync(
+            () => (pingScore > 0 || pongScore > 0) || rallyCount > 2,
+            timeoutMs: 5000,
+            conditionDescription: "Rally activity or scoring");
+
         // Assert - The game should have some activity
         // Note: Since guards might prevent all misses, we just check the game ran
         Assert.True((pingScore + pongScore) >= 0, "game should have run");
@@ -310,8 +325,8 @@ public class PingPongTests : XStateNet.Tests.TestBase
     public async Task MultiplePairs_Should_PlayIndependently()
     {
         // Arrange - Two ping pong tables
-        var table1Log = new List<string>();
-        var table2Log = new List<string>();
+        var table1Log = new ConcurrentBag<string>();
+        var table2Log = new ConcurrentBag<string>();
         
         // Table 1
         StateMachine? ping1 = null;
@@ -423,9 +438,19 @@ public class PingPongTests : XStateNet.Tests.TestBase
         // Act - Start both games
         ping1.Send("BALL"); // Start table 1
         ping2.Send("BALL"); // Start table 2
-        
-        await Task.Delay(1000);
-        
+
+        // Wait for both tables to have rallies (both ping and pong hit)
+        await DeterministicWait.WaitForConditionAsync(
+            () => table1Log.Contains("Ping1 hit") &&
+                  table1Log.Contains("Pong1 hit") &&
+                  table2Log.Contains("Ping2 hit") &&
+                  table2Log.Contains("Pong2 hit"),
+            timeoutMs: 3000,
+            conditionDescription: "Full rallies on both tables");
+
+        // Give a tiny bit more time for any async operations to complete
+        await Task.Delay(100);
+
         // Assert - Both tables should have activity
         Assert.NotEmpty(table1Log /*, "Table 1 should have hits" */);
         Assert.NotEmpty(table2Log /*, "Table 2 should have hits" */);

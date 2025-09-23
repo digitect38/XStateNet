@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 using XStateNet;
+using XStateNet.Tests.TestHelpers;
 
 namespace InterMachineTests;
 
@@ -47,8 +48,8 @@ public class StateCheckingTests
         
         // Act - Transition to yellow
         machine.Send("TIMER");
-        await Task.Delay(50);
-        
+        await DeterministicWait.WaitForStateAsync(machine, "yellow");
+
         // Assert - After first transition
         Assert.False(machine.IsInState(machine, $"{machine.machineId}.red"));
         Assert.True(machine.IsInState(machine,  $"{machine.machineId}.yellow"));
@@ -56,8 +57,8 @@ public class StateCheckingTests
 
         // Act - Transition to green
         machine.Send("TIMER");
-        await Task.Delay(50);
-        
+        await DeterministicWait.WaitForStateAsync(machine, "green");
+
         // Assert - After second transition
         Assert.False(machine.IsInState(machine, $"{machine.machineId}.red"));
         Assert.False(machine.IsInState(machine, $"{machine.machineId}.yellow"));
@@ -146,7 +147,7 @@ public class StateCheckingTests
 
         var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
-        await Task.Delay(50);
+        // Machine starts in pending.fetch state immediately, no need to wait
 
         // Act - Get current state hierarchy
         var states = machine.GetSourceSubStateCollection(null);
@@ -253,7 +254,7 @@ public class StateCheckingTests
             result = "Door is closed, opening...";
             door.Send("OPEN");
         }
-        await Task.Delay(50);
+        await DeterministicWait.WaitForStateAsync(door, "open");
 
         if (door.IsInState(door, $"{doorId}.open"))
         {
@@ -301,7 +302,7 @@ public class StateCheckingTests
         var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         var machineId = machine.machineId;
-        await Task.Delay(50);
+        // Machine starts immediately in parallel states, no need to wait
 
         // Assert - Both parallel regions should be active
         var activeStates = machine.GetActiveStateString(leafOnly: false);
@@ -312,16 +313,16 @@ public class StateCheckingTests
         
         // Act - Turn on lights
         machine.Send("TURN_ON");
-        await Task.Delay(50);
-        
+        await DeterministicWait.WaitForStateAsync(machine, "on");
+
         // Assert - Lights should be on, heating still idle
         Assert.True(machine.IsInState(machine, $"{machineId}.lights.on"));
         Assert.True(machine.IsInState(machine, $"{machineId}.heating.idle"));
         
         // Act - Start heating
         machine.Send("HEAT");
-        await Task.Delay(50);
-        
+        await DeterministicWait.WaitForStateAsync(machine, "heating");
+
         // Assert - Both should be in their active states
         Assert.True(machine.IsInState(machine, $"{machineId}.lights.on"));
         Assert.True(machine.IsInState(machine, $"{machineId}.heating.heating"));

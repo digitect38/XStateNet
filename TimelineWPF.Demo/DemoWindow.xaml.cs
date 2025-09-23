@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -14,7 +15,7 @@ namespace TimelineWPF.Demo
     public partial class DemoWindow : Window
     {
         private readonly DispatcherTimer _timer;
-        private readonly Dictionary<string, StateMachine> _stateMachines;
+        private readonly ConcurrentDictionary<string, StateMachine> _stateMachines;
         private readonly Random _random;
         private readonly TimelineManager _timelineManager;
         private double _simulationTime;
@@ -29,7 +30,7 @@ namespace TimelineWPF.Demo
             _timer.Interval = TimeSpan.FromMilliseconds(50);
             _timer.Tick += Timer_Tick;
 
-            _stateMachines = new Dictionary<string, StateMachine>();
+            _stateMachines = new ConcurrentDictionary<string, StateMachine>();
             _random = new Random();
 
             // Check if optimized event bus should be used (from saved settings or default)
@@ -728,7 +729,7 @@ namespace TimelineWPF.Demo
             if (MachineList.SelectedItem is string machineName)
             {
                 Timeline.DataProvider?.RemoveStateMachine(machineName);
-                _stateMachines.Remove(machineName);
+                _stateMachines.TryRemove(machineName, out _);
                 MachineList.Items.Remove(machineName);
                 TargetMachineCombo.Items.Remove(machineName);
 

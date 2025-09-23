@@ -18,8 +18,8 @@ namespace TimelineWPF
     {
         private readonly ITimelineDataProvider _timelineProvider;
         private readonly IStateMachineEventBus _eventBus;
-        private readonly Dictionary<string, EventNotificationService> _notificationServices = new();
-        private readonly Dictionary<string, IDisposable> _subscriptions = new();
+        private readonly ConcurrentDictionary<string, EventNotificationService> _notificationServices = new();
+        private readonly ConcurrentDictionary<string, IDisposable> _subscriptions = new();
         private readonly ConcurrentDictionary<string, string> _machineDisplayNames = new();
         private readonly ConcurrentDictionary<string, DateTime> _lastEventTimes = new();
         private readonly Stopwatch _stopwatch = new();
@@ -292,7 +292,7 @@ namespace TimelineWPF
                     await _eventBus.PublishToGroupAsync("timeline-sync", "TIMELINE_SYNC_RESPONSE", localMachines);
                 });
             }
-            else if (evt.EventName == "TIMELINE_SYNC_RESPONSE" && evt.Payload is Dictionary<string, object> states)
+            else if (evt.EventName == "TIMELINE_SYNC_RESPONSE" && evt.Payload is ConcurrentDictionary<string, object> states)
             {
                 // Update timeline with remote states
                 SyncRemoteStates(states);
@@ -318,11 +318,11 @@ namespace TimelineWPF
             }
         }
 
-        private Dictionary<string, object> GetLocalMachineStates()
+        private ConcurrentDictionary<string, object> GetLocalMachineStates()
         {
             lock (_lockObj)
             {
-                var states = new Dictionary<string, object>();
+                var states = new ConcurrentDictionary<string, object>();
 
                 foreach (var kvp in _machineDisplayNames)
                 {
@@ -344,7 +344,7 @@ namespace TimelineWPF
             }
         }
 
-        private void SyncRemoteStates(Dictionary<string, object> remoteStates)
+        private void SyncRemoteStates(ConcurrentDictionary<string, object> remoteStates)
         {
             lock (_lockObj)
             {

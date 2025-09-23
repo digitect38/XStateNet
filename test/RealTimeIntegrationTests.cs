@@ -114,18 +114,21 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_RegistersStateMachine()
+        public async Task RealTimeAdapter_RegistersStateMachine()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var tcs = new TaskCompletionSource<bool>();
+            adapter.ViewModelUpdated += (s, e) => tcs.TrySetResult(true);
 
             var machine = CreateTestMachine("test-register");
 
             // Act
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for view model update.");
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
@@ -134,20 +137,27 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_CapturesStateTransitions()
+        public async Task RealTimeAdapter_CapturesStateTransitions()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var registrationTcs = new TaskCompletionSource<bool>();
+            adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
             var machine = CreateTestMachine("test-transitions");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
+
+            var transitionTcs = new TaskCompletionSource<bool>();
+            adapter.ViewModelUpdated += (s, e) => transitionTcs.TrySetResult(true);
 
             // Act
             machine.Send("START");
-            Thread.Sleep(200); // Give time for async processing
+            completed = await Task.WhenAny(transitionTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == transitionTcs.Task, "Test timed out waiting for state transition.");
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();
@@ -158,22 +168,38 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_CapturesEvents()
+        public async Task RealTimeAdapter_CapturesEvents()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var registrationTcs = new TaskCompletionSource<bool>();
+            adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
             var machine = CreateTestMachine("test-events");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
+
+            var eventTcs = new TaskCompletionSource<bool>();
+            var eventCount = 0;
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                // This event handler is simplistic. A real implementation might need to check which event was received.
+                eventCount++;
+                if (eventCount >= 3)
+                {
+                    eventTcs.TrySetResult(true);
+                }
+            };
 
             // Act
             machine.Send("START");
             machine.Send("ERROR");
             machine.Send("RESET");
-            Thread.Sleep(200);
+            completed = await Task.WhenAny(eventTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == eventTcs.Task, "Test timed out waiting for events.");
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();
@@ -186,20 +212,35 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_CapturesActions()
+        public async Task RealTimeAdapter_CapturesActions()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var registrationTcs = new TaskCompletionSource<bool>();
+            adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
             var machine = CreateTestMachine("test-actions");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
+            var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
+
+            var actionTcs = new TaskCompletionSource<bool>();
+            var actionCount = 0;
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                actionCount++;
+                if (actionCount >= 2) // onStart and enterActive
+                {
+                    actionTcs.TrySetResult(true);
+                }
+            };
 
             // Act
             machine.Send("START"); // Should trigger onStart and enterActive
-            Thread.Sleep(200);
+            completed = await Task.WhenAny(actionTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == actionTcs.Task, "Test timed out waiting for actions.");
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();
@@ -211,34 +252,55 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_UnregisterStateMachine()
+        public async Task RealTimeAdapter_UnregisterStateMachine()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var updateReceived = false;
+            adapter.ViewModelUpdated += (s, e) => updateReceived = true;
 
             var machine = CreateTestMachine("test-unregister");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
+            await Task.Delay(100); // Allow registration to complete
+            Assert.Single(viewModel.GetStateMachines());
 
-            // Act - Use the actual machine ID which includes the GUID
+            // Act
             var actualId = machine.machineId;
             adapter.UnregisterStateMachine(actualId);
-            Thread.Sleep(100);
+            await Task.Delay(100); // Allow unregistration to complete
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
             Assert.Empty(stateMachines);
+
+            // Verify no more updates are received
+            updateReceived = false;
+            machine.Send("START");
+            await Task.Delay(200); // Wait to see if an update occurs
+            Assert.False(updateReceived, "Should not receive updates after unregistering.");
         }
 
         [Fact]
-        public void RealTimeAdapter_MultipleMachines()
+        public async Task RealTimeAdapter_MultipleMachines()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var tcs = new TaskCompletionSource<bool>();
+            var updateCount = 0;
+
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                updateCount++;
+                // 2 registrations + 1 event for m1 + 2 events for m2 = 5 updates
+                if (updateCount >= 5)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
 
             var machine1 = CreateTestMachine("test-multi-1");
             var machine2 = CreateTestMachine("test-multi-2");
@@ -246,12 +308,13 @@ namespace TimelineWPF.Tests
             // Act
             adapter.RegisterStateMachine(machine1, "Machine 1");
             adapter.RegisterStateMachine(machine2, "Machine 2");
-            Thread.Sleep(100);
 
             machine1.Send("START");
             machine2.Send("START");
             machine2.Send("ERROR");
-            Thread.Sleep(200);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
@@ -268,24 +331,37 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_TimestampsAreSequential()
+        public async Task RealTimeAdapter_TimestampsAreSequential()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var tcs = new TaskCompletionSource<bool>();
+            var eventCount = 0;
+
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                eventCount++;
+                // Wait for registration + 3 events
+                if (eventCount >= 4)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
 
             var machine = CreateTestMachine("test-timestamps");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
 
             // Act
             machine.Send("START");
-            Thread.Sleep(50);
+            await Task.Delay(10);
             machine.Send("ERROR");
-            Thread.Sleep(50);
+            await Task.Delay(10);
             machine.Send("RESET");
-            Thread.Sleep(200);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();
@@ -299,54 +375,71 @@ namespace TimelineWPF.Tests
         }
 
         [Fact]
-        public void RealTimeAdapter_Clear_RemovesAllMachines()
+        public async Task RealTimeAdapter_Clear_RemovesAllMachines()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var updateReceived = false;
+            adapter.ViewModelUpdated += (s, e) => updateReceived = true;
 
             var machine1 = CreateTestMachine("test-clear-1");
             var machine2 = CreateTestMachine("test-clear-2");
 
             adapter.RegisterStateMachine(machine1, "Machine 1");
             adapter.RegisterStateMachine(machine2, "Machine 2");
-            Thread.Sleep(100);
+            await Task.Delay(100); // Allow registrations to complete
 
             // Act
             adapter.Clear();
-            Thread.Sleep(100);
+            await Task.Delay(100); // Allow clear to process
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
             Assert.Empty(stateMachines);
 
             // Events should not be captured after clearing
+            updateReceived = false;
             machine1.Send("START");
             machine2.Send("START");
-            Thread.Sleep(100);
+            await Task.Delay(200); // Wait to see if an update occurs
 
+            Assert.False(updateReceived, "Should not receive updates after clearing.");
             stateMachines = viewModel.GetStateMachines().ToList();
             Assert.Empty(stateMachines); // Still empty
         }
 
         [Fact]
-        public void RealTimeAdapter_StateDurationCalculation()
+        public async Task RealTimeAdapter_StateDurationCalculation()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var tcs = new TaskCompletionSource<bool>();
+            var updateCount = 0;
+
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                updateCount++;
+                // Registration + START + STOP
+                if (updateCount >= 3)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
 
             var machine = CreateTestMachine("test-duration");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            Thread.Sleep(100);
 
             // Act
             machine.Send("START");
-            Thread.Sleep(100); // Stay in active for 100ms
+            await Task.Delay(100); // Stay in active for 100ms
             machine.Send("STOP");
-            Thread.Sleep(100);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();
@@ -363,18 +456,30 @@ namespace TimelineWPF.Tests
             if (activeState.Duration > 0)
             {
                 // Duration should be at least 100ms (100,000 microseconds)
-                Assert.True(activeState.Duration >= 50000, // Allow some tolerance
-                    $"Active state duration ({activeState.Duration} us) should be at least 50,000 us");
+                Assert.True(activeState.Duration >= 90000, // Allow some tolerance
+                    $"Active state duration ({activeState.Duration} us) should be at least 90,000 us");
             }
         }
 
         [Fact]
-        public void RealTimeAdapter_ReRegisteringSameMachine()
+        public async Task RealTimeAdapter_ReRegisteringSameMachine()
         {
             // Arrange
             var viewModel = new MainViewModel();
             var adapter = new RealTimeStateMachineAdapter(viewModel);
             _adapters.Add(adapter);
+            var tcs = new TaskCompletionSource<bool>();
+            var updateCount = 0;
+
+            adapter.ViewModelUpdated += (s, e) =>
+            {
+                updateCount++;
+                // 1st registration, START event, 2nd registration, STOP event
+                if (updateCount >= 4)
+                {
+                    tcs.TrySetResult(true);
+                }
+            };
 
             // For this test, we need a fixed ID to test re-registration
             var fixedId = $"test-reregister-{Guid.NewGuid():N}";
@@ -382,17 +487,14 @@ namespace TimelineWPF.Tests
 
             // Act
             adapter.RegisterStateMachine(machine, "Original Name");
-            Thread.Sleep(100);
-
             machine.Send("START");
-            Thread.Sleep(100);
 
             // Re-register with different name
             adapter.RegisterStateMachine(machine, "New Name");
-            Thread.Sleep(100);
-
             machine.Send("STOP");
-            Thread.Sleep(100);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();

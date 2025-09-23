@@ -106,7 +106,7 @@ public class ControlJob
     public DateTime? StartedTime { get; private set; }
     public DateTime? CompletedTime { get; private set; }
     public List<string> ProcessedSubstrates { get; }
-    public Dictionary<string, object> Properties { get; }
+    public ConcurrentDictionary<string, object> Properties { get; }
     
     public ControlJob(string jobId, List<string> carrierIds, string? recipeId, string? jsonScript)
     {
@@ -115,7 +115,7 @@ public class ControlJob
         RecipeId = recipeId;
         CreatedTime = DateTime.UtcNow;
         ProcessedSubstrates = new List<string>();
-        Properties = new Dictionary<string, object>();
+        Properties = new ConcurrentDictionary<string, object>();
         
         // Create control job state machine
         StateMachine = CreateControlJobStateMachine(jobId, jsonScript);

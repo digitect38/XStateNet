@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -13,11 +14,13 @@ namespace TimelineWPF
     public class RealTimeStateMachineAdapter : IDisposable
     {
         private readonly ITimelineDataProvider _timelineProvider;
-        private readonly Dictionary<string, IStateMachineMonitor> _monitors = new();
-        private readonly Dictionary<string, string> _machineDisplayNames = new();
+        private readonly ConcurrentDictionary<string, IStateMachineMonitor> _monitors = new();
+        private readonly ConcurrentDictionary<string, string> _machineDisplayNames = new();
         private readonly Stopwatch _stopwatch = new();
         private readonly object _lockObj = new();
         private double? _startTime = null;
+
+        public event EventHandler? ViewModelUpdated;
 
         public RealTimeStateMachineAdapter(ITimelineDataProvider timelineProvider)
         {
@@ -74,6 +77,9 @@ namespace TimelineWPF
                 var monitorId = monitor.StateMachineId;
                 _monitors[monitorId] = monitor;
                 _machineDisplayNames[monitorId] = name;
+
+                // Notify that the view model has been updated with a new state machine
+                ViewModelUpdated?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -96,13 +102,19 @@ namespace TimelineWPF
                     monitor.EventReceived -= OnEventReceived;
                     monitor.ActionExecuted -= OnActionExecuted;
 
-                    _monitors.Remove(normalizedId);
+                    if(!_monitors.TryRemove(normalizedId, out _))
+                    {
+                        Debug.WriteLine($"[TIMELINE ADAPTER] WARNING: Failed to remove monitor for ID: {normalizedId}");
+                    }
 
                     // Remove from timeline using the display name
                     if (_machineDisplayNames.TryGetValue(normalizedId, out var displayName))
                     {
                         _timelineProvider.RemoveStateMachine(displayName);
-                        _machineDisplayNames.Remove(normalizedId);
+                        if(!_machineDisplayNames.TryRemove(normalizedId, out _))
+                        {
+                            Debug.WriteLine($"[TIMELINE ADAPTER] WARNING: Failed to remove display name for ID: {normalizedId}");
+                        }
                     }
                 }
             }
@@ -161,6 +173,7 @@ namespace TimelineWPF
                     timestamp
                 );
                 Console.WriteLine($"[TIMELINE] State transition added successfully");
+                ViewModelUpdated?.Invoke(this, EventArgs.Empty);
             }
             else
             {
@@ -182,6 +195,7 @@ namespace TimelineWPF
                     timestamp
                 );
                 Console.WriteLine($"[TIMELINE] Event added successfully");
+                ViewModelUpdated?.Invoke(this, EventArgs.Empty);
             }
             else
             {
@@ -203,6 +217,7 @@ namespace TimelineWPF
                     timestamp
                 );
                 Console.WriteLine($"[TIMELINE] Action added successfully");
+                ViewModelUpdated?.Invoke(this, EventArgs.Empty);
             }
             else
             {

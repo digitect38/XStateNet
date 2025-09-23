@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ namespace TimelineWPF.PubSub
     public class OptimizedTimelineEventBus : ITimelineEventBus, IDisposable
     {
         private readonly OptimizedInMemoryEventBus _eventBus;
-        private readonly Dictionary<ITimelineSubscriber, List<IDisposable>> _subscriptions;
+        private readonly ConcurrentDictionary<ITimelineSubscriber, ConcurrentBag<IDisposable>> _subscriptions;
         private readonly ILogger<OptimizedTimelineEventBus>? _logger;
 
         public int SubscriberCount => _subscriptions.Count;
@@ -25,7 +26,7 @@ namespace TimelineWPF.PubSub
             _logger = logger;
             // Use the optimized event bus with default worker count (Environment.ProcessorCount)
             _eventBus = new OptimizedInMemoryEventBus(logger: null);
-            _subscriptions = new Dictionary<ITimelineSubscriber, List<IDisposable>>();
+            _subscriptions = new ConcurrentDictionary<ITimelineSubscriber, ConcurrentBag<IDisposable>>();
 
             // Connect the event bus
             _ = _eventBus.ConnectAsync();
@@ -35,7 +36,7 @@ namespace TimelineWPF.PubSub
         {
             if (!_subscriptions.ContainsKey(subscriber))
             {
-                _subscriptions[subscriber] = new List<IDisposable>();
+                _subscriptions[subscriber] = new ConcurrentBag<IDisposable>();
             }
 
             // Subscribe to all events and forward to Timeline subscriber
@@ -55,7 +56,7 @@ namespace TimelineWPF.PubSub
         {
             if (!_subscriptions.ContainsKey(subscriber))
             {
-                _subscriptions[subscriber] = new List<IDisposable>();
+                _subscriptions[subscriber] = new ConcurrentBag<IDisposable>();
             }
 
             // Subscribe to all events and filter by message type
@@ -77,7 +78,7 @@ namespace TimelineWPF.PubSub
         {
             if (!_subscriptions.ContainsKey(subscriber))
             {
-                _subscriptions[subscriber] = new List<IDisposable>();
+                _subscriptions[subscriber] = new ConcurrentBag<IDisposable>();
             }
 
             // Subscribe to events from specific machine
@@ -100,7 +101,7 @@ namespace TimelineWPF.PubSub
                 {
                     sub.Dispose();
                 }
-                _subscriptions.Remove(subscriber);
+                _subscriptions.TryRemove(subscriber, out _);
             }
         }
 

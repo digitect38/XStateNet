@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,8 +21,8 @@ namespace XStateNet.GPU
         private readonly StateMachine _masterMachine; // Reference implementation
         private GPUStateMachinePool _gpuPool;
         private GPUStateMachineDefinition _gpuDefinition;
-        private readonly Dictionary<string, int> _stateMap;
-        private readonly Dictionary<string, int> _eventMap;
+        private readonly ConcurrentDictionary<string, int> _stateMap;
+        private readonly ConcurrentDictionary<string, int> _eventMap;
         private readonly List<StateMachine> _cpuInstances;
         private readonly int _gpuThreshold;
         private bool _useGPU;
@@ -50,8 +51,8 @@ namespace XStateNet.GPU
 
             // Use guidIsolate for master machine to avoid conflicts
             _masterMachine = StateMachine.CreateFromScript(definitionJson, true);
-            _stateMap = new Dictionary<string, int>();
-            _eventMap = new Dictionary<string, int>();
+            _stateMap = new ConcurrentDictionary<string, int>();
+            _eventMap = new ConcurrentDictionary<string, int>();
             _cpuInstances = new List<StateMachine>();
             _useGPU = false;
             _actionExecutor = new ActionExecutor();
@@ -155,7 +156,7 @@ namespace XStateNet.GPU
             var states = new List<string>();
             var events = new HashSet<string>();
             var transitions = new List<TransitionEntry>();
-            var actions = new Dictionary<string, int>();
+            var actions = new ConcurrentDictionary<string, int>();
 
             // Extract initial state
             string? initialState = jsonObj["initial"]?.ToString();

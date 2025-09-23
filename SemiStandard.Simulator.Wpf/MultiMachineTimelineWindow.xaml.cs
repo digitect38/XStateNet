@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -12,10 +13,11 @@ namespace SemiStandard.Simulator.Wpf
 {
     public partial class MultiMachineTimelineWindow : Window
     {
-        private readonly Dictionary<string, List<StateTransition>> _machineTransitions = new();
-        private readonly Dictionary<string, string> _currentMachineStates = new();
-        private readonly Dictionary<string, DateTime> _lastMachineStateChangeTimes = new();
-        private readonly Dictionary<string, Color> _stateColorCache = new();
+        private readonly ConcurrentDictionary<string, List<StateTransition>> _machineTransitions = new();
+        private readonly ConcurrentDictionary<string, object> _transitionLocks = new();
+        private readonly ConcurrentDictionary<string, string> _currentMachineStates = new();
+        private readonly ConcurrentDictionary<string, DateTime> _lastMachineStateChangeTimes = new();
+        private readonly ConcurrentDictionary<string, Color> _stateColorCache = new();
         
         private DispatcherTimer _continuousUpdateTimer;
         private DateTime _sessionStartTime = DateTime.Now;
@@ -37,28 +39,29 @@ namespace SemiStandard.Simulator.Wpf
         
         public void AddStateTransition(string machineName, string fromState, string toState, DateTime timestamp)
         {
-            // Initialize machine list if needed
-            if (!_machineTransitions.ContainsKey(machineName))
+            var lockObj = _transitionLocks.GetOrAdd(machineName, _ => new object());
+            lock (lockObj)
             {
-                _machineTransitions[machineName] = new List<StateTransition>();
+                // Initialize machine list if needed
+                var transitions = _machineTransitions.GetOrAdd(machineName, _ => new List<StateTransition>());
+
+                // Add transition
+                transitions.Add(new StateTransition
+                {
+                    MachineName = machineName,
+                    FromState = fromState,
+                    ToState = toState,
+                    Timestamp = timestamp
+                });
             }
-            
-            // Add transition
-            _machineTransitions[machineName].Add(new StateTransition
-            {
-                MachineName = machineName,
-                FromState = fromState,
-                ToState = toState,
-                Timestamp = timestamp
-            });
-            
-            // Update current state
+
+            // Update current state (thread-safe)
             _currentMachineStates[machineName] = toState;
             _lastMachineStateChangeTimes[machineName] = timestamp;
-            
+
             // Trim old data
             TrimOldData(machineName);
-            
+
             // Update display
             UpdateTimeline();
         }
@@ -85,8 +88,8 @@ namespace SemiStandard.Simulator.Wpf
             if (timeSpan.TotalSeconds < 1) timeSpan = TimeSpan.FromSeconds(10);
             
             // Build machine-state hierarchy
-            var machineStateMap = new Dictionary<string, List<string>>();
-            var stateYPositions = new Dictionary<string, double>();
+            var machineStateMap = new ConcurrentDictionary<string, List<string>>();
+            var stateYPositions = new ConcurrentDictionary<string, double>();
             
             foreach (var machine in _machineTransitions.Keys.OrderBy(k => k))
             {
@@ -187,8 +190,8 @@ namespace SemiStandard.Simulator.Wpf
             }
         }
         
-        private void DrawStateLabels(Dictionary<string, List<string>> machineStateMap, 
-            Dictionary<string, double> stateYPositions, double leftMargin, double canvasWidth, 
+        private void DrawStateLabels(ConcurrentDictionary<string, List<string>> machineStateMap, 
+            ConcurrentDictionary<string, double> stateYPositions, double leftMargin, double canvasWidth, 
             double rightMargin, double stateHeight, double machineSpacing)
         {
             // Create a fixed background panel for labels that doesn't scroll
@@ -305,7 +308,7 @@ namespace SemiStandard.Simulator.Wpf
             TimelineCanvas.Children.Add(verticalSeparator);
         }
         
-        private void DrawStateTransitions(Dictionary<string, double> stateYPositions, double leftMargin,
+        private void DrawStateTransitions(ConcurrentDictionary<string, double> stateYPositions, double leftMargin,
             DateTime minTime, TimeSpan timeSpan, double plotWidth, DateTime currentTime)
         {
             foreach (var machineKvp in _machineTransitions)
@@ -440,11 +443,17 @@ namespace SemiStandard.Simulator.Wpf
         
         private void TrimOldData(string machineName)
         {
-            if (_machineTransitions[machineName].Count > MAX_TRANSITION_HISTORY)
+            if (!_machineTransitions.TryGetValue(machineName, out var transitions))
+                return;
+
+            var lockObj = _transitionLocks.GetOrAdd(machineName, _ => new object());
+            lock (lockObj)
             {
-                var transitions = _machineTransitions[machineName];
-                var toRemove = transitions.Count - MAX_TRANSITION_HISTORY;
-                transitions.RemoveRange(0, toRemove);
+                if (transitions.Count > MAX_TRANSITION_HISTORY)
+                {
+                    var toRemove = transitions.Count - MAX_TRANSITION_HISTORY;
+                    transitions.RemoveRange(0, toRemove);
+                }
             }
         }
         

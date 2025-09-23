@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace XStateNet.Semi.Secs
@@ -128,7 +129,7 @@ namespace XStateNet.Semi.Secs
         /// <summary>
         /// S2F15 - New Equipment Constant Send
         /// </summary>
-        public static SecsMessage S2F15(Dictionary<uint, SecsItem> ecidValues)
+        public static SecsMessage S2F15(ConcurrentDictionary<uint, SecsItem> ecidValues)
         {
             var items = new List<SecsItem>();
             foreach (var kvp in ecidValues)
@@ -159,7 +160,7 @@ namespace XStateNet.Semi.Secs
         /// <summary>
         /// S2F41 - Host Command Send
         /// </summary>
-        public static SecsMessage S2F41(string rcmd, Dictionary<string, SecsItem> parameters)
+        public static SecsMessage S2F41(string rcmd, ConcurrentDictionary<string, SecsItem> parameters)
         {
             var cpList = new List<SecsItem>();
             foreach (var kvp in parameters)
@@ -182,7 +183,7 @@ namespace XStateNet.Semi.Secs
         /// <summary>
         /// S2F42 - Host Command Acknowledge
         /// </summary>
-        public static SecsMessage S2F42(byte hcack = 0, Dictionary<string, SecsItem>? parameters = null)
+        public static SecsMessage S2F42(byte hcack = 0, ConcurrentDictionary<string, SecsItem>? parameters = null)
         {
             var items = new List<SecsItem> { new SecsU1(hcack) };
             

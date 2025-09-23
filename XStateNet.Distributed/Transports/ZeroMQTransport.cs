@@ -298,7 +298,7 @@ namespace XStateNet.Distributed.Transports
             {
                 IsHealthy = _isConnected,
                 Latency = TimeSpan.FromMilliseconds(1), // ZeroMQ typical latency
-                Diagnostics = new Dictionary<string, object>
+                Diagnostics = new ConcurrentDictionary<string, object>
                 {
                     ["KnownEndpoints"] = _knownEndpoints.Count,
                     ["PendingRequests"] = _pendingRequests.Count,

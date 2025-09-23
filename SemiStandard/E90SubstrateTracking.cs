@@ -235,14 +235,14 @@ public class SubstrateStateMachine
     public DateTime? ProcessEndTime { get; set; }
     public TimeSpan? ProcessingTime { get; set; }
     public string? RecipeId { get; set; }
-    public Dictionary<string, object> Properties { get; set; }
+    public ConcurrentDictionary<string, object> Properties { get; set; }
     
     public SubstrateStateMachine(string id, string? lotId = null, int? slotNumber = null, string? jsonScript = null)
     {
         Id = id;
         LotId = lotId;
         SlotNumber = slotNumber;
-        Properties = new Dictionary<string, object>();
+        Properties = new ConcurrentDictionary<string, object>();
         AcquiredTime = DateTime.UtcNow;
         
         // Create E90 substrate state machine from JSON script

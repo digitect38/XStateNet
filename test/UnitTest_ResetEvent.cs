@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Text;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,16 +22,16 @@ namespace XStateV5_Test.CoreFeatures;
 public class UnitTest_ResetEvent : IDisposable
 {
     private StateMachine? _stateMachine;
-    private readonly List<string> _actionLog;
-    private readonly Dictionary<string, int> _counters;
+    private readonly ConcurrentBag<string> _actionLog;
+    private readonly ConcurrentDictionary<string, int> _counters;
     private ActionMap _actions;
     private GuardMap _guards;
     private ServiceMap _services;
 
     public UnitTest_ResetEvent()
     {
-        _actionLog = new List<string>();
-        _counters = new Dictionary<string, int>();
+        _actionLog = new ConcurrentBag<string>();
+        _counters = new ConcurrentDictionary<string, int>();
 
         _actions = new ActionMap
         {

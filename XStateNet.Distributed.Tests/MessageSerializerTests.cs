@@ -2,6 +2,7 @@ using FluentAssertions;
 using XStateNet.Distributed.Core;
 using Xunit;
 using MessagePack;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests
 {
@@ -78,7 +79,7 @@ namespace XStateNet.Distributed.Tests
                 EventName = "TEST_EVENT",
                 Payload = MessageSerializer.Serialize("test payload"),
                 Priority = 5,
-                Headers = new Dictionary<string, string> { ["key"] = "value" }
+                Headers = new ConcurrentDictionary<string, string> { ["key"] = "value" }
             };
             
             // Act

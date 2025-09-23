@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -132,7 +133,7 @@ namespace XStateNet.Distributed.Tests.TestHelpers
         /// </summary>
         public class OperationCoordinator
         {
-            private readonly Dictionary<string, TaskCompletionSource<bool>> _checkpoints = new();
+            private readonly ConcurrentDictionary<string, TaskCompletionSource<bool>> _checkpoints = new();
 
             public async Task WaitForCheckpointAsync(string name, TimeSpan timeout)
             {

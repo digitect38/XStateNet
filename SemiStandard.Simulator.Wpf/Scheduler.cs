@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -210,9 +211,9 @@ namespace SemiStandard.Simulator.Wpf
             return _lotQueue.ToList();
         }
         
-        public Dictionary<string, object> GetSchedulerMetrics()
+        public ConcurrentDictionary<string, object> GetSchedulerMetrics()
         {
-            var metrics = new Dictionary<string, object>
+            var metrics = new ConcurrentDictionary<string, object>
             {
                 ["TotalLots"] = _lotQueue.Count,
                 ["WaitingLots"] = _lotQueue.Count(l => l.State == LotState.Waiting),

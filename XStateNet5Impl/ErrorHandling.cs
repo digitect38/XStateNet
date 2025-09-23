@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -23,7 +24,7 @@ public class StateErrorContext
     public string? SourceState { get; set; }
     public string? EventName { get; set; }
     public DateTime Timestamp { get; set; }
-    public Dictionary<string, object> AdditionalData { get; set; }
+    public ConcurrentDictionary<string, object> AdditionalData { get; set; }
     
     public StateErrorContext(Exception exception, string? sourceState = null, string? eventName = null)
     {
@@ -31,7 +32,7 @@ public class StateErrorContext
         SourceState = sourceState;
         EventName = eventName;
         Timestamp = DateTime.UtcNow;
-        AdditionalData = new Dictionary<string, object>();
+        AdditionalData = new ConcurrentDictionary<string, object>();
     }
 }
 
@@ -40,8 +41,8 @@ public class StateErrorContext
 /// </summary>
 public class ErrorHandler : StateObject
 {
-    private readonly Stack<StateErrorContext> _errorStack = new();
-    private readonly List<StateErrorContext> _errorHistory = new();
+    private readonly ConcurrentStack<StateErrorContext> _errorStack = new();
+    private readonly ConcurrentBag<StateErrorContext> _errorHistory = new();
     
     public ErrorHandler(string? machineId) : base(machineId) { }
     
@@ -88,7 +89,8 @@ public class ErrorHandler : StateObject
         
         if (currentState.OnTransitionMap != null && currentState.OnTransitionMap.ContainsKey("onError"))
         {
-            var transitions = currentState.OnTransitionMap["onError"];
+            // Use thread-safe GetTransitions method
+            var transitions = currentState.OnTransitionMap.GetTransitions("onError");
             errorTransitions = transitions?
                 .OfType<OnErrorTransition>()
                 .Where(t => t.ErrorType == null || t.ErrorType == exception.GetType().Name)
@@ -129,7 +131,8 @@ public class ErrorHandler : StateObject
     /// </summary>
     public StateErrorContext? GetLastError()
     {
-        return _errorStack.Count > 0 ? _errorStack.Peek() : null;
+        _errorStack.TryPeek(out var result);
+        return result;
     }
     
     /// <summary>
@@ -145,7 +148,7 @@ public class ErrorHandler : StateObject
     /// </summary>
     public IReadOnlyList<StateErrorContext> GetErrorHistory()
     {
-        return _errorHistory.AsReadOnly();
+        return _errorHistory.ToList().AsReadOnly();
     }
     
     /// <summary>

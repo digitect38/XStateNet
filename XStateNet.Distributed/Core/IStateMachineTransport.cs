@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,7 +128,7 @@ namespace XStateNet.Distributed.Core
         public string? PayloadType { get; set; }
         
         [Key(6)]
-        public Dictionary<string, string> Headers { get; set; } = new();
+        public ConcurrentDictionary<string, string> Headers { get; set; } = new();
         
         [Key(7)]
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
@@ -164,7 +165,7 @@ namespace XStateNet.Distributed.Core
         public DateTime LastHeartbeat { get; set; } = DateTime.UtcNow;
         
         [Key(4)]
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public ConcurrentDictionary<string, string> Metadata { get; set; } = new();
         
         [Key(5)]
         public string[]? SupportedEvents { get; set; }
@@ -195,7 +196,7 @@ namespace XStateNet.Distributed.Core
         public long MessagesReceived { get; set; }
         public long ErrorCount { get; set; }
         public DateTime LastActivity { get; set; }
-        public Dictionary<string, object> Diagnostics { get; set; } = new();
+        public ConcurrentDictionary<string, object> Diagnostics { get; set; } = new();
     }
 
     /// <summary>

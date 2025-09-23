@@ -97,7 +97,7 @@ namespace XStateNet.Distributed
                         Id = _machineId,
                         Address = _address,
                         Location = DetermineLocation(),
-                        Metadata = new Dictionary<string, string>
+                        Metadata = new ConcurrentDictionary<string, string>
                         {
                             ["Version"] = "1.0",
                             ["Type"] = this.GetType().Name
