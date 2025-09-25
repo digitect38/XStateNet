@@ -106,10 +106,13 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync(
                     async (ct) =>
                     {
-                        // Simulate long operation
-                        await Task.Yield();
-                        ct.ThrowIfCancellationRequested();
-                        return "never returned";
+                        // Simulate long operation that will timeout
+                        var tcs = new TaskCompletionSource<string>();
+                        using (ct.Register(() => tcs.TrySetCanceled()))
+                        {
+                            // This will never complete, causing a timeout
+                            return await tcs.Task;
+                        }
                     },
                     TimeSpan.FromMilliseconds(50)
                 );
