@@ -27,6 +27,12 @@ namespace TimelineWPF
             Closed += (s, e) => Cleanup();
         }
 
+        private void LaunchCircuitBreakerSimulator_Click(object sender, RoutedEventArgs e)
+        {
+            var simulatorWindow = new CircuitBreakerSimulatorWindow();
+            simulatorWindow.Show();
+        }
+
         private async Task InitializeDemo()
         {
             // No initialization needed for RealTimeStateMachineAdapter

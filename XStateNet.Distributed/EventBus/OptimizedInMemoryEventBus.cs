@@ -846,17 +846,23 @@ namespace XStateNet.Distributed.EventBus.Optimized
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Notify(StateMachineEvent evt)
             {
+                List<ISubscription> subscribersToNotify;
                 _lock.EnterReadLock();
                 try
                 {
-                    foreach (var sub in _subscriptions)
-                    {
-                        sub.Notify(evt);
-                    }
+                    // To prevent deadlocks when a handler tries to unsubscribe,
+                    // we copy the list of subscribers inside the lock...
+                    subscribersToNotify = new List<ISubscription>(_subscriptions);
                 }
                 finally
                 {
                     _lock.ExitReadLock();
+                }
+
+                // ...and then invoke the handlers outside the lock.
+                foreach (var sub in subscribersToNotify)
+                {
+                    sub.Notify(evt);
                 }
             }
         }

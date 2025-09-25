@@ -129,7 +129,7 @@ public partial class StateMachine : IStateMachine
     }
 
     // Machine state tracking - using existing machineState field
-    public bool IsRunning => machineState == MachineState.Running;
+    public bool IsRunning => (MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Running;
 
     // Events for interface
     public event Action<string>? StateChanged;
@@ -204,12 +204,17 @@ public partial class StateMachine : IStateMachine
         OnActivityStopped?.Invoke(activityName, stateName);
     }
 
-    private volatile MachineState machineState = MachineState.Stopped;
+    private int machineStateInt = (int)MachineState.Stopped; // Use Interlocked for thread-safe access
 
     /// <summary>
     /// Enable thread-safe operation mode
     /// </summary>
-    public bool EnableThreadSafety { get; set; } = false;
+    private int _enableThreadSafetyInt = 0; // 0 = false, 1 = true
+    public bool EnableThreadSafety
+    {
+        get => Interlocked.CompareExchange(ref _enableThreadSafetyInt, 0, 0) == 1;
+        set => Interlocked.Exchange(ref _enableThreadSafetyInt, value ? 1 : 0);
+    }
 
     /// <summary>
     /// Global error handler for unhandled exceptions
@@ -399,7 +404,7 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterWriteLock();
         try
         {
-            if (machineState == MachineState.Running)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => "State machine is already RUNNING!");
                 return this;
@@ -430,7 +435,7 @@ public partial class StateMachine : IStateMachine
                 state?.EntryState();
             }
 
-            machineState = MachineState.Running;
+            Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
 
             // Fire StateChanged event with initial state
             var initialState = GetActiveStateString();
@@ -472,7 +477,7 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterReadLock();
         try
         {
-            if (machineState != MachineState.Running)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
                 return;
@@ -528,7 +533,7 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterReadLock();
         try
         {
-            if (machineState != MachineState.Running)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
                 return GetCurrentStateString();
@@ -1313,13 +1318,13 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterWriteLock();
         try
         {
-            if (machineState == MachineState.Stopped)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Stopped)
             {
                 Logger.Debug("State machine is already stopped");
                 return;
             }
             
-            machineState = MachineState.Stopped;
+            Interlocked.Exchange(ref machineStateInt, (int)MachineState.Stopped);
             
             // Clean up all active states and their timers
             if (RootState != null)
@@ -1368,9 +1373,9 @@ public partial class StateMachine : IStateMachine
             }
 
             // Stop the machine first
-            if (machineState == MachineState.Running)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Running)
             {
-                machineState = MachineState.Stopped;
+                Interlocked.Exchange(ref machineStateInt, (int)MachineState.Stopped);
 
                 // Clean up all active states and their timers
                 if (RootState != null)
@@ -1402,7 +1407,7 @@ public partial class StateMachine : IStateMachine
             }
 
             // Restart the machine
-            machineState = MachineState.Running;
+            Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
 
             // Re-enter initial state
             if (RootState != null)
@@ -1523,13 +1528,13 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterWriteLock();
         try
         {
-            if (machineState != MachineState.Running)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
             {
                 Logger.Warning("Can only pause a running state machine");
                 return;
             }
             
-            machineState = MachineState.Paused;
+            Interlocked.Exchange(ref machineStateInt, (int)MachineState.Paused);
             Logger.Info("State machine paused");
         }
         finally
@@ -1546,13 +1551,13 @@ public partial class StateMachine : IStateMachine
         _stateLock.EnterWriteLock();
         try
         {
-            if (machineState != MachineState.Paused)
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Paused)
             {
                 Logger.Warning("Can only resume a paused state machine");
                 return;
             }
             
-            machineState = MachineState.Running;
+            Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
             Logger.Info("State machine resumed");
         }
         finally
@@ -1561,7 +1566,7 @@ public partial class StateMachine : IStateMachine
         }
     }
     
-    private bool _disposed = false;
+    private int _disposedInt = 0; // 0 = false, 1 = true - Use Interlocked for thread-safe access
     
     /// <summary>
     /// Dispose of state machine resources
@@ -1574,7 +1579,7 @@ public partial class StateMachine : IStateMachine
     
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (Interlocked.CompareExchange(ref _disposedInt, 0, 0) == 1) return;
         
         if (disposing)
         {
@@ -1590,6 +1595,6 @@ public partial class StateMachine : IStateMachine
             }
         }
         
-        _disposed = true;
+        Interlocked.Exchange(ref _disposedInt, 1);
     }
 }

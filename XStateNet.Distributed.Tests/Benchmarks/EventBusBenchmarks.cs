@@ -46,10 +46,9 @@ namespace XStateNet.Distributed.Tests.Benchmarks
             _standardEventBus = new InMemoryEventBus();
             _optimizedEventBus = new OptimizedInMemoryEventBus(workerCount: Environment.ProcessorCount);
 
-            // Create state machine
-            var uniqueId = "benchmark_" + Guid.NewGuid().ToString("N");
+            // Create state machine            
             var json = @"{
-                id: '" + uniqueId + @"',
+                id: 'benchmark',
                 initial: 'idle',
                 states: {
                     idle: {

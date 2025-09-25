@@ -5,6 +5,20 @@
         Title="Timeline Chart Demo" Height="800" Width="1400"
         WindowStartupLocation="CenterScreen">
     <Grid>
-        <local:TimelineComponent x:Name="TimelineControl"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <ToolBar Grid.Row="0">
+            <Button Content="Launch Circuit Breaker Simulator"
+                    Click="LaunchCircuitBreakerSimulator_Click"
+                    Padding="10,5"
+                    Margin="5"/>
+        </ToolBar>
+
+        <!-- Timeline Component -->
+        <local:TimelineComponent Grid.Row="1" x:Name="TimelineControl"/>
     </Grid>
 </Window>

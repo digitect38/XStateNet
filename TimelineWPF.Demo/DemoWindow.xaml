@@ -126,6 +126,11 @@
                                         Background="#8B5CF6"
                                         Click="PerfTestBtn_Click"
                                         ToolTip="Compare Standard vs Optimized Event Bus Performance"/>
+                                <Button x:Name="CircuitBreakerBtn" Content="🛡️ Circuit Breaker"
+                                        Style="{StaticResource ModernButton}"
+                                        Background="#EF4444"
+                                        Click="CircuitBreakerBtn_Click"
+                                        ToolTip="Launch Circuit Breaker Simulator"/>
 
                                 <Separator Margin="0,10"/>
 

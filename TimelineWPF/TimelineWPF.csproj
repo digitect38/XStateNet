@@ -21,6 +21,9 @@
     <Page Update="DemoWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Update="CircuitBreakerSimulatorWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
 </Project>

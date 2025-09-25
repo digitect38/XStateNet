@@ -21,10 +21,10 @@ namespace XStateNet.Distributed.EventBus
         private readonly ConcurrentDictionary<string, Channel<StateMachineEvent>> _channels = new();
         private readonly ConcurrentDictionary<string, RequestHandlerInfo> _requestHandlers = new();
         private readonly ConcurrentDictionary<string, TaskCompletionSource<object>> _pendingRequests = new();
-        private bool _isConnected;
+        private int _isConnectedInt = 0; // 0 = false, 1 = true
         private readonly object _lock = new();
 
-        public bool IsConnected => _isConnected;
+        public bool IsConnected => Interlocked.CompareExchange(ref _isConnectedInt, 0, 0) == 1;
 
         public event EventHandler<EventBusConnectedEventArgs>? Connected;
         public event EventHandler<EventBusDisconnectedEventArgs>? Disconnected;
@@ -39,12 +39,15 @@ namespace XStateNet.Distributed.EventBus
 
         public Task ConnectAsync()
         {
+            // Quick check without lock
+            if (Interlocked.CompareExchange(ref _isConnectedInt, 0, 0) == 1)
+                return Task.CompletedTask;
+
             lock (_lock)
             {
-                if (_isConnected)
+                // Double-check inside lock
+                if (Interlocked.CompareExchange(ref _isConnectedInt, 1, 0) != 0)
                     return Task.CompletedTask;
-
-                _isConnected = true;
                 _logger?.LogInformation("InMemoryEventBus connected");
 
                 Connected?.Invoke(this, new EventBusConnectedEventArgs
@@ -59,12 +62,15 @@ namespace XStateNet.Distributed.EventBus
 
         public Task DisconnectAsync()
         {
+            // Quick check without lock
+            if (Interlocked.CompareExchange(ref _isConnectedInt, 0, 0) == 0)
+                return Task.CompletedTask;
+
             lock (_lock)
             {
-                if (!_isConnected)
+                // Double-check and atomically set to disconnected
+                if (Interlocked.CompareExchange(ref _isConnectedInt, 0, 1) != 1)
                     return Task.CompletedTask;
-
-                _isConnected = false;
 
                 // Close all channels
                 foreach (var channel in _channels.Values)
@@ -101,7 +107,7 @@ namespace XStateNet.Distributed.EventBus
 
         public Task PublishStateChangeAsync(string machineId, StateChangeEvent evt)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 return Task.CompletedTask;
 
             evt.SourceMachineId = machineId;
@@ -110,7 +116,7 @@ namespace XStateNet.Distributed.EventBus
 
         public Task PublishEventAsync(string targetMachineId, string eventName, object? payload = null)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 return Task.CompletedTask;
 
             var evt = new StateMachineEvent
@@ -126,7 +132,7 @@ namespace XStateNet.Distributed.EventBus
 
         public Task BroadcastAsync(string eventName, object? payload = null, string? filter = null)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 return Task.CompletedTask;
 
             var evt = new StateMachineEvent
@@ -144,7 +150,7 @@ namespace XStateNet.Distributed.EventBus
 
         public Task PublishToGroupAsync(string groupName, string eventName, object? payload = null)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 return Task.CompletedTask;
 
             var evt = new StateMachineEvent
@@ -200,7 +206,7 @@ namespace XStateNet.Distributed.EventBus
             object? payload = null,
             TimeSpan? timeout = null)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 return default;
 
             var correlationId = Guid.NewGuid().ToString();
@@ -294,7 +300,7 @@ namespace XStateNet.Distributed.EventBus
             Action<StateMachineEvent> handler,
             bool isPattern = false)
         {
-            if (!_isConnected)
+            if (!IsConnected)
                 await ConnectAsync();
 
             var subscription = new SubscriptionInfo

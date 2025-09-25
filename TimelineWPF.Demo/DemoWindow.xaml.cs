@@ -17,20 +17,22 @@ namespace TimelineWPF.Demo
         private readonly DispatcherTimer _timer;
         private readonly ConcurrentDictionary<string, StateMachine> _stateMachines;
         private readonly Random _random;
-        private readonly TimelineManager _timelineManager;
+        private TimelineManager _timelineManager;
         private double _simulationTime;
         private bool _isRunning;
         private int _eventCount;
 
         public DemoWindow()
         {
+            _stateMachines = new ConcurrentDictionary<string, StateMachine>();
+            
             InitializeComponent();
 
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromMilliseconds(50);
             _timer.Tick += Timer_Tick;
 
-            _stateMachines = new ConcurrentDictionary<string, StateMachine>();
+
             _random = new Random();
 
             // Check if optimized event bus should be used (from saved settings or default)
@@ -165,11 +167,8 @@ namespace TimelineWPF.Demo
                     return;
                 }
 
-                if (_stateMachines == null)
-                {
-                    MessageBox.Show("State machines dictionary is not initialized", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
+                // _stateMachines is readonly and initialized in constructor, so this check is not needed
+                // Just add the machine
 
                 _stateMachines[name] = machine;
 
@@ -579,7 +578,8 @@ namespace TimelineWPF.Demo
             MachineList?.Items.Clear();
             TargetMachineCombo?.Items.Clear();
             _eventCount = 0;
-            _simulationTime = 0;
+            _simulationTime = 0;          
+
             UpdateStatus();
         }
 
@@ -706,6 +706,13 @@ namespace TimelineWPF.Demo
             var perfWindow = new PerformanceTestWindow();
             perfWindow.Owner = this;
             perfWindow.ShowDialog();
+        }
+
+        private void CircuitBreakerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var circuitBreakerWindow = new TimelineWPF.CircuitBreakerSimulatorWindow();
+            circuitBreakerWindow.Owner = this;
+            circuitBreakerWindow.Show();
         }
 
         private void AddMachineBtn_Click(object sender, RoutedEventArgs e)

@@ -209,13 +209,13 @@ namespace SemiStandard.E39E116E10
             
             _stateMachine.RegisterAction("completeProcessing", (ctx, evt) =>
             {
-                PerformanceMetrics.LotsProcessed++;
+                PerformanceMetrics.IncrementLotsProcessed();
                 PerformanceMetrics.ProcessingEndTime = DateTime.UtcNow;
                 
                 if (evt.Data is ProcessingResult result)
                 {
-                    PerformanceMetrics.WafersProcessed += result.WaferCount;
-                    PerformanceMetrics.GoodWafers += result.GoodWafers;
+                    PerformanceMetrics.AddWafersProcessed(result.WaferCount);
+                    PerformanceMetrics.AddGoodWafers(result.GoodWafers);
                 }
             });
             
@@ -230,7 +230,7 @@ namespace SemiStandard.E39E116E10
             
             _stateMachine.RegisterAction("recordFault", (ctx, evt) =>
             {
-                PerformanceMetrics.FaultCount++;
+                PerformanceMetrics.IncrementFaultCount();
                 
                 if (evt.Data is FaultData fault)
                 {
@@ -243,7 +243,7 @@ namespace SemiStandard.E39E116E10
             {
                 if (evt.Data is LotCompleteData data)
                 {
-                    PerformanceMetrics.LotsProcessed++;
+                    PerformanceMetrics.IncrementLotsProcessed();
                     Console.WriteLine($"[E116] Lot complete: {data.LotId}, Yield: {data.Yield:F2}%");
                 }
             });
@@ -279,7 +279,7 @@ namespace SemiStandard.E39E116E10
             
             _stateMachine.RegisterAction("recordWaferComplete", (ctx, evt) =>
             {
-                PerformanceMetrics.WafersProcessed++;
+                PerformanceMetrics.AddWafersProcessed(1);
                 Console.WriteLine($"[E39] Equipment {_equipmentId}: Wafer completed");
             });
             
@@ -534,40 +534,50 @@ namespace SemiStandard.E39E116E10
         public class E116PerformanceMetrics
         {
             // Production metrics
-            public int LotsProcessed { get; set; }
-            public int WafersProcessed { get; set; }
-            public int GoodWafers { get; set; }
+            private int _lotsProcessed;
+            private int _wafersProcessed;
+            private int _goodWafers;
+            private int _faultCount;
+
+            public int LotsProcessed => _lotsProcessed;
+            public int WafersProcessed => _wafersProcessed;
+            public int GoodWafers => _goodWafers;
             public double Yield { get; set; }
-            
+
             // Time metrics
             public DateTime? ProcessingStartTime { get; set; }
             public DateTime? ProcessingEndTime { get; set; }
             public TimeSpan CycleTime { get; set; }
-            
+
             // Efficiency metrics
             public double Availability { get; set; }         // A in OEE
             public double OperationalEfficiency { get; set; } // P in OEE
             public double QualityRate { get; set; }          // Q in OEE
             public double OEE { get; set; }                  // Overall Equipment Effectiveness
             public double RateEfficiency { get; set; }
-            
+
             // Reliability metrics
             public double MTBF { get; set; }  // Mean Time Between Failures (hours)
             public double MTTR { get; set; }  // Mean Time To Repair (hours)
-            public int FaultCount { get; set; }
-            
+            public int FaultCount => _faultCount;
+
             // Current production
             public string? CurrentLotId { get; set; }
             public int QueuedLots { get; set; }
             public double TheoreticalRate { get; set; } = 60; // Wafers per hour
-            
+
             private DateTime? _trackingStartTime;
-            
+
+            public void IncrementLotsProcessed() => Interlocked.Increment(ref _lotsProcessed);
+            public void AddWafersProcessed(int count) => Interlocked.Add(ref _wafersProcessed, count);
+            public void AddGoodWafers(int count) => Interlocked.Add(ref _goodWafers, count);
+            public void IncrementFaultCount() => Interlocked.Increment(ref _faultCount);
+
             public void StartProductionTracking()
             {
                 _trackingStartTime = DateTime.UtcNow;
             }
-            
+
             public void StopProductionTracking()
             {
                 if (_trackingStartTime.HasValue)

@@ -133,20 +133,20 @@ public static class Logger
         Trace = 6
     }
     
-    private static LogLevel _currentLevel = LogLevel.Info;
+    private static int _currentLevelInt = (int)LogLevel.Info;
     private static readonly object _lockObject = new object();
-    private static bool _includeCallerInfo = false;
-    
-    public static LogLevel CurrentLevel 
-    { 
-        get => _currentLevel;
-        set => _currentLevel = value;
+    private static int _includeCallerInfoInt = 0; // 0 = false, 1 = true
+
+    public static LogLevel CurrentLevel
+    {
+        get => (LogLevel)Interlocked.CompareExchange(ref _currentLevelInt, 0, 0);
+        set => Interlocked.Exchange(ref _currentLevelInt, (int)value);
     }
-    
+
     public static bool IncludeCallerInfo
     {
-        get => _includeCallerInfo;
-        set => _includeCallerInfo = value;
+        get => Interlocked.CompareExchange(ref _includeCallerInfoInt, 0, 0) == 1;
+        set => Interlocked.Exchange(ref _includeCallerInfoInt, value ? 1 : 0);
     }
     
     public static void Log(string message, LogLevel level = LogLevel.Info,
@@ -154,19 +154,19 @@ public static class Logger
         [System.Runtime.CompilerServices.CallerFilePath] string filePath = "",
         [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
     {
-        if (level <= _currentLevel)
+        if (level <= CurrentLevel)
         {
             lock (_lockObject)
             {
                 var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                if (_includeCallerInfo && !string.IsNullOrEmpty(filePath))
+                if (IncludeCallerInfo && !string.IsNullOrEmpty(filePath))
                 {
                     var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
                     // Format: Fixed width for better alignment
                     // File: 20 chars, Line: 4 chars
                     var fileInfo = fileName.Length > 20 ? fileName.Substring(0, 20) : fileName.PadRight(20);
                     var lineInfo = lineNumber.ToString().PadLeft(4);
-                    
+
                     Console.WriteLine($"[{timestamp}] [{level,-7}] [{fileInfo}:{lineInfo}] {message}");
                 }
                 else

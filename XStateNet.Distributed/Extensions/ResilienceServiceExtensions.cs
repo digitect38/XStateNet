@@ -33,7 +33,6 @@ namespace XStateNet.Distributed.Extensions
             {
                 var options = configuration.GetSection("Resilience:RetryPolicy")
                     .Get<RetryOptions>() ?? new RetryOptions();
-                var logger = sp.GetService<ILogger<RetryPolicy>>();
                 return new RetryPolicy("default", options, null);
             });
 

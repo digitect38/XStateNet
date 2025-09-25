@@ -6,14 +6,16 @@ class TestCircuitBreaker
 {
     static async Task Main()
     {
+        Console.WriteLine("Testing XStateNetCircuitBreaker...");
+
         var options = new CircuitBreakerOptions
         {
             FailureThreshold = 3,
-            BreakDuration = TimeSpan.FromSeconds(30),
-            SuccessCountInHalfOpen = 2
+            BreakDuration = TimeSpan.FromMilliseconds(100)
         };
 
-        var cb = new CircuitBreaker("test", options);
+        var cb = new XStateNetCircuitBreaker("test", options);
+
         Console.WriteLine($"Initial state: {cb.State}");
 
         // Try to cause 3 failures
@@ -23,34 +25,26 @@ class TestCircuitBreaker
             {
                 await cb.ExecuteAsync(async () =>
                 {
-                    await Task.Yield();
-                    throw new Exception($"Failure {i + 1}");
+                    await Task.Delay(1);
+                    throw new InvalidOperationException($"Failure {i + 1}");
                 });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                Console.WriteLine($"Caught: {ex.Message}, State: {cb.State}");
+                Console.WriteLine($"Caught exception {i + 1}: {ex.Message}");
             }
         }
 
-        Console.WriteLine($"Final state: {cb.State}");
+        Console.WriteLine($"State after 3 failures: {cb.State}");
 
-        // Try one more call - should be rejected
-        try
+        // Should be open now
+        if (cb.State != CircuitState.Open)
         {
-            await cb.ExecuteAsync(async () =>
-            {
-                await Task.Yield();
-                return "Should not get here";
-            });
+            Console.WriteLine("ERROR: Circuit breaker should be open but is " + cb.State);
         }
-        catch (CircuitBreakerOpenException)
+        else
         {
-            Console.WriteLine("Circuit breaker is open - call rejected (expected)");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Unexpected exception: {ex.Message}");
+            Console.WriteLine("SUCCESS: Circuit breaker is open as expected");
         }
     }
 }

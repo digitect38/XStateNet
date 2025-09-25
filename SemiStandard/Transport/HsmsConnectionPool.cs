@@ -94,7 +94,7 @@ namespace XStateNet.Semi.Transport
                 if (removedCount > 0)
                 {
                     _logger?.LogInformation("Cleaned up {Count} idle connections", removedCount);
-                    Statistics.IdleConnectionsCleaned += removedCount;
+                    Statistics.AddIdleCleaned(removedCount);
                 }
                 
                 // Remove empty pools
@@ -172,7 +172,7 @@ namespace XStateNet.Semi.Transport
                         }
                         
                         existing.LastUsedTime = DateTime.UtcNow;
-                        _parent.Statistics.ConnectionsReused++;
+                        _parent.Statistics.IncrementReused();
                         return existing;
                     }
                     else
@@ -199,7 +199,7 @@ namespace XStateNet.Semi.Transport
                             }
                             
                             Interlocked.Increment(ref _totalConnections);
-                            _parent.Statistics.ConnectionsCreated++;
+                            _parent.Statistics.IncrementCreated();
                             return pooled;
                         }
                     }
@@ -223,7 +223,7 @@ namespace XStateNet.Semi.Transport
                             }
                             
                             available.LastUsedTime = DateTime.UtcNow;
-                            _parent.Statistics.ConnectionsReused++;
+                            _parent.Statistics.IncrementReused();
                             return available;
                         }
                         else
@@ -250,7 +250,7 @@ namespace XStateNet.Semi.Transport
                 {
                     connection.LastUsedTime = DateTime.UtcNow;
                     _available.Add(connection);
-                    _parent.Statistics.ConnectionsReturned++;
+                    _parent.Statistics.IncrementReturned();
                 }
                 else
                 {
@@ -353,14 +353,25 @@ namespace XStateNet.Semi.Transport
         /// </summary>
         public class PoolStatistics
         {
-            public int ConnectionsCreated { get; set; }
-            public int ConnectionsReused { get; set; }
-            public int ConnectionsReturned { get; set; }
-            public int IdleConnectionsCleaned { get; set; }
+            private int _connectionsCreated;
+            private int _connectionsReused;
+            private int _connectionsReturned;
+            private int _idleConnectionsCleaned;
+
+            public int ConnectionsCreated => _connectionsCreated;
+            public int ConnectionsReused => _connectionsReused;
+            public int ConnectionsReturned => _connectionsReturned;
+            public int IdleConnectionsCleaned => _idleConnectionsCleaned;
+
             public int ActiveConnections => ConnectionsCreated - IdleConnectionsCleaned;
-            public double ReuseRate => ConnectionsCreated > 0 
+            public double ReuseRate => (ConnectionsCreated + ConnectionsReused) > 0 
                 ? (double)ConnectionsReused / (ConnectionsCreated + ConnectionsReused) 
                 : 0;
+
+            internal void IncrementCreated() => Interlocked.Increment(ref _connectionsCreated);
+            internal void IncrementReused() => Interlocked.Increment(ref _connectionsReused);
+            internal void IncrementReturned() => Interlocked.Increment(ref _connectionsReturned);
+            internal void AddIdleCleaned(int count) => Interlocked.Add(ref _idleConnectionsCleaned, count);
         }
     }
     

@@ -90,7 +90,7 @@ namespace XStateNet.Distributed.Examples
         {
             Console.WriteLine("\n--- Retry Policy Demo ---");
 
-            var retryPolicy = new RetryPolicy("demo-retry", new RetryOptions
+            var retryPolicy = new XStateNetRetryPolicy("demo-retry", new RetryOptions
             {
                 MaxRetries = 3,
                 InitialDelay = TimeSpan.FromMilliseconds(100),
@@ -247,7 +247,7 @@ namespace XStateNet.Distributed.Examples
                 BreakDuration = TimeSpan.FromSeconds(1)
             });
 
-            var retryPolicy = new RetryPolicy("pipeline-retry", new RetryOptions
+            var retryPolicy = new XStateNetRetryPolicy("pipeline-retry", new RetryOptions
             {
                 MaxRetries = 2,
                 InitialDelay = TimeSpan.FromMilliseconds(50)

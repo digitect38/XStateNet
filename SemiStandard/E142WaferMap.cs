@@ -174,8 +174,8 @@ namespace SemiStandard.E142
             
             _stateMachine.RegisterAction("incrementUpdateCount", (ctx, evt) =>
             {
-                _updateCount++;
-                ctx["updateCount"] = _updateCount;
+                var newCount = Interlocked.Increment(ref _updateCount);
+                ctx["updateCount"] = newCount;
             });
             
             _stateMachine.RegisterAction("updateDieResult", (ctx, evt) =>

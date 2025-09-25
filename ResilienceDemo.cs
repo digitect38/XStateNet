@@ -40,7 +40,11 @@ class ResilienceDemo
                     throw new Exception("Service error");
                 });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Expected failure for demo - circuit breaker should open
+                Console.WriteLine($"      Expected failure: {ex.GetType().Name}");
+            }
         }
 
         Console.WriteLine($"   State after failures: {cb.State}");
