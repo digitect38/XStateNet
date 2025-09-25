@@ -69,30 +69,15 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Wait for break duration to elapse and retry
             // The circuit should transition to half-open after break duration
-            var retryAttempts = 0;
-            var maxRetries = 10;
-            var success = false;
+            // We need to wait for actual time to pass for the circuit breaker's timer
+            var breakComplete = new TaskCompletionSource<bool>();
+            using var timer = new Timer(_ => breakComplete.TrySetResult(true), null,
+                TimeSpan.FromMilliseconds(100), Timeout.InfiniteTimeSpan);
+            await breakComplete.Task;
 
-            while (!success && retryAttempts < maxRetries)
-            {
-                await Task.Yield(); // Allow other work to proceed
-                retryAttempts++;
-
-                try
-                {
-                    // This will succeed when circuit transitions to half-open
-                    var result = await cb.ExecuteAsync(() => Task.FromResult("success"));
-                    Assert.Equal("success", result);
-                    success = true;
-                }
-                catch (CircuitBreakerOpenException)
-                {
-                    // Circuit still open, wait a bit more
-                    await Task.Yield(); // Allow async execution
-                }
-            }
-
-            Assert.True(success, $"Circuit breaker did not recover after {retryAttempts} attempts");
+            // Now the circuit should be in half-open state
+            var result = await cb.ExecuteAsync(() => Task.FromResult("success"));
+            Assert.Equal("success", result);
         }
 
         [Fact]

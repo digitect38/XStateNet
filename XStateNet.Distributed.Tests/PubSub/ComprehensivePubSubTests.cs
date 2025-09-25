@@ -219,34 +219,35 @@ namespace XStateNet.Distributed.Tests.PubSub
                     await finalIdleStateReached.Task.WaitAsync(cts.Token);
                 }
                 catch (OperationCanceledException)
-            {
-                // Log current state for debugging
-                var states = string.Join(", ", stateChanges.Select(s => s.NewState));
-                Assert.True(false, $"Failed to reach idle state. States captured: {states}");
+                {
+                    // Log current state for debugging
+                    var states = string.Join(", ", stateChanges.Select(s => s.NewState));
+                    Assert.True(false, $"Failed to reach idle state. States captured: {states}");
+                }
+
+                // Assert
+                Assert.True(stateChanges.Count >= 2, $"Expected at least 2 state changes, got {stateChanges.Count}");
+
+                // Check that we have transitions to idle, running, and back to idle
+                var hasIdleState = stateChanges.Any(s => s.NewState.Contains(".idle") || s.NewState.Contains("idle"));
+                var hasRunningState = stateChanges.Any(s => s.NewState.Contains(".running") || s.NewState.Contains("running"));
+
+                Assert.True(hasIdleState, $"Expected to find idle state. States: {string.Join(", ", stateChanges.Select(s => s.NewState))}");
+                Assert.True(hasRunningState, $"Expected to find running state. States: {string.Join(", ", stateChanges.Select(s => s.NewState))}");
+
+                // Verify the sequence contains idle -> running -> idle transitions
+                var runningIndex = stateChanges.FindIndex(s => s.NewState.Contains(".running") || s.NewState.Contains("running"));
+                var lastIdleIndex = stateChanges.FindLastIndex(s => s.NewState.Contains(".idle") || s.NewState.Contains("idle"));
+
+                if (runningIndex >= 0 && lastIdleIndex >= 0)
+                {
+                    Assert.True(runningIndex < lastIdleIndex, "Expected running state to occur before the final idle state");
+                }
+
+                // Cleanup
+                await service.StopAsync();
+                machine.Stop();
             }
-
-            // Assert
-            Assert.True(stateChanges.Count >= 2, $"Expected at least 2 state changes, got {stateChanges.Count}");
-
-            // Check that we have transitions to idle, running, and back to idle
-            var hasIdleState = stateChanges.Any(s => s.NewState.Contains(".idle") || s.NewState.Contains("idle"));
-            var hasRunningState = stateChanges.Any(s => s.NewState.Contains(".running") || s.NewState.Contains("running"));
-
-            Assert.True(hasIdleState, $"Expected to find idle state. States: {string.Join(", ", stateChanges.Select(s => s.NewState))}");
-            Assert.True(hasRunningState, $"Expected to find running state. States: {string.Join(", ", stateChanges.Select(s => s.NewState))}");
-
-            // Verify the sequence contains idle -> running -> idle transitions
-            var runningIndex = stateChanges.FindIndex(s => s.NewState.Contains(".running") || s.NewState.Contains("running"));
-            var lastIdleIndex = stateChanges.FindLastIndex(s => s.NewState.Contains(".idle") || s.NewState.Contains("idle"));
-
-            if (runningIndex >= 0 && lastIdleIndex >= 0)
-            {
-                Assert.True(runningIndex < lastIdleIndex, "Expected running state to occur before the final idle state");
-            }
-
-            // Cleanup
-            await service.StopAsync();
-            machine.Stop();
         }
 
         [Fact]
