@@ -99,7 +99,7 @@ namespace XStateNet.Distributed.Tests.Resilience
         public async Task RetryPolicy_Works()
         {
             // Arrange
-            var retry = new RetryPolicy("test", new RetryOptions
+            var retry = new XStateNetRetryPolicy("test", new RetryOptions
             {
                 MaxRetries = 2,
                 InitialDelay = TimeSpan.FromMilliseconds(10)

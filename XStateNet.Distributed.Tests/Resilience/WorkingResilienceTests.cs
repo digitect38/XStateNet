@@ -43,7 +43,7 @@ namespace XStateNet.Distributed.Tests.Resilience
         public async Task RetryPolicy_Retries_On_Failure()
         {
             // Arrange
-            var retryPolicy = new RetryPolicy("test", new RetryOptions
+            var retryPolicy = new XStateNetRetryPolicy("test", new RetryOptions
             {
                 MaxRetries = 3,
                 InitialDelay = TimeSpan.FromMilliseconds(10)
@@ -156,7 +156,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 BreakDuration = TimeSpan.FromMilliseconds(100)
             });
 
-            var retryPolicy = new RetryPolicy("test", new RetryOptions
+            var retryPolicy = new XStateNetRetryPolicy("test", new RetryOptions
             {
                 MaxRetries = 2,
                 InitialDelay = TimeSpan.FromMilliseconds(10)
@@ -203,7 +203,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 FailureThreshold = 3
             });
 
-            var retryPolicy = new RetryPolicy("test", new RetryOptions
+            var retryPolicy = new XStateNetRetryPolicy("test", new RetryOptions
             {
                 MaxRetries = 2
             });
