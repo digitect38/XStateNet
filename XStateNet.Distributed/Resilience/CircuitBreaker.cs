@@ -50,13 +50,21 @@ namespace XStateNet.Distributed.Resilience
 
         public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default)
         {
-            if (_state == (int)CircuitState.Open)
+            // Check cancellation before any operation
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var currentState = _state;
+            if (currentState == (int)CircuitState.Open)
             {
                 if (ShouldAttemptReset())
                 {
                     TransitionToHalfOpen();
+                    // Re-read state after potential transition
+                    currentState = _state;
                 }
-                else
+
+                // Double-check state after potential transition
+                if (_state == (int)CircuitState.Open)
                 {
                     _metrics.RecordRejection(_name);
                     throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
@@ -66,13 +74,19 @@ namespace XStateNet.Distributed.Resilience
             var stopwatch = Stopwatch.StartNew();
             try
             {
+                // Pass cancellation token and ensure ConfigureAwait(false) to avoid deadlock
                 var result = await operation(cancellationToken).ConfigureAwait(false);
                 OnSuccess();
 
                 _metrics.RecordSuccess(_name, stopwatch.Elapsed);
                 return result;
             }
-            catch (Exception ex) when (!(ex is CircuitBreakerOpenException))
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Don't count cancellation as failure
+                throw;
+            }
+            catch (Exception ex) when (!(ex is CircuitBreakerOpenException || ex is OperationCanceledException))
             {
                 OnFailure(ex);
                 _metrics.RecordFailure(_name, stopwatch.Elapsed, ex.GetType().Name);
@@ -159,14 +173,32 @@ namespace XStateNet.Distributed.Resilience
                 Interlocked.CompareExchange(ref _state, (int)CircuitState.Open, currentState) == currentState)
             {
                 Interlocked.Exchange(ref _lastStateChangeTime, Stopwatch.GetTimestamp());
-                _halfOpenTimer.Change(_options.BreakDuration, Timeout.InfiniteTimeSpan);
 
-                StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                // Use try-catch to prevent timer exceptions from blocking state transitions
+                try
                 {
-                    CircuitBreakerName = _name,
-                    FromState = (CircuitState)_state,
-                    ToState = CircuitState.Open,
-                    LastException = lastException
+                    _halfOpenTimer.Change(_options.BreakDuration, Timeout.InfiniteTimeSpan);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Timer was disposed, ignore
+                    return;
+                }
+
+                // Invoke state changed event asynchronously to prevent deadlock
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                        {
+                            CircuitBreakerName = _name,
+                            FromState = (CircuitState)currentState,  // Use the original state value
+                            ToState = CircuitState.Open,
+                            LastException = lastException
+                        });
+                    }
+                    catch { /* Ignore event handler exceptions */ }
                 });
 
                 _metrics.RecordStateChange(_name, CircuitState.Open);
@@ -180,11 +212,19 @@ namespace XStateNet.Distributed.Resilience
                 Interlocked.Exchange(ref _successCount, 0);
                 Interlocked.Exchange(ref _lastStateChangeTime, Stopwatch.GetTimestamp());
 
-                StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                // Invoke state changed event asynchronously to prevent deadlock
+                Task.Run(() =>
                 {
-                    CircuitBreakerName = _name,
-                    FromState = CircuitState.Open,
-                    ToState = CircuitState.HalfOpen
+                    try
+                    {
+                        StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                        {
+                            CircuitBreakerName = _name,
+                            FromState = CircuitState.Open,
+                            ToState = CircuitState.HalfOpen
+                        });
+                    }
+                    catch { /* Ignore event handler exceptions */ }
                 });
 
                 _metrics.RecordStateChange(_name, CircuitState.HalfOpen);
@@ -199,14 +239,32 @@ namespace XStateNet.Distributed.Resilience
             {
                 Interlocked.Exchange(ref _consecutiveFailures, 0);
                 Interlocked.Exchange(ref _lastStateChangeTime, Stopwatch.GetTimestamp());
-                _halfOpenTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+                // Use try-catch to prevent timer exceptions from blocking state transitions
+                try
+                {
+                    _halfOpenTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Timer was disposed, ignore
+                }
+
                 _failureWindow.Reset();
 
-                StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                // Invoke state changed event asynchronously to prevent deadlock
+                Task.Run(() =>
                 {
-                    CircuitBreakerName = _name,
-                    FromState = (CircuitState)previousState,
-                    ToState = CircuitState.Closed
+                    try
+                    {
+                        StateChanged?.Invoke(this, new CircuitStateChangedEventArgs
+                        {
+                            CircuitBreakerName = _name,
+                            FromState = (CircuitState)previousState,
+                            ToState = CircuitState.Closed
+                        });
+                    }
+                    catch { /* Ignore event handler exceptions */ }
                 });
 
                 _metrics.RecordStateChange(_name, CircuitState.Closed);
@@ -217,7 +275,10 @@ namespace XStateNet.Distributed.Resilience
         {
             var elapsed = Stopwatch.GetTimestamp() - _lastStateChangeTime;
             var elapsedTime = TimeSpan.FromTicks(elapsed * TimeSpan.TicksPerSecond / Stopwatch.Frequency);
-            return elapsedTime >= _options.BreakDuration;
+
+            // Add small tolerance (1ms) to handle timing precision issues
+            var tolerance = TimeSpan.FromMilliseconds(1);
+            return elapsedTime >= (_options.BreakDuration - tolerance);
         }
 
         private void TryTransitionToHalfOpen()
@@ -230,7 +291,15 @@ namespace XStateNet.Distributed.Resilience
 
         public void Dispose()
         {
-            _halfOpenTimer?.Dispose();
+            try
+            {
+                _halfOpenTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                _halfOpenTimer?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
+            }
         }
     }
 

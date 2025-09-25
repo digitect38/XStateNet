@@ -28,6 +28,9 @@ namespace XStateNet.Distributed.Channels
         private long _totalReadsCompleted;
         private long _totalDroppedItems;
 
+        // Thread safety for DropNewest operations
+        private readonly object _dropLock = new object();
+
         // Monitoring
         private readonly Timer? _monitoringTimer;
         private DateTime _lastMonitoringTime;
@@ -139,26 +142,37 @@ namespace XStateNet.Distributed.Channels
                 switch (_options.FullMode)
                 {
                     case ChannelFullMode.DropNewest:
-                        // DropNewest means: drop the newest item in the channel to make room
-                        // This is complex with standard channels - we need to read all items,
-                        // drop the last one, and write them back plus the new item
-                        var items = new List<T>();
-                        while (_channel.Reader.TryRead(out var existingItem))
+                        // DropNewest means: drop the newest existing item in the channel to make room
+                        // We need thread-safe handling here
+                        lock (_dropLock)
                         {
-                            items.Add(existingItem);
-                        }
-
-                        if (items.Count > 0)
-                        {
-                            // Drop the newest (last) item from the channel
-                            items.RemoveAt(items.Count - 1);
-                            Interlocked.Increment(ref _totalDroppedItems);
-                            _metrics.RecordDrop(_channelName);
-
-                            // Write back the remaining items
-                            foreach (var oldItem in items)
+                            // Double-check if channel is still full
+                            if (_channel.Writer.TryWrite(item))
                             {
-                                _channel.Writer.TryWrite(oldItem);
+                                Interlocked.Increment(ref _totalItemsWritten);
+                                _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
+                                return true;
+                            }
+
+                            // Channel is full, need to drop newest existing item
+                            var items = new List<T>();
+                            while (_channel.Reader.TryRead(out var existingItem))
+                            {
+                                items.Add(existingItem);
+                            }
+
+                            if (items.Count > 0)
+                            {
+                                // Drop the newest (last) item from the channel
+                                items.RemoveAt(items.Count - 1);
+                                Interlocked.Increment(ref _totalDroppedItems);
+                                _metrics.RecordDrop(_channelName);
+
+                                // Write back the remaining items
+                                foreach (var oldItem in items)
+                                {
+                                    _channel.Writer.TryWrite(oldItem);
+                                }
                             }
 
                             // Now write the new item
@@ -168,13 +182,12 @@ namespace XStateNet.Distributed.Channels
                                 _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
                                 return true;
                             }
-                        }
 
-                        // If we couldn't handle it, just drop the new item
-                        Interlocked.Increment(ref _totalDroppedItems);
-                        Interlocked.Increment(ref _totalItemsWritten);
-                        _metrics.RecordWrite(_channelName, stopwatch.Elapsed);
-                        return true;
+                            // Shouldn't happen, but handle gracefully
+                            Interlocked.Increment(ref _totalDroppedItems);
+                            _metrics.RecordDrop(_channelName);
+                            return false;
+                        }
 
                     case ChannelFullMode.DropOldest:
                         // Try to make space by dropping the oldest item.

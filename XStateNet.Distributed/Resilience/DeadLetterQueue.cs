@@ -424,36 +424,23 @@ namespace XStateNet.Distributed.Resilience
 
             try
             {
-                // Wait for channel to be empty by checking if we can read
-                while (!cts.Token.IsCancellationRequested)
+                // Simply wait a short time for any pending operations to complete
+                // The background processor runs continuously, so a small delay should be sufficient
+                await Task.Delay(100, cts.Token);
+
+                // Check if the channel has any pending items
+                if (!_incomingChannel.Reader.TryPeek(out _))
                 {
-                    // Try to wait for data with a short timeout
-                    var waitTask = _incomingChannel.Reader.WaitToReadAsync(cts.Token).AsTask();
-                    var delayTask = Task.Delay(50, cts.Token);
-
-                    var completedTask = await Task.WhenAny(waitTask, delayTask);
-
-                    if (completedTask == delayTask)
-                    {
-                        // Delay completed first, channel is likely empty
-                        // Double-check by trying once more
-                        var secondCheck = _incomingChannel.Reader.WaitToReadAsync(cts.Token).AsTask();
-                        var secondDelay = Task.Delay(10, cts.Token);
-
-                        var secondCompleted = await Task.WhenAny(secondCheck, secondDelay);
-                        if (secondCompleted == secondDelay)
-                        {
-                            // Channel appears to be empty
-                            return;
-                        }
-                    }
-
-                    // Small delay before next check
-                    await Task.Delay(10, cts.Token);
+                    // Channel is empty, we're done
+                    return;
                 }
+
+                // If there are items, wait a bit more for processing
+                await Task.Delay(200, cts.Token);
             }
             catch (OperationCanceledException)
             {
+                // Timeout occurred, but that's okay
             }
         }
 
@@ -637,7 +624,11 @@ namespace XStateNet.Distributed.Resilience
             {
                 Task.WaitAll(new[] { _processingTask, _retryTask }, TimeSpan.FromSeconds(5));
             }
-            catch (AggregateException) { }
+            catch (AggregateException ex)
+            {
+                // Log the exceptions that occurred during shutdown
+                _logger?.LogWarning(ex, "One or more tasks did not complete within the shutdown timeout");
+            }
 
             _cts.Dispose();
         }
