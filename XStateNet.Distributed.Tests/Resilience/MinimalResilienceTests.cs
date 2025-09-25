@@ -88,7 +88,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch (CircuitBreakerOpenException)
                 {
                     // Circuit still open, wait a bit more
-                    await Task.Delay(10);
+                    await Task.Yield(); // Allow async execution
                 }
             }
 

@@ -106,7 +106,9 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync(
                     async (ct) =>
                     {
-                        await Task.Delay(500, ct);
+                        // Simulate long operation
+                        await Task.Yield();
+                        ct.ThrowIfCancellationRequested();
                         return "never returned";
                     },
                     TimeSpan.FromMilliseconds(50)

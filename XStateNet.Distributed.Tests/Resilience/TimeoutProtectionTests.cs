@@ -20,7 +20,8 @@ namespace XStateNet.Distributed.Tests.Resilience
             var result = await timeoutProtection.ExecuteAsync(
                 async (ct) =>
                 {
-                    await Task.Delay(50, ct);
+                    // Simulate quick operation
+                    await Task.Yield();
                     return "success";
                 },
                 TimeSpan.FromSeconds(1)
@@ -43,7 +44,12 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync(
                     async (ct) =>
                     {
-                        await Task.Delay(500, ct);
+                        // Simulate operation that will timeout
+                        var tcs = new TaskCompletionSource<bool>();
+                        using (ct.Register(() => tcs.TrySetCanceled()))
+                        {
+                            await tcs.Task;
+                        }
                         return "should not complete";
                     },
                     TimeSpan.FromMilliseconds(100)
@@ -64,7 +70,12 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync<string>(
                     async (ct) =>
                     {
-                        await Task.Delay(500, ct);
+                        // Simulate operation that will timeout
+                        var tcs = new TaskCompletionSource<bool>();
+                        using (ct.Register(() => tcs.TrySetCanceled()))
+                        {
+                            await tcs.Task;
+                        }
                         return "timeout";
                     }
                 );
@@ -83,7 +94,12 @@ namespace XStateNet.Distributed.Tests.Resilience
             var task = timeoutProtection.ExecuteAsync(
                 async (ct) =>
                 {
-                    await Task.Delay(5000, ct);
+                    // Wait for cancellation
+                    var tcs = new TaskCompletionSource<bool>();
+                    using (ct.Register(() => tcs.TrySetCanceled()))
+                    {
+                        await tcs.Task;
+                    }
                     return "should not complete";
                 },
                 cancellationToken: cts.Token
@@ -106,7 +122,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             var successResult = await timeoutProtection.TryExecuteAsync(
                 async (ct) =>
                 {
-                    await Task.Delay(10, ct);
+                    await Task.Yield();
                     return "success";
                 },
                 TimeSpan.FromSeconds(1)
@@ -116,7 +132,12 @@ namespace XStateNet.Distributed.Tests.Resilience
             var timeoutResult = await timeoutProtection.TryExecuteAsync(
                 async (ct) =>
                 {
-                    await Task.Delay(500, ct);
+                    // Simulate operation that will timeout
+                    var tcs = new TaskCompletionSource<bool>();
+                    using (ct.Register(() => tcs.TrySetCanceled()))
+                    {
+                        await tcs.Task;
+                    }
                     return "timeout";
                 },
                 TimeSpan.FromMilliseconds(100)
@@ -145,13 +166,13 @@ namespace XStateNet.Distributed.Tests.Resilience
             {
                 var result1 = await scope.ExecuteAsync(async (ct) =>
                 {
-                    await Task.Delay(100, ct);
+                    await Task.Yield();
                     return "first";
                 });
 
                 var result2 = await scope.ExecuteAsync(async (ct) =>
                 {
-                    await Task.Delay(100, ct);
+                    await Task.Yield();
                     return "second";
                 });
 
@@ -228,7 +249,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync<string>(
                     async (ct) =>
                     {
-                        await Task.Delay(10, ct);
+                        await Task.Yield();
                         throw expectedException;
                     }
                 );
@@ -259,8 +280,21 @@ namespace XStateNet.Distributed.Tests.Resilience
                             async (ct) =>
                             {
                                 // Some operations are slow
-                                var delay = index % 5 == 0 ? 200 : 10;
-                                await Task.Delay(delay, ct);
+                                // Some operations are slow
+                                if (index % 5 == 0)
+                                {
+                                    // Simulate slow operation that will timeout
+                                    var tcs = new TaskCompletionSource<bool>();
+                                    using (ct.Register(() => tcs.TrySetCanceled()))
+                                    {
+                                        await tcs.Task;
+                                    }
+                                }
+                                else
+                                {
+                                    // Fast operation
+                                    await Task.Yield();
+                                }
                                 return index;
                             },
                             TimeSpan.FromMilliseconds(100)

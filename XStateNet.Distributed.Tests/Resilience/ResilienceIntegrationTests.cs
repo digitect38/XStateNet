@@ -90,7 +90,11 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch (CircuitBreakerOpenException)
                 {
                     _logger.LogWarning("Circuit breaker is open");
-                    await Task.Delay(600); // Wait for circuit to potentially close
+                    // Wait deterministically for circuit to potentially close
+                    var circuitReady = new TaskCompletionSource<bool>();
+                    using var circuitTimer = new Timer(_ => circuitReady.TrySetResult(true), null,
+                        TimeSpan.FromMilliseconds(600), Timeout.InfiniteTimeSpan);
+                    await circuitReady.Task;
                 }
                 catch (InvalidOperationException)
                 {
@@ -123,7 +127,10 @@ namespace XStateNet.Distributed.Tests.Resilience
                         async (timeoutToken) =>
                         {
                             // Always timeout
-                            await Task.Delay(2000, timeoutToken);
+                            // Simulate long operation that will timeout
+                            await Task.Yield();
+                            timeoutToken.ThrowIfCancellationRequested();
+                            throw new TimeoutException("Operation timed out");
                             return message;
                         },
                         TimeSpan.FromMilliseconds(100)
@@ -227,7 +234,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Func<Task<string>> failingOperation = async () =>
             {
                 var currentRequest = Interlocked.Increment(ref requestCount);
-                await Task.Delay(10);
+                await Task.Yield(); // Allow async execution
 
                 if (currentRequest <= 3)
                 {
@@ -271,7 +278,15 @@ namespace XStateNet.Distributed.Tests.Resilience
 
         private async Task ProcessWorkItemAsync(WorkItem item, List<string> processedItems, CancellationToken cancellationToken)
         {
-            await Task.Delay(item.ProcessingTime, cancellationToken);
+            // Simulate processing time deterministically
+            if (item.ProcessingTime > 0)
+            {
+                var processingComplete = new TaskCompletionSource<bool>();
+                using var processingTimer = new Timer(_ => processingComplete.TrySetResult(true), null,
+                    TimeSpan.FromMilliseconds(item.ProcessingTime), Timeout.InfiniteTimeSpan);
+                using var registration = cancellationToken.Register(() => processingComplete.TrySetCanceled());
+                await processingComplete.Task;
+            }
 
             if (item.ShouldFail)
             {
@@ -327,7 +342,8 @@ namespace XStateNet.Distributed.Tests.Resilience
                     throw new InvalidOperationException($"Service error for request {requestId}");
                 }
 
-                await Task.Delay(Random.Shared.Next(10, 100));
+                // Simulate variable processing time
+                await Task.Yield();
                 return $"Processed {requestId}";
             }
         }

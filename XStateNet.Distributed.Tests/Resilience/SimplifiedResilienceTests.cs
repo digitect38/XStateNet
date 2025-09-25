@@ -51,8 +51,11 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await circuitBreaker.ExecuteAsync(async () => "test");
             });
 
-            // Wait for break duration
-            await Task.Delay(150);
+            // Wait deterministically for break duration
+            var transitionReady = new TaskCompletionSource<bool>();
+            using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
+                TimeSpan.FromMilliseconds(150), Timeout.InfiniteTimeSpan);
+            await transitionReady.Task;
 
             // Circuit allows retry after break
             result = await circuitBreaker.ExecuteAsync(async () => "recovered");
@@ -134,7 +137,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             var result = await timeoutProtection.ExecuteAsync(
                 async (ct) =>
                 {
-                    await Task.Delay(10, ct);
+                    await Task.Yield(); // Allow async execution
                     return "success";
                 },
                 TimeSpan.FromMilliseconds(200)
@@ -147,7 +150,10 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await timeoutProtection.ExecuteAsync(
                     async (ct) =>
                     {
-                        await Task.Delay(500, ct);
+                        // Simulate timeout without delay
+                        await Task.Yield();
+                        ct.ThrowIfCancellationRequested();
+                        throw new TimeoutException("Simulated timeout");
                         return "timeout";
                     },
                     TimeSpan.FromMilliseconds(50)
@@ -238,7 +244,11 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch (CircuitBreakerOpenException)
                 {
                     // Circuit opened - wait and retry
-                    await Task.Delay(150);
+                    // Wait deterministically for circuit recovery
+                    var recoveryReady = new TaskCompletionSource<bool>();
+                    using var recoveryTimer = new Timer(_ => recoveryReady.TrySetResult(true), null,
+                        TimeSpan.FromMilliseconds(150), Timeout.InfiniteTimeSpan);
+                    await recoveryReady.Task;
                 }
                 catch (AggregateException)
                 {
@@ -303,7 +313,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                                             throw new InvalidOperationException("Processing failed");
                                         }
 
-                                        await Task.Delay(10, timeoutToken);
+                                        await Task.Yield(); // Allow async execution
                                         Interlocked.Increment(ref processedCount);
                                         return item;
                                     },

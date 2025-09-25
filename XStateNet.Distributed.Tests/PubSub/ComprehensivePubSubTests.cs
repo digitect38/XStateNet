@@ -193,28 +193,32 @@ namespace XStateNet.Distributed.Tests.PubSub
             var runningState = await machine.SendAsyncWithState("GO");
 
             // Also wait for the event notification to ensure it was captured
-            var runningReached = await Task.WhenAny(
-                runningStateReached.Task,
-                Task.Delay(TimeSpan.FromSeconds(5))
-            );
-
-            if (runningReached != runningStateReached.Task)
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
             {
-                // Log current state for debugging
-                var states = string.Join(", ", stateChanges.Select(s => s.NewState));
-                Assert.True(false, $"Failed to reach running state. States captured: {states}. Current state: {runningState}");
+                try
+                {
+                    await runningStateReached.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Log current state for debugging
+                    var states = string.Join(", ", stateChanges.Select(s => s.NewState));
+                    Assert.True(false, $"Failed to reach running state. States captured: {states}. Current state: {runningState}");
+                }
             }
+
 
             // Send STOP and verify state returns to idle
             var idleState = await machine.SendAsyncWithState("STOP");
 
             // Also wait for the event notification to ensure it was captured
-            var idleReached = await Task.WhenAny(
-                finalIdleStateReached.Task,
-                Task.Delay(TimeSpan.FromSeconds(5))
-            );
-
-            if (idleReached != finalIdleStateReached.Task)
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await finalIdleStateReached.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
             {
                 // Log current state for debugging
                 var states = string.Join(", ", stateChanges.Select(s => s.NewState));
@@ -888,14 +892,16 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             machine.Send(eventToSend);
 
-            var completed = await Task.WhenAny(
-                stateReached.Task,
-                Task.Delay(actualTimeout)
-            );
-
-            if (completed != stateReached.Task)
+            using (var cts = new CancellationTokenSource(actualTimeout))
             {
-                throw new TimeoutException($"State transition not completed within {actualTimeout.TotalSeconds} seconds after sending '{eventToSend}'");
+                try
+                {
+                    await stateReached.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new TimeoutException($"State transition not completed within {actualTimeout.TotalSeconds} seconds after sending '{eventToSend}'");
+                }
             }
         }
 

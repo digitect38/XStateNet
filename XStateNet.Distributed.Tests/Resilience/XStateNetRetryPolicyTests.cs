@@ -35,7 +35,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             var result = await retryPolicy.ExecuteAsync(async (ct) =>
             {
                 attemptCount++;
-                await Task.Delay(1);
+                await Task.Yield();
                 return "success";
             });
 
@@ -67,7 +67,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 {
                     throw new InvalidOperationException($"Attempt {attemptCount} failed");
                 }
-                await Task.Delay(1);
+                await Task.Yield();
                 return "success";
             });
 
@@ -96,7 +96,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     Interlocked.Increment(ref attemptCount);
-                    await Task.Delay(1);
+                    await Task.Yield();
                     throw new InvalidOperationException($"Attempt {attemptCount} failed");
                 });
             });
@@ -128,7 +128,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     attemptTimestamps.Add(stopwatch.ElapsedMilliseconds);
-                    await Task.Delay(1); // Ensures timestamps don't collapse on fast machines
+                    await Task.Yield(); // Ensures async execution
                     throw new InvalidOperationException("Always fail");
                 });
             }
@@ -175,7 +175,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     Interlocked.Increment(ref attemptCount);
-                    await Task.Delay(1);
+                    await Task.Yield();
                     throw new NotSupportedException("Non-retryable");
                 });
             });
@@ -204,7 +204,8 @@ namespace XStateNet.Distributed.Tests.Resilience
                 {
                     cts.Cancel();
                 }
-                await Task.Delay(10, ct);
+                await Task.Yield();
+                ct.ThrowIfCancellationRequested();
                 throw new InvalidOperationException("Fail");
             }, cts.Token);
 
@@ -234,7 +235,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     attemptTimestamps.Add(stopwatch.ElapsedMilliseconds);
-                    await Task.Delay(1); // Ensures timestamps don't collapse on fast machines
+                    await Task.Yield(); // Ensures async execution
                     throw new InvalidOperationException("Always fail");
                 });
             }
@@ -304,7 +305,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     attemptTimestamps.Add(stopwatch.ElapsedMilliseconds);
-                    await Task.Delay(1); // Ensures timestamps don't collapse on fast machines
+                    await Task.Yield(); // Ensures async execution
                     throw new InvalidOperationException("Always fail");
                 });
             }
@@ -360,7 +361,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await retryPolicy.ExecuteAsync<string>(async (ct) =>
                 {
                     attemptTimestamps.Add(stopwatch.ElapsedMilliseconds);
-                    await Task.Delay(1); // Ensures timestamps don't collapse on fast machines
+                    await Task.Yield(); // Ensures async execution
                     throw new InvalidOperationException("Always fail");
                 });
             }
