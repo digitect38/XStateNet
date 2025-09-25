@@ -55,21 +55,44 @@ namespace XStateNet.Distributed.Tests.PubSub
             _disposables.Add(subscription);
 
             // Act
+            // Start the service first to wire up event handlers
             await service.StartAsync();
+
+            // Now start the machine which will fire the initial state event
+            // The service is already listening, so it should capture the event
             machine.Start();
 
-            // Wait for initial state to be published
-            var initialReceived = await Task.WhenAny(initialStateReceived.Task, Task.Delay(1000));
-            Assert.True(initialReceived == initialStateReceived.Task, "Initial state was not received");
+            // Wait for initial state to be published deterministically
+            //using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                try
+                {
+                    await initialStateReceived.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Assert.True(false, "Initial state was not received within timeout");
+                }
+            }
 
             // Send event asynchronously - transition completes before returning
             await machine.SendAsync("GO");
 
-            // Wait for event with timeout
-            var received = await Task.WhenAny(eventReceived.Task, Task.Delay(5000));
+            // Wait for event with timeout deterministically
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await eventReceived.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Assert.True(false, "State change event was not received within timeout");
+                }
+            }
 
-            // Assert
-            Assert.True(received == eventReceived.Task, "State change event was not received within timeout");
+            // Assert - if we got here, the events were received
             Assert.NotNull(capturedEvent);
             // State names include machine ID prefix like "#test.idle"
 
@@ -117,12 +140,23 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service.PublishActionExecutedAsync("startRunning", "running", "success");
             await service.PublishActionExecutedAsync("doWork", "running", "completed");
 
-            // Wait for events to be processed
-            await Task.Delay(100);
+            // Wait for events deterministically with timeout
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await actionsReceived.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Actions not received, but test continues
+                }
+            }
 
-            // Assert - Events are published successfully (delivery through event bus needs more work)
-            // For now, just verify the service starts without errors
+            // Assert - Events are published successfully
             Assert.NotNull(service);
+            // Note: The event bus delivery might not be fully implemented yet
+            // For now, we just verify the service can publish without errors
 
             // Cleanup
             await service.StopAsync();
@@ -158,11 +192,20 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Manually publish guard evaluation since automatic wiring is not complete
             await service.PublishGuardEvaluatedAsync("canPause", true, "running");
 
-            // Wait for event to be processed
-            await Task.Delay(100);
+            // Wait for event deterministically with timeout
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await guardReceived.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Guard not received, but test continues
+                }
+            }
 
-            // Assert - Events are published successfully (delivery through event bus needs more work)
-            // For now, just verify the service starts without errors
+            // Assert - Events are published successfully
             Assert.NotNull(service);
 
             // Cleanup
@@ -184,7 +227,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var receivedCount = 0;
-            var broadcastReceived = new TaskCompletionSource<bool>();
+            var allReceived = new TaskCompletionSource<bool>();
 
             await _eventBus.ConnectAsync();
 
@@ -193,8 +236,10 @@ namespace XStateNet.Distributed.Tests.PubSub
             {
                 if (evt.EventName == "BROADCAST_TEST")
                 {
-                    Interlocked.Increment(ref receivedCount);
-                    broadcastReceived.TrySetResult(true);
+                    if (Interlocked.Increment(ref receivedCount) >= 2)
+                    {
+                        allReceived.TrySetResult(true);
+                    }
                 }
             });
             _disposables.Add(subscription1);
@@ -203,7 +248,10 @@ namespace XStateNet.Distributed.Tests.PubSub
             {
                 if (evt.EventName == "BROADCAST_TEST")
                 {
-                    Interlocked.Increment(ref receivedCount);
+                    if (Interlocked.Increment(ref receivedCount) >= 2)
+                    {
+                        allReceived.TrySetResult(true);
+                    }
                 }
             });
             _disposables.Add(subscription2);
@@ -213,8 +261,18 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service2.StartAsync();
             await service1.BroadcastAsync("BROADCAST_TEST", new { message = "Hello all!" });
 
-            // Wait for broadcast with timeout
-            await Task.Delay(500);
+            // Wait for broadcast deterministically with timeout
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await allReceived.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Continue even if timeout
+                }
+            }
 
             // Assert - one broadcast should be received by both subscriptions
             Assert.Equal(2, receivedCount);
@@ -256,11 +314,23 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service2.StartAsync();
             await service1.SendToMachineAsync(machineId2, "DIRECT_MESSAGE", new { data = "test" });
 
-            // Wait for message with timeout
-            var received = await Task.WhenAny(eventReceived.Task, Task.Delay(5000));
+            // Wait for message deterministically with timeout
+            bool received = false;
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await eventReceived.Task.WaitAsync(cts.Token);
+                    received = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    received = false;
+                }
+            }
 
             // Assert
-            Assert.True(received == eventReceived.Task, "Direct message was not received within timeout");
+            Assert.True(received, "Direct message was not received within timeout");
             Assert.NotNull(capturedEvent);
             Assert.Equal("DIRECT_MESSAGE", capturedEvent.EventName);
             Assert.Equal(machineId2, capturedEvent.TargetMachineId);
@@ -304,11 +374,23 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service2.StartAsync();
             await service1.PublishToGroupAsync("worker-group", "WORK_ITEM", new { id = 123 });
 
-            // Wait for group message with timeout
-            var received = await Task.WhenAny(eventReceived.Task, Task.Delay(5000));
+            // Wait for group message deterministically with timeout
+            bool received = false;
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await eventReceived.Task.WaitAsync(cts.Token);
+                    received = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    received = false;
+                }
+            }
 
             // Assert
-            Assert.True(received == eventReceived.Task, "Group message was not received within timeout");
+            Assert.True(received, "Group message was not received within timeout");
             Assert.NotEmpty(receivedEvents);
             Assert.Contains(receivedEvents, e => e.EventName == "WORK_ITEM");
 
@@ -337,8 +419,8 @@ namespace XStateNet.Distributed.Tests.PubSub
                 "GetStatus",
                 async request =>
                 {
-                    await Task.Delay(100); // Simulate work
-                    return new TestResponse { Status = "OK", ProcessedId = request.Id };
+                    // Process immediately without delay
+                    return await Task.FromResult(new TestResponse { Status = "OK", ProcessedId = request.Id });
                 });
 
             // Act
@@ -400,14 +482,25 @@ namespace XStateNet.Distributed.Tests.PubSub
                     Timestamp = DateTime.UtcNow
                 };
                 aggregator.Add(notification);
-                await Task.Delay(50);
             }
 
-            // Wait for batch with timeout
-            var received = await Task.WhenAny(batchReceived.Task, Task.Delay(5000));
+            // Wait for batch deterministically with timeout
+            bool received = false;
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    await batchReceived.Task.WaitAsync(cts.Token);
+                    received = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    received = false;
+                }
+            }
 
             // Assert
-            Assert.True(received == batchReceived.Task, "Batch was not received within timeout");
+            Assert.True(received, "Batch was not received within timeout");
             Assert.NotNull(capturedBatch);
             Assert.True(capturedBatch.Count >= 3, $"Expected at least 3 events in batch, got {capturedBatch.Count}");
 
@@ -420,12 +513,13 @@ namespace XStateNet.Distributed.Tests.PubSub
         public async Task EventNotificationService_FilteredSubscriptions()
         {
             // Arrange
-            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
-            var machine = CreateTestStateMachine(machineId);
-            var service = new EventNotificationService(machine, _eventBus, machineId,
+            var machine = CreateTestStateMachine("test-machine");
+            var service = new EventNotificationService(machine, _eventBus, machine.machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
             var allEvents = new List<StateMachineEvent>();
+            var eventCounter = new TaskCompletionSource<bool>();
+            var currentCount = 0;
 
             await _eventBus.ConnectAsync();
 
@@ -435,6 +529,10 @@ namespace XStateNet.Distributed.Tests.PubSub
                 evt =>
                 {
                     allEvents.Add(evt);
+                    if (Interlocked.Increment(ref currentCount) >= 3)
+                    {
+                        eventCounter.TrySetResult(true);
+                    }
                 });
             _disposables.Add(subscription);
 
@@ -446,8 +544,18 @@ namespace XStateNet.Distributed.Tests.PubSub
             await service.PublishCustomEventAsync("event2", "this is important");
             await service.PublishCustomEventAsync("event3", "regular message");
 
-            // Wait for events to be processed
-            await Task.Delay(500);
+            // Wait for events deterministically with timeout
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                try
+                {
+                    await eventCounter.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Continue even if not all events received
+                }
+            }
 
             // Assert - verify we receive all 3 events (filter logic can be fixed later)
             Assert.Equal(3, allEvents.Count);

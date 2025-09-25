@@ -21,6 +21,7 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
     private HsmsConnection? _hostConnection;
     private TaskCompletionSource<HsmsMessage>? _selectResponse;
     private uint _selectSystemBytes;
+    // TaskCompletionSource for deterministic synchronization
 
     public DirectHsmsIntegrationTests(ITestOutputHelper output)
     {
@@ -39,7 +40,7 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
     {
         // Arrange
         _logger.LogInformation("Starting direct HSMS connection test");
-        
+
         // Start simulator
         _simulator = new EquipmentSimulator(_testEndpoint, _loggerFactory.CreateLogger<EquipmentSimulator>())
         {
@@ -47,11 +48,14 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
             SoftwareRevision = "2.0.0",
             ResponseDelayMs = 50
         };
+
+        // Start the simulator - it will begin listening immediately
+
         await _simulator.StartAsync();
         _logger.LogInformation("Equipment simulator started on {Endpoint}", _testEndpoint);
-        
-        // Wait for simulator to be ready
-        await Task.Delay(500);
+
+        // Wait deterministically for simulator to be ready to accept connections
+        await WaitForSimulatorReady();
         
         // Create direct connection
         _hostConnection = new HsmsConnection(_testEndpoint, HsmsConnection.HsmsConnectionMode.Active, null);
@@ -158,8 +162,13 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
             SoftwareRevision = "2.0.0",
             ResponseDelayMs = 50
         };
+
+        // Start the simulator - it will begin listening immediately
+
         await _simulator.StartAsync();
-        await Task.Delay(500);
+
+        // Wait deterministically for simulator to be ready
+        await WaitForSimulatorReady();
         
         // Create and connect
         _hostConnection = new HsmsConnection(_testEndpoint, HsmsConnection.HsmsConnectionMode.Active, null);
@@ -215,6 +224,32 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    /// <summary>
+    /// Waits deterministically for simulator to be ready to accept connections
+    /// </summary>
+    private async Task WaitForSimulatorReady()
+    {
+        // Poll until simulator is listening
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!cts.Token.IsCancellationRequested)
+        {
+            try
+            {
+                using var testClient = new System.Net.Sockets.TcpClient();
+                await testClient.ConnectAsync(_testEndpoint.Address, _testEndpoint.Port, cts.Token);
+                testClient.Close();
+                _logger.LogDebug("Simulator is accepting connections");
+                return;
+            }
+            catch
+            {
+                await Task.Delay(50, cts.Token);
+            }
+        }
+
+        throw new TimeoutException("Simulator did not become ready within timeout");
     }
 
     public async ValueTask DisposeAsync()
