@@ -18,7 +18,7 @@ namespace XStateNet.Distributed.Tests.Resilience
     public class ResilienceIntegrationTests : IDisposable
     {
         private readonly CircuitBreaker _circuitBreaker;
-        private readonly RetryPolicy _retryPolicy;
+        private readonly XStateNetRetryPolicy _retryPolicy;
         private readonly TimeoutProtection _timeoutProtection;
         private readonly DeadLetterQueue _dlq;
         private readonly InMemoryDeadLetterStorage _storage;
@@ -41,7 +41,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 SuccessCountInHalfOpen = 2
             });
 
-            _retryPolicy = new RetryPolicy("test-retry", new RetryOptions
+            _retryPolicy = new XStateNetRetryPolicy("test-retry", new RetryOptions
             {
                 MaxRetries = 3,
                 InitialDelay = TimeSpan.FromMilliseconds(50),
@@ -117,7 +117,8 @@ namespace XStateNet.Distributed.Tests.Resilience
             {
                 await _retryPolicy.ExecuteAsync(async (ct) =>
                 {
-                    attemptCount++;
+                    Interlocked.Increment(ref attemptCount);
+                    //attemptCount++;
                     return await _timeoutProtection.ExecuteAsync(
                         async (timeoutToken) =>
                         {
@@ -129,7 +130,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                     );
                 });
             }
-            catch (TimeoutException ex)
+            catch (AggregateException ex) when (ex.InnerException is TimeoutException)
             {
                 // Send to DLQ after retries exhausted
                 await _dlq.EnqueueAsync(message, "TimeoutTest", "Timeout after retries", ex);

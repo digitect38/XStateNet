@@ -350,32 +350,34 @@ namespace XStateNet.Distributed.PubSub
 
         private void OnStateMachineStateChanged(string newState)
         {
-            // Fire and forget async operation
-            _ = Task.Run(async () =>
+            // Use async void to ensure exceptions are properly propagated
+            // and the operation completes synchronously with the event
+            OnStateMachineStateChangedAsync(newState).ContinueWith(task =>
             {
-                try
+                if (task.Exception != null)
                 {
-                    var stateChangeEvent = new StateChangeEvent
-                    {
-                        NewState = newState,
-                        OldState = _previousState, // Track previous state manually
-                        Timestamp = DateTime.UtcNow,
-                        SourceMachineId = _machineId
-                    };
-
-                    await _eventBus.PublishStateChangeAsync(_machineId, stateChangeEvent);
-
-                    _logger?.LogDebug("Published state change from {OldState} to {NewState} for machine {MachineId}",
-                        _previousState, newState, _machineId);
-
-                    // Update previous state for next transition
-                    _previousState = newState;
+                    _logger?.LogError(task.Exception, "Failed to publish state change event");
                 }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Failed to publish state change event");
-                }
-            });
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        private async Task OnStateMachineStateChangedAsync(string newState)
+        {
+            var stateChangeEvent = new StateChangeEvent
+            {
+                NewState = newState,
+                OldState = _previousState, // Track previous state manually
+                Timestamp = DateTime.UtcNow,
+                SourceMachineId = _machineId
+            };
+
+            await _eventBus.PublishStateChangeAsync(_machineId, stateChangeEvent);
+
+            _logger?.LogDebug("Published state change from {OldState} to {NewState} for machine {MachineId}",
+                _previousState, newState, _machineId);
+
+            // Update previous state for next transition
+            _previousState = newState;
         }
 
         private void OnStateMachineError(Exception error)

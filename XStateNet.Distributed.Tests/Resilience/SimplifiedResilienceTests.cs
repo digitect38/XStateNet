@@ -69,7 +69,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 InitialDelay = TimeSpan.FromMilliseconds(10),
                 BackoffStrategy = BackoffStrategy.Exponential
             };
-            var retryPolicy = new RetryPolicy("test", options);
+            var retryPolicy = new XStateNetRetryPolicy("test", options);
 
             // Act - Success on first attempt
             var result = await retryPolicy.ExecuteAsync(async (ct) => "success");
@@ -207,7 +207,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 MaxRetries = 2,
                 InitialDelay = TimeSpan.FromMilliseconds(10)
             };
-            var retryPolicy = new RetryPolicy("integration", retryOptions);
+            var retryPolicy = new XStateNetRetryPolicy("integration", retryOptions);
 
             var failureCount = 0;
 
@@ -216,28 +216,37 @@ namespace XStateNet.Distributed.Tests.Resilience
             {
                 try
                 {
-                    await circuitBreaker.ExecuteAsync(async () =>
+                    var result = await circuitBreaker.ExecuteAsync(async () =>
                     {
                         return await retryPolicy.ExecuteAsync(async (ct) =>
                         {
-                            // Fail first few times
-                            if (failureCount < 3)
+                            // Increment counter first
+                            var currentCount = Interlocked.Increment(ref failureCount);
+
+                            // Fail first 3 times across all iterations
+                            if (currentCount <= 3)
                             {
-                                failureCount++;
                                 throw new InvalidOperationException();
                             }
                             return "success";
                         });
                     });
+
+                    // If we succeed, break out of the loop
+                    break;
                 }
                 catch (CircuitBreakerOpenException)
                 {
                     // Circuit opened - wait and retry
                     await Task.Delay(150);
                 }
+                catch (AggregateException)
+                {
+                    // Operation failed after retries - continue trying
+                }
                 catch (InvalidOperationException)
                 {
-                    // Operation failed after retries
+                    // Operation failed without retry (non-retryable)
                 }
             }
 
@@ -258,7 +267,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             var circuitBreaker = new CircuitBreaker("pipeline",
                 new CircuitBreakerOptions { FailureThreshold = 3 });
 
-            var retryPolicy = new RetryPolicy("pipeline",
+            var retryPolicy = new XStateNetRetryPolicy("pipeline",
                 new RetryOptions { MaxRetries = 2 });
 
             var timeoutProtection = new TimeoutProtection(
@@ -295,7 +304,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                                         }
 
                                         await Task.Delay(10, timeoutToken);
-                                        processedCount++;
+                                        Interlocked.Increment(ref processedCount);
                                         return item;
                                     },
                                     TimeSpan.FromMilliseconds(50)
