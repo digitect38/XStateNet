@@ -106,9 +106,15 @@ namespace XStateNet.Distributed.Tests.Resilience
             var circuitBreaker = new XStateNetCircuitBreaker("test_xstatenet", options);
 
             var stateChanges = new List<CircuitState>();
+            var halfOpenReached = new TaskCompletionSource<bool>();
+
             circuitBreaker.StateChanged += (sender, args) =>
             {
                 stateChanges.Add(args.ToState);
+                if (args.ToState == CircuitState.HalfOpen)
+                {
+                    halfOpenReached.TrySetResult(true);
+                }
             };
 
             // Act - Open the circuit
@@ -124,11 +130,22 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             Assert.Equal(CircuitState.Open, circuitBreaker.State);
 
-            // Wait deterministically for automatic transition to HalfOpen via 'after' property
-            var transitionReady = new TaskCompletionSource<bool>();
-            using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(150), Timeout.InfiniteTimeSpan);
-            await transitionReady.Task;
+            // Wait for the circuit to transition to HalfOpen
+            // The 'after' property should trigger this after 100ms
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
+            {
+                try
+                {
+                    await halfOpenReached.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Assert.True(false, $"Circuit did not transition to HalfOpen within timeout. States: {string.Join(", ", stateChanges)}");
+                }
+            }
+
+            // Small delay to ensure state machine has fully transitioned
+            await Task.Yield();
 
             // Try an operation - should be allowed in HalfOpen
             var result = await circuitBreaker.ExecuteAsync(async () =>
