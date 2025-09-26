@@ -312,7 +312,7 @@ namespace XStateNet.Tests
             var monitor = new StateMachineMonitor(machine);
             var transitions = new List<StateTransitionEventArgs>();
             var lockObj = new object();
-            var semaphore = new SemaphoreSlim(1, 1);
+            var exceptions = new List<Exception>();
 
             monitor.StateTransitioned += (sender, e) =>
             {
@@ -323,55 +323,73 @@ namespace XStateNet.Tests
             };
             monitor.StartMonitoring();
 
-            // Act - Send events from multiple threads with synchronization
+            // Act - Send events from multiple threads WITHOUT synchronization (real-world scenario)
             var tasks = new List<Task>();
             for (int i = 0; i < taskCount; i++)
             {
                 var taskIndex = i;
                 tasks.Add(Task.Run(async () =>
                 {
-                    // Synchronize state transitions to avoid conflicts
-                    await semaphore.WaitAsync();
                     try
                     {
-                        // Check if we're in idle state (using partial match for hierarchical states)
-                        var currentState = machine.GetActiveStateString();
-                        if (currentState.Contains("idle"))
-                        {
-                            await machine.SendAsync("START");
-                            // Use shorter timeout since we're synchronized
-                            await machine.WaitForStateAsync("running", 500);
-                            await machine.SendAsync("STOP");
-                            await machine.WaitForStateAsync("idle", 500);
-                        }
+                        // Simulate real concurrent access - no coordination between threads
+                        // Some events may be ignored if state machine is already transitioning
+                        await machine.SendAsync("START");
+
+                        // Small random delay to create more realistic concurrency
+                        await Task.Delay(Random.Shared.Next(1, 10));
+
+                        await machine.SendAsync("PAUSE");
+                        await Task.Delay(Random.Shared.Next(1, 10));
+
+                        await machine.SendAsync("RESUME");
+                        await Task.Delay(Random.Shared.Next(1, 10));
+
+                        await machine.SendAsync("STOP");
                     }
-                    finally
+                    catch (Exception ex)
                     {
-                        semaphore.Release();
+                        // Capture any exceptions to verify thread safety
+                        lock (lockObj)
+                        {
+                            exceptions.Add(ex);
+                        }
                     }
                 }));
             }
 
             await Task.WhenAll(tasks);
 
-            // Ensure we're back in idle state
+            // Wait a bit for any final transitions to complete
+            await Task.Delay(100);
+
+            // Ensure we end in a valid state (could be any of the defined states)
             var finalState = machine.GetActiveStateString();
-            if (!finalState.Contains("idle"))
-            {
-                await machine.SendAsync("STOP");
-                await machine.WaitForStateAsync("idle", 1000);
-            }
+            Assert.True(
+                finalState.Contains("idle") ||
+                finalState.Contains("running") ||
+                finalState.Contains("paused"),
+                $"Machine should be in a valid state. Current state: {finalState}");
 
             // Assert - We expect at least some transitions to be captured
             // Due to concurrent access, not all transitions may occur (some events may be ignored)
             Assert.True(transitions.Count > 0, $"Should have captured at least some transitions. Captured {transitions.Count}");
 
-            // Verify thread-safety: no exceptions or corrupted data
+            // Verify thread-safety: no exceptions should have occurred
+            Assert.Empty(exceptions); // No exceptions means thread-safe operation
+
+            // Verify no data corruption in captured transitions
             foreach (var transition in transitions)
             {
                 Assert.NotNull(transition.StateMachineId);
                 Assert.NotNull(transition.ToState);
                 Assert.True(transition.Timestamp > DateTime.MinValue);
+                // Verify states are valid (not corrupted)
+                Assert.True(
+                    transition.ToState.Contains("idle") ||
+                    transition.ToState.Contains("running") ||
+                    transition.ToState.Contains("paused"),
+                    $"Invalid state in transition: {transition.ToState}");
             }
 
             monitor.StopMonitoring();
