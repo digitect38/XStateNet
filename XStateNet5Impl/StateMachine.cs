@@ -136,7 +136,7 @@ public partial class StateMachine : IStateMachine
     public event Action<Exception>? ErrorOccurred;
     private EventQueue? _eventQueue;
     private StateMachineSync? _sync;
-    private readonly ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
+    private readonly ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
     //
     // This state machine map is for interact each other in a process.

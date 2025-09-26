@@ -89,7 +89,7 @@ public class UnitTest_ErrorHandling : IDisposable
         Assert.Contains("idle", _stateMachine.GetActiveStateString());
         
         _stateMachine!.Send("START");
-        
+
         // The error should be caught and handled
         Assert.Contains("error", _stateMachine.GetActiveStateString());
         Assert.True(_errorHandled);
