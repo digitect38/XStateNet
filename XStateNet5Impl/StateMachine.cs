@@ -474,7 +474,9 @@ public partial class StateMachine : IStateMachine
             return;
         }
 
-        _stateLock.EnterReadLock();
+        // Use write lock to ensure atomic transitions
+        // Only one thread can transition at a time
+        _stateLock.EnterWriteLock();
         try
         {
             if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
@@ -482,16 +484,9 @@ public partial class StateMachine : IStateMachine
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
                 return;
             }
-        }
-        finally
-        {
-            _stateLock.ExitReadLock();
-        }
 
-        // Direct synchronous processing for backward compatibility
-        // EventQueue is only used when explicitly enabled
-        try
-        {
+            // Direct synchronous processing for backward compatibility
+            // EventQueue is only used when explicitly enabled
             Transit(eventName, eventData);
             //PrintCurrentStateTree();
             PrintCurrentStatesString();
@@ -499,6 +494,10 @@ public partial class StateMachine : IStateMachine
         catch (Exception ex)
         {
             HandleUnhandledException(ex, $"Send({eventName})");
+        }
+        finally
+        {
+            _stateLock.ExitWriteLock();
         }
     }
     
@@ -530,42 +529,40 @@ public partial class StateMachine : IStateMachine
             return GetCurrentStateString();
         }
 
-        _stateLock.EnterReadLock();
-        try
-        {
-            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
-            {
-                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
-                return GetCurrentStateString();
-            }
-        }
-        finally
-        {
-            _stateLock.ExitReadLock();
-        }
-
         if (_eventQueue != null)
         {
             await _eventQueue.SendAsync(eventName);
-        }
-        else
-        {
-            await Task.Run(() =>
-            {
-                try
-                {
-                    Transit(eventName, eventData);
-                    //PrintCurrentStateTree();
-                    PrintCurrentStatesString();
-                }
-                catch (Exception ex)
-                {
-                    HandleUnhandledException(ex, $"SendAsync({eventName})");
-                }
-            });
+            return GetCurrentStateString();
         }
 
-        return GetCurrentStateString();
+        // Use write lock to ensure atomic transitions
+        // Only one thread can transition at a time
+        return await Task.Run(() =>
+        {
+            _stateLock.EnterWriteLock();
+            try
+            {
+                if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
+                {
+                    PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
+                    return GetCurrentStateString();
+                }
+
+                Transit(eventName, eventData);
+                //PrintCurrentStateTree();
+                PrintCurrentStatesString();
+                return GetCurrentStateString();
+            }
+            catch (Exception ex)
+            {
+                HandleUnhandledException(ex, $"SendAsync({eventName})");
+                return GetCurrentStateString();
+            }
+            finally
+            {
+                _stateLock.ExitWriteLock();
+            }
+        });
     }
     
     /// <summary>

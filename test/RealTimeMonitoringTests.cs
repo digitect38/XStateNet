@@ -332,19 +332,11 @@ namespace XStateNet.Tests
                 {
                     try
                     {
-                        // Simulate real concurrent access - no coordination between threads
-                        // Some events may be ignored if state machine is already transitioning
+                        // Real concurrent access - atomic Send ensures thread safety
+                        // Each Send operation is now atomic and serialized
                         await machine.SendAsync("START");
-
-                        // Small random delay to create more realistic concurrency
-                        await Task.Delay(Random.Shared.Next(1, 10));
-
                         await machine.SendAsync("PAUSE");
-                        await Task.Delay(Random.Shared.Next(1, 10));
-
                         await machine.SendAsync("RESUME");
-                        await Task.Delay(Random.Shared.Next(1, 10));
-
                         await machine.SendAsync("STOP");
                     }
                     catch (Exception ex)
@@ -360,9 +352,7 @@ namespace XStateNet.Tests
 
             await Task.WhenAll(tasks);
 
-            // Wait a bit for any final transitions to complete
-            await Task.Delay(100);
-
+            // All transitions are now atomic, no need for delays
             // Ensure we end in a valid state (could be any of the defined states)
             var finalState = machine.GetActiveStateString();
             Assert.True(
