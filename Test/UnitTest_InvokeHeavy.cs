@@ -29,6 +29,34 @@ public class UnitTest_InvokeHeavy : IDisposable
     private GuardMap _guards;
     private ServiceMap _services;
 
+    private async Task WaitForState(StateMachine machine, string expectedState, int timeoutMs = 5000)
+    {
+        var startTime = DateTime.UtcNow;
+        while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
+        {
+            if (machine.GetActiveStateString().Contains(expectedState))
+            {
+                return;
+            }
+            await Task.Delay(10);
+        }
+        throw new TimeoutException($"State machine did not reach state '{expectedState}' within {timeoutMs}ms");
+    }
+
+    private async Task WaitForEventLog(string expectedLog, int timeoutMs = 5000)
+    {
+        var startTime = DateTime.UtcNow;
+        while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
+        {
+            if (_eventLog.Contains(expectedLog))
+            {
+                return;
+            }
+            await Task.Delay(10);
+        }
+        throw new TimeoutException($"Event log did not contain '{expectedLog}' within {timeoutMs}ms");
+    }
+
     public UnitTest_InvokeHeavy()
     {
         _eventLog = new ConcurrentBag<string>();
@@ -323,10 +351,10 @@ public class UnitTest_InvokeHeavy : IDisposable
 
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.ContextMap!["serviceInput"] = "test-input";
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
-        // Act
-        await Task.Delay(500); // Wait longer for all services
+        // Act - Wait for all services to complete
+        await WaitForState(_stateMachine, "allComplete");
 
         // Assert - be more lenient about what we expect
         // At least some services should run
@@ -338,19 +366,13 @@ public class UnitTest_InvokeHeavy : IDisposable
         var hasP1 = _eventLog.Contains("service:p1:started");
 
         // At least one service should have run
-        Assert.True(hasQuick || hasContext || hasP1,
-                   "At least one service should have started");
+        Assert.True(hasQuick || hasContext || hasP1, "At least one service should have started");
 
         // If a service started, it should complete (but parallel state services might not)
         if (hasQuick)
         {
             Assert.Contains("service:quick:completed", _eventLog);
         }
-        // Note: parallelService1 might not complete due to XStateNet parallel state limitations
-        // We've verified it at least starts, which shows partial support
-
-        // The test passes if any services ran, showing that parallel invoke works to some extent
-        // Full parallel support may not be implemented in XStateNet
     }
 
     [Fact]
@@ -397,8 +419,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
-        // Act
-        await Task.Delay(500); // Wait for retries
+        // Act - Wait for the service to complete after retries
+        await WaitForState(_stateMachine, "success");
 
         // Assert
         Assert.Contains("service:retryable:attempt:1", _eventLog);
@@ -452,10 +474,10 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine.Start();
 
         // Act
-        _stateMachine.Send("START");
-        await Task.Delay(350); // Let service run for a bit
-        _stateMachine.Send("CANCEL"); // Cancel the service
-        await Task.Delay(200); // Wait for cancellation
+        await _stateMachine.SendAsync("START");
+        await WaitForEventLog("service:long:step:2"); // Wait for service to run a bit
+        await _stateMachine.SendAsync("CANCEL"); // Cancel the service
+        await WaitForState(_stateMachine, "cancelling");
 
         // Assert
         Assert.Contains("service:long:started", _eventLog);
@@ -515,8 +537,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
-        // Act
-        await Task.Delay(700); // Wait for all services
+        // Act - Wait for services to complete
+        await WaitForEventLog("service:nested:completed");
 
         // Assert
         Assert.Contains("service:slow:started", _eventLog);
@@ -567,8 +589,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine.Start();
 
         // Act
-        _stateMachine.Send("READY");
-        await Task.Delay(200);
+        await _stateMachine.SendAsync("READY");
+        await WaitForState(_stateMachine, "processing");
 
         // Assert
         Assert.Contains("context:prepared", _eventLog);
@@ -624,8 +646,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, false, _actions, _guards, _services);
         _stateMachine.Start();
 
-        // Act
-        await Task.Delay(200);
+        // Act - Wait for error to be handled
+        await WaitForEventLog("level2Error:handled");
 
         // Assert
         Assert.Contains("service:failing:started", _eventLog);
@@ -690,8 +712,8 @@ public class UnitTest_InvokeHeavy : IDisposable
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
         _stateMachine.Start();
 
-        // Act
-        await Task.Delay(100); // Fast service completes
+        // Act - Wait for fast service to complete
+        await WaitForEventLog("fast:done");
 
         // Debug output
         var logList = _eventLog.ToList();
@@ -711,7 +733,18 @@ public class UnitTest_InvokeHeavy : IDisposable
         var completedCount = _counters.GetValueOrDefault("completed", 0);
         Assert.True(completedCount >= 1, $"Expected at least 1 completion, got {completedCount}");
 
-        await Task.Delay(500); // Slow service completes
+        // Wait for slow service if it started
+        if (_eventLog.Contains("service:slow:started"))
+        {
+            try
+            {
+                await WaitForEventLog("slow:done", 1000);
+            }
+            catch (TimeoutException)
+            {
+                // Parallel states might not complete both services
+            }
+        }
 
         // Assert - Check if slow service ran (may not complete due to parallel state issues)
         if (_eventLog.Contains("service:slow:started"))
@@ -779,10 +812,17 @@ public class UnitTest_InvokeHeavy : IDisposable
 
         // Act - Start the machine and send START event
         _stateMachine.Start();
-        _stateMachine.Send("START");
+        await _stateMachine.SendAsync("START");
 
-        // Wait for iterations to complete
-        await Task.Delay(2000); // Give more time for re-invocations
+        // Wait for iterations to complete or timeout
+        try
+        {
+            await WaitForState(_stateMachine, "done", 3000);
+        }
+        catch (TimeoutException)
+        {
+            // Re-invocation might not work in XStateNet
+        }
 
         // Assert
         // Get the iterations value, handling JValue conversion properly
@@ -916,18 +956,21 @@ public class UnitTest_InvokeHeavy : IDisposable
         // Act
         _stateMachine.Start();
 
-        // Wait and check state progression
-        await Task.Delay(100);
-        var state1 = _stateMachine.GetActiveStateString();
-        Console.WriteLine($"State after 100ms: {state1}");
+        // Wait for workflow to complete
+        await WaitForEventLog("service:context:input:workflow-data");
 
-        await Task.Delay(200);
-        var state2 = _stateMachine.GetActiveStateString();
-        Console.WriteLine($"State after 300ms: {state2}");
+        // Give time for parallel services if they run
+        try
+        {
+            await WaitForEventLog("workflow:complete", 2000);
+        }
+        catch (TimeoutException)
+        {
+            // Workflow might not complete all stages
+        }
 
-        await Task.Delay(300);
-        var state3 = _stateMachine.GetActiveStateString();
-        Console.WriteLine($"State after 600ms: {state3}");
+        var finalState = _stateMachine.GetActiveStateString();
+        Console.WriteLine($"Final state: {finalState}");
 
         // Check what's in the log
         var logList = _eventLog.ToList();
