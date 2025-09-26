@@ -173,10 +173,12 @@ namespace XStateNet.Distributed.Resilience
 
             guardMap["thresholdExceeded"] = new NamedGuard("thresholdExceeded", (sm) =>
             {
+                // Use atomic read to get current value
+                var currentFailures = Interlocked.Read(ref _consecutiveFailures);
                 // Check if threshold will be exceeded AFTER this failure
                 // Since incrementFailures will run as part of the action, we add 1
-                var afterIncrement = _consecutiveFailures + 1;
-                Console.WriteLine($"[GUARD] thresholdExceeded: current={_consecutiveFailures}, afterIncrement={afterIncrement}, threshold={_options.FailureThreshold}, result={afterIncrement >= _options.FailureThreshold}");
+                var afterIncrement = currentFailures + 1;
+                Console.WriteLine($"[GUARD] thresholdExceeded: current={currentFailures}, afterIncrement={afterIncrement}, threshold={_options.FailureThreshold}, result={afterIncrement >= _options.FailureThreshold}");
                 if (afterIncrement >= _options.FailureThreshold)
                     return true;
 
@@ -193,8 +195,10 @@ namespace XStateNet.Distributed.Resilience
 
             guardMap["successThresholdMet"] = new NamedGuard("successThresholdMet", (sm) =>
             {
+                // Use atomic read to get current value
+                var currentSuccesses = Interlocked.Read(ref _successCountInHalfOpen);
                 // Check if we have enough successes to close the circuit
-                var nextCount = _successCountInHalfOpen + 1;
+                var nextCount = currentSuccesses + 1;
                 Debug.WriteLine($"Circuit Breaker '{_name}' checking success threshold: next={nextCount} >= {_options.SuccessCountInHalfOpen}");
                 return nextCount >= _options.SuccessCountInHalfOpen;
             });
@@ -205,28 +209,40 @@ namespace XStateNet.Distributed.Resilience
 
         private CircuitState GetCurrentState()
         {
-            return (CircuitState)Interlocked.CompareExchange(ref _currentStateInt, 0, 0);
+            // Use Volatile.Read for proper memory barrier
+            return (CircuitState)Volatile.Read(ref _currentStateInt);
         }
 
 
         private void SetCurrentState(CircuitState newState)
         {
             int newStateInt = (int)newState;
-            int currentStateInt;
-            int previousStateInt;
+            int currentStateInt = Volatile.Read(ref _currentStateInt);
 
-            do
+            if (currentStateInt == newStateInt)
+                return; // Already in the desired state
+
+            // Store previous state before transition
+            int previousStateInt = currentStateInt;
+
+            // Atomically update current state
+            while (true)
             {
-                currentStateInt = _currentStateInt;
+                int observedState = Interlocked.CompareExchange(ref _currentStateInt, newStateInt, currentStateInt);
+                if (observedState == currentStateInt)
+                {
+                    // Success - update previous state
+                    Volatile.Write(ref _previousStateInt, previousStateInt);
+                    break;
+                }
+
+                // Another thread changed the state, check if it's now our desired state
+                currentStateInt = observedState;
                 if (currentStateInt == newStateInt)
-                    return; // Already in the desired state
+                    return; // Another thread already set it to our desired state
 
-                previousStateInt = currentStateInt;
+                previousStateInt = currentStateInt; // Update for next attempt
             }
-            while (Interlocked.CompareExchange(ref _currentStateInt, newStateInt, currentStateInt) != currentStateInt);
-
-            // Update previous state after successful transition
-            Interlocked.Exchange(ref _previousStateInt, previousStateInt);
         }
 
 
@@ -237,23 +253,42 @@ namespace XStateNet.Distributed.Resilience
 
         public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default)
         {
-            // Check if circuit is open
+            var stopwatch = Stopwatch.StartNew();
+
+            // Use a lock-free approach with double-check pattern
+            // First check - quick rejection if open
             var currentState = GetCurrentState();
             if (currentState == CircuitState.Open)
             {
                 _stateMachine.Send("EXECUTE"); // For metrics
+                _metrics.RecordRejection(_name);
                 throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
             }
 
-            var stopwatch = Stopwatch.StartNew();
+            // For HalfOpen state, we need to ensure only limited operations go through
+            // This is handled by the state machine itself through success counting
+
             try
             {
+                // Second check - verify state hasn't changed just before execution
+                currentState = GetCurrentState();
+                if (currentState == CircuitState.Open)
+                {
+                    _metrics.RecordRejection(_name);
+                    throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
+                }
+
                 var result = await operation(cancellationToken).ConfigureAwait(false);
                 OnSuccess();
                 _metrics.RecordSuccess(_name, stopwatch.Elapsed);
                 return result;
             }
-            catch (Exception ex) when (!(ex is CircuitBreakerOpenException))
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Don't count cancellation as failure
+                throw;
+            }
+            catch (Exception ex) when (!(ex is CircuitBreakerOpenException || ex is OperationCanceledException))
             {
                 OnFailure(ex);
                 _metrics.RecordFailure(_name, stopwatch.Elapsed, ex.GetType().Name);
@@ -291,11 +326,13 @@ namespace XStateNet.Distributed.Resilience
             var currentState = GetCurrentState();
             Debug.WriteLine($"Circuit Breaker '{_name}' OnSuccess called in state: {currentState}");
 
-            // Let the state machine handle resetting via the 'resetFailures' action
-
-            Debug.WriteLine($"Circuit Breaker '{_name}' sending SUCCESS event, current success count: {_successCountInHalfOpen}");
-            _stateMachine.Send("SUCCESS");
-            Debug.WriteLine($"Circuit Breaker '{_name}' after SUCCESS event, state: {GetCurrentState()}, success count: {_successCountInHalfOpen}");
+            // Only send SUCCESS event if we're not already closed (to avoid unnecessary state machine work)
+            if (currentState != CircuitState.Closed || Interlocked.Read(ref _consecutiveFailures) > 0)
+            {
+                Debug.WriteLine($"Circuit Breaker '{_name}' sending SUCCESS event, current success count: {Interlocked.Read(ref _successCountInHalfOpen)}");
+                _stateMachine.Send("SUCCESS");
+                Debug.WriteLine($"Circuit Breaker '{_name}' after SUCCESS event, state: {GetCurrentState()}, success count: {Interlocked.Read(ref _successCountInHalfOpen)}");
+            }
         }
 
         private void OnFailure(Exception exception)
@@ -304,9 +341,9 @@ namespace XStateNet.Distributed.Resilience
             _failureWindow.RecordFailure();
             // Don't increment here - let the state machine handle it via actions
 
-            Console.WriteLine($"[FAIL] Sending FAIL event, consecutiveFailures={_consecutiveFailures}");
+            Console.WriteLine($"[FAIL] Sending FAIL event, consecutiveFailures={Interlocked.Read(ref _consecutiveFailures)}");
             _stateMachine.Send("FAIL");
-            Console.WriteLine($"[FAIL] After FAIL event, consecutiveFailures={_consecutiveFailures}, state={GetCurrentState()}");
+            Console.WriteLine($"[FAIL] After FAIL event, consecutiveFailures={Interlocked.Read(ref _consecutiveFailures)}, state={GetCurrentState()}");
         }
 
         public void Dispose()
