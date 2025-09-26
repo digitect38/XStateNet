@@ -386,8 +386,6 @@ public class UnitTest_Activities : IDisposable
 
         // Stop all
         _stateMachine.Send("STOP");
-        Thread.Sleep(50);
-
         Assert.Contains("stop:monitorActivity", _activityLog);
         Assert.Contains("stop:pollingActivity", _activityLog);
     }

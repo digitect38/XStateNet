@@ -128,9 +128,8 @@ public class UnitTest_ResetEvent : IDisposable
         _stateMachine.Start();
 
         // Navigate to non-initial state
-        _stateMachine.Send("START");
-        _stateMachine.Send("PAUSE");
-        await Task.Delay(100);
+        await _stateMachine.SendAsync("START");
+        await _stateMachine.SendAsync("PAUSE");
 
         Assert.Contains("paused", _stateMachine.GetActiveStateString());
 
@@ -141,8 +140,7 @@ public class UnitTest_ResetEvent : IDisposable
         _counters.Clear();
 
         // Act - Send RESET event
-        _stateMachine.Send("RESET");
-        await Task.Delay(100);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Should be back at initial state
         Assert.Contains("idle", _stateMachine.GetActiveStateString());
@@ -152,7 +150,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_ClearsModifiedContext()
+    public async Task Reset_ClearsModifiedContext()
     {
         // create uniqueId for isolation
 
@@ -191,16 +189,14 @@ public class UnitTest_ResetEvent : IDisposable
         
 
         // Modify context
-        _stateMachine.Send("NEXT");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("NEXT");
 
         Assert.True(_stateMachine.ContextMap?["modified"] as bool?);
         var counterBeforeReset = _stateMachine.ContextMap?["counter"];
         Assert.Equal(99, counterBeforeReset is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : Convert.ToInt32(counterBeforeReset));
 
         // Act - Reset
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Context should be reset to initial values
         var counterAfterReset = _stateMachine.ContextMap?["counter"];
@@ -220,7 +216,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_InNestedState_ReturnsToTopLevelInitial()
+    public async Task Reset_InNestedState_ReturnsToTopLevelInitial()
     {
 
         // Arrange
@@ -267,17 +263,15 @@ public class UnitTest_ResetEvent : IDisposable
             .Build("nestedReset");
 
         // Navigate deep into hierarchy
-        _stateMachine.Send("DEEP");
-        _stateMachine.Send("NEXT");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("DEEP");
+        await _stateMachine.SendAsync("NEXT");
 
         Assert.Contains("parent2.child3", _stateMachine.GetActiveStateString());
 
         _actionLog.Clear();
 
         // Act - Reset
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Back to initial parent and child
         Assert.Contains("parent1.child1", _stateMachine.GetActiveStateString());
@@ -288,7 +282,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_InParallelState_ResetsAllRegions()
+    public async Task Reset_InParallelState_ResetsAllRegions()
     {
         // Arrange
         var script = @"
@@ -341,9 +335,8 @@ public class UnitTest_ResetEvent : IDisposable
             .Build("parallelReset");
 
         // Advance both regions
-        _stateMachine.Send("ADVANCE1");
-        _stateMachine.Send("ADVANCE2");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("ADVANCE1");
+        await _stateMachine.SendAsync("ADVANCE2");
 
         var activeStates = _stateMachine.GetActiveStateString();
         Assert.Contains("region1.r1s2", activeStates);
@@ -352,8 +345,7 @@ public class UnitTest_ResetEvent : IDisposable
         _actionLog.Clear();
 
         // Act - Reset
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Both regions back to initial
         activeStates = _stateMachine.GetActiveStateString();
@@ -362,7 +354,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_ClearsHistoryStates()
+    public async Task Reset_ClearsHistoryStates()
     {
         // Arrange
         var script = @"
@@ -407,25 +399,19 @@ public class UnitTest_ResetEvent : IDisposable
             .Build("historyReset");
 
         // Build history
-        _stateMachine.Send("ENTER_COMPOUND");
-        _stateMachine.Send("NEXT"); // Go to second
-        _stateMachine.Send("NEXT"); // Go to third
-        _stateMachine.Send("EXIT"); // Exit compound
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("ENTER_COMPOUND");
+        await _stateMachine.SendAsync("NEXT"); // Go to second
+        await _stateMachine.SendAsync("NEXT"); // Go to third
+        await _stateMachine.SendAsync("EXIT"); // Exit compound
 
         // Re-enter compound - should go to third due to history
-        _stateMachine.Send("ENTER_COMPOUND");
-        Thread.Sleep(50);
-        Assert.Contains("compound.third", _stateMachine.GetActiveStateString());
-
-        // Act - Reset
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        var state = await _stateMachine.SendAsyncWithState("ENTER_COMPOUND");
+        Assert.Contains("compound.third", state);
+        state = await _stateMachine.SendAsyncWithState("RESET");
 
         // Enter compound again - should go to initial, not history
-        _stateMachine.Send("ENTER_COMPOUND");
-        Thread.Sleep(50);
-        Assert.Contains("compound.first", _stateMachine.GetActiveStateString());
+        state = await _stateMachine.SendAsyncWithState("ENTER_COMPOUND");
+        Assert.Contains("compound.first", state);
     }
 
     [Fact]
@@ -466,14 +452,14 @@ public class UnitTest_ResetEvent : IDisposable
         //_stateMachine.Start();
 
         // Start service
-        _stateMachine.Send("START");
+        await _stateMachine.SendAsync("START");
         await Task.Delay(100); // Let service start
 
         Assert.Contains("service:started", _actionLog);
         Assert.Contains("running", _stateMachine.GetActiveStateString());
 
         // Act - Reset before service completes
-        _stateMachine.Send("RESET");
+        await _stateMachine.SendAsync("RESET");
         await Task.Delay(200);
 
         // Assert - Service should be cancelled, not completed
@@ -486,7 +472,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_ClearsEventQueue()
+    public async Task Reset_ClearsEventQueue()
     {
         // Arrange
         var script = @"
@@ -522,12 +508,11 @@ public class UnitTest_ResetEvent : IDisposable
         _stateMachine.Start();
 
         // Queue multiple events before processing
-        _stateMachine.Send("EVENT1");
-        _stateMachine.Send("EVENT2");
+        await _stateMachine.SendAsync("EVENT1");
+        await _stateMachine.SendAsync("EVENT2");
 
         // Send RESET before EVENT2 can process
-        _stateMachine.Send("RESET");
-        Thread.Sleep(100);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Should be at initial, not state3
         Assert.Contains("state1", _stateMachine.GetActiveStateString());
@@ -535,7 +520,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_CanBeTriggeredMultipleTimes()
+    public async Task Reset_CanBeTriggeredMultipleTimes()
     {
         // Arrange
         var script = @"
@@ -567,20 +552,17 @@ public class UnitTest_ResetEvent : IDisposable
         _stateMachine.Start();
 
         // First reset
-        _stateMachine.Send("NEXT");
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("NEXT");
+        await _stateMachine.SendAsync("RESET");
         Assert.Contains("initial", _stateMachine.GetActiveStateString());
 
         // Second reset
-        _stateMachine.Send("NEXT");
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("NEXT");
+        await _stateMachine.SendAsync("RESET");
         Assert.Contains("initial", _stateMachine.GetActiveStateString());
 
         // Third reset
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("RESET");
         Assert.Contains("initial", _stateMachine.GetActiveStateString());
 
         // Each reset should re-execute initial entry
@@ -588,7 +570,7 @@ public class UnitTest_ResetEvent : IDisposable
     }
 
     [Fact]
-    public void Reset_FromFinalState_Works()
+    public async Task Reset_FromFinalState_Works()
     {
         // Arrange
         var script = @"
@@ -619,13 +601,11 @@ public class UnitTest_ResetEvent : IDisposable
         _stateMachine.Start();
 
         // Go to final state
-        _stateMachine.Send("FINISH");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("FINISH");
         Assert.Contains("done", _stateMachine.GetActiveStateString());
 
         // Act - Reset from final state
-        _stateMachine.Send("RESET");
-        Thread.Sleep(50);
+        await _stateMachine.SendAsync("RESET");
 
         // Assert - Should restart
         Assert.Contains("start", _stateMachine.GetActiveStateString());
