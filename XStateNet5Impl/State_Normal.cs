@@ -10,23 +10,15 @@ public class NormalState : CompoundState
 {
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
 
-    // Thread-safe last active state tracking
-    private readonly ThreadSafeStateInfo _historyStateInfo = new ThreadSafeStateInfo();
-
-    public string? LastActiveStateName
-    {
-        get => _historyStateInfo.LastActiveStateName;
-        set => _historyStateInfo.UpdateState(_historyStateInfo.IsActive, _historyStateInfo.ActiveStateName);
-    }
+    public string? LastActiveStateName { set; get; }
 
     public NormalState? LastActiveState
     {
         get
         {
-            var lastName = _historyStateInfo.LastActiveStateName;
-            if (lastName != null)
+            if (LastActiveStateName != null)
             {
-                return GetState(lastName) as NormalState;
+                return GetState(LastActiveStateName) as NormalState;
             }
             return null;
         }
