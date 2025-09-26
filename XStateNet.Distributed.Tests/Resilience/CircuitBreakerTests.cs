@@ -8,8 +8,7 @@ using XStateNet.Distributed.Tests.TestHelpers;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
-    //public class CircuitBreakerTests
-    public abstract class CircuitBreakerTests
+    public class CircuitBreakerTests
     {
         [Fact]
         public Task CircuitBreaker_StartsInClosedState()
@@ -358,10 +357,12 @@ namespace XStateNet.Distributed.Tests.Resilience
             };
             var circuitBreaker = new CircuitBreaker("test", options);
             CircuitStateChangedEventArgs? eventArgs = null;
+            var eventFired = new TaskCompletionSource<bool>();
 
             circuitBreaker.StateChanged += (sender, args) =>
             {
                 eventArgs = args;
+                eventFired.TrySetResult(true);
             };
 
             // Act
@@ -373,6 +374,12 @@ namespace XStateNet.Distributed.Tests.Resilience
                 });
             }
             catch { }
+
+            // Wait for the event to fire (it's fired asynchronously)
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
+            {
+                await eventFired.Task.WaitAsync(cts.Token);
+            }
 
             // Assert
             Assert.NotNull(eventArgs);

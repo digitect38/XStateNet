@@ -25,7 +25,7 @@ namespace XStateNet.Distributed.Resilience
         // Sliding window for failure rate calculation
         private readonly SlidingWindow _failureWindow;
 
-        public CircuitState State => (CircuitState)_state;
+        public CircuitState State => (CircuitState)Volatile.Read(ref _state);
         public string Name => _name;
 
         public event EventHandler<CircuitStateChangedEventArgs>? StateChanged;
@@ -53,22 +53,34 @@ namespace XStateNet.Distributed.Resilience
             // Check cancellation before any operation
             cancellationToken.ThrowIfCancellationRequested();
 
-            var currentState = _state;
+            // Use Volatile.Read for proper memory barrier and visibility
+            var currentState = Volatile.Read(ref _state);
             if (currentState == (int)CircuitState.Open)
             {
                 if (ShouldAttemptReset())
                 {
                     TransitionToHalfOpen();
-                    // Re-read state after potential transition
-                    currentState = _state;
+                    // Re-read state after potential transition with memory barrier
+                    currentState = Volatile.Read(ref _state);
                 }
 
-                // Double-check state after potential transition
-                if (_state == (int)CircuitState.Open)
+                // Check state after potential transition using the local variable
+                if (currentState == (int)CircuitState.Open)
                 {
                     _metrics.RecordRejection(_name);
                     throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
                 }
+            }
+
+            // Final verification: Re-read state with memory barrier immediately before operation
+            // This narrows the race window to the absolute minimum between this check and operation start
+            // Note: A tiny race window still exists, but it's acceptable as worst case is one extra
+            // operation executes during state transition, which is handled gracefully
+            currentState = Volatile.Read(ref _state);
+            if (currentState == (int)CircuitState.Open)
+            {
+                _metrics.RecordRejection(_name);
+                throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
             }
 
             var stopwatch = Stopwatch.StartNew();
@@ -121,7 +133,8 @@ namespace XStateNet.Distributed.Resilience
         {
             _failureWindow.RecordSuccess();
 
-            if (_state == (int)CircuitState.HalfOpen)
+            var currentState = Volatile.Read(ref _state);
+            if (currentState == (int)CircuitState.HalfOpen)
             {
                 var successCount = Interlocked.Increment(ref _successCount);
                 if (successCount >= _options.SuccessCountInHalfOpen)
@@ -129,7 +142,7 @@ namespace XStateNet.Distributed.Resilience
                     TransitionToClosed();
                 }
             }
-            else if (_state == (int)CircuitState.Closed)
+            else if (currentState == (int)CircuitState.Closed)
             {
                 Interlocked.Exchange(ref _consecutiveFailures, 0);
             }
@@ -139,13 +152,14 @@ namespace XStateNet.Distributed.Resilience
         {
             _failureWindow.RecordFailure();
 
-            if (_state == (int)CircuitState.HalfOpen)
+            var currentState = Volatile.Read(ref _state);
+            if (currentState == (int)CircuitState.HalfOpen)
             {
                 TransitionToOpen(exception);
                 return;
             }
 
-            if (_state == (int)CircuitState.Closed)
+            if (currentState == (int)CircuitState.Closed)
             {
                 var failures = Interlocked.Increment(ref _consecutiveFailures);
 
@@ -168,7 +182,7 @@ namespace XStateNet.Distributed.Resilience
 
         private void TransitionToOpen(Exception lastException)
         {
-            var currentState = _state;
+            var currentState = Volatile.Read(ref _state);
             if (currentState != (int)CircuitState.Open &&
                 Interlocked.CompareExchange(ref _state, (int)CircuitState.Open, currentState) == currentState)
             {
@@ -233,7 +247,7 @@ namespace XStateNet.Distributed.Resilience
 
         private void TransitionToClosed()
         {
-            var previousState = _state;
+            var previousState = Volatile.Read(ref _state);
             if (previousState != (int)CircuitState.Closed &&
                 Interlocked.CompareExchange(ref _state, (int)CircuitState.Closed, previousState) == previousState)
             {
@@ -283,7 +297,7 @@ namespace XStateNet.Distributed.Resilience
 
         private void TryTransitionToHalfOpen()
         {
-            if (_state == (int)CircuitState.Open)
+            if (Volatile.Read(ref _state) == (int)CircuitState.Open)
             {
                 TransitionToHalfOpen();
             }
@@ -303,6 +317,9 @@ namespace XStateNet.Distributed.Resilience
         }
     }
 
+    /// <summary>
+    /// Circuit breaker states
+    /// </summary>
     public enum CircuitState
     {
         Closed,
