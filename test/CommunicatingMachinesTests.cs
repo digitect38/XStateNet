@@ -8,6 +8,7 @@ using System.Linq;
 using Xunit;
 
 using XStateNet;
+using XStateNet.Helpers;
 
 namespace InterMachineTests;
 
@@ -17,7 +18,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
     /// Helper class for deterministic waiting in tests
     /// </summary>
     public static class TestHelpers
-    {
+    {   
         public static async Task WaitForConditionAsync(
             Func<bool> condition,
             int timeoutMs = 5000,
@@ -44,7 +45,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 () => parent.GetCurrentState().Contains(expectedState),
                 timeoutMs);
         }
-
+        
         public static async Task WaitForEventLogAsync(
             ParentMachine parent,
             string expectedLog,

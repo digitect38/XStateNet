@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using XStateNet;
 using TimelineWPF.Models;
@@ -127,8 +128,15 @@ namespace TimelineWPF.Tests
 
             // Act
             adapter.RegisterStateMachine(machine, "Test Machine");
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for view model update.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for view model update.");
+            }
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();

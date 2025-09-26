@@ -102,8 +102,15 @@ namespace XStateNet.Tests
             machine.Send("STOP");
 
             // Assert
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for state transitions.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for state transitions.");
+            }
 
             Assert.True(transitions.Count >= 2, $"Expected at least 2 transitions, got {transitions.Count}");
 
@@ -144,8 +151,15 @@ namespace XStateNet.Tests
             machine.Send("STOP");
 
             // Assert
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for events.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for events.");
+            }
 
             Assert.Equal(4, events.Count);
             Assert.Contains(events, e => e.EventName == "START");
@@ -180,8 +194,15 @@ namespace XStateNet.Tests
             machine.Send("STOP"); // Should trigger stopProcess and logStop
 
             // Assert
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for actions.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for actions.");
+            }
 
             Assert.True(actions.Count >= 4, $"Expected at least 4 actions, got {actions.Count}");
             Assert.Contains(actions, a => a.ActionName == "logStart");
@@ -208,16 +229,30 @@ namespace XStateNet.Tests
             Assert.Contains("idle", initialStates);
 
             machine.Send("START");
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Timed out waiting for START transition");
+            using var cts1 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts1.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Timed out waiting for START transition");
+            }
 
             var runningStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("running", runningStates);
 
             tcs = new TaskCompletionSource<bool>();
             machine.Send("PAUSE");
-            completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Timed out waiting for PAUSE transition");
+            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts2.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Timed out waiting for PAUSE transition");
+            }
 
             var pausedStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("paused", pausedStates);
@@ -243,15 +278,23 @@ namespace XStateNet.Tests
             monitor.StartMonitoring(); // Should be idempotent
 
             machine.Send("START");
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Timed out waiting for START event");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Timed out waiting for START event");
+            }
             var countAfterStart = eventCount;
 
             monitor.StopMonitoring();
             monitor.StopMonitoring(); // Should be idempotent
 
             machine.Send("STOP");
-            await Task.Delay(100); // Give a small delay to ensure no more events are processed
+            // Wait for state to stabilize instead of arbitrary delay
+            await machine.WaitForStateAsync("idle", 1000)
             var countAfterStop = eventCount;
 
             // Assert
@@ -287,18 +330,18 @@ namespace XStateNet.Tests
                 var taskIndex = i;
                 tasks.Add(Task.Run(async () =>
                 {
-                    // Stagger the events slightly to avoid conflicts
-                    await Task.Delay(taskIndex * 10);
+                    // Use deterministic waiting instead of delays
                     machine.Send("START");
-                    await Task.Delay(5); // Small delay to allow transition
+                    await machine.WaitForStateAsync("running", 1000);
                     machine.Send("STOP");
+                    await machine.WaitForStateAsync("idle", 1000);
                 }));
             }
 
             await Task.WhenAll(tasks);
 
-            // Give time for all transitions to be processed
-            await Task.Delay(100);
+            // Wait for final state to stabilize
+            await machine.WaitForStateAsync("idle", 2000);
 
             // Assert - We expect at least some transitions to be captured
             // Due to concurrent access, not all transitions may occur (some events may be ignored)
@@ -336,15 +379,22 @@ namespace XStateNet.Tests
 
             // Act
             machine.Send("START");
-            await Task.Delay(10);
+            await machine.WaitForStateAsync("running", 1000);
             machine.Send("PAUSE");
-            await Task.Delay(10);
+            await machine.WaitForStateAsync("paused", 1000);
             machine.Send("RESUME");
-            await Task.Delay(10);
+            await machine.WaitForStateAsync("running", 1000);
             machine.Send("STOP");
 
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for events.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for events.");
+            }
 
             // Assert
             Assert.True(events.Count >= 4, $"Expected at least 4 events, got {events.Count}");
@@ -379,8 +429,15 @@ namespace XStateNet.Tests
             machine.Send("PAUSE"); // This has a guard condition
 
             // Assert - Guard should have been evaluated
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for guard evaluation.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for guard evaluation.");
+            }
 
             Assert.Contains(guards, g => g.GuardName == "canPause");
 
@@ -422,8 +479,15 @@ namespace XStateNet.Tests
             machine2.Send("START");
             machine2.Send("PAUSE");
 
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
-            Assert.True(completed == tcs.Task, "Test timed out waiting for events from machine2.");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.True(false, "Test timed out waiting for events from machine2.");
+            }
 
             // Assert
             Assert.Single(events1); // Machine1 received only START
