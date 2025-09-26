@@ -334,8 +334,9 @@ namespace XStateNet.Tests
                     await semaphore.WaitAsync();
                     try
                     {
-                        // Only transition if we're in the expected state
-                        if (machine.IsInState("idle"))
+                        // Check if we're in idle state (using partial match for hierarchical states)
+                        var currentState = machine.GetActiveStateString();
+                        if (currentState.Contains("idle"))
                         {
                             await machine.SendAsync("START");
                             // Use shorter timeout since we're synchronized
@@ -354,7 +355,8 @@ namespace XStateNet.Tests
             await Task.WhenAll(tasks);
 
             // Ensure we're back in idle state
-            if (!machine.IsInState("idle"))
+            var finalState = machine.GetActiveStateString();
+            if (!finalState.Contains("idle"))
             {
                 await machine.SendAsync("STOP");
                 await machine.WaitForStateAsync("idle", 1000);
