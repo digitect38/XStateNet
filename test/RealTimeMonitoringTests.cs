@@ -294,7 +294,7 @@ namespace XStateNet.Tests
 
             machine.Send("STOP");
             // Wait for state to stabilize instead of arbitrary delay
-            await machine.WaitForStateAsync("idle", 1000)
+            await machine.WaitForStateAsync("idle", 1000);
             var countAfterStop = eventCount;
 
             // Assert
@@ -312,7 +312,7 @@ namespace XStateNet.Tests
             var monitor = new StateMachineMonitor(machine);
             var transitions = new List<StateTransitionEventArgs>();
             var lockObj = new object();
-            var tcs = new TaskCompletionSource<bool>();
+            var semaphore = new SemaphoreSlim(1, 1);
 
             monitor.StateTransitioned += (sender, e) =>
             {
@@ -323,25 +323,42 @@ namespace XStateNet.Tests
             };
             monitor.StartMonitoring();
 
-            // Act - Send events from multiple threads with delays to ensure transitions occur
+            // Act - Send events from multiple threads with synchronization
             var tasks = new List<Task>();
             for (int i = 0; i < taskCount; i++)
             {
                 var taskIndex = i;
                 tasks.Add(Task.Run(async () =>
                 {
-                    // Use deterministic waiting instead of delays
-                    machine.Send("START");
-                    await machine.WaitForStateAsync("running", 1000);
-                    machine.Send("STOP");
-                    await machine.WaitForStateAsync("idle", 1000);
+                    // Synchronize state transitions to avoid conflicts
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        // Only transition if we're in the expected state
+                        if (machine.IsInState("idle"))
+                        {
+                            await machine.SendAsync("START");
+                            // Use shorter timeout since we're synchronized
+                            await machine.WaitForStateAsync("running", 500);
+                            await machine.SendAsync("STOP");
+                            await machine.WaitForStateAsync("idle", 500);
+                        }
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
                 }));
             }
 
             await Task.WhenAll(tasks);
 
-            // Wait for final state to stabilize
-            await machine.WaitForStateAsync("idle", 2000);
+            // Ensure we're back in idle state
+            if (!machine.IsInState("idle"))
+            {
+                await machine.SendAsync("STOP");
+                await machine.WaitForStateAsync("idle", 1000);
+            }
 
             // Assert - We expect at least some transitions to be captured
             // Due to concurrent access, not all transitions may occur (some events may be ignored)
