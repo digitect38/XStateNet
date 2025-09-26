@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 using XStateNet;
-using XStateNet.Tests.TestHelpers;
+using XStateNet.Helpers;
 
 namespace InterMachineTests;
 

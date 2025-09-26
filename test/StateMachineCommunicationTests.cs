@@ -5,7 +5,7 @@ using Xunit;
 
 using XStateNet;
 using XStateNet.Semi;
-using XStateNet.Tests.TestHelpers;
+using XStateNet.Helpers;
 
 namespace InterMachineTests;
 

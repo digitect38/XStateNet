@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
 
-namespace XStateNet.Tests.TestHelpers
+namespace XStateNet.Helpers
 {
     /// <summary>
     /// Helper class for deterministic waiting in tests to replace Task.Delay
@@ -38,10 +38,7 @@ namespace XStateNet.Tests.TestHelpers
         /// <summary>
         /// Waits for a state machine to reach a specific state
         /// </summary>
-        public static async Task WaitForStateAsync(
-            StateMachine stateMachine,
-            string expectedState,
-            int timeoutMs = 5000)
+        public static async Task WaitForStateAsync(this StateMachine stateMachine, string expectedState, int timeoutMs = 5000)
         {
             // Use the built-in WaitForStateAsync method from StateMachine
             await stateMachine.WaitForStateAsync(expectedState, timeoutMs);

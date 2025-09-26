@@ -16,7 +16,7 @@ namespace XStateNet.Distributed.StateMachines
     /// <summary>
     /// StateMachines wrapper with comprehensive timeout protection
     /// </summary>
-    public sealed class TimeoutProtectedStateMachine : IStateMachine
+    public sealed class TimeoutProtectedStateMachine : StateMachine
     {
         private readonly IStateMachine _innerMachine;
         private readonly ITimeoutProtection _timeoutProtection;

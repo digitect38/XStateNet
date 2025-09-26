@@ -25,4 +25,8 @@
     <ProjectReference Include="..\XStateNet.Distributed\XStateNet.Distributed.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="TestHelpers\" />
+  </ItemGroup>
+
 </Project>

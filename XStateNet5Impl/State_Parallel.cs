@@ -20,9 +20,27 @@ public class ParallelState : CompoundState
 
         // Start all parallel regions synchronously to ensure they're initialized
         // before returning from Start()
+        // Each parallel region should start from its initial state
         foreach (var subStateName in SubStateNames)
         {
-            GetState(subStateName)?.Start();
+            var subState = GetState(subStateName);
+            if (subState != null)
+            {
+                // Mark the substate as active first
+                subState.IsActive = true;
+
+                // If it's a compound state with an initial state, start that
+                if (subState is CompoundState compoundState && compoundState.InitialStateName != null)
+                {
+                    var initialState = GetState(compoundState.InitialStateName);
+                    initialState?.Start();
+                }
+                else
+                {
+                    // Otherwise just start the substate directly
+                    subState.Start();
+                }
+            }
         }
     }
 

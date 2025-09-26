@@ -1518,17 +1518,33 @@ public partial class StateMachine : IStateMachine
     /// </summary>
     private void ExitAllActiveStates(CompoundState? state)
     {
-        if (state == null || !state.IsActive) return;
+        if (state == null) return;
 
-        // Exit child states first
-        if (state.SubStateNames != null)
+        // For parallel states, exit all regions regardless of IsActive
+        if (state is ParallelState parallelState)
         {
-            foreach (var childStateName in state.SubStateNames)
+            foreach (var childStateName in parallelState.SubStateNames)
             {
                 var childState = GetState(childStateName);
-                if (childState is CompoundState compoundChild && compoundChild.IsActive)
+                if (childState is CompoundState compoundChild)
                 {
                     ExitAllActiveStates(compoundChild);
+                }
+            }
+        }
+        // For normal states, only exit if active
+        else if (state.IsActive)
+        {
+            // Exit child states first
+            if (state.SubStateNames != null)
+            {
+                foreach (var childStateName in state.SubStateNames)
+                {
+                    var childState = GetState(childStateName);
+                    if (childState is CompoundState compoundChild)
+                    {
+                        ExitAllActiveStates(compoundChild);
+                    }
                 }
             }
         }

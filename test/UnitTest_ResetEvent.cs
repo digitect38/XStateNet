@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
+using XStateNet.Helpers;
 using Xunit;
 
 namespace XStateV5_Test.CoreFeatures;
@@ -337,6 +338,9 @@ public class UnitTest_ResetEvent : IDisposable
         // Advance both regions
         await _stateMachine.SendAsync("ADVANCE1");
         await _stateMachine.SendAsync("ADVANCE2");
+        
+        await _stateMachine.WaitForStateAsync("region1.r1s2", 2000);
+        await _stateMachine.WaitForStateAsync("region2.r2s2", 2000);
 
         var activeStates = _stateMachine.GetActiveStateString();
         Assert.Contains("region1.r1s2", activeStates);
@@ -346,6 +350,10 @@ public class UnitTest_ResetEvent : IDisposable
 
         // Act - Reset
         await _stateMachine.SendAsync("RESET");
+
+        // Wait deterministically for both regions to reach their initial states
+        await _stateMachine.WaitForStateAsync("region1.r1s1", 500);
+        await _stateMachine.WaitForStateAsync("region2.r2s1", 500);
 
         // Assert - Both regions back to initial
         activeStates = _stateMachine.GetActiveStateString();

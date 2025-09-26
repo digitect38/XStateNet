@@ -8,7 +8,7 @@ using TimelineWPF;
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
 using XStateNet;
-using XStateNet.Tests.TestHelpers;
+using XStateNet.Helpers;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using Microsoft.Extensions.Logging;
