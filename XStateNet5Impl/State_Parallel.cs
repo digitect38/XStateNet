@@ -18,24 +18,12 @@ public class ParallelState : CompoundState
     {
         base.Start();
 
-        // Use async pattern to avoid blocking
-        var tasks = SubStateNames.Select(subStateName => Task.Run(() =>
+        // Start all parallel regions synchronously to ensure they're initialized
+        // before returning from Start()
+        foreach (var subStateName in SubStateNames)
         {
             GetState(subStateName)?.Start();
-        })).ToArray();
-
-        // Don't block - fire and forget or use StartAsync if available
-        Task.Run(async () =>
-        {
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error starting parallel state {Name}: {ex.Message}");
-            }
-        });
+        }
     }
 
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
