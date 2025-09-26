@@ -166,7 +166,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             // Wait deterministically for HalfOpen
             var transitionReady = new TaskCompletionSource<bool>();
             using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(100), Timeout.InfiniteTimeSpan);
+                TimeSpan.FromMilliseconds(75), Timeout.InfiniteTimeSpan);  // 75ms > 50ms break duration
             await transitionReady.Task;
 
             // Act - Fail in HalfOpen state
@@ -199,24 +199,28 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            // Wait deterministically for HalfOpen
+            // Wait deterministically for HalfOpen transition
+            // Wait slightly longer than break duration to ensure transition
             var transitionReady = new TaskCompletionSource<bool>();
             using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(100), Timeout.InfiniteTimeSpan);
+                TimeSpan.FromMilliseconds(75), Timeout.InfiniteTimeSpan);  // 75ms > 50ms break duration
             await transitionReady.Task;
 
+            // Verify we can execute (circuit should be half-open now)
             // Act - Succeed twice in HalfOpen state
-            await circuitBreaker.ExecuteAsync(async () =>
+            var result1 = await circuitBreaker.ExecuteAsync(async () =>
             {
                 await Task.Yield(); // Allow async execution
                 return "success1";
             });
+            Assert.Equal("success1", result1);
 
-            await circuitBreaker.ExecuteAsync(async () =>
+            var result2 = await circuitBreaker.ExecuteAsync(async () =>
             {
                 await Task.Yield(); // Allow async execution
                 return "success2";
             });
+            Assert.Equal("success2", result2);
 
             // Assert - Should be Closed after required successes
             Assert.Equal(CircuitState.Closed, circuitBreaker.State);
@@ -253,7 +257,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             // Wait deterministically for HalfOpen
             var transitionReady = new TaskCompletionSource<bool>();
             using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(100), Timeout.InfiniteTimeSpan);
+                TimeSpan.FromMilliseconds(75), Timeout.InfiniteTimeSpan);  // 75ms > 50ms break duration
             await transitionReady.Task;
 
             // Success to close
