@@ -846,23 +846,33 @@ namespace XStateNet.Distributed.EventBus.Optimized
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Notify(StateMachineEvent evt)
             {
-                List<ISubscription> subscribersToNotify;
+                // Use a snapshot approach without holding lock during handler execution
+                ISubscription[] snapshot;
                 _lock.EnterReadLock();
                 try
                 {
-                    // To prevent deadlocks when a handler tries to unsubscribe,
-                    // we copy the list of subscribers inside the lock...
-                    subscribersToNotify = new List<ISubscription>(_subscriptions);
+                    // Create a snapshot array for better performance than List allocation
+                    snapshot = _subscriptions.ToArray();
                 }
                 finally
                 {
                     _lock.ExitReadLock();
                 }
 
-                // ...and then invoke the handlers outside the lock.
-                foreach (var sub in subscribersToNotify)
+                // Invoke handlers outside the lock to prevent deadlocks
+                // Using array iteration for better performance
+                foreach (var sub in snapshot)
                 {
-                    sub.Notify(evt);
+                    try
+                    {
+                        sub.Notify(evt);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't let one handler failure break others
+                        // Note: _logger is not accessible here, so we'll need to handle this at a higher level
+                        System.Diagnostics.Debug.WriteLine($"Handler notification failed: {ex}");
+                    }
                 }
             }
         }

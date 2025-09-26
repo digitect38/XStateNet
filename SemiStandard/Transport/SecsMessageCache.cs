@@ -27,26 +27,31 @@ namespace XStateNet.Semi.Transport
         public int MaxItemCount { get; set; } = 10000;
         public bool EnableCompression { get; set; } = true;
         
-        // Global statistics
-        public long TotalHits { get; private set; }
-        public long TotalMisses { get; private set; }
-        public long TotalEvictions { get; private set; }
-        public double HitRate => TotalHits + TotalMisses > 0 
-            ? (double)TotalHits / (TotalHits + TotalMisses) 
-            : 0;
+        // Global statistics - thread-safe counters
+        private long _totalHits;
+        private long _totalMisses;
+        private long _totalEvictions;
+
+        public long TotalHits => Interlocked.Read(ref _totalHits);
+        public long TotalMisses => Interlocked.Read(ref _totalMisses);
+        public long TotalEvictions => Interlocked.Read(ref _totalEvictions);
+        public double HitRate
+        {
+            get
+            {
+                var hits = Interlocked.Read(ref _totalHits);
+                var misses = Interlocked.Read(ref _totalMisses);
+                return hits + misses > 0 ? (double)hits / (hits + misses) : 0;
+            }
+        }
         
         public SecsMessageCache(ILogger<SecsMessageCache>? logger = null)
         {
             _logger = logger;
-            
-            var config = new NameValueCollection
-            {
-                { "cacheMemoryLimitMegabytes", (MaxMemorySize / (1024 * 1024)).ToString() },
-                { "physicalMemoryLimitPercentage", "10" },
-                { "pollingInterval", "00:02:00" }
-            };
-            
-            _cache = new MemoryCache("SecsMessageCache", config);
+
+            // Create a unique instance with a simple configuration
+            var cacheId = $"SecsMessageCache_{Guid.NewGuid():N}";
+            _cache = new MemoryCache(cacheId);
         }
         
         /// <summary>
@@ -54,33 +59,57 @@ namespace XStateNet.Semi.Transport
         /// </summary>
         public void CacheMessage(string key, SecsMessage message, CachePriority priority = CachePriority.Normal)
         {
-            if (_disposed || message == null)
+            if (_disposed)
+            {
+                _logger?.LogWarning("Cache is disposed, cannot cache message");
                 return;
+            }
+
+            if (message == null)
+            {
+                _logger?.LogWarning("Cannot cache null message for key {Key}", key);
+                return;
+            }
                 
             try
             {
                 var policy = new CacheItemPolicy
                 {
+                    // Use only AbsoluteExpiration, not both
                     AbsoluteExpiration = DateTimeOffset.UtcNow.Add(DefaultExpiration),
-                    SlidingExpiration = SlidingExpiration,
-                    Priority = priority == CachePriority.High 
-                        ? System.Runtime.Caching.CacheItemPriority.NotRemovable 
+                    Priority = priority == CachePriority.High
+                        ? System.Runtime.Caching.CacheItemPriority.NotRemovable
                         : System.Runtime.Caching.CacheItemPriority.Default,
                     RemovedCallback = OnCacheItemRemoved
                 };
                 
+                var now = DateTime.UtcNow;
                 var cacheItem = new CachedMessage
                 {
                     Message = message,
-                    CachedAt = DateTime.UtcNow,
+                    CachedAt = now,
+                    LastAccessTime = now,
+                    AccessCount = 0,
                     Size = EstimateMessageSize(message),
                     CompressionLevel = EnableCompression ? CompressionLevel.Optimal : CompressionLevel.None
                 };
                 
                 _cache.Set(key, cacheItem, policy);
                 UpdateStatistics(key, CacheOperation.Add);
-                
-                _logger?.LogDebug("Cached message {Key} ({Size} bytes)", key, cacheItem.Size);
+
+                _logger?.LogDebug("Cached message {Key} ({Size} bytes, S{Stream}F{Function})",
+                    key, cacheItem.Size, message.Stream, message.Function);
+
+                // Verify the cache immediately
+                var test = _cache.Get(key);
+                if (test == null)
+                {
+                    _logger?.LogError("Cache verification failed - item not found immediately after caching for key {Key}", key);
+                }
+                else
+                {
+                    _logger?.LogDebug("Cache verification successful for key {Key}, type: {Type}", key, test.GetType().FullName);
+                }
             }
             catch (Exception ex)
             {
@@ -98,16 +127,27 @@ namespace XStateNet.Semi.Transport
                 
             try
             {
-                if (_cache.Get(key) is CachedMessage cached)
+                var cacheItem = _cache.Get(key);
+
+                if (cacheItem != null)
                 {
-                    TotalHits++;
-                    UpdateStatistics(key, CacheOperation.Hit);
-                    cached.LastAccessTime = DateTime.UtcNow;
-                    cached.AccessCount++;
-                    return cached.Message;
+                    _logger?.LogDebug("Cache item found for key {Key}, type: {Type}", key, cacheItem.GetType().FullName);
+
+                    if (cacheItem is CachedMessage cached)
+                    {
+                        Interlocked.Increment(ref _totalHits);
+                        UpdateStatistics(key, CacheOperation.Hit);
+                        cached.LastAccessTime = DateTime.UtcNow;
+                        cached.AccessCount++;  // CachedMessage is a reference type, so direct increment is fine
+                        return cached.Message;
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("Cache item is not CachedMessage type, actual type: {Type}", cacheItem.GetType().FullName);
+                    }
                 }
-                
-                TotalMisses++;
+
+                Interlocked.Increment(ref _totalMisses);
                 UpdateStatistics(key, CacheOperation.Miss);
                 return null;
             }
@@ -177,9 +217,9 @@ namespace XStateNet.Semi.Transport
             }
             
             _statistics.Clear();
-            TotalHits = 0;
-            TotalMisses = 0;
-            TotalEvictions = 0;
+            Interlocked.Exchange(ref _totalHits, 0);
+            Interlocked.Exchange(ref _totalMisses, 0);
+            Interlocked.Exchange(ref _totalEvictions, 0);
             
             _logger?.LogInformation("Cache cleared ({Count} items removed)", keys.Count);
         }
@@ -220,7 +260,7 @@ namespace XStateNet.Semi.Transport
             if (args.RemovedReason == CacheEntryRemovedReason.Evicted ||
                 args.RemovedReason == CacheEntryRemovedReason.Expired)
             {
-                TotalEvictions++;
+                Interlocked.Increment(ref _totalEvictions);
                 UpdateStatistics(args.CacheItem.Key, CacheOperation.Evict);
                 
                 _logger?.LogDebug("Cache item {Key} removed: {Reason}", 
@@ -235,19 +275,19 @@ namespace XStateNet.Semi.Transport
             switch (operation)
             {
                 case CacheOperation.Add:
-                    stats.AddCount++;
+                    Interlocked.Increment(ref stats._addCount);
                     break;
                 case CacheOperation.Hit:
-                    stats.HitCount++;
+                    Interlocked.Increment(ref stats._hitCount);
                     break;
                 case CacheOperation.Miss:
-                    stats.MissCount++;
+                    Interlocked.Increment(ref stats._missCount);
                     break;
                 case CacheOperation.Remove:
-                    stats.RemoveCount++;
+                    Interlocked.Increment(ref stats._removeCount);
                     break;
                 case CacheOperation.Evict:
-                    stats.EvictCount++;
+                    Interlocked.Increment(ref stats._evictCount);
                     break;
             }
             
@@ -305,7 +345,7 @@ namespace XStateNet.Semi.Transport
             public SecsMessage Message { get; set; } = null!;
             public DateTime CachedAt { get; set; }
             public DateTime LastAccessTime { get; set; }
-            public int AccessCount { get; set; }
+            public long AccessCount { get; set; }  // Changed to long for Interlocked operations
             public long Size { get; set; }
             public CompressionLevel CompressionLevel { get; set; }
         }
@@ -313,16 +353,29 @@ namespace XStateNet.Semi.Transport
         public class CacheStatistics
         {
             public string Key { get; set; } = "";
-            public int HitCount { get; set; }
-            public int MissCount { get; set; }
-            public int AddCount { get; set; }
-            public int RemoveCount { get; set; }
-            public int EvictCount { get; set; }
+            internal long _hitCount;
+            internal long _missCount;
+            internal long _addCount;
+            internal long _removeCount;
+            internal long _evictCount;
+
+            public long HitCount => Interlocked.Read(ref _hitCount);
+            public long MissCount => Interlocked.Read(ref _missCount);
+            public long AddCount => Interlocked.Read(ref _addCount);
+            public long RemoveCount => Interlocked.Read(ref _removeCount);
+            public long EvictCount => Interlocked.Read(ref _evictCount);
+
             public CacheOperation LastOperation { get; set; }
             public DateTime LastOperationTime { get; set; }
-            public double HitRate => HitCount + MissCount > 0 
-                ? (double)HitCount / (HitCount + MissCount) 
-                : 0;
+            public double HitRate
+            {
+                get
+                {
+                    var hits = Interlocked.Read(ref _hitCount);
+                    var misses = Interlocked.Read(ref _missCount);
+                    return hits + misses > 0 ? (double)hits / (hits + misses) : 0;
+                }
+            }
         }
         
         public enum CachePriority

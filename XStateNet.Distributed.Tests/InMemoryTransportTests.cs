@@ -10,8 +10,22 @@ using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests
 {
-    public class InMemoryTransportTests
+    [Collection("InMemoryTransport")]
+    public class InMemoryTransportTests : IAsyncLifetime
     {
+        public Task InitializeAsync()
+        {
+            // Clear registry before each test to ensure isolation
+            InMemoryTransport.ClearRegistry();
+            return Task.CompletedTask;
+        }
+
+        public Task DisposeAsync()
+        {
+            // Clear registry after each test to prevent leaks
+            InMemoryTransport.ClearRegistry();
+            return Task.CompletedTask;
+        }
         [Fact]
         public async Task Connect_Should_EstablishConnection()
         {
@@ -160,7 +174,6 @@ namespace XStateNet.Distributed.Tests
         public async Task Discover_Should_FindRegisteredEndpoints()
         {
             // Arrange
-            InMemoryTransport.ClearRegistry(); // Clear any previous registrations
             using var transport1 = new InMemoryTransport();
             using var transport2 = new InMemoryTransport();
             

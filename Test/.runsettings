@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <MaxCpuCount>1</MaxCpuCount>
+    <ResultsDirectory>.\TestResults</ResultsDirectory>
+    <TargetFrameworkVersion>net8.0</TargetFrameworkVersion>
+    <TestAdaptersPaths>.</TestAdaptersPaths>
+  </RunConfiguration>
+
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+  <!-- xUnit settings -->
+  <xUnit>
+    <ParallelizeAssembly>false</ParallelizeAssembly>
+    <ParallelizeTestCollections>false</ParallelizeTestCollections>
+    <MaxParallelThreads>1</MaxParallelThreads>
+    <PreEnumerateTheories>true</PreEnumerateTheories>
+    <DiagnosticMessages>true</DiagnosticMessages>
+    <InternalDiagnosticMessages>true</InternalDiagnosticMessages>
+  </xUnit>
+</RunSettings>
