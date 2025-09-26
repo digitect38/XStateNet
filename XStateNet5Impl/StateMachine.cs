@@ -925,6 +925,64 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
+    /// Waits for the state machine to reach a specific state
+    /// </summary>
+    /// <param name="stateName">The state name to wait for (can be partial match)</param>
+    /// <param name="timeoutMs">Timeout in milliseconds (default: 5000ms)</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>Task that completes when the state is reached</returns>
+    /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
+    public async Task WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        Action<string>? stateChangedHandler = null;
+
+        stateChangedHandler = (newState) =>
+        {
+            if (newState.Contains(stateName))
+            {
+                tcs.TrySetResult(true);
+            }
+        };
+
+        // Subscribe to state changes
+        StateChanged += stateChangedHandler;
+
+        try
+        {
+            // Check if already in the target state
+            if (GetActiveStateString().Contains(stateName))
+            {
+                return;
+            }
+
+            // Create timeout cancellation
+            using var timeoutCts = new CancellationTokenSource(timeoutMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
+            // Register cancellation callbacks
+            using var registration = linkedCts.Token.Register(() =>
+            {
+                if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    tcs.TrySetException(new TimeoutException($"State machine did not reach state '{stateName}' within {timeoutMs}ms"));
+                }
+                else
+                {
+                    tcs.TrySetCanceled();
+                }
+            });
+
+            await tcs.Task;
+        }
+        finally
+        {
+            // Unsubscribe from state changes
+            StateChanged -= stateChangedHandler;
+        }
+    }
+
+    /// <summary>
     ///
     /// </summary>
     /// <param name="stateName"></param>

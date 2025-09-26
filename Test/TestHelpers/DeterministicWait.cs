@@ -43,12 +43,8 @@ namespace XStateNet.Tests.TestHelpers
             string expectedState,
             int timeoutMs = 5000)
         {
-            await WaitForConditionAsync(
-                () => stateMachine.GetSourceSubStateCollection(null)
-                    .ToCsvString(stateMachine, true)
-                    .Contains(expectedState),
-                timeoutMs,
-                conditionDescription: $"State '{expectedState}'");
+            // Use the built-in WaitForStateAsync method from StateMachine
+            await stateMachine.WaitForStateAsync(expectedState, timeoutMs);
         }
 
         /// <summary>

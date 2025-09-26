@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace XStateNet;
@@ -84,6 +85,16 @@ public interface IStateMachine : IDisposable
     /// Checks if a state is active
     /// </summary>
     bool IsInState(string stateName);
+
+    /// <summary>
+    /// Waits for the state machine to reach a specific state
+    /// </summary>
+    /// <param name="stateName">The state name to wait for (can be partial match)</param>
+    /// <param name="timeoutMs">Timeout in milliseconds (default: 5000ms)</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>Task that completes when the state is reached</returns>
+    /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
+    Task WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets or sets the service invoker

@@ -29,18 +29,10 @@ public class UnitTest_InvokeHeavy : IDisposable
     private GuardMap _guards;
     private ServiceMap _services;
 
+    // Helper method that uses the built-in WaitForStateAsync
     private async Task WaitForState(StateMachine machine, string expectedState, int timeoutMs = 5000)
     {
-        var startTime = DateTime.UtcNow;
-        while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
-        {
-            if (machine.GetActiveStateString().Contains(expectedState))
-            {
-                return;
-            }
-            await Task.Delay(10);
-        }
-        throw new TimeoutException($"State machine did not reach state '{expectedState}' within {timeoutMs}ms");
+        await machine.WaitForStateAsync(expectedState, timeoutMs);
     }
 
     private async Task WaitForEventLog(string expectedLog, int timeoutMs = 5000)
@@ -535,7 +527,7 @@ public class UnitTest_InvokeHeavy : IDisposable
         }";
 
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Act - Wait for services to complete
         await WaitForEventLog("service:nested:completed");
