@@ -15,7 +15,7 @@ public class HistoryState : IDisposable
     StateMachine? _stateMachine;
 
     [Fact]
-    public void ShallowHistory()
+    public async Task ShallowHistory()
     {
         var stateMachineJson = @"{
             'id': 'testMachine',
@@ -30,7 +30,7 @@ public class HistoryState : IDisposable
                         'A2': {
                             'on': { 'TO_A1': 'A1' }
                         },
-                        'hist': { 
+                        'hist': {
                             type : 'history',
                             'history':'shallow'
                         }
@@ -49,15 +49,14 @@ public class HistoryState : IDisposable
             new GuardMap()).Start();
 
         _stateMachine!.Send("TO_A2");
-        _stateMachine!.Send("TO_B");
+        var currentState = await _stateMachine!.SendAsyncWithState("TO_B");
 
-        var currentState = _stateMachine!.GetActiveStateString();
-        Assert.Equal("#testMachine.B", currentState);
+        Assert.Equal("#testMachine.B", currentState.ToString());
 
-        _stateMachine!.Send("TO_A");
+        currentState = await _stateMachine!.SendAsyncWithState("TO_A");
 
-        currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
-        Assert.Equal("#testMachine.A;#testMachine.A.A2", currentState);
+        // When returning to A.hist, it should restore A.A2 for shallow history
+        Assert.Equal("#testMachine.A.A2", currentState.ToString());
     }
 
     [Fact]
