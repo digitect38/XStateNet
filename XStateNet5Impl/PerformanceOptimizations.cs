@@ -12,14 +12,14 @@ namespace XStateNet;
 public static class PerformanceOptimizations
 {
     /// <summary>
-    /// String cache for frequently used state paths
+    /// String cache for frequently used state paths (bounded)
     /// </summary>
-    private static readonly ConcurrentDictionary<(string?, string?), string> _transitionKeyCache = new();
-    
+    private static readonly BoundedConcurrentDictionary<(string?, string?), string> _transitionKeyCache = new(maxSize: 5000);
+
     /// <summary>
-    /// State cache to avoid repeated lookups
+    /// State cache to avoid repeated lookups (bounded with weak references)
     /// </summary>
-    private static readonly ConcurrentDictionary<(StateMachine, string), StateNode?> _stateCache = new();
+    private static readonly BoundedConcurrentDictionary<(WeakReference, string), StateNode?> _stateCache = new(maxSize: 1000);
     
     /// <summary>
     /// StringBuilder pool for string operations
@@ -92,13 +92,19 @@ public static class PerformanceOptimizations
     }
     
     /// <summary>
-    /// Get cached state with single lookup
+    /// Get cached state with single lookup (using weak references)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static StateNode? GetStateCached(StateMachine machine, string stateName)
     {
-        return _stateCache.GetOrAdd((machine, stateName), 
-            key => key.Item1.GetState(key.Item2));
+        var weakRef = new WeakReference(machine);
+        return _stateCache.GetOrAdd((weakRef, stateName),
+            key =>
+            {
+                if (key.Item1.Target is StateMachine m)
+                    return m.GetState(key.Item2);
+                return null;
+            });
     }
     
     /// <summary>
@@ -106,22 +112,12 @@ public static class PerformanceOptimizations
     /// </summary>
     public static void ClearCache(StateMachine? machine = null)
     {
+        // With weak references and bounded cache, aggressive clearing is less necessary
+        // The cache will self-clean based on size and timeout
         if (machine == null)
         {
-            _stateCache.Clear();
-        }
-        else
-        {
-            var keysToRemove = new List<(StateMachine, string)>();
-            foreach (var key in _stateCache.Keys)
-            {
-                if (key.Item1 == machine)
-                    keysToRemove.Add(key);
-            }
-            foreach (var key in keysToRemove)
-            {
-                _stateCache.TryRemove(key, out _);
-            }
+            // Force cleanup of dead weak references
+            GC.Collect(0, GCCollectionMode.Optimized);
         }
     }
     

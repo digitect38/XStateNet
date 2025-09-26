@@ -35,15 +35,23 @@ public abstract class RealState : StateNode
     }
     
     /// <summary>
-    /// Clean up the after transition timer
+    /// Clean up the after transition timer with proper exception handling
     /// </summary>
     public void CleanupAfterTimer()
     {
-        if (_afterTransitionTimer != null)
+        var timer = _afterTransitionTimer;
+        if (timer != null)
         {
-            _afterTransitionTimer.Stop();
-            _afterTransitionTimer.Dispose();
-            _afterTransitionTimer = null;
+            _afterTransitionTimer = null; // Clear reference first
+            try
+            {
+                timer.Stop();
+                timer.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error disposing timer for state {Name}: {ex.Message}");
+            }
         }
     }
 
@@ -52,6 +60,8 @@ public abstract class RealState : StateNode
     /// </summary>
     private void StartActivities()
     {
+        // Dispose any existing cancellation source first
+        _activityCancellationSource?.Dispose();
         _activityCancellationSource = new CancellationTokenSource();
         if (Activities != null && StateMachine != null && StateMachine.ActivityMap != null)
         {
@@ -95,34 +105,58 @@ public abstract class RealState : StateNode
     /// </summary>
     private void StopActivities()
     {
-        if (_activityCancellationSource == null) return;
+        var cancellationSource = _activityCancellationSource;
+        if (cancellationSource == null) return;
 
-        // Cancel all activities
-        _activityCancellationSource.Cancel();
+        // Clear reference first to prevent re-entry
+        _activityCancellationSource = null;
 
-        // Execute cleanup functions
-        foreach (var cleanup in _activeActivityCleanups)
+        try
         {
+            // Cancel all activities
+            cancellationSource.Cancel();
+
+            // Execute cleanup functions with timeout
+            var cleanupTasks = new List<Task>();
+            foreach (var cleanup in _activeActivityCleanups)
+            {
+                cleanupTasks.Add(Task.Run(() =>
+                {
+                    try
+                    {
+                        cleanup.Value?.Invoke();
+                        // Notify activity stopped
+                        StateMachine?.RaiseActivityStopped(cleanup.Key, Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error but continue cleanup
+                        Logger.Error($"Failed to stop activity '{cleanup.Key}': {ex.Message}");
+                    }
+                }));
+            }
+
+            // Wait for all cleanups with timeout (max 5 seconds)
+            Task.WhenAll(cleanupTasks).Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error during activity cleanup: {ex.Message}");
+        }
+        finally
+        {
+            // Always clear and dispose
+            _activeActivityCleanups.Clear();
+
             try
             {
-                cleanup.Value?.Invoke();
-
-                // Notify activity stopped
-                StateMachine?.RaiseActivityStopped(cleanup.Key, Name);
+                cancellationSource.Dispose();
             }
             catch (Exception ex)
             {
-                // Log error but continue cleanup
-                Logger.Error($"Failed to stop activity '{cleanup.Key}': {ex.Message}");
+                Logger.Error($"Error disposing cancellation source: {ex.Message}");
             }
         }
-
-        // Clear the cleanups
-        _activeActivityCleanups.Clear();
-
-        // Dispose the cancellation token source
-        _activityCancellationSource.Dispose();
-        _activityCancellationSource = null;
     }
 
     /// <summary>
@@ -135,6 +169,7 @@ public abstract class RealState : StateNode
     {
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
 
+        // Atomic state deactivation
         IsActive = false;
 
         if (Parent != null)
@@ -194,7 +229,7 @@ public abstract class RealState : StateNode
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 
-        // Mark state as active before executing entry actions so error transitions can be triggered
+        // Atomic state activation
         IsActive = true;
 
         if (Parent != null)
@@ -259,12 +294,20 @@ public abstract class RealState : StateNode
 /// </summary>
 public abstract class CompoundState : RealState
 {
+    // Thread-safe state management
+    protected readonly ThreadSafeStateInfo _stateInfo = new ThreadSafeStateInfo();
 
     public List<string> SubStateNames { get; set; }         // state 의 current sub state 들..
 
     public string? InitialStateName { get; set; }
 
-    public string? ActiveStateName { get; set; }
+    // Thread-safe properties using atomic state management
+    public string? ActiveStateName
+    {
+        get => _stateInfo.ActiveStateName;
+        set => _stateInfo.UpdateState(_stateInfo.IsActive, value);
+    }
+
     public CompoundState? ActiveState => ActiveStateName != null ? GetState(ActiveStateName!) : null;
 
     public bool IsParallel => typeof(ParallelState) == this.GetType();

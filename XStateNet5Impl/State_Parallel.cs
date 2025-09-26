@@ -1,7 +1,9 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
+using System.Collections.Generic;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace XStateNet;
 
@@ -16,12 +18,24 @@ public class ParallelState : CompoundState
     {
         base.Start();
 
+        // Use async pattern to avoid blocking
         var tasks = SubStateNames.Select(subStateName => Task.Run(() =>
         {
             GetState(subStateName)?.Start();
         })).ToArray();
 
-        Task.WaitAll(tasks);
+        // Don't block - fire and forget or use StartAsync if available
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error starting parallel state {Name}: {ex.Message}");
+            }
+        });
     }
 
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
@@ -89,22 +103,22 @@ public class ParallelState : CompoundState
                 // Only use parallel if we have enough items to benefit
                 if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    // Pre-allocate array for better performance
-                var tasks = new Task?[SubStateNames.Count];
-                var index = 0;
+                    // Use ConcurrentBag for thread-safe collection
+                    var taskBag = new ConcurrentBag<Task>();
+
                     Parallel.ForEach(SubStateNames, subStateName =>
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
                         var task = subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
-                            tasks[Interlocked.Increment(ref index) - 1] = task;
+                            taskBag.Add(task);
                         }
                     });
-                    // Only wait for non-null tasks
-                    var validTasks = tasks.Where(t => t != null).Cast<Task>().ToArray();
-                    if (validTasks.Length > 0)
-                        await Task.WhenAll(validTasks);
+
+                    // Wait for all collected tasks
+                    if (!taskBag.IsEmpty)
+                        await Task.WhenAll(taskBag);
                 }
                 else
                 {
@@ -135,22 +149,22 @@ public class ParallelState : CompoundState
                 // Only use parallel if we have enough items to benefit
                 if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
-                    // Pre-allocate array for better performance
-                var tasks = new Task?[SubStateNames.Count];
-                var index = 0;
+                    // Use ConcurrentBag for thread-safe collection
+                    var taskBag = new ConcurrentBag<Task>();
+
                     Parallel.ForEach(SubStateNames, subStateName =>
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
                         var task = subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
-                            tasks[Interlocked.Increment(ref index) - 1] = task;
+                            taskBag.Add(task);
                         }
                     });
-                    // Only wait for non-null tasks
-                    var validTasks = tasks.Where(t => t != null).Cast<Task>().ToArray();
-                    if (validTasks.Length > 0)
-                        await Task.WhenAll(validTasks);
+
+                    // Wait for all collected tasks
+                    if (!taskBag.IsEmpty)
+                        await Task.WhenAll(taskBag);
                 }
                 else
                 {

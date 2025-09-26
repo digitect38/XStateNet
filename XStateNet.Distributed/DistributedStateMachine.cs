@@ -81,40 +81,54 @@ namespace XStateNet.Distributed
         public void Start()
         {
             _stateMachine.Start();
-            
+
             _cancellationTokenSource = new CancellationTokenSource();
-            
-            // Connect transport
-            Task.Run(async () =>
+
+            // Start transport connection asynchronously
+            _ = StartTransportAsync();
+        }
+
+        /// <summary>
+        /// Start the distributed state machine asynchronously
+        /// </summary>
+        public async Task StartAsync()
+        {
+            _stateMachine.Start();
+
+            _cancellationTokenSource = new CancellationTokenSource();
+
+            await StartTransportAsync();
+        }
+
+        private async Task StartTransportAsync()
+        {
+            try
             {
-                try
+                await _transport!.ConnectAsync(_address, _cancellationTokenSource!.Token);
+
+                // Register this machine
+                await _transport.RegisterAsync(new StateMachineEndpoint
                 {
-                    await _transport!.ConnectAsync(_address, _cancellationTokenSource.Token);
-                    
-                    // Register this machine
-                    await _transport.RegisterAsync(new StateMachineEndpoint
+                    Id = _machineId,
+                    Address = _address,
+                    Location = DetermineLocation(),
+                    Metadata = new ConcurrentDictionary<string, string>
                     {
-                        Id = _machineId,
-                        Address = _address,
-                        Location = DetermineLocation(),
-                        Metadata = new ConcurrentDictionary<string, string>
-                        {
-                            ["Version"] = "1.0",
-                            ["Type"] = this.GetType().Name
-                        }
-                    }, _cancellationTokenSource.Token);
-                    
-                    // Start message processing
-                    _messageProcessingTask = ProcessIncomingMessages(_cancellationTokenSource.Token);
-                    
-                    _logger?.LogInformation("Distributed state machine {MachineId} started", _machineId);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Failed to start distributed state machine {MachineId}", _machineId);
-                    throw;
-                }
-            }).Wait(TimeSpan.FromSeconds(5));
+                        ["Version"] = "1.0",
+                        ["Type"] = this.GetType().Name
+                    }
+                }, _cancellationTokenSource.Token);
+
+                // Start message processing
+                _messageProcessingTask = ProcessIncomingMessages(_cancellationTokenSource.Token);
+
+                _logger?.LogInformation("Distributed state machine {MachineId} started", _machineId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to start distributed state machine {MachineId}", _machineId);
+                throw;
+            }
         }
 
         /// <summary>

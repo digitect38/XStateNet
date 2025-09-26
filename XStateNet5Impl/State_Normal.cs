@@ -10,15 +10,23 @@ public class NormalState : CompoundState
 {
     // Important: LastActiveState should be defined here rather than inside history state because deep history state can have multiple last active states.
 
-    public string? LastActiveStateName { set; get; }
+    // Thread-safe last active state tracking
+    private readonly ThreadSafeStateInfo _historyStateInfo = new ThreadSafeStateInfo();
+
+    public string? LastActiveStateName
+    {
+        get => _historyStateInfo.LastActiveStateName;
+        set => _historyStateInfo.UpdateState(_historyStateInfo.IsActive, _historyStateInfo.ActiveStateName);
+    }
 
     public NormalState? LastActiveState
     {
         get
         {
-            if (LastActiveStateName != null)
+            var lastName = _historyStateInfo.LastActiveStateName;
+            if (lastName != null)
             {
-                return GetState(LastActiveStateName) as NormalState;
+                return GetState(lastName) as NormalState;
             }
             return null;
         }
@@ -59,11 +67,12 @@ public class NormalState : CompoundState
         // For onError events, child states should handle first and prevent parent handling
         if (eventName == "onError")
         {
-            // Check children first for onError
-            if (ActiveStateName != null)
+            // Check children first for onError (thread-safe read)
+            var activeStateName = ActiveStateName; // Capture once
+            if (activeStateName != null)
             {
                 var initialCount = transitionList.Count;
-                GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
+                GetState(activeStateName)?.BuildTransitionList(eventName, transitionList);
                 
                 // If child added an onError transition, don't add parent's onError
                 if (transitionList.Count > initialCount)
@@ -80,9 +89,10 @@ public class NormalState : CompoundState
             // Normal evaluation order: parent first, then children
             base.BuildTransitionList(eventName, transitionList);
 
-            if (ActiveStateName != null)
+            var activeStateName = ActiveStateName; // Capture once for consistency
+            if (activeStateName != null)
             {
-                GetState(ActiveStateName)?.BuildTransitionList(eventName, transitionList);
+                GetState(activeStateName)?.BuildTransitionList(eventName, transitionList);
             }
         }
     }
