@@ -100,6 +100,9 @@ public class TransitionExecutor : StateObject
                 {
                     StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
                 }
+
+                // Fire StateChanged event after transition is complete
+                StateMachine.RaiseStateChanged();
             }
             catch (Exception ex)
             {
@@ -190,6 +193,9 @@ public class TransitionExecutor : StateObject
                 // Fire OnTransition event even for internal transitions
                 var sourceNode = GetState(sourceName);
                 StateMachine.RaiseTransition(sourceNode as CompoundState, sourceNode, eventName);
+
+                // For internal transitions, still fire StateChanged with current state
+                StateMachine.RaiseStateChanged();
                 return;
             }
 
@@ -244,6 +250,9 @@ public class TransitionExecutor : StateObject
                 {
                     StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
                 }
+
+                // Fire StateChanged event after transition is complete
+                StateMachine.RaiseStateChanged();
             }
             else
             {

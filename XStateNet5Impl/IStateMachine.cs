@@ -49,32 +49,16 @@ public interface IStateMachine : IDisposable
     void Stop();
 
     /// <summary>
-    /// Sends an event to the state machine (DEPRECATED - Use SendAsync or SendAsyncWithState instead)
-    /// </summary>
-    /// <param name="eventName">The event name</param>
-    /// <param name="eventData">Optional event data</param>
-    [Obsolete("Use SendAsync() or SendAsyncWithState() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
-    void Send(string eventName, object? eventData = null);
-
-    /// <summary>
     /// Sends an event asynchronously
     /// </summary>
     /// <param name="eventName">The event name</param>
     /// <param name="eventData">Optional event data</param>
-    Task SendAsync(string eventName, object? eventData = null);
-
-    /// <summary>
-    /// Sends an event asynchronously and returns the new state
-    /// </summary>
-    /// <param name="eventName">The event name</param>
-    /// <param name="eventData">Optional event data</param>
-    /// <returns>The state string after transition</returns>
-    Task<string> SendAsyncWithState(string eventName, object? eventData = null);
+    Task<string> SendAsync(string eventName, object? eventData = null);
 
     /// <summary>
     /// Gets the active state as a string
     /// </summary>
-    string GetActiveStateString();
+    string GetActiveStateNames(bool leafOnly = true, string separator = ";");
 
     /// <summary>
     /// Gets all active states
@@ -94,7 +78,17 @@ public interface IStateMachine : IDisposable
     /// <param name="cancellationToken">Optional cancellation token</param>
     /// <returns>Task that completes when the state is reached</returns>
     /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
-    Task WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default);
+    Task<string> WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Waits for the state machine to reach a specific state and all associated actions to complete
+    /// </summary>
+    /// <param name="stateName">The state name to wait for (can be partial match)</param>
+    /// <param name="timeoutMs">Timeout in milliseconds (default: 5000ms)</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>Task that completes when the state is reached and all actions have executed</returns>
+    /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
+    Task<string> WaitForStateWithActionsAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets or sets the service invoker

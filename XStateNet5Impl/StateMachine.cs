@@ -194,6 +194,12 @@ public partial class StateMachine : IStateMachine
         OnGuardEvaluated?.Invoke(guardName, result);
     }
 
+    internal void RaiseStateChanged()
+    {
+        var newStateString = GetActiveStateNames();
+        StateChanged?.Invoke(newStateString);
+    }
+
     internal void RaiseActivityStarted(string activityName, string? stateName)
     {
         OnActivityStarted?.Invoke(activityName, stateName);
@@ -287,7 +293,7 @@ public partial class StateMachine : IStateMachine
         var jsonScript = Security.SafeReadFile(jsonFilePath);
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
-
+    /*
     /// <summary>
     /// 
     /// </summary>
@@ -295,7 +301,7 @@ public partial class StateMachine : IStateMachine
     /// <param name="actionCallbacks"></param>
     /// <param name="guardCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(
+    private static StateMachine CreateFromScript(
         string? jsonScript,
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
@@ -306,7 +312,7 @@ public partial class StateMachine : IStateMachine
     {
         return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
-
+    */
     /// <summary>
     /// Parse Json Script and return State Machine with optional GUID isolation
     /// </summary>
@@ -320,7 +326,7 @@ public partial class StateMachine : IStateMachine
     /// <returns></returns>
     public static StateMachine CreateFromScript(
         string? jsonScript,
-        bool guidIsolate,
+        bool guidIsolate = true,
         ActionMap? actionCallbacks = null,
         GuardMap? guardCallbacks = null,
         ServiceMap? serviceCallbacks = null,
@@ -438,7 +444,7 @@ public partial class StateMachine : IStateMachine
             Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
 
             // Fire StateChanged event with initial state
-            var initialState = GetActiveStateString();
+            var initialState = GetActiveStateNames();
             StateChanged?.Invoke(initialState);
         }
         finally
@@ -451,9 +457,9 @@ public partial class StateMachine : IStateMachine
     public async Task<string> StartAsync()
     {
         Start();
-        return await Task.FromResult(GetActiveStateString());
+        return await Task.FromResult(GetActiveStateNames());
     }
-
+    
     /// <summary>
     ///
     /// </summary>
@@ -502,20 +508,12 @@ public partial class StateMachine : IStateMachine
     }
     
     /// <summary>
-    /// Send event asynchronously with thread-safe processing
-    /// </summary>
-    public async Task SendAsync(string eventName, object? eventData = null)
-    {
-        await SendAsyncWithState(eventName, eventData);
-    }
-
-    /// <summary>
     /// Sends an event asynchronously and returns the new state after transition
     /// </summary>
     /// <param name="eventName">The event name to send</param>
     /// <param name="eventData">Optional event data</param>
     /// <returns>The active state string after the transition completes</returns>
-    public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
+    public async Task<string> SendAsync(string eventName, object? eventData = null)
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event async: {eventName}");
 
@@ -550,7 +548,7 @@ public partial class StateMachine : IStateMachine
 
                 Transit(eventName, eventData);
                 //PrintCurrentStateTree();
-                PrintCurrentStatesString();
+                //PrintCurrentStatesString();
                 return GetCurrentStateString();
             }
             catch (Exception ex)
@@ -739,7 +737,7 @@ public partial class StateMachine : IStateMachine
     /// <param name="stateName"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public StateNode GetState(string? stateName)
+    internal StateNode GetState(string? stateName)
     {
         if (string.IsNullOrWhiteSpace(stateName))
             throw new ArgumentNullException(nameof(stateName), "State name cannot be null or empty");
@@ -853,13 +851,12 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// GetActiveStateString
+    /// GetActiveStateNames
     /// </summary>
     /// <param name="leafOnly">true: leaf level state name only, false: full level state names</param>
     /// <param name="separator"></param>
-    /// <returns></returns>
-    [Obsolete("Use SendAsyncWithState() to get state after transitions, or StateChanged event for reactive tracking. This method will be removed in the next major version.")]
-    public string GetActiveStateString(bool leafOnly = true, string separator = ";")
+    /// <returns></returns>    
+    public string GetActiveStateNames(bool leafOnly = true, string separator = ";")
     {
         // Use pooled list to reduce allocations
         var strings = PerformanceOptimizations.RentStringList();
@@ -873,14 +870,6 @@ public partial class StateMachine : IStateMachine
             // Return the list to the pool
             PerformanceOptimizations.ReturnStringList(strings);
         }
-    }
-
-    /// <summary>
-    /// GetActiveStateString implementation for IStateMachine interface
-    /// </summary>
-    string IStateMachine.GetActiveStateString()
-    {
-        return GetActiveStateString();
     }
 
     /// <summary>
@@ -927,30 +916,39 @@ public partial class StateMachine : IStateMachine
     /// <param name="stateName">The state name to wait for (can be partial match)</param>
     /// <param name="timeoutMs">Timeout in milliseconds (default: 5000ms)</param>
     /// <param name="cancellationToken">Optional cancellation token</param>
-    /// <returns>Task that completes when the state is reached</returns>
+    /// <returns>Task that completes with state string when the state is reached</returns>
     /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
-    public async Task WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default)
+    public async Task<string> WaitForStateAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<bool>();
-        Action<string>? stateChangedHandler = null;
+        var tcs = new TaskCompletionSource<string>();
+        TransitionHandler? transitionHandler = null;
 
-        stateChangedHandler = (newState) =>
+        transitionHandler = (fromState, toState, eventName) =>
         {
-            if (newState.Contains(stateName))
+            var newStateName = toState?.Name ?? "";
+            if (newStateName.Contains(stateName))
             {
-                tcs.TrySetResult(true);
+                tcs.TrySetResult(newStateName);
             }
         };
 
-        // Subscribe to state changes
-        StateChanged += stateChangedHandler;
-
         try
         {
-            // Check if already in the target state
-            if (GetActiveStateString().Contains(stateName))
+            // CRITICAL: Check if already in the target state BEFORE subscribing
+            var currentState = GetActiveStateNames();
+            if (currentState.Contains(stateName))
             {
-                return;
+                return currentState;
+            }
+
+            // Subscribe to transitions AFTER initial check
+            OnTransition += transitionHandler;
+
+            // IMPORTANT: Check again AFTER subscribing to catch rapid transitions
+            currentState = GetActiveStateNames();
+            if (currentState.Contains(stateName))
+            {
+                return currentState;
             }
 
             // Create timeout cancellation
@@ -970,12 +968,150 @@ public partial class StateMachine : IStateMachine
                 }
             });
 
-            await tcs.Task;
+            await Task.Delay(1);    // Yield to ensure subscription is set before awaiting
+            // Wait for the transition to the target state
+            return await tcs.Task;
         }
         finally
         {
-            // Unsubscribe from state changes
-            StateChanged -= stateChangedHandler;
+            // Unsubscribe from transitions
+            OnTransition -= transitionHandler;
+        }
+    }
+
+    /// <summary>
+    /// Waits for a specific state to be reached and all associated actions to complete
+    /// </summary>
+    /// <param name="stateName">The name of the state to wait for</param>
+    /// <param name="timeoutMs">The maximum time to wait in milliseconds</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>The actual state names after transition and actions complete</returns>
+    /// <exception cref="TimeoutException">Thrown when the state is not reached within the timeout</exception>
+    public async Task<string> WaitForStateWithActionsAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default)
+    {
+        var tcs = new TaskCompletionSource<string>();
+        TransitionHandler? transitionHandler = null;
+        ActionExecutedHandler? actionHandler = null;
+        var transitionCompleted = false;
+        var pendingActionCount = 0;
+        var lastActionTime = DateTime.UtcNow;
+        var actionsLock = new object();
+
+        transitionHandler = (fromState, toState, eventName) =>
+        {
+            var newStateName = toState?.Name ?? "";
+            if (newStateName.Contains(stateName))
+            {
+                lock (actionsLock)
+                {
+                    transitionCompleted = true;
+                    lastActionTime = DateTime.UtcNow;
+                    // Start a timer to check for action completion
+                    Task.Run(async () =>
+                    {
+                        // Wait a short time to see if any actions execute
+                        await Task.Delay(10);
+                        lock (actionsLock)
+                        {
+                            // If no actions have executed in 10ms after transition, assume there are none
+                            if (transitionCompleted && (DateTime.UtcNow - lastActionTime).TotalMilliseconds > 10)
+                            {
+                                tcs.TrySetResult(GetActiveStateNames());
+                            }
+                        }
+                    });
+                }
+            }
+        };
+
+        actionHandler = (actionName, actionStateName) =>
+        {
+            lock (actionsLock)
+            {
+                if (transitionCompleted)
+                {
+                    lastActionTime = DateTime.UtcNow;
+                    pendingActionCount++;
+
+                    // Actions execute synchronously, so we can decrement immediately
+                    Task.Run(async () =>
+                    {
+                        // Small delay to let action complete
+                        await Task.Delay(1);
+                        lock (actionsLock)
+                        {
+                            pendingActionCount--;
+                            if (pendingActionCount == 0)
+                            {
+                                // Check if no more actions are coming
+                                Task.Run(async () =>
+                                {
+                                    await Task.Delay(5);
+                                    lock (actionsLock)
+                                    {
+                                        if (transitionCompleted && pendingActionCount == 0 &&
+                                            (DateTime.UtcNow - lastActionTime).TotalMilliseconds > 5)
+                                        {
+                                            tcs.TrySetResult(GetActiveStateNames());
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+        };
+
+        try
+        {
+            // CRITICAL: Check if already in the target state BEFORE subscribing
+            var currentState = GetActiveStateNames();
+            if (currentState.Contains(stateName))
+            {
+                // Already in target state, wait briefly for any pending actions
+                await Task.Delay(10);
+                return currentState;
+            }
+
+            // Subscribe to transitions and actions AFTER initial check
+            OnTransition += transitionHandler;
+            OnActionExecuted += actionHandler;
+
+            // IMPORTANT: Check again AFTER subscribing to catch rapid transitions
+            currentState = GetActiveStateNames();
+            if (currentState.Contains(stateName))
+            {
+                // Just transitioned, wait briefly for actions
+                await Task.Delay(10);
+                return currentState;
+            }
+
+            // Create timeout cancellation
+            using var timeoutCts = new CancellationTokenSource(timeoutMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
+            // Register cancellation callbacks
+            using var registration = linkedCts.Token.Register(() =>
+            {
+                if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    tcs.TrySetException(new TimeoutException($"State machine did not reach state '{stateName}' with actions complete within {timeoutMs}ms"));
+                }
+                else
+                {
+                    tcs.TrySetCanceled();
+                }
+            });
+
+            // Wait for the transition to the target state and actions to complete
+            return await tcs.Task;
+        }
+        finally
+        {
+            // Unsubscribe from transitions and actions
+            OnTransition -= transitionHandler;
+            OnActionExecuted -= actionHandler;
         }
     }
 
@@ -1347,12 +1483,12 @@ public partial class StateMachine : IStateMachine
     public void PrintCurrentStatesString()
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "=== Current States ===");
-        var currentStateString = GetActiveStateString();
+        var currentStateString = GetActiveStateNames();
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => currentStateString);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "======================");
 
-        // Fire StateChanged event with current state
-        StateChanged?.Invoke(currentStateString);
+        // StateChanged event is now fired in RaiseTransition method when state actually changes
+        // No need to fire it here during logging
     }
 
     /// <summary>

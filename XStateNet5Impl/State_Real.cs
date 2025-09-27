@@ -551,7 +551,12 @@ public abstract class CompoundState : RealState
         // Handle onDone event from service invocations
         if (eventName == "onDone" && OnDoneTransition != null)
         {
+            Logger.Debug($"Found OnDoneTransition in state {Name} with {OnDoneTransition.Actions?.Count ?? 0} actions");
             transitionList.Add((this, OnDoneTransition, "onDone"));
+        }
+        else if (eventName == "onDone")
+        {
+            Logger.Debug($"State {Name} received onDone but has no OnDoneTransition defined");
         }
 
         /* After transition should be called by timer
@@ -621,21 +626,23 @@ public abstract class Parser_RealState : Parser_StateBase
                         targetName = $"{parentPath}{targetName}";
                     }
                     
-                    var onDoneTransition = new OnTransition(machineId)
+                    var onDoneTransition = new OnDoneTransition(machineId)
                     {
-                        Event = "onDone",
                         SourceName = state.Name,
                         TargetName = targetName
                     };
-                    
+
                     // Parse actions if present
                     if (actionsToken != null)
                     {
-                        onDoneTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, onDoneToken);
+                        // Create a temporary JObject with the actions token to parse it correctly
+                        var tempObj = new JObject { ["actions"] = actionsToken };
+                        onDoneTransition.Actions = StateMachine.ParseActions("actions", StateMachine.ActionMap, tempObj);
                     }
-                    
-                    // Use thread-safe AddTransition method
-                    state.OnTransitionMap.AddTransition("onDone", onDoneTransition);
+
+                    // Set the OnDoneTransition property directly
+                    state.OnDoneTransition = onDoneTransition;
+                    Logger.Debug($"Set OnDoneTransition for state {state.Name} with {onDoneTransition.Actions?.Count ?? 0} actions targeting {targetName}");
                 }
             }
             

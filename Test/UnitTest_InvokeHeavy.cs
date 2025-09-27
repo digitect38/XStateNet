@@ -58,10 +58,10 @@ public class UnitTest_InvokeHeavy : IDisposable
         _actions = new ActionMap
         {
             ["logEntry"] = new List<NamedAction> { new NamedAction("logEntry", (sm) => {
-                _eventLog.Add($"entry:{sm.GetActiveStateString()}");
+                _eventLog.Add($"entry:{sm.GetActiveStateNames()}");
             }) },
             ["logExit"] = new List<NamedAction> { new NamedAction("logExit", (sm) => {
-                _eventLog.Add($"exit:{sm.GetActiveStateString()}");
+                _eventLog.Add($"exit:{sm.GetActiveStateNames()}");
             }) },
             ["logSuccess"] = new List<NamedAction> { new NamedAction("logSuccess", (sm) => {
                 var result = sm.ContextMap?["_serviceResult"];
@@ -77,7 +77,7 @@ public class UnitTest_InvokeHeavy : IDisposable
                 sm.ContextMap!["counter"] = counter + 1;
                 _counters["main"] = counter + 1;
             }) },
-            ["prepareContext"] = new List<NamedAction> { new NamedAction("prepareContext", (sm) => {
+            ["prepareContext"] = new () { new ("prepareContext", (sm) => {
                 sm.ContextMap!["serviceInput"] = "prepared-data";
                 _eventLog.Add("context:prepared");
             }) },
@@ -138,9 +138,19 @@ public class UnitTest_InvokeHeavy : IDisposable
                 _eventLog.Add($"retry:attempt:{retries + 1}");
             }) },
             ["processServiceData"] = new List<NamedAction> { new NamedAction("processServiceData", (sm) => {
+                Console.WriteLine(">>> processServiceData action called!");
                 var data = sm.ContextMap?["_serviceResult"];
+                Console.WriteLine($">>> _serviceResult value: {data}");
                 sm.ContextMap!["processedData"] = $"{data}-processed";
                 _eventLog.Add($"data:processed:{data}");
+                Console.WriteLine($">>> Added to _eventLog: data:processed:{data}, _eventLog count: {_eventLog.Count}");
+
+                // Debug output to see current eventLog contents
+                Console.WriteLine(">>> Current _eventLog contents:");
+                foreach (var item in _eventLog)
+                {
+                    Console.WriteLine($">>>   - {item}");
+                }
             }) },
             ["saveWorkflowData"] = new List<NamedAction> { new NamedAction("saveWorkflowData", (sm) => {
                 var step3Result = sm.ContextMap?["_serviceResult"];
@@ -212,10 +222,10 @@ public class UnitTest_InvokeHeavy : IDisposable
                 _eventLog.Add("service:retryable:success");
                 return $"success-after-{attempts}-attempts";
             }),
-            ["contextAwareService"] = new NamedService("contextAwareService", async (sm, ct) => {
+            ["contextAwareService"] = new ("contextAwareService", async (sm, ct) => {
                 var input = sm.ContextMap?["serviceInput"]?.ToString() ?? "no-input";
                 _eventLog.Add($"service:context:input:{input}");
-                await Task.Delay(50, ct);
+                await Task.Delay(50, ct); // 
                 return $"processed-{input}";
             }),
             ["longRunningService"] = new NamedService("longRunningService", async (sm, ct) => {
@@ -538,7 +548,7 @@ public class UnitTest_InvokeHeavy : IDisposable
         Assert.Contains("service:nested:completed", _eventLog);
 
         // Check final states
-        var finalState = _stateMachine.GetActiveStateString();
+        var finalState = _stateMachine.GetActiveStateNames();
         Assert.True(finalState.Contains("parentDone") || finalState.Contains("allDone"));
     }
 
@@ -578,12 +588,11 @@ public class UnitTest_InvokeHeavy : IDisposable
         }";
 
         _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Act
         await _stateMachine.SendAsync("READY");
-        await WaitForState(_stateMachine, "processing");
-
+        await _stateMachine.WaitForStateWithActionsAsync("processing");
         // Assert
         Assert.Contains("context:prepared", _eventLog);
         Assert.Contains("service:context:input:prepared-data", _eventLog);
@@ -833,7 +842,7 @@ public class UnitTest_InvokeHeavy : IDisposable
         Console.WriteLine($"Iterations: {iterations}");
         Console.WriteLine($"Service starts: {quickStartCount}");
         Console.WriteLine($"Service completes: {quickCompleteCount}");
-        Console.WriteLine($"Current state: {_stateMachine.GetActiveStateString()}");
+        Console.WriteLine($"Current state: {_stateMachine.GetActiveStateNames()}");
 
         // Check if re-invocation works - if not, at least verify the service ran once without memory issues
         if (quickStartCount == 0)
@@ -961,7 +970,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             // Workflow might not complete all stages
         }
 
-        var finalState = _stateMachine.GetActiveStateString();
+        var finalState = _stateMachine.GetActiveStateNames();
         Console.WriteLine($"Final state: {finalState}");
 
         // Check what's in the log
