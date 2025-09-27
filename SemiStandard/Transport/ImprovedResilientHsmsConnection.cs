@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Polly;
-using Polly.CircuitBreaker;
 
 namespace XStateNet.Semi.Transport
 {
@@ -19,7 +18,7 @@ namespace XStateNet.Semi.Transport
         private readonly ILogger<ImprovedResilientHsmsConnection>? _logger;
         private readonly ConnectionHealthMonitor _healthMonitor;
         private readonly IAsyncPolicy<bool> _retryPolicy;
-        private readonly IAsyncPolicy<bool> _circuitBreakerPolicy;
+        private readonly ThreadSafeCircuitBreaker _circuitBreaker;
         private readonly SemaphoreSlim _connectionSemaphore = new(1, 1);
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _supervisorTask;
@@ -117,26 +116,29 @@ namespace XStateNet.Semi.Transport
                             retryCount, timespan.TotalMilliseconds, reason);
                     });
 
-            // Setup circuit breaker
-            _circuitBreakerPolicy = Policy<bool>
-                .HandleResult(r => !r)
-                .CircuitBreakerAsync(
-                    CircuitBreakerThreshold,
-                    CircuitBreakerDuration,
-                    onBreak: (result, duration) =>
-                    {
-                        _logger?.LogError("Circuit breaker opened for {Duration}s", duration.TotalSeconds);
+            // Setup thread-safe circuit breaker
+            _circuitBreaker = new ThreadSafeCircuitBreaker(
+                failureThreshold: CircuitBreakerThreshold,
+                openDuration: CircuitBreakerDuration,
+                halfOpenTestDelay: TimeSpan.FromMilliseconds(100),
+                logger: _logger);
+
+            _circuitBreaker.StateChanged += (sender, state) =>
+            {
+                switch (state)
+                {
+                    case ThreadSafeCircuitBreaker.CircuitState.Open:
                         State = ConnectionState.CircuitOpen;
-                    },
-                    onReset: () =>
-                    {
-                        _logger?.LogInformation("Circuit breaker reset");
-                        State = ConnectionState.Disconnected;
-                    },
-                    onHalfOpen: () =>
-                    {
-                        _logger?.LogInformation("Circuit breaker half-open, testing connection");
-                    });
+                        break;
+                    case ThreadSafeCircuitBreaker.CircuitState.Closed:
+                        if (State == ConnectionState.CircuitOpen)
+                            State = ConnectionState.Disconnected;
+                        break;
+                    case ThreadSafeCircuitBreaker.CircuitState.HalfOpen:
+                        _logger?.LogInformation("Circuit breaker half-open, testing connection...");
+                        break;
+                }
+            };
         }
 
         /// <summary>
@@ -193,15 +195,18 @@ namespace XStateNet.Semi.Transport
             {
                 try
                 {
-                    var result = await Policy.WrapAsync(_circuitBreakerPolicy, _retryPolicy)
-                        .ExecuteAsync(async (ct) => await ConnectInternalAsync(ct), cancellationToken)
-                        .ConfigureAwait(false);
+                    var result = await _circuitBreaker.ExecuteAsync(async (ct) =>
+                    {
+                        return await _retryPolicy.ExecuteAsync(async (ctx) =>
+                            await ConnectInternalAsync(ctx), ct).ConfigureAwait(false);
+                    }, cancellationToken).ConfigureAwait(false);
 
                     if (result)
                     {
                         State = ConnectionState.Connected;
                         StartHealthMonitoring();
                         _reconnectAttempts = 0;
+                        _circuitBreaker.RecordSuccess();
                         _logger?.LogInformation("Successfully connected to {Endpoint}", _endpoint);
                         _initialConnectionSignal.TrySetResult(true);
 
@@ -234,11 +239,15 @@ namespace XStateNet.Semi.Transport
                         }
                     }
                 }
-                catch (BrokenCircuitException)
+                catch (CircuitBreakerOpenException ex)
                 {
-                    _logger?.LogWarning("Cannot connect - circuit breaker is open. Waiting for it to close.");
+                    _logger?.LogWarning("Cannot connect - {Message}", ex.Message);
                     _initialConnectionSignal.TrySetResult(false);
-                    await Task.Delay(CircuitBreakerDuration, cancellationToken).ConfigureAwait(false);
+
+                    // Get remaining open time from circuit breaker stats
+                    var stats = _circuitBreaker.GetStats();
+                    var waitTime = TimeSpan.FromSeconds(Math.Max(stats.RemainingOpenTime, 1.0));
+                    await Task.Delay(waitTime, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -328,6 +337,7 @@ namespace XStateNet.Semi.Transport
             {
                 _logger?.LogError(ex, "Connection attempt failed");
                 _healthMonitor.RecordFailure(ex);
+                _circuitBreaker.RecordFailure(ex);
                 return false;
             }
         }
@@ -353,12 +363,14 @@ namespace XStateNet.Semi.Transport
 
                     await _connection.SendMessageAsync(message, ct).ConfigureAwait(false);
                     _healthMonitor.RecordSuccess();
+                    _circuitBreaker.RecordSuccess();
                     return true;
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, "Failed to send message");
                     _healthMonitor.RecordFailure(ex);
+                    _circuitBreaker.RecordFailure(ex);
 
                     if (IsConnectionException(ex))
                     {
@@ -564,6 +576,7 @@ namespace XStateNet.Semi.Transport
 
             _cancellationTokenSource?.Dispose();
             _connectionSemaphore?.Dispose();
+            _circuitBreaker?.Dispose();
             _healthMonitor?.Dispose();
 
             GC.SuppressFinalize(this);

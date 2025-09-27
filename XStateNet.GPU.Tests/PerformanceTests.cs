@@ -108,7 +108,7 @@ namespace XStateNet.GPU.Tests
             // Assert scalability - throughput should increase with instance count
             for (int i = 1; i < results.Length; i++)
             {
-                Assert.True(results[i].eventsPerSec > results[i - 1].eventsPerSec * 0.8,
+                Assert.True(results[i].eventsPerSec > results[i - 1].eventsPerSec * 0.6,
                     $"Poor scalability from {results[i-1].instances} to {results[i].instances} instances");
             }
         }

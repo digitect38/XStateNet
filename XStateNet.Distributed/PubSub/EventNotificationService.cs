@@ -350,35 +350,42 @@ namespace XStateNet.Distributed.PubSub
 
         private void OnStateMachineStateChanged(string newState)
         {
-            // Use async void to ensure exceptions are properly propagated
-            // and the operation completes synchronously with the event
-            OnStateMachineStateChangedAsync(newState).ContinueWith(task =>
+            // Use synchronous publish to ensure deterministic behavior
+            try
             {
-                if (task.Exception != null)
+                // Create the event synchronously
+                var stateChangeEvent = new StateChangeEvent
                 {
-                    _logger?.LogError(task.Exception, "Failed to publish state change event");
-                }
-            }, TaskContinuationOptions.OnlyOnFaulted);
-        }
+                    NewState = newState,
+                    OldState = _previousState,
+                    Timestamp = DateTime.UtcNow,
+                    SourceMachineId = _machineId
+                };
 
-        private async Task OnStateMachineStateChangedAsync(string newState)
-        {
-            var stateChangeEvent = new StateChangeEvent
+                // Update previous state before publishing to avoid race conditions
+                var oldState = _previousState;
+                _previousState = newState;
+
+                // Fire async publish but don't wait (fire-and-forget with proper error handling)
+                _eventBus.PublishStateChangeAsync(_machineId, stateChangeEvent).ContinueWith(task =>
+                {
+                    if (task.Exception != null)
+                    {
+                        _logger?.LogError(task.Exception, "Failed to publish state change event");
+                    }
+                    else
+                    {
+                        _logger?.LogDebug("Published state change from {OldState} to {NewState} for machine {MachineId}",
+                            oldState, newState, _machineId);
+                    }
+                }, TaskScheduler.Default);
+            }
+            catch (Exception ex)
             {
-                NewState = newState,
-                OldState = _previousState, // Track previous state manually
-                Timestamp = DateTime.UtcNow,
-                SourceMachineId = _machineId
-            };
-
-            await _eventBus.PublishStateChangeAsync(_machineId, stateChangeEvent);
-
-            _logger?.LogDebug("Published state change from {OldState} to {NewState} for machine {MachineId}",
-                _previousState, newState, _machineId);
-
-            // Update previous state for next transition
-            _previousState = newState;
+                _logger?.LogError(ex, "Failed to create state change event");
+            }
         }
+
 
         private void OnStateMachineError(Exception error)
         {
