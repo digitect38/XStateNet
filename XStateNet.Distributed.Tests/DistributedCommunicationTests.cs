@@ -602,7 +602,7 @@ namespace XStateNet.Distributed.Tests
                 }}
             }}";
 
-            var baseMachine = StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, threadSafe: true, guidIsolate: true);
             var distributedMachine = new DistributedStateMachine(
                 baseMachine,
                 id,
