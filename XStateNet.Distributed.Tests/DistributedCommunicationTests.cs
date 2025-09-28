@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -292,12 +293,21 @@ namespace XStateNet.Distributed.Tests
             parentMachine.Start();
             await parentMachine.SendAsync("START");
 
-            // Wait for coordination
-            var completed = await Task.WhenAny(
-                childCompleted.Task,
-                Task.Delay(2000));
+            // Wait for coordination with timeout
+            var sw = Stopwatch.StartNew();
+            var timeout = TimeSpan.FromSeconds(2);
+
+            while (!childCompleted.Task.IsCompleted && sw.Elapsed < timeout)
+            {
+                await Task.Yield();
+            }
 
             // Assert
+            if (!childCompleted.Task.IsCompleted)
+            {
+                throw new TimeoutException("Test timed out waiting for child completion");
+            }
+
             parentEvents.Should().Contain("STARTING_CHILDREN");
             parentEvents.Should().Contain("CHECKING_COMPLETION");
         }
@@ -376,19 +386,34 @@ namespace XStateNet.Distributed.Tests
                 await worker.SendAsync("WORK");
             }
 
-            // Process remaining work
+            // Process remaining work with proper synchronization
+            var sw = Stopwatch.StartNew();
+            var timeout = TimeSpan.FromSeconds(5);
+
             while (workItems.Count > 0 && completedWork.Count < 5)
             {
+                if (sw.Elapsed > timeout)
+                {
+                    throw new TimeoutException($"Test timed out waiting for work completion. Completed: {completedWork.Count}, Remaining: {workItems.Count}");
+                }
+
                 foreach (var worker in workers)
                 {
                     await worker.SendAsync("WORK");
                 }
-                // Small delay to allow processing
-                await Task.Delay(50);
+
+                // Small yield to allow other tasks to run
+                await Task.Yield();
             }
 
-            // Wait for all work to complete (after transitions take 100ms)
-            await Task.Delay(200);
+            // Wait for all work to complete using Stopwatch
+            sw.Restart();
+            var completionTimeout = TimeSpan.FromMilliseconds(500); // Workers have 100ms transition delay
+
+            while (completedWork.Count < 3 && sw.Elapsed < completionTimeout)
+            {
+                await Task.Yield();
+            }
 
             // Assert
             completedWork.Count.Should().BeGreaterThanOrEqualTo(3);

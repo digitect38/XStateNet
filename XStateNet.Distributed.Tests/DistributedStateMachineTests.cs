@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using XStateNet;
@@ -154,8 +155,17 @@ namespace XStateNet.Distributed.Tests
             
             // Act
             await machine2.SendToMachineAsync("machine1", "REMOTE_EVENT");
-            await Task.Delay(100); // Give time for message to be processed
-            
+
+            // Wait for state transition with Stopwatch instead of fixed delay
+            var sw = Stopwatch.StartNew();
+            var timeout = TimeSpan.FromMilliseconds(500);
+            var targetState = "running";
+
+            while (!machine1.GetActiveStateNames().Contains(targetState) && sw.Elapsed < timeout)
+            {
+                await Task.Yield();
+            }
+
             // Note: In-memory transport would need proper setup for this to work
             // This test demonstrates the API usage
         }
