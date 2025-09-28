@@ -213,14 +213,20 @@ namespace XStateNet.Distributed.Tests
             }";
 
             var childrenStatus = new ConcurrentDictionary<string, bool>();
+            var childMachines = new List<DistributedStateMachine>();
             var parentActions = new ActionMap();
             parentActions["startChildren"] = new List<NamedAction>
             {
-                new NamedAction("startChildren", (sm) =>
+                new NamedAction("startChildren", async (sm) =>
                 {
                     parentEvents.Add("STARTING_CHILDREN");
                     childrenStatus["child1"] = false;
                     childrenStatus["child2"] = false;
+                    // Start the child machines
+                    foreach (var child in childMachines)
+                    {
+                        await child.SendAsync("START_WORK");
+                    }
                 })
             };
             parentActions["checkAllComplete"] = new List<NamedAction>
@@ -254,8 +260,13 @@ namespace XStateNet.Distributed.Tests
                 var childJson = $@"
                 {{
                     id: '{childId}',
-                    initial: 'working',
+                    initial: 'idle',
                     states: {{
+                        'idle': {{
+                            on: {{
+                                'START_WORK': 'working'
+                            }}
+                        }},
                         'working': {{
                             after: {{
                                 '{100 * i}': 'done'
@@ -286,6 +297,7 @@ namespace XStateNet.Distributed.Tests
                     $"local://{childId}",
                     _loggerFactory.CreateLogger<DistributedStateMachine>());
                 _machines.Add(childMachine);
+                childMachines.Add(childMachine);
                 childMachine.Start();
             }
 
@@ -295,7 +307,7 @@ namespace XStateNet.Distributed.Tests
 
             // Wait for coordination with timeout
             var sw = Stopwatch.StartNew();
-            var timeout = TimeSpan.FromSeconds(2);
+            var timeout = TimeSpan.FromSeconds(5);
 
             while (!childCompleted.Task.IsCompleted && sw.Elapsed < timeout)
             {

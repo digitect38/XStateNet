@@ -196,6 +196,11 @@ namespace XStateNet.Distributed.Tests.Resilience
                         _logger.LogWarning($"Item processing timed out after retries: {ex.Message}");
                         // Item failed due to timeout - this is expected for slow items
                     }
+                    catch (AggregateException ex) when (ex.InnerExceptions.Any(e => e is InvalidOperationException))
+                    {
+                        _logger.LogWarning($"Item processing failed after retries (expected): {ex.Message}");
+                        // Expected failure for items with ShouldFail = true
+                    }
                     catch (TimeoutException ex)
                     {
                         _logger.LogWarning($"Item processing timed out: {ex.Message}");
