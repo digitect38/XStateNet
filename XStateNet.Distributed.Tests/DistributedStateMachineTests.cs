@@ -161,7 +161,7 @@ namespace XStateNet.Distributed.Tests
             var timeout = TimeSpan.FromMilliseconds(500);
             var targetState = "running";
 
-            while (!machine1.GetActiveStateNames().Contains(targetState) && sw.Elapsed < timeout)
+			while (!machine1.StateMachine.GetActiveStateNames().Contains(targetState) && sw.Elapsed < timeout)
             {
                 await Task.Yield();
             }
