@@ -271,11 +271,11 @@ namespace XStateNet.Distributed.Tests
                 var childActions = new ActionMap();
                 childActions["notifyParent"] = new List<NamedAction>
                 {
-                    new NamedAction("notifyParent", (sm) =>
+                    new NamedAction("notifyParent", async (sm) =>
                     {
                         childrenStatus[childId] = true;
-                        Task.Run(async () => 
-                            await parentMachine.SendToMachineAsync("parent", "CHILD_COMPLETE"));
+                        // Send directly to the parent machine
+                        await parentMachine.SendAsync("CHILD_COMPLETE");
                     })
                 };
 
