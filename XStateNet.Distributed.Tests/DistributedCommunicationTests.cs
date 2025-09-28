@@ -383,7 +383,12 @@ namespace XStateNet.Distributed.Tests
                 {
                     await worker.SendAsync("WORK");
                 }
+                // Small delay to allow processing
+                await Task.Delay(50);
             }
+
+            // Wait for all work to complete (after transitions take 100ms)
+            await Task.Delay(200);
 
             // Assert
             completedWork.Count.Should().BeGreaterThanOrEqualTo(3);

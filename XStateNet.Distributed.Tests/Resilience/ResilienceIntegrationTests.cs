@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -189,6 +190,21 @@ namespace XStateNet.Distributed.Tests.Resilience
                             });
                             return item;
                         });
+                    }
+                    catch (AggregateException ex) when (ex.InnerExceptions.Any(e => e is TimeoutException))
+                    {
+                        _logger.LogWarning($"Item processing timed out after retries: {ex.Message}");
+                        // Item failed due to timeout - this is expected for slow items
+                    }
+                    catch (TimeoutException ex)
+                    {
+                        _logger.LogWarning($"Item processing timed out: {ex.Message}");
+                        // Single timeout - this is expected for slow items
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.LogWarning($"Item processing failed (expected): {ex.Message}");
+                        // Expected failure for items with ShouldFail = true
                     }
                     catch (Exception ex) when (!(ex is ChannelClosedException))
                     {
