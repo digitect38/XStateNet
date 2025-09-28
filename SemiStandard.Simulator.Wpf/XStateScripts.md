@@ -398,7 +398,7 @@
 
 ## State Machine Integration
 
-These state machines are created using XStateNet's `StateMachine.CreateFromScript()` method and properly track state transitions in real-time. Each machine:
+These state machines are created using XStateNet's `StateMachineFactory.CreateFromScript()` method and properly track state transitions in real-time. Each machine:
 
 1. Has a unique ID
 2. Defines an initial state

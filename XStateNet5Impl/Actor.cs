@@ -196,8 +196,8 @@ public class StateMachineActor : IActor
                     {
                         _stateMachine.ContextMap["_eventData"] = message.Data;
                     }
-                    
-                    _stateMachine.Send(message.EventName);
+
+                    await _stateMachine.SendAsync(message.EventName);
                     
                     // Check if an error was caught by the state machine's error handling
                     if (_stateMachine.ContextMap != null && _stateMachine.ContextMap.ContainsKey("_error"))

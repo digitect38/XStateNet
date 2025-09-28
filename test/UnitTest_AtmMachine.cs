@@ -24,7 +24,7 @@ public class AtmStateMachineTests : IDisposable
         var jsonScript = GetJson(uniqueId);
 
         // Load state machine from JSON
-        var stateMachine = (StateMachine)StateMachine.CreateFromScript(jsonScript, guidIsolate: false, actions, guards).Start();
+        var stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, false, false, actions, guards).Start();
         return stateMachine;
     }
 
@@ -38,7 +38,7 @@ public class AtmStateMachineTests : IDisposable
     {
         var uniqueId = "atm";
         var stateMachine = CreateStateMachine(uniqueId);
-        var initialState = stateMachine.GetActiveStateString();
+        var initialState = stateMachine.GetActiveStateNames();
         initialState.AssertEquivalence($"{stateMachine.machineId}.idle");
     }
 
@@ -47,7 +47,7 @@ public class AtmStateMachineTests : IDisposable
     {
         var uniqueId = "atm";
         var stateMachine = CreateStateMachine(uniqueId);
-        var currentState = await stateMachine.SendAsyncWithState("CARD_INSERTED");
+        var currentState = await stateMachine.SendAsync("CARD_INSERTED");
         currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin");
     }
 
@@ -58,7 +58,7 @@ public class AtmStateMachineTests : IDisposable
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         await stateMachine.SendAsync("PIN_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("PIN_CORRECT");
+        var currentState = await stateMachine.SendAsync("PIN_CORRECT");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -69,7 +69,7 @@ public class AtmStateMachineTests : IDisposable
         var stateMachine = CreateStateMachine(uniqueId);
         stateMachine.Send("CARD_INSERTED");
         await stateMachine.SendAsync("PIN_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("PIN_INCORRECT");
+        var currentState = await stateMachine.SendAsync("PIN_INCORRECT");
         currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin");
     }
 
@@ -83,7 +83,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("WITHDRAW");
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("SUCCESS");
+        var currentState = await stateMachine.SendAsync("SUCCESS");
         currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
     }
 
@@ -97,7 +97,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("DEPOSIT");
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
+        var currentState = await stateMachine.SendAsync("FAILURE");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.depositing;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -110,7 +110,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         await stateMachine.SendAsync("WITHDRAW");
-        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
+        var currentState = await stateMachine.SendAsync("CANCEL");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -122,7 +122,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("CARD_INSERTED");
         stateMachine.Send("PIN_ENTERED");
         await stateMachine.SendAsync("PIN_CORRECT");
-        var currentState = await stateMachine.SendAsyncWithState("REQUEST_RECEIPT");
+        var currentState = await stateMachine.SendAsync("REQUEST_RECEIPT");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.printingReceipt");
     }
 
@@ -135,7 +135,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         await stateMachine.SendAsync("REQUEST_RECEIPT");
-        var currentState = await stateMachine.SendAsyncWithState("RECEIPT_PRINTED");
+        var currentState = await stateMachine.SendAsync("RECEIPT_PRINTED");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -148,7 +148,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         await stateMachine.SendAsync("BALANCE");
-        var currentState = await stateMachine.SendAsyncWithState("BALANCE_SHOWN");
+        var currentState = await stateMachine.SendAsync("BALANCE_SHOWN");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -161,7 +161,7 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_ENTERED");
         stateMachine.Send("PIN_CORRECT");
         await stateMachine.SendAsync("WITHDRAW");
-        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
+        var currentState = await stateMachine.SendAsync("CANCEL");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
     }
 
@@ -171,7 +171,7 @@ public class AtmStateMachineTests : IDisposable
         var uniqueId = "atm";
         var stateMachine = CreateStateMachine(uniqueId);
         await stateMachine.SendAsync("CARD_INSERTED");
-        var currentState = await stateMachine.SendAsyncWithState("INVALID_EVENT");
+        var currentState = await stateMachine.SendAsync("INVALID_EVENT");
         currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin"); // Should remain in the same state
     }
 
@@ -181,7 +181,7 @@ public class AtmStateMachineTests : IDisposable
         var uniqueId = "atm";
         var stateMachine = CreateStateMachine(uniqueId);
         await stateMachine.SendAsync("CARD_INSERTED");
-        var currentState = await stateMachine.SendAsyncWithState("CANCEL");
+        var currentState = await stateMachine.SendAsync("CANCEL");
         currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
     }
 
@@ -195,11 +195,11 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("WITHDRAW");
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
+        var currentState = await stateMachine.SendAsync("FAILURE");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.withdrawing;{stateMachine.machineId}.operational.receipt.noReceipt");
 
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        currentState = await stateMachine.SendAsyncWithState("SUCCESS");
+        currentState = await stateMachine.SendAsync("SUCCESS");
         currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
     }
 
@@ -213,11 +213,11 @@ public class AtmStateMachineTests : IDisposable
         stateMachine.Send("PIN_CORRECT");
         stateMachine.Send("DEPOSIT");
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsyncWithState("FAILURE");
+        var currentState = await stateMachine.SendAsync("FAILURE");
         currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.depositing;{stateMachine.machineId}.operational.receipt.noReceipt");
 
         await stateMachine.SendAsync("AMOUNT_ENTERED");
-        currentState = await stateMachine.SendAsyncWithState("SUCCESS");
+        currentState = await stateMachine.SendAsync("SUCCESS");
         currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
     }
 

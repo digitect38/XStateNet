@@ -360,7 +360,7 @@ namespace XStateNet.Distributed.PubSub.Optimized
             if (_stateMachine != null)
             {
                 // Initialize previous state with current state (may be empty if not started)
-                var currentState = _stateMachine.GetActiveStateString();
+                var currentState = _stateMachine.GetActiveStateNames();
                 _previousState = !string.IsNullOrEmpty(currentState) ? currentState : null;
 
                 _stateMachine.StateChanged += OnStateMachineStateChanged;

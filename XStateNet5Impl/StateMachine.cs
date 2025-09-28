@@ -274,46 +274,6 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="jsonFilePath"></param>
-    /// <param name="actionCallbacks"></param>
-    /// <param name="guardCallbacks"></param>
-    /// <returns></returns>
-    public static StateMachine CreateFromFile(
-        string jsonFilePath,
-        ActionMap? actionCallbacks = null,
-        GuardMap? guardCallbacks = null,
-        ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null,
-        ActivityMap? activityCallbacks = null
-    )
-    {
-        // Use secure file reading with validation
-        var jsonScript = Security.SafeReadFile(jsonFilePath);
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
-    }
-    /*
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="jsonScript"></param>
-    /// <param name="actionCallbacks"></param>
-    /// <param name="guardCallbacks"></param>
-    /// <returns></returns>
-    private static StateMachine CreateFromScript(
-        string? jsonScript,
-        ActionMap? actionCallbacks = null,
-        GuardMap? guardCallbacks = null,
-        ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null,
-        ActivityMap? activityCallbacks = null
-    )
-    {
-        return ParseStateMachine(jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
-    }
-    */
-    /// <summary>
     /// Parse Json Script and return State Machine with optional GUID isolation
     /// </summary>
     /// <param name="jsonScript">State Machine Definition by Json format</param>
@@ -324,7 +284,7 @@ public partial class StateMachine : IStateMachine
     /// <param name="delayCallbacks"></param>
     /// <param name="activityCallbacks"></param>
     /// <returns></returns>
-    public static StateMachine CreateFromScript(
+    internal static StateMachine CreateFromScript(
         string? jsonScript,
         bool guidIsolate = true,
         ActionMap? actionCallbacks = null,
@@ -334,9 +294,56 @@ public partial class StateMachine : IStateMachine
         ActivityMap? activityCallbacks = null
     )
     {
-        return ParseStateMachine(jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+        var stateMachine = new StateMachine() { };
+        return ParseStateMachine(stateMachine, jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+        //return ParseStateMachine(jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
+    /*
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sm"></param>
+    /// <param name="jsonScript"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
+    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
+        )
+    {
+        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+    }
+    */
+    /*
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="jsonFilePath"></param>
+    /// <param name="actionCallbacks"></param>
+    /// <param name="guardCallbacks"></param>
+    /// <returns></returns>
+    internal static StateMachine CreateFromFile(
+        string jsonFilePath,
+        bool threadSafe = true,
+        bool guidIsolate = true,
+        ActionMap? actionCallbacks = null,
+        GuardMap? guardCallbacks = null,
+        ServiceMap? serviceCallbacks = null,
+        DelayMap? delayCallbacks = null,
+        ActivityMap? activityCallbacks = null
+    )
+    {
+        // Use secure file reading with validation
+        var jsonScript = Security.SafeReadFile(jsonFilePath);
+        return ParseStateMachine(jsonScript, threadSafe, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
+    }
+    */
+    /*
     /// <summary>
     ///
     /// </summary>
@@ -359,25 +366,7 @@ public partial class StateMachine : IStateMachine
         var jsonScript = Security.SafeReadFile(jsonFilePath);
         return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="sm"></param>
-    /// <param name="jsonScript"></param>
-    /// <param name="actionCallbacks"></param>
-    /// <param name="guardCallbacks"></param>
-    /// <returns></returns>
-    public static StateMachine CreateFromScript(StateMachine sm, string jsonScript,
-        ActionMap? actionCallbacks = null,
-        GuardMap? guardCallbacks = null,
-        ServiceMap? serviceCallbacks = null,
-        DelayMap? delayCallbacks = null,
-        ActivityMap? activityCallbacks = null
-        )
-    {
-        return ParseStateMachine(sm, jsonScript, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
-    }
+    */
 
     /// <summary>
     /// 
@@ -463,9 +452,17 @@ public partial class StateMachine : IStateMachine
     /// <summary>
     ///
     /// </summary>
+    /// <summary>
+    /// Public synchronous Send method for backward compatibility
+    /// </summary>
+    public string Send(string eventName, object? eventData = null)
+    {
+        return SendAsync(eventName, eventData).GetAwaiter().GetResult();
+    }
+
     /// <param name="eventName"></param>
 #pragma warning disable CS0618 // Type or member is obsolete
-    public void Send(string eventName, object? eventData = null)
+    private string SendInternal(string eventName, object? eventData = null)
 #pragma warning restore CS0618
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
@@ -477,7 +474,7 @@ public partial class StateMachine : IStateMachine
         if (eventName == "RESET")
         {
             Reset();
-            return;
+            return GetActiveStateNames(); 
         }
 
         // Use write lock to ensure atomic transitions
@@ -488,23 +485,25 @@ public partial class StateMachine : IStateMachine
             if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
             {
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
-                return;
+                return "<State machine is not RUNNING!>";
             }
 
             // Direct synchronous processing for backward compatibility
             // EventQueue is only used when explicitly enabled
             Transit(eventName, eventData);
             //PrintCurrentStateTree();
-            PrintCurrentStatesString();
+            //PrintCurrentStatesString();
         }
         catch (Exception ex)
         {
-            HandleUnhandledException(ex, $"Send({eventName})");
+            HandleUnhandledException(ex, $"SendInternal({eventName})");
         }
         finally
         {
             _stateLock.ExitWriteLock();
         }
+
+        return GetActiveStateNames();
     }
     
     /// <summary>
@@ -524,18 +523,17 @@ public partial class StateMachine : IStateMachine
         if (eventName == "RESET")
         {
             await Task.Run(() => Reset());
-            return GetCurrentStateString();
+            return GetActiveStateNames();
         }
 
         if (_eventQueue != null)
         {
-            await _eventQueue.SendAsync(eventName);
-            return GetCurrentStateString();
+            return await _eventQueue.SendAsync(eventName);
         }
 
         // Use write lock to ensure atomic transitions
         // Only one thread can transition at a time
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             _stateLock.EnterWriteLock();
             try
@@ -543,18 +541,22 @@ public partial class StateMachine : IStateMachine
                 if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
                 {
                     PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
-                    return GetCurrentStateString();
+                    return GetActiveStateNames();
                 }
 
-                Transit(eventName, eventData);
+                // Use async version to properly await parallel state transitions
+                await TransitAsync(eventName, eventData);
                 //PrintCurrentStateTree();
                 //PrintCurrentStatesString();
-                return GetCurrentStateString();
+
+                // Return the active state names after all parallel transitions complete
+                // This ensures we get the complete state after all parallel transitions
+                return GetActiveStateNames();
             }
             catch (Exception ex)
             {
                 HandleUnhandledException(ex, $"SendAsync({eventName})");
-                return GetCurrentStateString();
+                return GetActiveStateNames();
             }
             finally
             {
@@ -563,6 +565,237 @@ public partial class StateMachine : IStateMachine
         });
     }
     
+    /// <summary>
+    /// Sends an event in a fire-and-forget manner without waiting for completion
+    /// </summary>
+    /// <param name="eventName">The event name</param>
+    /// <param name="eventData">Optional event data</param>
+    public void SendAndForget(string eventName, object? eventData = null)
+    {
+        // Check if machine is running
+        if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
+        {
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING for SendAndForget({eventName})!");
+            return;
+        }
+
+        // Notify event received
+        RaiseEventReceived(eventName, eventData);
+
+        // Handle RESET event specially
+        if (eventName == "RESET")
+        {
+            _ = Task.Run(() => Reset());
+            return;
+        }
+
+        // If using event queue, send to queue
+        if (_eventQueue != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _eventQueue.SendAsync(eventName).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    HandleUnhandledException(ex, $"SendAndForget({eventName}) - Queue");
+                }
+            });
+            return;
+        }
+
+        // Process event directly in background without waiting
+        _ = Task.Run(() =>
+        {
+            _stateLock.EnterWriteLock();
+            try
+            {
+                Transit(eventName, eventData);
+                //PrintCurrentStatesString();
+            }
+            catch (Exception ex)
+            {
+                HandleUnhandledException(ex, $"SendAndForget({eventName})");
+            }
+            finally
+            {
+                _stateLock.ExitWriteLock();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Try to send an event synchronously, returns true if successful
+    /// </summary>
+    public bool TrySend(string eventName, object? eventData = null)
+    {
+        try
+        {
+            // Check if machine is running
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
+            {
+                return false;
+            }
+
+            SendInternal(eventName, eventData);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"TrySend failed for event {eventName}: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Try to send an event asynchronously, returns true if successful
+    /// </summary>
+    public async Task<(bool success, string state)> TrySendAsync(string eventName, object? eventData = null)
+    {
+        try
+        {
+            // Check if machine is running
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
+            {
+                return (false, GetActiveStateNames());
+            }
+
+            var state = await SendAsync(eventName, eventData);
+            return (true, state);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"TrySendAsync failed for event {eventName}: {ex.Message}");
+            return (false, GetActiveStateNames());
+        }
+    }
+
+    /// <summary>
+    /// Send an event with a timeout
+    /// </summary>
+    public async Task<string> SendWithTimeoutAsync(string eventName, TimeSpan timeout, object? eventData = null)
+    {
+        using var cts = new CancellationTokenSource(timeout);
+        return await SendWithCancellationAsync(eventName, cts.Token, eventData);
+    }
+
+    /// <summary>
+    /// Send an event with cancellation support
+    /// </summary>
+    public async Task<string> SendWithCancellationAsync(string eventName, CancellationToken cancellationToken, object? eventData = null)
+    {
+        // Check if machine is running
+        if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Running)
+        {
+            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => $"State machine is not RUNNING!");
+            return GetActiveStateNames();
+        }
+
+        // Notify event received
+        RaiseEventReceived(eventName, eventData);
+
+        // Create task for the send operation
+        var sendTask = SendAsync(eventName, eventData);
+
+        // Create task that completes when cancellation is requested
+        var tcs = new TaskCompletionSource<string>();
+        using (cancellationToken.Register(() => tcs.TrySetCanceled()))
+        {
+            // Wait for either the send to complete or cancellation
+            var completedTask = await Task.WhenAny(sendTask, tcs.Task);
+
+            if (completedTask == sendTask)
+            {
+                return await sendTask;
+            }
+            else
+            {
+                // Cancellation was requested
+                throw new OperationCanceledException("SendWithCancellation was cancelled", cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Send multiple events in batch synchronously
+    /// </summary>
+    public List<string> SendBatch(params string[] eventNames)
+    {
+        var results = new List<string>();
+        foreach (var eventName in eventNames)
+        {
+            results.Add(SendInternal(eventName));
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Send multiple events in batch asynchronously
+    /// </summary>
+    public async Task<List<string>> SendBatchAsync(params string[] eventNames)
+    {
+        var results = new List<string>();
+        foreach (var eventName in eventNames)
+        {
+            results.Add(await SendAsync(eventName));
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Send multiple events with their data in batch asynchronously
+    /// </summary>
+    public async Task<List<string>> SendBatchAsync(params (string eventName, object? eventData)[] events)
+    {
+        var results = new List<string>();
+        foreach (var (eventName, eventData) in events)
+        {
+            results.Add(await SendAsync(eventName, eventData));
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Send an event and invoke a callback when complete
+    /// </summary>
+    public void SendWithCallback(string eventName, Action<string> onComplete, object? eventData = null)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await SendAsync(eventName, eventData);
+                onComplete?.Invoke(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"SendWithCallback failed for event {eventName}: {ex.Message}");
+                onComplete?.Invoke(GetActiveStateNames());
+            }
+        });
+    }
+
+    /// <summary>
+    /// Send an event and invoke an async callback when complete
+    /// </summary>
+    public async Task SendWithCallbackAsync(string eventName, Func<string, Task> onComplete, object? eventData = null)
+    {
+        try
+        {
+            var result = await SendAsync(eventName, eventData);
+            if (onComplete != null)
+                await onComplete(result);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"SendWithCallbackAsync failed for event {eventName}: {ex.Message}");
+            if (onComplete != null)
+                await onComplete(GetActiveStateNames());
+        }
+    }
+
     /// <summary>
     /// Process event asynchronously (called by EventQueue)
     /// </summary>
@@ -574,7 +807,7 @@ public partial class StateMachine : IStateMachine
             {
                 Transit(eventName);
                 //PrintCurrentStateTree();
-                PrintCurrentStatesString();
+                //PrintCurrentStatesString();
             }
             catch (Exception ex)
             {
@@ -584,7 +817,7 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="eventName"></param>
     void Transit(string eventName, object? eventData = null)
@@ -596,7 +829,7 @@ public partial class StateMachine : IStateMachine
 
         // Use pooled list to reduce allocations
         var transitionList = PerformanceOptimizations.RentTransitionList();
-        
+
         try
         {
             RootState?.BuildTransitionList(eventName, transitionList);
@@ -618,7 +851,7 @@ public partial class StateMachine : IStateMachine
         //step 2:  perform transitions
         // For transitions from the same state with the same event (like guarded transitions),
         // only execute the first matching one
-        
+
         // Use pooled HashSet to reduce allocations
         var executedTransitions = PerformanceOptimizations.RentTransitionHashSet();
         try
@@ -626,14 +859,14 @@ public partial class StateMachine : IStateMachine
             foreach (var (state, transition, @event) in transitionList)
             {
                 var key = (transition?.SourceName, @event);
-                
+
                 // Skip if we've already executed a transition from this state for this event
                 if (executedTransitions.Contains(key))
                 {
                     Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
                     continue;
                 }
-                
+
                 transitionExecutor.Execute(transition, @event);
                 executedTransitions.Add(key);
             }
@@ -643,6 +876,74 @@ public partial class StateMachine : IStateMachine
             // Return the HashSet to the pool
             PerformanceOptimizations.ReturnTransitionHashSet(executedTransitions);
         }
+        }
+        finally
+        {
+            // Return the list to the pool for reuse
+            PerformanceOptimizations.ReturnTransitionList(transitionList);
+        }
+    }
+
+    /// <summary>
+    /// Async version of Transit that properly awaits parallel state transitions
+    /// </summary>
+    /// <param name="eventName"></param>
+    /// <param name="eventData"></param>
+    async Task TransitAsync(string eventName, object? eventData = null)
+    {
+        if (eventData != null && ContextMap != null)
+        {
+            ContextMap["_event"] = eventData;
+        }
+
+        // Use pooled list to reduce allocations
+        var transitionList = PerformanceOptimizations.RentTransitionList();
+
+        try
+        {
+            RootState?.BuildTransitionList(eventName, transitionList);
+
+            //step 1:  build transition list
+
+            if (Logger.CurrentLevel >= Logger.LogLevel.Debug)
+            {
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***** Transition list *****");
+                foreach (var t in transitionList)
+                {
+                    var key = PerformanceOptimizations.GetTransitionKey(t.transition?.SourceName, t.transition?.TargetName);
+                    PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $"Transition : {key}, event = {t.@event}");
+                }
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***************************");
+            };
+
+            //step 2:  perform transitions
+            // For transitions from the same state with the same event (like guarded transitions),
+            // only execute the first matching one
+
+            // Use pooled HashSet to reduce allocations
+            var executedTransitions = PerformanceOptimizations.RentTransitionHashSet();
+            try
+            {
+                foreach (var (state, transition, @event) in transitionList)
+                {
+                    var key = (transition?.SourceName, @event);
+
+                    // Skip if we've already executed a transition from this state for this event
+                    if (executedTransitions.Contains(key))
+                    {
+                        Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
+                        continue;
+                    }
+
+                    await transitionExecutor.ExecuteAsync(transition, @event);
+                    executedTransitions.Add(key);
+                }
+            }
+            finally
+            {
+                // Return the HashSet to the pool
+                PerformanceOptimizations.ReturnTransitionHashSet(executedTransitions);
+            }
         }
         finally
         {
@@ -1065,26 +1366,35 @@ public partial class StateMachine : IStateMachine
 
         try
         {
-            // CRITICAL: Check if already in the target state BEFORE subscribing
-            var currentState = GetActiveStateNames();
-            if (currentState.Contains(stateName))
-            {
-                // Already in target state, wait briefly for any pending actions
-                await Task.Delay(10);
-                return currentState;
-            }
-
-            // Subscribe to transitions and actions AFTER initial check
+            // Subscribe to handlers first to not miss any events
             OnTransition += transitionHandler;
             OnActionExecuted += actionHandler;
 
-            // IMPORTANT: Check again AFTER subscribing to catch rapid transitions
-            currentState = GetActiveStateNames();
+            // Check if already in the target state
+            var currentState = GetActiveStateNames();
             if (currentState.Contains(stateName))
             {
-                // Just transitioned, wait briefly for actions
-                await Task.Delay(10);
-                return currentState;
+                // Already in target state, set transitionCompleted and wait for actions
+                lock (actionsLock)
+                {
+                    transitionCompleted = true;
+                    lastActionTime = DateTime.UtcNow;
+                }
+
+                // Wait a bit to see if actions are still executing
+                await Task.Delay(100); // Wait longer to ensure actions complete
+
+                // Check if we've been waiting long enough with no action activity
+                lock (actionsLock)
+                {
+                    if (pendingActionCount == 0 &&
+                        (DateTime.UtcNow - lastActionTime).TotalMilliseconds > 50)
+                    {
+                        return GetActiveStateNames();
+                    }
+                }
+
+                // Otherwise continue waiting via the normal path
             }
 
             // Create timeout cancellation
@@ -1240,16 +1550,16 @@ public partial class StateMachine : IStateMachine
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="topExitState"></param>
-    public Task TransitUp(CompoundState? topExitState)
+    public async Task TransitUp(CompoundState? topExitState)
     {
         if (topExitState != null)
         {
             try
             {
-                topExitState.ExitState(postAction: true, recursive: true);
+                await topExitState.ExitState(postAction: true, recursive: true);
             }
             catch (Exception ex)
             {
@@ -1261,27 +1571,26 @@ public partial class StateMachine : IStateMachine
                     ContextMap["_errorType"] = ex.GetType().Name;
                     ContextMap["_errorMessage"] = ex.Message;
                 }
-                
+
                 // Send onError event to trigger error transitions
-                Send("onError");
+                SendInternal("onError");
             }
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="topEntryState"></param>
     /// <param name="historyStateName"></param>
-    public Task TransitDown(CompoundState? topEntryState, string? historyStateName = null)
+    public async Task TransitDown(CompoundState? topEntryState, string? historyStateName = null)
     {
         var historyState = historyStateName != null ? GetState(historyStateName) as HistoryState : null;
         if (topEntryState != null)
         {
             try
             {
-                topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
+                await topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
             }
             catch (Exception ex)
             {
@@ -1293,12 +1602,11 @@ public partial class StateMachine : IStateMachine
                     ContextMap["_errorType"] = ex.GetType().Name;
                     ContextMap["_errorMessage"] = ex.Message;
                 }
-                
+
                 // Send onError event to trigger error transitions
-                Send("onError");
+                SendInternal("onError");
             }
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -1482,13 +1790,7 @@ public partial class StateMachine : IStateMachine
     /// </summary>
     public void PrintCurrentStatesString()
     {
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "=== Current States ===");
-        var currentStateString = GetActiveStateNames();
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => currentStateString);
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "======================");
-
-        // StateChanged event is now fired in RaiseTransition method when state actually changes
-        // No need to fire it here during logging
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => $">> Current States: {GetActiveStateNames()}");        
     }
 
     /// <summary>
@@ -1506,9 +1808,27 @@ public partial class StateMachine : IStateMachine
     /// </summary>
     public void Stop()
     {
-        _stateLock.EnterWriteLock();
+        // Check if already stopped without acquiring lock first
+        if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Stopped)
+        {
+            Logger.Debug("State machine is already stopped");
+            return;
+        }
+
+        // Use TryEnterWriteLock with timeout to avoid deadlock
+        bool lockAcquired = false;
         try
         {
+            lockAcquired = _stateLock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100));
+            if (!lockAcquired)
+            {
+                // If we can't get the lock quickly, just mark as stopped and return
+                // This prevents deadlock when Stop is called from within an action
+                Interlocked.Exchange(ref machineStateInt, (int)MachineState.Stopped);
+                Logger.Debug("Could not acquire write lock for Stop, marking as stopped anyway");
+                return;
+            }
+
             if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) == MachineState.Stopped)
             {
                 Logger.Debug("State machine is already stopped");
@@ -1525,12 +1845,15 @@ public partial class StateMachine : IStateMachine
             
             // Cancel any invoke services
             serviceInvoker?.CancelAllServices();
-            
+
             Logger.Info("State machine stopped");
         }
         finally
         {
-            _stateLock.ExitWriteLock();
+            if (lockAcquired)
+            {
+                _stateLock.ExitWriteLock();
+            }
         }
     }
 
@@ -1607,7 +1930,7 @@ public partial class StateMachine : IStateMachine
             }
 
             Logger.Info("State machine reset completed");
-            PrintCurrentStatesString();
+            //PrintCurrentStatesString();
         }
         finally
         {
@@ -1787,21 +2110,64 @@ public partial class StateMachine : IStateMachine
     protected virtual void Dispose(bool disposing)
     {
         if (Interlocked.CompareExchange(ref _disposedInt, 0, 0) == 1) return;
-        
+
         if (disposing)
         {
+            // First ensure machine is stopped
+            if ((MachineState)Interlocked.CompareExchange(ref machineStateInt, 0, 0) != MachineState.Stopped)
+            {
+                Stop();
+            }
+
+            // Wait a bit to ensure any ongoing operations complete
+            Thread.Sleep(10);
+
             // Dispose managed resources
             _eventQueue?.Dispose();
             _sync?.Dispose();
-            _stateLock?.Dispose();
-            
+
+            // Try to dispose the lock safely
+            try
+            {
+                // Check if lock is held before disposing
+                if (_stateLock != null)
+                {
+                    // Try to acquire write lock to ensure no one is using it
+                    bool lockAcquired = false;
+                    try
+                    {
+                        lockAcquired = _stateLock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100));
+                        if (lockAcquired)
+                        {
+                            _stateLock.ExitWriteLock();
+                        }
+                    }
+                    catch
+                    {
+                        // Lock might be in inconsistent state, skip disposal
+                    }
+
+                    // Only dispose if we could acquire/release it (meaning it's not in use)
+                    if (lockAcquired || (_stateLock.CurrentReadCount == 0 && !_stateLock.IsWriteLockHeld))
+                    {
+                        _stateLock.Dispose();
+                    }
+                    // Otherwise, let GC handle it eventually
+                }
+            }
+            catch (SynchronizationLockException)
+            {
+                // Lock is still in use, can't dispose it safely
+                // Let GC handle it
+            }
+
             // Remove from global instance map
             if (machineId != null)
             {
                 _instanceMap.TryRemove(machineId, out _);
             }
         }
-        
+
         Interlocked.Exchange(ref _disposedInt, 1);
     }
 }

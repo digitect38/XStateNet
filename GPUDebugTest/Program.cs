@@ -37,7 +37,7 @@ class TestGPUDebug
         {
             // Test CPU state machine first
             Console.WriteLine("Testing CPU state machine:");
-            var cpuMachine = StateMachine.CreateFromScript(trafficLightJson);
+            var cpuMachine = StateMachine.CreateFromScript(trafficLightJson, true);
             cpuMachine.Start();
 
             Console.WriteLine($"  Initial state: {GetSimpleStateName(cpuMachine.GetActiveStateString())}");

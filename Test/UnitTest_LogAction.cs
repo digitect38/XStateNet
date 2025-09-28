@@ -45,7 +45,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachine.CreateFromScript(script, actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
             stateMachine.Start();
 
             //var output = _stringWriter.ToString();
@@ -78,7 +78,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachine.CreateFromScript(script, actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
             stateMachine.Start();
 
             //var output = _stringWriter.ToString();
@@ -113,7 +113,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachine.CreateFromScript(script, actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
             stateMachine.Start();
             stateMachine.Send("GO");
 

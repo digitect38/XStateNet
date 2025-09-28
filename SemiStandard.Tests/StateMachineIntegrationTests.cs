@@ -356,7 +356,7 @@ public class StateMachineIntegrationTests
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = XStateNet.StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true);
         machine.Start();
         return machine;
     }

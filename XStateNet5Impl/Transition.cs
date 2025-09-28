@@ -13,6 +13,11 @@ public class TransitionExecutor : StateObject
     {
         ExecuteCore(transition, eventName);
     }
+
+    public virtual async Task ExecuteAsync(Transition? transition, string eventName)
+    {
+        await ExecuteCoreAsync(transition, eventName);
+    }
     
     private void ExecuteMultipleTargets(Transition transition, string eventName)
     {
@@ -281,10 +286,289 @@ public class TransitionExecutor : StateObject
             Logger.Debug($"Condition not met for transition on event {eventName}");
         }
     }
+
+    protected virtual async Task ExecuteCoreAsync(Transition? transition, string eventName)
+    {
+        if (transition == null) return;
+        if (StateMachine == null)
+            throw new InvalidOperationException("StateMachine is not initialized");
+
+        Logger.Debug($">> async transition on event {eventName} in state {transition.SourceName}");
+
+        bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
+        if (transition.Guard != null)
+        {
+            // Notify guard evaluation
+            StateMachine.RaiseGuardEvaluated(transition.Guard.Name, guardPassed);
+        }
+
+        if (guardPassed && (transition.InCondition == null || transition.InCondition()))
+        {
+            string? sourceName = transition.SourceName;
+            string? targetName = transition.TargetName;
+
+            if (string.IsNullOrWhiteSpace(sourceName))
+                throw new InvalidOperationException("Source state name cannot be null or empty");
+
+            // Handle internal transitions - execute actions without changing state
+            if (transition.IsInternal)
+            {
+                Logger.Info($"Internal transition on event {eventName} in state {sourceName}");
+
+                // Execute transition actions without state change
+                if (transition?.Actions != null && transition.Actions.Count > 0)
+                {
+                    Logger.Debug($"Executing {transition.Actions.Count} actions for internal transition");
+                    foreach (var action in transition.Actions)
+                    {
+                        try
+                        {
+                            Logger.Debug($"Executing action: {action.Name}");
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing internal transition action: {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    Logger.Debug($"No actions to execute for internal transition (Actions null: {transition?.Actions == null}, Count: {transition?.Actions?.Count ?? 0})");
+                }
+
+                // Fire OnTransition event even for internal transitions
+                var sourceNode = GetState(sourceName);
+                StateMachine.RaiseTransition(sourceNode as CompoundState, sourceNode, eventName);
+
+                // For internal transitions, still fire StateChanged with current state
+                StateMachine.RaiseStateChanged();
+                return;
+            }
+
+            // Handle multiple targets
+            if (transition.HasMultipleTargets && transition.TargetNames != null)
+            {
+                await ExecuteMultipleTargetsAsync(transition, eventName);
+                return;
+            }
+
+            if (targetName != null)
+            {
+                var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceName, targetName);
+
+                string? firstExit = exitList.FirstOrDefault();
+                string? firstEntry = entryList.FirstOrDefault();
+
+                // Exit - now properly await async operations
+                if (firstExit != null)
+                {
+                    await StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState);
+                }
+
+                Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
+
+                // Transition
+                var sourceNode = GetState(sourceName);
+                CompoundState? source = sourceNode as CompoundState;
+                StateNode? target = GetState(targetName);
+
+                StateMachine.RaiseTransition(source, target, eventName);
+
+                if (transition?.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        try
+                        {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing transition action: {ex.Message}");
+                        }
+                    }
+                }
+
+                // Entry - now properly await async operations
+                if (firstEntry != null)
+                {
+                    await StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName);
+                }
+
+                // Fire StateChanged event after transition is complete
+                StateMachine.RaiseStateChanged();
+            }
+            else
+            {
+                // action only transition
+                if (transition?.Actions != null)
+                {
+                    foreach (var action in transition.Actions)
+                    {
+                        try
+                        {
+                            // Notify action execution
+                            StateMachine.RaiseActionExecuted(action.Name, sourceName);
+                            action.Action(StateMachine);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error executing action: {ex.Message}");
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            Logger.Debug($"Condition not met for transition on event {eventName}");
+        }
+    }
+
+    private async Task ExecuteMultipleTargetsAsync(Transition transition, string eventName)
+    {
+        if (transition.TargetNames == null || StateMachine == null) return;
+
+        Logger.Info($"Executing async multiple target transition for event {eventName}");
+
+        // Execute transition actions once before any state changes
+        if (transition.Actions != null)
+        {
+            foreach (var action in transition.Actions)
+            {
+                try
+                {
+                    // Notify action execution
+                    StateMachine.RaiseActionExecuted(action.Name, transition.SourceName);
+                    action.Action(StateMachine);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error executing transition action: {ex.Message}");
+                }
+            }
+        }
+
+        // Process each target - now with proper async/await for parallel states
+        var tasks = new List<Task>();
+        foreach (var targetName in transition.TargetNames)
+        {
+            if (string.IsNullOrWhiteSpace(targetName)) continue;
+
+            tasks.Add(ProcessSingleTargetAsync(transition, targetName, eventName));
+        }
+
+        // Wait for all parallel transitions to complete
+        await Task.WhenAll(tasks);
+
+        // Fire StateChanged event after all transitions are complete
+        StateMachine.RaiseStateChanged();
+    }
+
+    private async Task ProcessSingleTargetAsync(Transition transition, string targetName, string eventName)
+    {
+        try
+        {
+            // Find the source state for this target in the parallel regions
+            var targetState = GetState(targetName);
+            if (targetState == null)
+            {
+                Logger.Warning($"Target state '{targetName}' not found");
+                return;
+            }
+
+            // Find the actual source state (parent of the target in parallel region)
+            var targetParent = targetState.Parent;
+            if (targetParent == null || StateMachine == null)
+            {
+                Logger.Warning($"Cannot determine source for target '{targetName}'");
+                return;
+            }
+
+            // Find the active state in the same region as the target
+            string? sourceName = null;
+            if (targetParent.ActiveStateName != null)
+            {
+                sourceName = targetParent.ActiveStateName;
+            }
+            else if (targetParent is ParallelState parallelState)
+            {
+                // For parallel states, we need to find which child contains the target
+                // Since parallel states have all regions active, we look for the active state in the region containing the target
+                foreach (var regionName in parallelState.SubStateNames)
+                {
+                    var region = GetState(regionName) as CompoundState;
+                    if (region?.ActiveStateName != null && IsStateInRegion(targetName, regionName))
+                    {
+                        sourceName = region.ActiveStateName;
+                        break;
+                    }
+                }
+            }
+
+            if (sourceName == null)
+            {
+                Logger.Warning($"No active source state found for target '{targetName}'");
+                return;
+            }
+
+            Logger.Debug($"Processing transition from '{sourceName}' to '{targetName}'");
+
+            // Perform the transition for this target
+            var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceName, targetName);
+
+            string? firstExit = exitList.FirstOrDefault();
+            string? firstEntry = entryList.FirstOrDefault();
+
+            // Exit - properly await async operations
+            if (firstExit != null)
+            {
+                await StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState);
+            }
+
+            Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
+
+            // Fire transition event
+            var sourceNode = GetState(sourceName);
+            CompoundState? source = sourceNode as CompoundState;
+            StateNode? target = GetState(targetName);
+            StateMachine.RaiseTransition(source, target, eventName);
+
+            // Entry - properly await async operations
+            if (firstEntry != null)
+            {
+                await StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error processing target '{targetName}': {ex.Message}");
+        }
+    }
+
+    private bool IsStateInRegion(string stateName, string regionName)
+    {
+        var state = GetState(stateName);
+        if (state == null) return false;
+
+        // Walk up the parent chain to see if we reach the region
+        var current = state.Parent;
+        while (current != null)
+        {
+            if (current.Name == regionName) return true;
+            current = current.Parent;
+        }
+        return false;
+    }
 }
 
 /// <summary>
-/// 
+///
 /// </summary>
 public abstract class Transition : StateObject
 {

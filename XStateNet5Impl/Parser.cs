@@ -23,7 +23,7 @@ public partial class StateMachine
     /// <param name="serviceCallbacks"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
+    internal static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
         ActionMap? actionCallbacks,
         GuardMap? guardCallbacks,
         ServiceMap? serviceCallbacks,
@@ -34,7 +34,7 @@ public partial class StateMachine
         return ParseStateMachine(stateMachine, jsonScript, false, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
     }
 
-    public static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
+    internal static StateMachine ParseStateMachine(StateMachine stateMachine, string? jsonScript,
         bool guidIsolate,
         ActionMap? actionCallbacks,
         GuardMap? guardCallbacks,

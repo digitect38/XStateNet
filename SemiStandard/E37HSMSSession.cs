@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 using Timer = System.Timers.Timer;
 
@@ -83,10 +84,10 @@ namespace SemiStandard.E37
             _stateMachine = StateMachineFactory.Create(config);
             
             // Setup timers
-            _t5Timer.Elapsed += (s, e) => _stateMachine.Send("T5_TIMEOUT");
-            _t6Timer.Elapsed += (s, e) => _stateMachine.Send("T6_TIMEOUT");
-            _t7Timer.Elapsed += (s, e) => _stateMachine.Send("T7_TIMEOUT");
-            _t8Timer.Elapsed += (s, e) => _stateMachine.Send("T8_TIMEOUT");
+            _t5Timer.Elapsed += async (s, e) => await _stateMachine.SendAsync("T5_TIMEOUT");
+            _t6Timer.Elapsed += async (s, e) => await _stateMachine.SendAsync("T6_TIMEOUT");
+            _t7Timer.Elapsed += async (s, e) => await _stateMachine.SendAsync("T7_TIMEOUT");
+            _t8Timer.Elapsed += async (s, e) => await _stateMachine.SendAsync("T8_TIMEOUT");
             
             // Register conditions
             _stateMachine.RegisterCondition("isPassiveMode", (ctx, evt) => _mode == HSMSMode.Passive);
@@ -194,15 +195,15 @@ namespace SemiStandard.E37
                 ctx["selectedEntity"] = null;
             });
             
-            _stateMachine.RegisterAction("incrementErrorCount", (ctx, evt) =>
+            _stateMachine.RegisterAction("incrementErrorCount", async (ctx, evt) =>
             {
                 var errorCount = (int)(ctx["errorCount"] ?? 0);
                 errorCount++;
                 ctx["errorCount"] = errorCount;
-                
+
                 if (errorCount >= 3)
                 {
-                    _stateMachine.Send("MAX_ERRORS_REACHED");
+                    await _stateMachine.SendAsync("MAX_ERRORS_REACHED");
                 }
             });
             
@@ -219,78 +220,152 @@ namespace SemiStandard.E37
             }
             else
             {
-                CurrentState = Enum.Parse<HSMSState>(state);
+                // Handle state names that include machine ID prefix (e.g., "#E37_HSMS_Session.NotConnected")
+                if (state.Contains('.'))
+                {
+                    state = state.Split('.').Last();
+                }
+                // Also handle state names that start with # and contain the actual state after underscore
+                if (state.Contains('_'))
+                {
+                    var parts = state.Split('_');
+                    var lastPart = parts.Last();
+                    if (Enum.TryParse<HSMSState>(lastPart, out var parsedState))
+                    {
+                        CurrentState = parsedState;
+                        return;
+                    }
+                }
+
+                if (Enum.TryParse<HSMSState>(state, out var hsmsState))
+                {
+                    CurrentState = hsmsState;
+                }
+                else
+                {
+                    CurrentState = HSMSState.NotConnected;
+                }
             }
         }
         
         // Connection Management
+        public async Task ConnectAsync()
+        {
+            await _stateMachine.SendAsync("TCP_CONNECT");
+            UpdateState();
+        }
+
         public void Connect()
         {
-            _stateMachine.Send("TCP_CONNECT");
+            ConnectAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task DisconnectAsync()
+        {
+            await _stateMachine.SendAsync("TCP_DISCONNECT");
             UpdateState();
         }
-        
+
         public void Disconnect()
         {
-            _stateMachine.Send("TCP_DISCONNECT");
+            DisconnectAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task EnableAsync()
+        {
+            await _stateMachine.SendAsync("ENABLE");
             UpdateState();
         }
-        
+
         public void Enable()
         {
-            _stateMachine.Send("ENABLE");
-            UpdateState();
+            EnableAsync().GetAwaiter().GetResult();
         }
         
         // Message Handling
-        public void ReceiveSelectRequest()
+        public async Task ReceiveSelectRequestAsync()
         {
-            _stateMachine.Send("SELECT_REQ");
+            await _stateMachine.SendAsync("SELECT_REQ");
             UpdateState();
         }
-        
-        public void ReceiveSelectResponse(int status)
+
+        public void ReceiveSelectRequest()
         {
-            _stateMachine.Send(new StateMachineEvent
+            ReceiveSelectRequestAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task ReceiveSelectResponseAsync(int status)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "SELECT_RSP",
                 Data = new SelectResponse { Status = status }
             });
             UpdateState();
         }
-        
+
+        public void ReceiveSelectResponse(int status)
+        {
+            ReceiveSelectResponseAsync(status).GetAwaiter().GetResult();
+        }
+
+        public async Task ReceiveDeselectRequestAsync()
+        {
+            await _stateMachine.SendAsync("DESELECT");
+            UpdateState();
+        }
+
         public void ReceiveDeselectRequest()
         {
-            _stateMachine.Send("DESELECT");
+            ReceiveDeselectRequestAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task ReceiveSeparateRequestAsync()
+        {
+            await _stateMachine.SendAsync("SEPARATE_REQ");
             UpdateState();
         }
-        
+
         public void ReceiveSeparateRequest()
         {
-            _stateMachine.Send("SEPARATE_REQ");
+            ReceiveSeparateRequestAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task ReceiveLinktestRequestAsync()
+        {
+            await _stateMachine.SendAsync("LINKTEST_REQ");
             UpdateState();
         }
-        
+
         public void ReceiveLinktestRequest()
         {
-            _stateMachine.Send("LINKTEST_REQ");
-            UpdateState();
+            ReceiveLinktestRequestAsync().GetAwaiter().GetResult();
         }
-        
-        public void ReceiveDataMessage(HSMSMessage message)
+
+        public async Task ReceiveDataMessageAsync(HSMSMessage message)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "DATA_MESSAGE",
                 Data = message
             });
             UpdateState();
         }
-        
+
+        public void ReceiveDataMessage(HSMSMessage message)
+        {
+            ReceiveDataMessageAsync(message).GetAwaiter().GetResult();
+        }
+
+        public async Task ReportCommunicationErrorAsync()
+        {
+            await _stateMachine.SendAsync("COMMUNICATION_ERROR");
+            UpdateState();
+        }
+
         public void ReportCommunicationError()
         {
-            _stateMachine.Send("COMMUNICATION_ERROR");
-            UpdateState();
+            ReportCommunicationErrorAsync().GetAwaiter().GetResult();
         }
         
         // Events

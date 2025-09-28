@@ -167,7 +167,7 @@ namespace XStateNet.Tests
             }
             """;
 
-            var machine = StateMachine.CreateFromScript(config);
+            var machine = StateMachineFactory.CreateFromScript(config, true);
             var stateChanges = new List<string>();
             var lockObj = new object();
 

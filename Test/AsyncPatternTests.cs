@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using XStateNet.Tests.TestInfrastructure;
 
 namespace XStateNet.Tests
 {
@@ -10,6 +11,7 @@ namespace XStateNet.Tests
     /// Tests demonstrating proper async patterns without fire-and-forget
     /// and without dangerous .GetAwaiter().GetResult()
     /// </summary>
+    [Collection("TimingSensitive")]
     public class AsyncPatternTests
     {
         private readonly ITestOutputHelper _output;
@@ -104,6 +106,7 @@ namespace XStateNet.Tests
         /// Demonstrates thread-safe state management
         /// </summary>
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task ThreadSafeStateManagement_NoConcurrencyIssues()
         {
             // Arrange

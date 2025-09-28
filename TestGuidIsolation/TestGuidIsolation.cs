@@ -35,10 +35,10 @@ class TestGuidIsolation
         Console.WriteLine("Creating machines WITHOUT guid isolation:");
         try
         {
-            var machine1 = StateMachine.CreateFromScript(trafficLightJson);
+            var machine1 = StateMachine.CreateFromScript(trafficLightJson, false);
             Console.WriteLine($"  Machine 1 ID: {machine1.machineId}");
 
-            var machine2 = StateMachine.CreateFromScript(trafficLightJson);
+            var machine2 = StateMachine.CreateFromScript(trafficLightJson, false);
             Console.WriteLine($"  Machine 2 ID: {machine2.machineId}");
 
             Console.WriteLine("  WARNING: Both machines have the same ID!");

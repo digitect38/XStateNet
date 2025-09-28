@@ -56,6 +56,13 @@ public interface IStateMachine : IDisposable
     Task<string> SendAsync(string eventName, object? eventData = null);
 
     /// <summary>
+    /// Sends an event in a fire-and-forget manner without waiting for completion
+    /// </summary>
+    /// <param name="eventName">The event name</param>
+    /// <param name="eventData">Optional event data</param>
+    void SendAndForget(string eventName, object? eventData = null);
+
+    /// <summary>
     /// Gets the active state as a string
     /// </summary>
     string GetActiveStateNames(bool leafOnly = true, string separator = ";");

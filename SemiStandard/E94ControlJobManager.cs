@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -74,14 +75,20 @@ public class E94ControlJobManager
     /// <summary>
     /// Delete control job
     /// </summary>
-    public bool DeleteControlJob(string jobId)
+    public async Task<bool> DeleteControlJobAsync(string jobId)
     {
         if (_controlJobs.TryRemove(jobId, out var job))
         {
-            job.Delete();
+            await job.DeleteAsync();
             return true;
         }
         return false;
+    }
+
+    // Backward compatibility
+    public bool DeleteControlJob(string jobId)
+    {
+        return DeleteControlJobAsync(jobId).GetAwaiter().GetResult();
     }
     
     /// <summary>
@@ -116,11 +123,19 @@ public class ControlJob
         CreatedTime = DateTime.UtcNow;
         ProcessedSubstrates = new List<string>();
         Properties = new ConcurrentDictionary<string, object>();
-        
+
         // Create control job state machine
         StateMachine = CreateControlJobStateMachine(jobId, jsonScript);
         StateMachine.Start();
-        StateMachine.Send("CREATE");
+        InitializeAsync().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Asynchronously initialize the control job
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        await StateMachine.SendAsync("CREATE");
     }
     
     /// <summary>
@@ -142,114 +157,192 @@ public class ControlJob
         var actionMap = new ActionMap();
         
         // Create state machine from JSON script
-        return StateMachine.CreateFromScript(jsonScript, actionMap);
+        return StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, true, actionMap);
     }
     
     /// <summary>
     /// Select the control job
     /// </summary>
+    public async Task SelectAsync()
+    {
+        await StateMachine.SendAsync("SELECT");
+    }
+
+    // Backward compatibility
     public void Select()
     {
-        StateMachine.Send("SELECT");
+        SelectAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Deselect the control job
     /// </summary>
+    public async Task DeselectAsync()
+    {
+        await StateMachine.SendAsync("DESELECT");
+    }
+
+    // Backward compatibility
     public void Deselect()
     {
-        StateMachine.Send("DESELECT");
+        DeselectAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Start the control job
     /// </summary>
+    public async Task StartAsync()
+    {
+        await StateMachine.SendAsync("START");
+        StartedTime = DateTime.UtcNow;
+    }
+
+    // Backward compatibility
     public void Start()
     {
-        StateMachine.Send("START");
-        StartedTime = DateTime.UtcNow;
+        StartAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Pause the control job
     /// </summary>
+    public async Task PauseAsync()
+    {
+        await StateMachine.SendAsync("PAUSE");
+    }
+
+    // Backward compatibility
     public void Pause()
     {
-        StateMachine.Send("PAUSE");
+        PauseAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Resume the control job
     /// </summary>
+    public async Task ResumeAsync()
+    {
+        await StateMachine.SendAsync("RESUME");
+    }
+
+    // Backward compatibility
     public void Resume()
     {
-        StateMachine.Send("RESUME");
+        ResumeAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Stop the control job
     /// </summary>
+    public async Task StopAsync()
+    {
+        await StateMachine.SendAsync("STOP");
+    }
+
+    // Backward compatibility
     public void Stop()
     {
-        StateMachine.Send("STOP");
+        StopAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Abort the control job
     /// </summary>
+    public async Task AbortAsync()
+    {
+        await StateMachine.SendAsync("ABORT");
+    }
+
+    // Backward compatibility
     public void Abort()
     {
-        StateMachine.Send("ABORT");
+        AbortAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Delete the control job
     /// </summary>
+    public async Task DeleteAsync()
+    {
+        await StateMachine.SendAsync("DELETE");
+    }
+
+    // Backward compatibility
     public void Delete()
     {
-        StateMachine.Send("DELETE");
+        DeleteAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal process started
     /// </summary>
+    public async Task ProcessStartAsync()
+    {
+        await StateMachine.SendAsync("PROCESS_START");
+    }
+
+    // Backward compatibility
     public void ProcessStart()
     {
-        StateMachine.Send("PROCESS_START");
+        ProcessStartAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal process completed
     /// </summary>
+    public async Task ProcessCompleteAsync()
+    {
+        await StateMachine.SendAsync("PROCESS_COMPLETE");
+        CompletedTime = DateTime.UtcNow;
+    }
+
+    // Backward compatibility
     public void ProcessComplete()
     {
-        StateMachine.Send("PROCESS_COMPLETE");
-        CompletedTime = DateTime.UtcNow;
+        ProcessCompleteAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal material arrival
     /// </summary>
+    public async Task MaterialInAsync(string carrierId)
+    {
+        await StateMachine.SendAsync("MATERIAL_IN");
+    }
+
+    // Backward compatibility
     public void MaterialIn(string carrierId)
     {
-        StateMachine.Send("MATERIAL_IN");
+        MaterialInAsync(carrierId).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal material departure
     /// </summary>
+    public async Task MaterialOutAsync(string carrierId)
+    {
+        await StateMachine.SendAsync("MATERIAL_OUT");
+    }
+
+    // Backward compatibility
     public void MaterialOut(string carrierId)
     {
-        StateMachine.Send("MATERIAL_OUT");
+        MaterialOutAsync(carrierId).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal material processed
     /// </summary>
-    public void MaterialProcessed(string substrateid)
+    public async Task MaterialProcessedAsync(string substrateid)
     {
         ProcessedSubstrates.Add(substrateid);
-        StateMachine.Send("MATERIAL_PROCESSED");
+        await StateMachine.SendAsync("MATERIAL_PROCESSED");
+    }
+
+    // Backward compatibility
+    public void MaterialProcessed(string substrateid)
+    {
+        MaterialProcessedAsync(substrateid).GetAwaiter().GetResult();
     }
     
     /// <summary>
@@ -257,6 +350,6 @@ public class ControlJob
     /// </summary>
     public string GetCurrentState()
     {
-        return StateMachine.GetActiveStateString();
+        return StateMachine.GetActiveStateNames();
     }
 }

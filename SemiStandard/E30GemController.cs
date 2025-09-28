@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -76,66 +77,66 @@ public class E30GemController
         var actionMap = new ActionMap();
         
         // Create state machine from JSON script
-        _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
+        _stateMachine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe:false, guidIsolate:true, actionMap);
         _stateMachine.Start();
     }
     
     /// <summary>
     /// Enable communication
     /// </summary>
-    public void Enable(bool immediate = false)
+    public async Task EnableAsync(bool immediate = false)
     {
-        _stateMachine.Send(immediate ? "ENABLE_IMMEDIATE" : "ENABLE");
+        await _stateMachine.SendAsync(immediate ? "ENABLE_IMMEDIATE" : "ENABLE");
     }
     
     /// <summary>
     /// Disable communication
     /// </summary>
-    public void Disable()
+    public async Task DisableAsync()
     {
-        _stateMachine.Send("DISABLE");
+        await _stateMachine.SendAsync("DISABLE");
     }
     
     /// <summary>
     /// Select equipment
     /// </summary>
-    public void Select()
+    public async Task SelectAsync()
     {
-        _stateMachine.Send("SELECT");
+        await _stateMachine.SendAsync("SELECT");
     }
     
     /// <summary>
     /// Deselect equipment
     /// </summary>
-    public void Deselect()
+    public async Task DeselectAsync()
     {
-        _stateMachine.Send("DESELECT");
+        await _stateMachine.SendAsync("DESELECT");
     }
     
     /// <summary>
     /// Go online
     /// </summary>
-    public void GoOnline(bool remote = true)
+    public async Task GoOnlineAsync(bool remote = true)
     {
-        _stateMachine.Send(remote ? "ONLINE_REMOTE" : "ONLINE_LOCAL");
+        await _stateMachine.SendAsync(remote ? "ONLINE_REMOTE" : "ONLINE_LOCAL");
     }
     
     /// <summary>
     /// Go offline
     /// </summary>
-    public void GoOffline()
+    public async Task GoOfflineAsync()
     {
-        _stateMachine.Send("OFFLINE");
+        await _stateMachine.SendAsync("OFFLINE");
     }
     
     /// <summary>
     /// Handle S1F13 communication request
     /// </summary>
-    public void HandleCommunicationRequest()
+    public async Task HandleCommunicationRequestAsync()
     {
-        _stateMachine.Send("RECEIVE_S1F13");
+        await _stateMachine.SendAsync("RECEIVE_S1F13");
         // Send S1F14 response
-        _stateMachine.Send("SEND_S1F14");
+        await _stateMachine.SendAsync("SEND_S1F14");
     }
     
     /// <summary>

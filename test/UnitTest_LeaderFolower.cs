@@ -36,26 +36,26 @@ namespace AdvancedFeatures
             var followerJson = LeaderFollowerStateMachine.FollowerStateMachineScript;
             var leaderJson = LeaderFollowerStateMachine.LeaderStateMachineScript;
 
-            _followerStateMachine = (StateMachine)StateMachine.CreateFromScript(followerJson, _followerActions, _followerGuards).Start();
-            _leaderStateMachine = (StateMachine)StateMachine.CreateFromScript(leaderJson, _leaderActions, _leaderGuards).Start();
+            _followerStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(followerJson, threadSafe: false, false, _followerActions, _followerGuards).Start();
+            _leaderStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(leaderJson, threadSafe: false, false, _leaderActions, _leaderGuards).Start();
         }
 
         [Fact]
         public async Task TestLeaderFollowerStateMachines()
         {
             // Initially, both state machines should be in state 'a'
-            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateString());
-            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateString());
+            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateNames());
+            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateNames());
 
             // Wait for the leader to send the 'to_b' event to the follower
             await Task.Delay(1100);
-            Assert.Equal("#follower.b", _followerStateMachine.GetActiveStateString());
-            Assert.Equal("#leader.b", _leaderStateMachine.GetActiveStateString());
+            Assert.Equal("#follower.b", _followerStateMachine.GetActiveStateNames());
+            Assert.Equal("#leader.b", _leaderStateMachine.GetActiveStateNames());
 
             // Wait for the leader to send the 'to_a' event to the follower
             await Task.Delay(1100);
-            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateString());
-            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateString());
+            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateNames());
+            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateNames());
         }
         
         public void Dispose()

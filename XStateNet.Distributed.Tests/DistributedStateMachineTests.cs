@@ -33,7 +33,7 @@ namespace XStateNet.Distributed.Tests
             }";
             
             // Act
-            var machine = new DistributedStateMachine(StateMachine.CreateFromScript(json, guidIsolate: true), "test-machine", "local://test");
+            var machine = new DistributedStateMachine(StateMachineFactory.CreateFromScript(json, guidIsolate: true), "test-machine", "local://test");
             _machines.Add(machine);
             
             // Assert
@@ -53,7 +53,7 @@ namespace XStateNet.Distributed.Tests
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -85,7 +85,7 @@ namespace XStateNet.Distributed.Tests
                     'running': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             
             var machine = new DistributedStateMachine(
                 baseMachine,
@@ -119,7 +119,7 @@ namespace XStateNet.Distributed.Tests
                     'active': {}
                 }
             }";
-            var baseMachine1 = StateMachine.CreateFromScript(json1, guidIsolate: true);
+            var baseMachine1 = StateMachineFactory.CreateFromScript(json1, guidIsolate: true);
             
             var machine1 = new DistributedStateMachine(
                 baseMachine1,
@@ -141,7 +141,7 @@ namespace XStateNet.Distributed.Tests
                     'running': {}
                 }
             }";
-            var baseMachine2 = StateMachine.CreateFromScript(json2, guidIsolate: true);
+            var baseMachine2 = StateMachineFactory.CreateFromScript(json2, guidIsolate: true);
             
             var machine2 = new DistributedStateMachine(
                 baseMachine2,
@@ -172,7 +172,7 @@ namespace XStateNet.Distributed.Tests
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -198,7 +198,7 @@ namespace XStateNet.Distributed.Tests
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -227,7 +227,7 @@ namespace XStateNet.Distributed.Tests
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
@@ -256,7 +256,7 @@ namespace XStateNet.Distributed.Tests
                     'idle': {}
                 }
             }";
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",

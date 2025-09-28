@@ -43,7 +43,7 @@ namespace TimelineWPF.PubSub
                 _registeredMachines[machineName] = machine;
 
                 // Get initial state
-                var initialState = machine.GetActiveStateString() ?? "initial";
+                var initialState = machine.GetActiveStateNames() ?? "initial";
                 
                 // If states not provided, try to extract from machine
                 if (states == null)

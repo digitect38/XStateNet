@@ -90,13 +90,13 @@ public class StateMachine_AlwaysTests
             ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))
         };
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, actions, guards).Start();
 
         _stateMachine!.RootState!.PrintActiveStateTree(0);
 
         _stateMachine!.ContextMap!["count"] = 0;
 
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         Assert.Equal("#counter.smallNumber", currentState);
 
         // Test incrementing to trigger always transition
@@ -106,7 +106,7 @@ public class StateMachine_AlwaysTests
         _stateMachine!.Send("INCREMENT");
         //_stateMachine.Send("INCREMENT");
 
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
 
         StateMachine.Log(">>>>> _stateMachine!.ContextMap![\"count\"] = " + _stateMachine!.ContextMap!["count"]);
         Assert.Equal("#counter.bigNumber", currentState);
@@ -116,7 +116,7 @@ public class StateMachine_AlwaysTests
         _stateMachine!.Send("DECREMENT");
         _stateMachine!.Send("DECREMENT");
 
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#counter.smallNumber");
     }
 }

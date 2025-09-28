@@ -216,7 +216,7 @@ namespace XStateNet.Distributed.Testing
                 var processor = DeterministicTestMode.Processor;
                 var beforeCount = processor.ProcessedEventCount;
 
-                machine.Send(eventName);
+                await machine.SendAsync(eventName);
 
                 // Process all events that were triggered
                 await processor.ProcessAllPendingEventsAsync();
@@ -226,7 +226,7 @@ namespace XStateNet.Distributed.Testing
             }
             else
             {
-                machine.Send(eventName);
+                await machine.SendAsync(eventName);
             }
         }
 

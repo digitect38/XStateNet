@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 
 namespace SemiStandard.E39E116E10
@@ -336,7 +337,31 @@ namespace SemiStandard.E39E116E10
             }
             else
             {
-                CurrentState = Enum.Parse<E10State>(state);
+                // Handle state names that include machine ID prefix
+                if (state.Contains('.'))
+                {
+                    state = state.Split('.').Last();
+                }
+                // Also handle state names that start with # and contain the actual state after underscore
+                if (state.Contains('_'))
+                {
+                    var parts = state.Split('_');
+                    var lastPart = parts.Last();
+                    if (Enum.TryParse<E10State>(lastPart, out var parsedState))
+                    {
+                        CurrentState = parsedState;
+                        return;
+                    }
+                }
+
+                if (Enum.TryParse<E10State>(state, out var e10State))
+                {
+                    CurrentState = e10State;
+                }
+                else
+                {
+                    CurrentState = E10State.NonScheduled;
+                }
             }
         }
         
@@ -416,47 +441,72 @@ namespace SemiStandard.E39E116E10
         }
         
         // Public methods for state transitions
-        public void Schedule()
+        public async Task ScheduleAsync()
         {
-            _stateMachine.Send("SCHEDULE");
+            await _stateMachine.SendAsync("SCHEDULE");
             UpdateState();
         }
-        
-        public void StartMaintenance(E116ReasonCode reasonCode)
+
+        public void Schedule()
         {
-            _stateMachine.Send(new StateMachineEvent
+            ScheduleAsync().GetAwaiter().GetResult();
+        }
+        
+        public async Task StartMaintenanceAsync(E116ReasonCode reasonCode)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "MAINTENANCE_SCHEDULED",
                 Data = new StateChangeData { ReasonCode = (int)reasonCode }
             });
             UpdateState();
         }
-        
-        public void CompleteMaintenance()
+
+        public void StartMaintenance(E116ReasonCode reasonCode)
         {
-            _stateMachine.Send("MAINTENANCE_COMPLETE");
-            UpdateState();
+            StartMaintenanceAsync(reasonCode).GetAwaiter().GetResult();
         }
         
-        public void ReportFault(string faultCode, string description)
+        public async Task CompleteMaintenanceAsync()
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync("MAINTENANCE_COMPLETE");
+            UpdateState();
+        }
+
+        public void CompleteMaintenance()
+        {
+            CompleteMaintenanceAsync().GetAwaiter().GetResult();
+        }
+        
+        public async Task ReportFaultAsync(string faultCode, string description)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "FAULT",
                 Data = new FaultData { FaultCode = faultCode, Description = description }
             });
             UpdateState();
         }
-        
-        public void CompleteRepair()
+
+        public void ReportFault(string faultCode, string description)
         {
-            _stateMachine.Send("REPAIR_COMPLETE");
-            UpdateState();
+            ReportFaultAsync(faultCode, description).GetAwaiter().GetResult();
         }
         
-        public void StartProcessing(string lotId, string recipeId, bool materialAvailable = true)
+        public async Task CompleteRepairAsync()
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync("REPAIR_COMPLETE");
+            UpdateState();
+        }
+
+        public void CompleteRepair()
+        {
+            CompleteRepairAsync().GetAwaiter().GetResult();
+        }
+        
+        public async Task StartProcessingAsync(string lotId, string recipeId, bool materialAvailable = true)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "START_PROCESSING",
                 Data = new ProcessingRequest
@@ -470,10 +520,15 @@ namespace SemiStandard.E39E116E10
             });
             UpdateState();
         }
-        
-        public void CompleteProcessing(int waferCount, int goodWafers)
+
+        public void StartProcessing(string lotId, string recipeId, bool materialAvailable = true)
         {
-            _stateMachine.Send(new StateMachineEvent
+            StartProcessingAsync(lotId, recipeId, materialAvailable).GetAwaiter().GetResult();
+        }
+        
+        public async Task CompleteProcessingAsync(int waferCount, int goodWafers)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "PROCESSING_COMPLETE",
                 Data = new ProcessingResult
@@ -484,21 +539,36 @@ namespace SemiStandard.E39E116E10
             });
             UpdateState();
         }
-        
-        public void StartEngineering(E116ReasonCode reasonCode)
+
+        public void CompleteProcessing(int waferCount, int goodWafers)
         {
-            _stateMachine.Send(new StateMachineEvent
+            CompleteProcessingAsync(waferCount, goodWafers).GetAwaiter().GetResult();
+        }
+        
+        public async Task StartEngineeringAsync(E116ReasonCode reasonCode)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "ENGINEERING_REQUEST",
                 Data = new StateChangeData { ReasonCode = (int)reasonCode }
             });
             UpdateState();
         }
+
+        public void StartEngineering(E116ReasonCode reasonCode)
+        {
+            StartEngineeringAsync(reasonCode).GetAwaiter().GetResult();
+        }
         
+        public async Task CompleteEngineeringAsync()
+        {
+            await _stateMachine.SendAsync("ENGINEERING_COMPLETE");
+            UpdateState();
+        }
+
         public void CompleteEngineering()
         {
-            _stateMachine.Send("ENGINEERING_COMPLETE");
-            UpdateState();
+            CompleteEngineeringAsync().GetAwaiter().GetResult();
         }
         
         // Get comprehensive metrics report

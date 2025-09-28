@@ -50,14 +50,14 @@ namespace XStateNet.Tests
                 }
             }";
 
-            var stateMachine = StateMachine.CreateFromScript(script, true);
+            var stateMachine = StateMachineFactory.CreateFromScript(script, false, true);
             stateMachine.Start();
             stateMachine.Send("START");
 
             // Warm up
             for (int i = 0; i < 100; i++)
             {
-                _ = stateMachine.GetActiveStateString();
+                _ = stateMachine.GetActiveStateNames();
             }
 
             const int iterations = 10000;
@@ -66,7 +66,7 @@ namespace XStateNet.Tests
             var sw1 = Stopwatch.StartNew();
             for (int i = 0; i < iterations; i++)
             {
-                _ = stateMachine.GetActiveStateString();
+                _ = stateMachine.GetActiveStateNames();
             }
             sw1.Stop();
             var cachedTime = sw1.ElapsedMilliseconds;
@@ -76,11 +76,11 @@ namespace XStateNet.Tests
             for (int i = 0; i < iterations / 3; i++)
             {
                 stateMachine.Send("NEXT1");
-                _ = stateMachine.GetActiveStateString();
+                _ = stateMachine.GetActiveStateNames();
                 stateMachine.Send("NEXT2");
-                _ = stateMachine.GetActiveStateString();
+                _ = stateMachine.GetActiveStateNames();
                 stateMachine.Send("NEXT3");
-                _ = stateMachine.GetActiveStateString();
+                _ = stateMachine.GetActiveStateNames();
             }
             sw2.Stop();
             var uncachedTime = sw2.ElapsedMilliseconds;
@@ -108,31 +108,31 @@ namespace XStateNet.Tests
                 }
             }";
 
-            var stateMachine = StateMachine.CreateFromScript(script);
+            var stateMachine = StateMachineFactory.CreateFromScript(script, false, true);
             stateMachine.Start();
 
             // Get initial state
-            var state1 = stateMachine.GetActiveStateString();
-            var state1Again = stateMachine.GetActiveStateString();
+            var state1 = stateMachine.GetActiveStateNames();
+            var state1Again = stateMachine.GetActiveStateNames();
             Assert.Equal(state1, state1Again); // Should be same (cached)
 
             // Change state
             stateMachine.Send("NEXT");
-            var state2 = stateMachine.GetActiveStateString();
+            var state2 = stateMachine.GetActiveStateNames();
             Assert.NotEqual(state1, state2); // Should be different
 
             // Multiple calls should return same value
-            var state2Again = stateMachine.GetActiveStateString();
+            var state2Again = stateMachine.GetActiveStateNames();
             Assert.Equal(state2, state2Again); // Should be same (cached)
 
             // Change state again
             stateMachine.Send("NEXT");
-            var state3 = stateMachine.GetActiveStateString();
+            var state3 = stateMachine.GetActiveStateNames();
             Assert.NotEqual(state2, state3); // Should be different
 
             // Verify full state string caching
-            var fullState = stateMachine.GetActiveStateString(leafOnly: false);
-            var fullStateAgain = stateMachine.GetActiveStateString(leafOnly: false);
+            var fullState = stateMachine.GetActiveStateNames(leafOnly: false);
+            var fullStateAgain = stateMachine.GetActiveStateNames(leafOnly: false);
             Assert.Equal(fullState, fullStateAgain); // Should be same (cached)
         }
     }

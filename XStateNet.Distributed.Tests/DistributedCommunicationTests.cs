@@ -74,7 +74,7 @@ namespace XStateNet.Distributed.Tests
                 new NamedAction("notifySync", (sm) => machine1Events.Add("SYNC_RECEIVED"))
             };
 
-            var baseMachine1 = StateMachine.CreateFromScript(machine1Json, guidIsolate: true, machine1Actions);
+            var baseMachine1 = StateMachineFactory.CreateFromScript(machine1Json, threadSafe: false, guidIsolate: true, machine1Actions);
             var distributedMachine1 = new DistributedStateMachine(
                 baseMachine1,
                 "trafficLight1",
@@ -127,7 +127,7 @@ namespace XStateNet.Distributed.Tests
                 })
             };
 
-            var baseMachine2 = StateMachine.CreateFromScript(machine2Json, guidIsolate: true, machine2Actions);
+            var baseMachine2 = StateMachineFactory.CreateFromScript(machine2Json, threadSafe: false, guidIsolate: true, machine2Actions);
             distributedMachine2 = new DistributedStateMachine(
                 baseMachine2,
                 "trafficLight2",
@@ -140,10 +140,7 @@ namespace XStateNet.Distributed.Tests
             distributedMachine2.Start();
 
             // Machine 2 requests sync from Machine 1
-            distributedMachine2.Send("REQUEST_SYNC");
-            
-            // Wait for communication
-            await Task.Delay(500);
+            await distributedMachine2.SendAsync("REQUEST_SYNC");
 
             // Assert
             machine2Events.Should().Contain("SENDING_SYNC");
@@ -241,7 +238,7 @@ namespace XStateNet.Distributed.Tests
             parentGuards["allChildrenComplete"] = new NamedGuard("allChildrenComplete", 
                 (sm) => childrenStatus.Values.All(v => v));
 
-            var parentBase = StateMachine.CreateFromScript(parentJson, guidIsolate: true, parentActions, parentGuards);
+            var parentBase = StateMachineFactory.CreateFromScript(parentJson, threadSafe: false, guidIsolate: true, parentActions, parentGuards);
             var parentMachine = new DistributedStateMachine(
                 parentBase,
                 "parent",
@@ -281,7 +278,7 @@ namespace XStateNet.Distributed.Tests
                     })
                 };
 
-                var childBase = StateMachine.CreateFromScript(childJson, guidIsolate: true, childActions);
+                var childBase = StateMachineFactory.CreateFromScript(childJson, threadSafe: false, guidIsolate: true, childActions);
                 var childMachine = new DistributedStateMachine(
                     childBase,
                     childId,
@@ -293,7 +290,7 @@ namespace XStateNet.Distributed.Tests
 
             // Act
             parentMachine.Start();
-            parentMachine.Send("START");
+            await parentMachine.SendAsync("START");
 
             // Wait for coordination
             var completed = await Task.WhenAny(
@@ -362,7 +359,7 @@ namespace XStateNet.Distributed.Tests
                     })
                 };
 
-                var workerBase = StateMachine.CreateFromScript(workerJson, guidIsolate: true, workerActions);
+                var workerBase = StateMachineFactory.CreateFromScript(workerJson, threadSafe: false, guidIsolate: true, workerActions);
                 var workerMachine = new DistributedStateMachine(
                     workerBase,
                     workerId,
@@ -376,8 +373,7 @@ namespace XStateNet.Distributed.Tests
             // Act - Distribute work
             foreach (var worker in workers)
             {
-                worker.Send("WORK");
-                await Task.Delay(50);
+                await worker.SendAsync("WORK");
             }
 
             // Process remaining work
@@ -385,9 +381,8 @@ namespace XStateNet.Distributed.Tests
             {
                 foreach (var worker in workers)
                 {
-                    worker.Send("WORK");
+                    await worker.SendAsync("WORK");
                 }
-                await Task.Delay(150);
             }
 
             // Assert
@@ -416,7 +411,7 @@ namespace XStateNet.Distributed.Tests
         }
 
         [Fact]
-        public void RemoteEventFormat_Should_RouteToCorrectMachine()
+        public async void RemoteEventFormat_Should_RouteToCorrectMachine()
         {
             // Arrange
             var machine1 = CreateTestMachine("router1", "local://router1");
@@ -426,7 +421,7 @@ namespace XStateNet.Distributed.Tests
             machine2.Start();
 
             // Act & Assert - Should not throw
-            Action act = () => machine1.Send("router2@REMOTE_EVENT");
+            Action act = () => machine1.SendAsync("router2@REMOTE_EVENT");
             act.Should().NotThrow();
         }
 
@@ -513,7 +508,7 @@ namespace XStateNet.Distributed.Tests
             var guards = new GuardMap();
             guards["isHealthy"] = new NamedGuard("isHealthy", (sm) => failureCount < 3);
 
-            var baseCircuitBreaker = StateMachine.CreateFromScript(circuitBreakerJson, guidIsolate: true, actions, guards);
+            var baseCircuitBreaker = StateMachineFactory.CreateFromScript(circuitBreakerJson, threadSafe: false, guidIsolate: true, actions, guards);
             var circuitBreaker = new DistributedStateMachine(
                 baseCircuitBreaker,
                 "circuitBreaker",
@@ -525,22 +520,19 @@ namespace XStateNet.Distributed.Tests
             circuitBreaker.Start();
 
             // Successful requests
-            circuitBreaker.Send("REQUEST");
-            circuitBreaker.Send("REQUEST");
+            await circuitBreaker.SendAsync("REQUEST");
+            await circuitBreaker.SendAsync("REQUEST");
             
             // Simulate failures
             failureCount = 3;
-            circuitBreaker.Send("REQUEST"); // This should trip the breaker
+            await circuitBreaker.SendAsync("REQUEST"); // This should trip the breaker
 
             // Try request while open
-            circuitBreaker.Send("REQUEST");
-            
-            // Wait for half-open state
-            await Task.Delay(5100);
+            await circuitBreaker.SendAsync("REQUEST");
             
             // Reset failure count and try again
             failureCount = 0;
-            circuitBreaker.Send("REQUEST");
+            await circuitBreaker.SendAsync("REQUEST");
 
             // Assert
             events.Should().Contain("REQUEST_HANDLED");
@@ -568,7 +560,7 @@ namespace XStateNet.Distributed.Tests
                 }}
             }}";
 
-            var baseMachine = StateMachine.CreateFromScript(json, guidIsolate: true);
+            var baseMachine = StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true);
             var distributedMachine = new DistributedStateMachine(
                 baseMachine,
                 id,

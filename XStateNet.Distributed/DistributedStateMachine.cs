@@ -160,53 +160,9 @@ namespace XStateNet.Distributed
         }
 
         /// <summary>
-        /// Send event locally or remotely based on target
-        /// </summary>
-        public void Send(string eventName)
-        {
-            // Check if this is a remote event (format: "machine@event")
-            if (eventName.Contains('@'))
-            {
-                var parts = eventName.Split('@');
-                if (parts.Length == 2)
-                {
-                    var targetMachine = parts[0];
-                    var actualEvent = parts[1];
-                    Task.Run(async () => await SendToMachineAsync(targetMachine, actualEvent));
-                    return;
-                }
-            }
-
-            // Local event
-            _stateMachine.Send(eventName);
-        }
-
-        /// <summary>
-        /// Send event asynchronously
-        /// </summary>
-        public async Task SendAsync(string eventName, object? eventData = null)
-        {
-            // Check if this is a remote event (format: "machine@event")
-            if (eventName.Contains('@'))
-            {
-                var parts = eventName.Split('@');
-                if (parts.Length == 2)
-                {
-                    var targetMachine = parts[0];
-                    var actualEvent = parts[1];
-                    await SendToMachineAsync(targetMachine, actualEvent, eventData);
-                    return;
-                }
-            }
-
-            // Local event
-            await _stateMachine.SendAsync(eventName, eventData);
-        }
-
-        /// <summary>
         /// Send event asynchronously and return the new state
         /// </summary>
-        public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
+        public async Task<string> SendAsync(string eventName, object? eventData = null)
         {
             // Check if this is a remote event (format: "machine@event")
             if (eventName.Contains('@'))
@@ -218,12 +174,12 @@ namespace XStateNet.Distributed
                     var actualEvent = parts[1];
                     await SendToMachineAsync(targetMachine, actualEvent, eventData);
                     // For remote events, return current state since we can't know remote state
-                    return _stateMachine.GetActiveStateString();
+                    return _stateMachine.GetActiveStateNames();
                 }
             }
 
             // Local event
-            return await _stateMachine.SendAsyncWithState(eventName, eventData);
+            return await _stateMachine.SendAsync(eventName, eventData);
         }
 
         /// <summary>
@@ -291,7 +247,7 @@ namespace XStateNet.Distributed
                         _logger?.LogDebug("Received event {EventName} from {From}", message.EventName, message.From);
                         
                         // Process the event in the state machine
-                        _stateMachine.Send(message.EventName);
+                        await _stateMachine.SendAsync(message.EventName);
                         
                         // If this is a request, send response
                         if (!string.IsNullOrEmpty(message.ReplyTo) && !string.IsNullOrEmpty(message.CorrelationId))

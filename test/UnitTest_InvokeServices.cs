@@ -57,52 +57,55 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestBasicInvokeService()
     {
-        var uniqueId = "TestBasicInvokeService_" + Guid.NewGuid().ToString("N");
-
         string script = @"
         {
-            ""id"": """ + uniqueId + @""",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""START"": ""fetching""
+            'id': 'machineId',
+            'initial': 'idle',
+            'states': {
+                'idle': {
+                    'on': {
+                        'START': 'fetching'
                     }
                 },
-                ""fetching"": {
-                    ""invoke"": {
-                        ""src"": ""fetchData"",
-                        ""onDone"": {
-                            ""target"": ""success"",
-                            ""actions"": ""handleSuccess""
+                'fetching': {
+                    'invoke': {
+                        'src': 'fetchData',
+                        'onDone': {
+                            'target': 'success',
+                            'actions': 'handleSuccess'
                         },
-                        ""onError"": {
-                            ""target"": ""failure"",
-                            ""actions"": ""handleError""
+                        'onError': {
+                            'target': 'failure',
+                            'actions': 'handleError'
                         }
                     }
                 },
-                ""success"": {
-                    ""type"": ""final""
+                'success': {
+                    'type': 'final'
                 },
-                ""failure"": {
-                    ""type"": ""final""
+                'failure': {
+                    'type': 'final'
                 }
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine!.Start();
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true, _actions, _guards, _services);
+        var stateString = await _stateMachine!.StartAsync();
         
-        Assert.Contains(uniqueId + ".idle", _stateMachine.GetActiveStateString());
+        Assert.Contains(".idle", stateString);
 
-        _stateMachine!.Send("START");
-        Assert.Contains(uniqueId + ".fetching", _stateMachine.GetActiveStateString());
+        stateString = await _stateMachine!.SendAsync("START");
+        Assert.Contains(".fetching", stateString);
 
-        // Wait for service to complete
-        await Task.Delay(200);
+        // Wait for service to complete - NOW TRULY EVENT-DRIVEN!
+        stateString = await _stateMachine!.WaitForStateAsync("success", 1000);
 
-        Assert.Contains(uniqueId + ".success", _stateMachine.GetActiveStateString());
+        Assert.Contains(".success", stateString);
+
+        // Give a tiny moment for actions to complete after state transition
+        // This is the minimal delay needed for action execution, not for state waiting
+        await Task.Delay(1);
+
         Assert.True(_serviceCompleted);
         Assert.Equal(1, _serviceCallCount);
         Assert.Equal("fetched data", _stateMachine.ContextMap!["data"]);
@@ -111,49 +114,51 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestInvokeServiceWithError()
     {
-        var uniqueId = "TestInvokeServiceWithError_" + Guid.NewGuid().ToString("N");
-
         string script = @"
         {
-            ""id"": """ + uniqueId + @""",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""START"": ""processing""
+            'id': 'machineId',
+            'initial': 'idle',
+            'states': {
+                'idle': {
+                    'on': {
+                        'START': 'processing'
                     }
                 },
-                ""processing"": {
-                    ""invoke"": {
-                        ""src"": ""failingService"",
-                        ""onDone"": {
-                            ""target"": ""success""
+                'processing': {
+                    'invoke': {
+                        'src': 'failingService',
+                        'onDone': {
+                            'target': 'success'
                         },
-                        ""onError"": {
-                            ""target"": ""error"",
-                            ""actions"": ""handleError""
+                        'onError': {
+                            'target': 'error',
+                            'actions': 'handleError'
                         }
                     }
                 },
-                ""success"": {
-                    ""type"": ""final""
+                'success': {
+                    'type': 'final'
                 },
-                ""error"": {
-                    ""type"": ""final""
+                'error': {
+                    'type': 'final'
                 }
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine!.Start();
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, _services);
+        await _stateMachine!.StartAsync();
         
-        _stateMachine!.Send("START");
-        Assert.Contains(uniqueId + ".processing", _stateMachine.GetActiveStateString());
+        var stateString = await _stateMachine!.SendAsync("START");
+        Assert.Contains(".processing", stateString);
 
         // Wait for service to fail
-        await Task.Delay(150);
+        // Wait for service to fail and transition to error state
+        stateString = await _stateMachine!.WaitForStateAsync("error", 1000);
+        Assert.Contains(".error", stateString);
 
-        Assert.Contains(uniqueId + ".error", _stateMachine.GetActiveStateString());
+        // Give a tiny moment for actions to complete after state transition
+        await Task.Delay(1);
+
         Assert.True(_errorOccurred);
         Assert.Equal("Service failed intentionally", _lastErrorMessage);
     }
@@ -161,79 +166,77 @@ public class UnitTest_InvokeServices : IDisposable
     [Fact]
     public async Task TestMultipleInvokedServices()
     {
-        var uniqueId = "TestMultipleInvokedServices_" + Guid.NewGuid().ToString("N");
-
         string script = @"
         {
-            ""id"": """ + uniqueId + @""",
-            ""initial"": ""idle"",
-            ""type"": ""parallel"",
-            ""states"": {
-                ""serviceA"": {
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""on"": {
-                                ""START"": ""running""
+            'id': 'machineId',
+            'initial': 'idle',
+            'type': 'parallel',
+            'states': {
+                'serviceA': {
+                    'initial': 'idle',
+                    'states': {
+                        'idle': {
+                            'on': {
+                                'START': 'running'
                             }
                         },
-                        ""running"": {
-                            ""invoke"": {
-                                ""src"": ""fetchData"",
-                                ""onDone"": { ""target"": ""complete"" }
+                        'running': {
+                            'invoke': {
+                                'src': 'fetchData',
+                                'onDone': { 'target': 'complete' }
                             }
                         },
-                        ""complete"": {
-                            ""type"": ""final""
+                        'complete': {
+                            'type': 'final'
                         }
                     }
                 },
-                ""serviceB"": {
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""on"": {
-                                ""START"": ""running""
+                'serviceB': {
+                    'initial': 'idle',
+                    'states': {
+                        'idle': {
+                            'on': {
+                                'START': 'running'
                             }
                         },
-                        ""running"": {
-                            ""invoke"": {
-                                ""src"": ""longRunningService"",
-                                ""onDone"": { ""target"": ""complete"" }
+                        'running': {
+                            'invoke': {
+                                'src': 'longRunningService',
+                                'onDone': { 'target': 'complete' }
                             }
                         },
-                        ""complete"": {
-                            ""type"": ""final""
+                        'complete': {
+                            'type': 'final'
                         }
                     }
                 }
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, _services);
-        _stateMachine!.Start();
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, _services);
+        await _stateMachine!.StartAsync();
         
-        _stateMachine!.Send("START");
+        var stateString = await _stateMachine!.SendAsync("START");
         
         // Both services should be running
-        var activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains(uniqueId + ".serviceA.running", activeStates);
-        Assert.Contains(uniqueId + ".serviceB.running", activeStates);
+        var activeStates = _stateMachine!.GetActiveStateNames();
+        Assert.Contains(".serviceA.running", activeStates);
+        Assert.Contains(".serviceB.running", activeStates);
 
         // Wait for shorter service
         await Task.Delay(200);
 
         // Service A should be complete
-        activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains(uniqueId + ".serviceA.complete", activeStates);
+        activeStates = _stateMachine!.GetActiveStateNames();
+        Assert.Contains(".serviceA.complete", activeStates);
 
         // Wait for longer service
         await Task.Delay(400);
 
         // Both services should be complete
-        activeStates = _stateMachine!.GetActiveStateString();
-        Assert.Contains(uniqueId + ".serviceA.complete", activeStates);
-        Assert.Contains(uniqueId + ".serviceB.complete", activeStates);
+        activeStates = _stateMachine!.GetActiveStateNames();
+        Assert.Contains(".serviceA.complete", activeStates);
+        Assert.Contains(".serviceB.complete", activeStates);
     }
     
     [Fact]
@@ -254,41 +257,39 @@ public class UnitTest_InvokeServices : IDisposable
             })
         };
         
-        var uniqueId = "TestServiceCancellationOnStateExit_" + Guid.NewGuid().ToString("N");
-
         string script = @"
         {
-            ""id"": """ + uniqueId + @""",
-            ""initial"": ""idle"",
-            ""states"": {
-                ""idle"": {
-                    ""on"": {
-                        ""START"": ""processing""
+            'id': 'machineId',
+            'initial': 'idle',
+            'states': {
+                'idle': {
+                    'on': {
+                        'START': 'processing'
                     }
                 },
-                ""processing"": {
-                    ""invoke"": {
-                        ""src"": ""cancellable""
+                'processing': {
+                    'invoke': {
+                        'src': 'cancellable'
                     },
-                    ""on"": {
-                        ""CANCEL"": ""cancelled""
+                    'on': {
+                        'CANCEL': 'cancelled'
                     }
                 },
-                ""cancelled"": {
-                    ""type"": ""final""
+                'cancelled': {
+                    'type': 'final'
                 }
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, cancellableService);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, cancellableService);
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
-        Assert.Contains(uniqueId + ".processing", _stateMachine.GetActiveStateString());
+        Assert.Contains(".processing", _stateMachine.GetActiveStateNames());
 
         // Cancel should exit the state and cancel the service
         _stateMachine!.Send("CANCEL");
-        Assert.Contains(uniqueId + ".cancelled", _stateMachine.GetActiveStateString());
+        Assert.Contains(".cancelled", _stateMachine.GetActiveStateNames());
         
         // Note: In a real implementation, we'd need to verify the service was actually cancelled
         // This would require more sophisticated service management in the StateMachines

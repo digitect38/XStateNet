@@ -7,10 +7,13 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using XStateNet.Semi.Transport;
+using XStateNet.Tests.TestInfrastructure;
 using Microsoft.Extensions.Logging;
 
 namespace XStateNet.Tests
 {
+    [TestCaseOrderer("XStateNet.Tests.TestInfrastructure.PriorityOrderer", "XStateNet.Tests")]
+    [Collection("TimingSensitive")]
     public class ThreadSafeCircuitBreakerTests
     {
         private readonly ITestOutputHelper _output;
@@ -23,6 +26,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_OpensAfterThreshold_NoRaceCondition()
         {
             // Arrange
@@ -65,6 +69,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_HalfOpenToClosedTransition_ThreadSafe()
         {
             // Arrange
@@ -131,6 +136,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_HalfOpenFailure_ReOpensImmediately()
         {
             // Arrange
@@ -148,37 +154,72 @@ namespace XStateNet.Tests
             breaker.RecordFailure();
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Open, breaker.State);
 
-            // Wait for timeout to transition to half-open
+            // Wait for circuit to timeout and allow half-open
             await Task.Delay(60);
 
-            // Act - Multiple threads attempt operations, first failure should re-open
-            var failureRecorded = new TaskCompletionSource<bool>();
+            // Act - Test half-open failure
+            var halfOpenExecuted = false;
+            var exceptionThrown = false;
+
+            try
+            {
+                await breaker.ExecuteAsync<bool>(async ct =>
+                {
+                    halfOpenExecuted = true;
+                    await Task.Delay(1, ct);
+                    throw new InvalidOperationException("Test failure in half-open");
+                });
+            }
+            catch (CircuitBreakerOpenException)
+            {
+                // Circuit might still be open if timing is off
+                _output.WriteLine("Circuit still open, retrying after delay");
+                await Task.Delay(50);
+
+                try
+                {
+                    await breaker.ExecuteAsync<bool>(async ct =>
+                    {
+                        halfOpenExecuted = true;
+                        await Task.Delay(1, ct);
+                        throw new InvalidOperationException("Test failure in half-open");
+                    });
+                }
+                catch (InvalidOperationException)
+                {
+                    exceptionThrown = true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                exceptionThrown = true;
+            }
+
+            // Now run concurrent tasks that should all be rejected
+            var rejectedCount = 0;
             var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
             {
                 try
                 {
-                    await breaker.ExecuteAsync(async ct =>
+                    await breaker.ExecuteAsync<bool>(async ct =>
                     {
-                        // First thread to execute will fail
-                        if (failureRecorded.TrySetResult(true))
-                        {
-                            await Task.Delay(5, ct);
-                            throw new InvalidOperationException("Test failure in half-open");
-                        }
-
-                        // Other threads should be rejected
-                        await failureRecorded.Task;
                         await Task.Delay(1, ct);
                         return true;
                     });
                 }
-                catch { /* Expected */ }
+                catch (CircuitBreakerOpenException)
+                {
+                    Interlocked.Increment(ref rejectedCount);
+                }
             }));
 
             await Task.WhenAll(tasks);
 
             // Assert
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Open, breaker.State);
+            Assert.True(halfOpenExecuted, "Half-open test should have been executed");
+            Assert.True(exceptionThrown, "Exception should have been thrown in half-open");
+            Assert.True(rejectedCount > 0, $"At least some operations should have been rejected, got {rejectedCount}");
 
             // Should have transitioned: Closed -> Open -> HalfOpen -> Open
             var transitions = stateTransitions.ToList();
@@ -187,10 +228,11 @@ namespace XStateNet.Tests
                 t.newState == ThreadSafeCircuitBreaker.CircuitState.Open &&
                 t.reason.Contains("half-open", StringComparison.OrdinalIgnoreCase));
 
-            _output.WriteLine($"Recorded {transitions.Count} state transitions");
+            _output.WriteLine($"Recorded {transitions.Count} state transitions, {rejectedCount} operations rejected");
         }
 
         [Fact]
+        [TestPriority(TestPriority.High)]
         public async Task CircuitBreaker_ConcurrentSuccessAndFailure_MaintainsConsistentState()
         {
             // Arrange
@@ -251,64 +293,87 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.High)]
         public async Task CircuitBreaker_Reset_ClearsAllState()
         {
             // Arrange
             var breaker = new ThreadSafeCircuitBreaker(
                 failureThreshold: 2,
-                openDuration: TimeSpan.FromSeconds(10), // Long duration
+                openDuration: TimeSpan.FromSeconds(10), // Long duration to ensure it doesn't auto-recover
                 logger: _logger);
 
-            // Open the circuit
+            // Open the circuit deterministically
             breaker.RecordFailure();
             breaker.RecordFailure();
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Open, breaker.State);
+            Assert.Equal(2, breaker.FailureCount);
 
-            var resetComplete = new TaskCompletionSource<bool>();
-
-            // Act - Concurrent operations during reset
-            var operationTasks = Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
+            // Verify circuit is open - operations should be rejected
+            var beforeResetRejected = false;
+            try
             {
-                for (int i = 0; i < 5; i++)
+                await breaker.ExecuteAsync(async ct =>
                 {
-                    if (i == 2) // Reset in the middle
-                    {
-                        breaker.Reset();
-                        resetComplete.TrySetResult(true);
-                    }
+                    await Task.Yield(); // Minimal async operation
+                    return true;
+                });
+            }
+            catch (CircuitBreakerOpenException)
+            {
+                beforeResetRejected = true;
+            }
+            Assert.True(beforeResetRejected, "Circuit should reject operations when open");
 
-                    await resetComplete.Task;
+            // Act - Reset the circuit
+            breaker.Reset();
 
-                    try
-                    {
-                        await breaker.ExecuteAsync(async ct =>
-                        {
-                            await Task.Delay(1, ct);
-                            return true;
-                        });
-                    }
-                    catch (CircuitBreakerOpenException)
-                    {
-                        // Should not happen after reset
-                        Assert.True(false, "Circuit should be closed after reset");
-                    }
-                }
-            }));
-
-            await Task.WhenAll(operationTasks);
-
-            // Assert
+            // Verify reset state
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Closed, breaker.State);
             Assert.Equal(0, breaker.FailureCount);
+            Assert.Equal(0, breaker.SuccessCount);
 
+            // Verify circuit is now closed - operations should succeed
+            var afterResetSucceeded = false;
+            try
+            {
+                var result = await breaker.ExecuteAsync(async ct =>
+                {
+                    await Task.Yield(); // Minimal async operation
+                    return true;
+                });
+                afterResetSucceeded = result;
+            }
+            catch (CircuitBreakerOpenException)
+            {
+                afterResetSucceeded = false;
+            }
+            Assert.True(afterResetSucceeded, "Circuit should allow operations after reset");
+
+            // Verify stats are cleared
             var stats = breaker.GetStats();
             Assert.Null(stats.OpenedTime);
             Assert.Equal(0, stats.RemainingOpenTime);
+            Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Closed, stats.State);
 
-            _output.WriteLine("Reset completed successfully with concurrent operations");
+            // Test concurrent operations after reset to ensure thread-safety
+            var concurrentTasks = new Task<bool>[10];
+            for (int i = 0; i < concurrentTasks.Length; i++)
+            {
+                concurrentTasks[i] = breaker.ExecuteAsync(async ct =>
+                {
+                    await Task.Yield();
+                    return true;
+                });
+            }
+
+            var results = await Task.WhenAll(concurrentTasks);
+            Assert.All(results, r => Assert.True(r, "All operations should succeed after reset"));
+
+            _output.WriteLine($"Reset test completed: Circuit state={breaker.State}, FailureCount={breaker.FailureCount}, SuccessCount={breaker.SuccessCount}");
         }
 
         [Fact]
+        [TestPriority(TestPriority.High)]
         public async Task CircuitBreaker_Statistics_ThreadSafeReads()
         {
             // Arrange
@@ -377,6 +442,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_NoThunderingHerd_OnHalfOpenTransition()
         {
             // Arrange

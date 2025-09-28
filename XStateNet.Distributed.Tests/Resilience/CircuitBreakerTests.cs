@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 using Xunit;
 using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Tests.TestHelpers;
+using XStateNet.Distributed.Tests.TestInfrastructure;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
+    [Collection("TimingSensitive")]
     public class CircuitBreakerTests
     {
         [Fact]
@@ -403,6 +405,7 @@ namespace XStateNet.Distributed.Tests.Resilience
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_ThreadSafe_ConcurrentOperations()
         {
             // Arrange

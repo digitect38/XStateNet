@@ -18,7 +18,7 @@ namespace VideoPlayerStateMachineTests
         [Fact]
         public async Task TestInvokeStartVideoService()
         {
-            var stateMachineJson = @"{
+            var jsonScript = @"{
                 'id': 'What is a state machine?',
                 'initial': 'Closed',
                 'states': {
@@ -75,7 +75,7 @@ namespace VideoPlayerStateMachineTests
                 })
             };
 
-            _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, actions, guards, services).Start();
+            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe:false, false, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
             Assert.False(_serviceInvoked);
@@ -84,7 +84,7 @@ namespace VideoPlayerStateMachineTests
             _stateMachine!.Send("PLAY");
 
             // Assert the current state
-            var currentState = _stateMachine!.GetActiveStateString();
+            var currentState = _stateMachine!.GetActiveStateNames();
             Assert.Equal("#What is a state machine?.Opened.Playing", currentState);
 
             // Wait for the asynchronous service to be invoked

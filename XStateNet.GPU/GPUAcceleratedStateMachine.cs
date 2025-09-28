@@ -50,7 +50,7 @@ namespace XStateNet.GPU
             _complexityReport = StateMachineComplexityAnalyzer.Analyze(definitionJson);
 
             // Use guidIsolate for master machine to avoid conflicts
-            _masterMachine = StateMachine.CreateFromScript(definitionJson, true);
+            _masterMachine = StateMachineFactory.CreateFromScript(definitionJson, false, true);
             _stateMap = new ConcurrentDictionary<string, int>();
             _eventMap = new ConcurrentDictionary<string, int>();
             _cpuInstances = new List<StateMachine>();
@@ -86,7 +86,7 @@ namespace XStateNet.GPU
             _logger.Information("Using CPU execution for {InstanceCount} instances", instanceCount);
             for (int i = 0; i < instanceCount; i++)
             {
-                var instance = StateMachine.CreateFromScript(_definitionJson, true);
+                var instance = StateMachineFactory.CreateFromScript(_definitionJson, false, true);
                 instance.Start(); // Start instances so they can process events
                 _cpuInstances.Add(instance);
             }
@@ -388,7 +388,7 @@ namespace XStateNet.GPU
             }
             else if (instanceId < _cpuInstances.Count)
             {
-                var stateString = _cpuInstances[instanceId].GetActiveStateString();
+                var stateString = _cpuInstances[instanceId].GetActiveStateNames();
                 // Extract simple state name
                 int lastDot = stateString.LastIndexOf('.');
                 return lastDot >= 0 ? stateString.Substring(lastDot + 1) : stateString;

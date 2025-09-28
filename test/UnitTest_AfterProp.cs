@@ -98,7 +98,7 @@ public class AfterTests : IDisposable
             'initial': 'red'
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(stateMachineJson, actions, guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, actions, guards);
         _stateMachine!.Start();
 
 
@@ -111,15 +111,15 @@ public class AfterTests : IDisposable
         await Task.Delay(450);
 
         // Assert that the 'after' transition has not occurred yet
-        var currentStatesBefore = _stateMachine?.GetActiveStateString();
+        var currentStatesBefore = _stateMachine?.GetActiveStateNames();
         Assert.Equal($"#{uniqueId}.red", currentStatesBefore);
 
         // Wait longer than the 'after' delay
         await Task.Delay(100);
 
         // State should now be 'green'
-        _stateMachine?.PrintCurrentStatesString();
-        var currentStates = _stateMachine?.GetActiveStateString();
+        //_stateMachine?.PrintCurrentStatesString();
+        var currentStates = _stateMachine?.GetActiveStateNames();
 
         cxtlog = _stateMachine?.ContextMap?["log"]?.ToString();
         // Assert
@@ -155,15 +155,15 @@ public class AfterTests : IDisposable
             'initial': 'red'
         }";
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, true, actions, guards);
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, true, actions, guards);
         _stateMachine.Start();
 
         // Wait for the after transition to occur
         await Task.Delay(600); // Wait longer than the 'after' delay
 
-        _stateMachine.PrintCurrentStatesString(); // State should still be 'red'
+        //_stateMachine.PrintCurrentStatesString(); // State should still be 'red'
 
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         // Assert
         string? log = _stateMachine?.ContextMap?["log"]?.ToString();
         Assert.Equal($"{_stateMachine!.machineId}.red", currentState);

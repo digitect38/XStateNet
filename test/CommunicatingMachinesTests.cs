@@ -36,30 +36,21 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             }
         }
 
-        public static async Task WaitForStateAsync(
-            ParentMachine parent,
-            string expectedState,
-            int timeoutMs = 5000)
+        public static async Task WaitForStateAsync(ParentMachine parent, string expectedState, int timeoutMs = 5000)
         {
             await WaitForConditionAsync(
                 () => parent.GetCurrentState().Contains(expectedState),
                 timeoutMs);
         }
         
-        public static async Task WaitForEventLogAsync(
-            ParentMachine parent,
-            string expectedLog,
-            int timeoutMs = 5000)
+        public static async Task WaitForEventLogAsync(ParentMachine parent, string expectedLog, int timeoutMs = 5000)
         {
             await WaitForConditionAsync(
                 () => parent.EventLog.Any(e => e.Contains(expectedLog)),
                 timeoutMs);
         }
 
-        public static async Task WaitForEventLogAsync(
-            ParentMachine parent,
-            Func<string, bool> predicate,
-            int timeoutMs = 5000)
+        public static async Task WaitForEventLogAsync(ParentMachine parent, Func<string, bool> predicate, int timeoutMs = 5000)
         {
             await WaitForConditionAsync(
                 () => parent.EventLog.Any(predicate),
@@ -155,7 +146,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 })
             };
             
-            _stateMachine = StateMachine.CreateFromScript(jsonScript, guidIsolate: true, actionMap);
+            _stateMachine = StateMachineFactory.CreateFromScript(jsonScript, false, false, actionMap);
             await _stateMachine.StartAsync();
         }
         
@@ -331,7 +322,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
                 })
             };
             
-            _stateMachine = StateMachine.CreateFromScript(jsonScript, guidIsolate: true, actionMap);
+            _stateMachine = StateMachineFactory.CreateFromScript(jsonScript, false, true, actionMap);
         }
         
         public void Start()
@@ -721,7 +712,7 @@ public class CommunicatingMachinesTests : XStateNet.Tests.TestBase
             }}
         }}";
         
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = StateMachineFactory.CreateFromScript(json, false, guidIsolate: true);
         machine.Start();
         return machine;
     }

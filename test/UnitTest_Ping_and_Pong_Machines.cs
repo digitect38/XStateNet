@@ -70,8 +70,8 @@ namespace AdvancedFeatures
             };
             _pongGuards = new GuardMap();
 
-            StateMachine.CreateFromScript(_pingStateMachine, pingJson, _pingActions, _pingGuards);
-            StateMachine.CreateFromScript(_pongStateMachine, pongJson, _pongActions, _pongGuards);
+            StateMachineFactory.CreateFromScript(_pingStateMachine, pingJson, false, false, _pingActions, _pingGuards);
+            StateMachineFactory.CreateFromScript(_pongStateMachine, pongJson, false, false, _pongActions, _pongGuards);
 
             _pingStateMachine.ActionMap = _pingActions;
             _pingStateMachine.GuardMap = _pingGuards;
@@ -141,23 +141,23 @@ namespace AdvancedFeatures
             try
             {
                 // Initially, both state machines should be in state 'a'
-            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateString());
-            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateNames());
+            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateNames());
 
             // Wait for the ping to send the 'to_b' event to pong
             await Task.Delay(1100);
-            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateString());
-            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateNames());
+            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateNames());
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateString());
-            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pingId}.a", _pingStateMachine.GetActiveStateNames());
+            Assert.Equal($"#{_pongId}.a", _pongStateMachine.GetActiveStateNames());
 
             // Wait for the pong to send the 'to_a' event to ping
             await Task.Delay(1100);
-            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateString());
-            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateString());
+            Assert.Equal($"#{_pingId}.b", _pingStateMachine.GetActiveStateNames());
+            Assert.Equal($"#{_pongId}.b", _pongStateMachine.GetActiveStateNames());
 
             // Check transition log
             foreach (var log in _transitionLog)

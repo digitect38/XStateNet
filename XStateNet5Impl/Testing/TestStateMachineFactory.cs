@@ -98,13 +98,13 @@ namespace XStateNet.Testing
         /// <summary>
         /// Reset all state machines (useful between test methods)
         /// </summary>
-        public void ResetAll()
+        public async void ResetAll()
         {
             foreach (var machine in _machines.Values)
             {
                 try
                 {
-                    machine.Send("RESET");
+                    await machine.SendAsync("RESET");
                 }
                 catch
                 {
@@ -124,7 +124,7 @@ namespace XStateNet.Testing
             {
                 try
                 {
-                    kvp.Value.Send("DISPOSE");
+                    kvp.Value.SendAsync("DISPOSE").GetAwaiter().GetResult();
                 }
                 catch
                 {
@@ -208,14 +208,24 @@ namespace XStateNet.Testing
         /// <summary>
         /// Send event and wait for state transition
         /// </summary>
+        public static async Task<bool> SendAndWaitForStateAsync(
+            StateMachine machine,
+            string eventName,
+            string expectedState,
+            TimeSpan timeout)
+        {
+            await machine.SendAsync(eventName);
+            return WaitForState(machine, expectedState, timeout);
+        }
+
+        // Backward compatibility - synchronous version
         public static bool SendAndWaitForState(
             StateMachine machine,
             string eventName,
             string expectedState,
             TimeSpan timeout)
         {
-            machine.Send(eventName);
-            return WaitForState(machine, expectedState, timeout);
+            return SendAndWaitForStateAsync(machine, eventName, expectedState, timeout).GetAwaiter().GetResult();
         }
 
         /// <summary>

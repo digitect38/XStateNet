@@ -8,9 +8,12 @@ using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using System.Diagnostics;
+using XStateNet.Distributed.Tests.TestInfrastructure;
 
 namespace XStateNet.Distributed.Tests.PubSub
 {
+    [TestCaseOrderer("XStateNet.Distributed.Tests.TestInfrastructure.PriorityOrderer", "XStateNet.Distributed.Tests")]
+    [Collection("TimingSensitive")]
     public class EventNotificationServiceTests : IDisposable
     {
         private readonly ILoggerFactory _loggerFactory;
@@ -25,11 +28,12 @@ namespace XStateNet.Distributed.Tests.PubSub
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task EventNotificationService_PublishesStateChanges()
         {
             // Arrange
-            var machineId = "test-machine" + Guid.NewGuid().ToString("N");
-            var machine = CreateTestStateMachine(machineId);
+            var machine = CreateTestStateMachine("test-machine");
+            var machineId = machine.machineId;
             var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 
@@ -60,7 +64,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             // Now start the machine which will fire the initial state event
             // The service is already listening, so it should capture the event
-            machine.Start();
+            await machine.StartAsync();
 
             // Wait for initial state to be published deterministically
             //using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
@@ -614,7 +618,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 ["canPause"] = new NamedGuard("canPause", sm => true)
             };
 
-            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true, actionMap, guardMap);
+            return XStateNet.StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true, actionMap, guardMap);
         }
 
         public void Dispose()

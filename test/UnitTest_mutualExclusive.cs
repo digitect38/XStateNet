@@ -58,7 +58,7 @@ public class MutualExclusionTests : IDisposable
             }}
         }}";
 
-        var stateMachine = StateMachine.CreateFromScript(jsonScript, actionCallbacks, guardCallbacks);
+        var stateMachine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, false, actionCallbacks, guardCallbacks);
         stateMachine!.Start();
         return stateMachine;
     }
@@ -69,7 +69,7 @@ public class MutualExclusionTests : IDisposable
         var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class MutualExclusionTests : IDisposable
         stateMachine!.Send("OPEN");
         stateMachine!.Send("SHOOT");
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class MutualExclusionTests : IDisposable
 
         stateMachine!.Send("SHOOT");
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
 
@@ -107,7 +107,7 @@ public class MutualExclusionTests : IDisposable
         stateMachine!.Send("SHOOT");
         stateMachine!.Send("CLOSE");
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class MutualExclusionTests : IDisposable
         stateMachine!.Send("DONE");
         stateMachine!.Send("CLOSE");
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public class MutualExclusionTests : IDisposable
         stateMachine!.Send("SHOOT");
         stateMachine!.Send("DONE");
 
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.open");
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.open");
     }
 
     [Fact]
@@ -146,8 +146,8 @@ public class MutualExclusionTests : IDisposable
 
         stateMachine!.Send("OPEN");
         stateMachine!.Send("CLOSE");
-        var stateString = stateMachine!.GetActiveStateString();
-        stateMachine!.GetActiveStateString().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        var stateString = stateMachine!.GetActiveStateNames();
+        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
     }
     
     public void Dispose()

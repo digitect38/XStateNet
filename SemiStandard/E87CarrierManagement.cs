@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -102,7 +103,7 @@ public class E87CarrierManagement
     /// <summary>
     /// Carrier arrives at load port
     /// </summary>
-    public CarrierStateMachine? CarrierArrived(string carrierId, string portId, int slotCount = 25)
+    public async Task<CarrierStateMachine?> CarrierArrivedAsync(string carrierId, string portId, int slotCount = 25)
     {
         if (!_loadPorts.TryGetValue(portId, out var loadPort))
             return null;
@@ -113,9 +114,9 @@ public class E87CarrierManagement
         {
             _carriers[carrierId] = carrier;
             loadPort.CurrentCarrierId = carrierId;
-            loadPort.StateMachine.Send("CARRIER_PLACED");
-            
-            AddCarrierHistory(carrierId, "WaitingForHost", 
+            _ = Task.Run(async () => await loadPort.StateMachine.SendAsync("CARRIER_PLACED"));
+
+            AddCarrierHistory(carrierId, "WaitingForHost",
                 $"Carrier arrived at load port {portId}");
         }
         
@@ -125,7 +126,7 @@ public class E87CarrierManagement
     /// <summary>
     /// Update carrier slot map after mapping
     /// </summary>
-    public void UpdateSlotMap(string carrierId, ConcurrentDictionary<int, SlotState> slotMap)
+    public async Task UpdateSlotMapAsync(string carrierId, ConcurrentDictionary<int, SlotState> slotMap)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
@@ -141,7 +142,7 @@ public class E87CarrierManagement
                 carrier.SubstrateCount = carrier.SlotMap.Count(s => s.Value == SlotState.Present);
                 
                 // Send mapping complete event to carrier state machine
-                carrier.StateMachine.Send("MAPPING_COMPLETE");
+                _ = Task.Run(async () => await carrier.StateMachine.SendAsync("MAPPING_COMPLETE"));
                 
                 AddCarrierHistory(carrierId, "InAccess", 
                     $"Slot map updated: {carrier.SubstrateCount} substrates present");
@@ -166,11 +167,11 @@ public class E87CarrierManagement
     /// <summary>
     /// Start accessing carrier
     /// </summary>
-    public void StartAccess(string carrierId)
+    public async Task StartAccessAsync(string carrierId)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
-            carrier.StateMachine.Send("START_ACCESS");
+            await carrier.StateMachine.SendAsync("START_ACCESS");
             AddCarrierHistory(carrierId, "InAccess", "Started carrier access");
         }
     }
@@ -178,11 +179,11 @@ public class E87CarrierManagement
     /// <summary>
     /// Complete carrier access
     /// </summary>
-    public void CompleteAccess(string carrierId)
+    public async Task CompleteAccessAsync(string carrierId)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
-            carrier.StateMachine.Send("ACCESS_COMPLETE");
+            await carrier.StateMachine.SendAsync("ACCESS_COMPLETE");
             AddCarrierHistory(carrierId, "Complete", "Carrier access completed");
         }
     }
@@ -190,22 +191,22 @@ public class E87CarrierManagement
     /// <summary>
     /// Carrier departed from load port
     /// </summary>
-    public bool CarrierDeparted(string carrierId)
+    public async Task<bool> CarrierDepartedAsync(string carrierId)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
             lock (_updateLock)
             {
                 carrier.DepartedTime = DateTime.UtcNow;
-                carrier.StateMachine.Send("CARRIER_REMOVED");
-                
+                _ = Task.Run(async () => await carrier.StateMachine.SendAsync("CARRIER_REMOVED"));
+
                 // Clear load port
                 if (!string.IsNullOrEmpty(carrier.LoadPortId))
                 {
                     if (_loadPorts.TryGetValue(carrier.LoadPortId, out var loadPort))
                     {
                         loadPort.CurrentCarrierId = null;
-                        loadPort.StateMachine.Send("CARRIER_REMOVED");
+                        _ = Task.Run(async () => await loadPort.StateMachine.SendAsync("CARRIER_REMOVED"));
                     }
                 }
                 
@@ -268,11 +269,11 @@ public class E87CarrierManagement
     /// <summary>
     /// Start carrier processing
     /// </summary>
-    public bool StartCarrierProcessing(string carrierId)
+    public async Task<bool> StartCarrierProcessingAsync(string carrierId)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
-            carrier.StateMachine.Send("HOST_PROCEED");
+            await carrier.StateMachine.SendAsync("HOST_PROCEED");
             return true;
         }
         return false;
@@ -281,11 +282,11 @@ public class E87CarrierManagement
     /// <summary>
     /// Complete carrier processing
     /// </summary>
-    public bool CompleteCarrierProcessing(string carrierId)
+    public async Task<bool> CompleteCarrierProcessingAsync(string carrierId)
     {
         if (_carriers.TryGetValue(carrierId, out var carrier))
         {
-            carrier.StateMachine.Send("ACCESS_COMPLETE");
+            await carrier.StateMachine.SendAsync("ACCESS_COMPLETE");
             return true;
         }
         return false;
@@ -294,11 +295,11 @@ public class E87CarrierManagement
     /// <summary>
     /// Remove carrier from system
     /// </summary>
-    public bool RemoveCarrier(string carrierId)
+    public async Task<bool> RemoveCarrierAsync(string carrierId)
     {
         if (_carriers.TryRemove(carrierId, out var carrier))
         {
-            carrier.StateMachine.Send("CARRIER_REMOVED");
+            await carrier.StateMachine.SendAsync("CARRIER_REMOVED");
             carrier.DepartedTime = DateTime.UtcNow;
             
             // Clear from load port
@@ -337,6 +338,47 @@ public class E87CarrierManagement
             State = state,
             Description = description
         });
+    }
+
+    // Backward compatibility methods
+    public CarrierStateMachine? CarrierArrived(string carrierId, string portId, int slotCount = 25)
+    {
+        return CarrierArrivedAsync(carrierId, portId, slotCount).GetAwaiter().GetResult();
+    }
+
+    public void UpdateSlotMap(string carrierId, ConcurrentDictionary<int, SlotState> slotMap)
+    {
+        UpdateSlotMapAsync(carrierId, slotMap).GetAwaiter().GetResult();
+    }
+
+    public void StartAccess(string carrierId)
+    {
+        StartAccessAsync(carrierId).GetAwaiter().GetResult();
+    }
+
+    public void CompleteAccess(string carrierId)
+    {
+        CompleteAccessAsync(carrierId).GetAwaiter().GetResult();
+    }
+
+    public bool CarrierDeparted(string carrierId)
+    {
+        return CarrierDepartedAsync(carrierId).GetAwaiter().GetResult();
+    }
+
+    public bool StartCarrierProcessing(string carrierId)
+    {
+        return StartCarrierProcessingAsync(carrierId).GetAwaiter().GetResult();
+    }
+
+    public bool CompleteCarrierProcessing(string carrierId)
+    {
+        return CompleteCarrierProcessingAsync(carrierId).GetAwaiter().GetResult();
+    }
+
+    public bool RemoveCarrier(string carrierId)
+    {
+        return RemoveCarrierAsync(carrierId).GetAwaiter().GetResult();
     }
 }
 
@@ -406,7 +448,7 @@ public class CarrierStateMachine
                                       $"\"id\": \"E87Carrier_{carrierId}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
-        return StateMachine.CreateFromScript(jsonScript, actionMap);
+        return StateMachineFactory.CreateFromScript(jsonScript, false, true, actionMap);
     }
     
     /// <summary>
@@ -459,7 +501,7 @@ public class LoadPortStateMachine
                                       $"\"id\": \"E87LoadPort_{portId}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
-        return StateMachine.CreateFromScript(jsonScript);
+        return StateMachineFactory.CreateFromScript(jsonScript, threadSafe:false, guidIsolate:true);
     }
     
     /// <summary>

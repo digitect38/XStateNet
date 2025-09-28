@@ -37,7 +37,7 @@ public class StateCheckingTests
             }
         }";
         
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachineFactory.CreateFromScript(json);
         machine.Start();
         
         // Assert - Initial state (use full path with machine ID)
@@ -98,7 +98,7 @@ public class StateCheckingTests
             }
         }";
         
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachineFactory.CreateFromScript(json);
         machine.Start();
         
         // Assert - Initial state
@@ -146,7 +146,7 @@ public class StateCheckingTests
             }
         }";
         
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachineFactory.CreateFromScript(json);
         machine.Start();
         await Task.Delay(50);
         
@@ -195,8 +195,8 @@ public class StateCheckingTests
             }
         }";
         
-        var machine1 = StateMachine.CreateFromScript(machine1Json);
-        var machine2 = StateMachine.CreateFromScript(machine2Json);
+        var machine1 = StateMachineFactory.CreateFromScript(machine1Json);
+        var machine2 = StateMachineFactory.CreateFromScript(machine2Json);
         
         machine1.Start();
         machine2.Start();
@@ -243,7 +243,7 @@ public class StateCheckingTests
             }
         }";
         
-        var door = StateMachine.CreateFromScript(json);
+        var door = StateMachineFactory.CreateFromScript(json);
         door.Start();
         
         // Act - Conditional logic based on state
@@ -299,7 +299,7 @@ public class StateCheckingTests
             }
         }";
         
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachineFactory.CreateFromScript(json);
         machine.Start();
         await Task.Delay(50);
         

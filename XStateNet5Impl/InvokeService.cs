@@ -146,7 +146,7 @@ public class ServiceInvoker : StateObject
             {
                 var doneEvent = $"done.invoke.{service.InvokingState.Name}.{service.ServiceName}";
                 var eventData = new { data = result };
-
+#if false
                 // Queue events for processing without blocking
                 // This avoids lock conflicts while ensuring events are handled
                 await Task.Run(() =>
@@ -161,6 +161,17 @@ public class ServiceInvoker : StateObject
                         Logger.Error($"Failed to send completion event for service '{service.ServiceName}': {ex.Message}");
                     }
                 }).ConfigureAwait(false);
+#else
+                try
+                {
+                    await StateMachine.SendAsync(doneEvent, eventData);
+                    await StateMachine.SendAsync("onDone", eventData);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to send completion event for service '{service.ServiceName}': {ex.Message}");
+                }
+#endif                
             }
         }
         catch (OperationCanceledException)
@@ -191,7 +202,7 @@ public class ServiceInvoker : StateObject
     private async Task HandleServiceError(InvokedService service)
     {
         Logger.Error($"Service '{service.ServiceName}' failed: {service.Error?.Message}");
-        
+
         // Store error information in context
         if (StateMachine?.ContextMap != null && service.Error != null)
         {
@@ -199,9 +210,9 @@ public class ServiceInvoker : StateObject
             StateMachine.ContextMap["_lastError"] = service.Error;  // For backward compatibility
             StateMachine.ContextMap["_errorType"] = service.Error.GetType().Name;
             StateMachine.ContextMap["_errorMessage"] = service.Error.Message;
-            
-            var errorEvent = $"error.invoke.{service.InvokingState.Name}.{service.ServiceName}";
 
+            var errorEvent = $"error.invoke.{service.InvokingState.Name}.{service.ServiceName}";
+#if false
             // Queue error events for processing without blocking
             await Task.Run(() =>
             {
@@ -215,9 +226,20 @@ public class ServiceInvoker : StateObject
                     Logger.Error($"Failed to send error event for service '{service.ServiceName}': {ex.Message}");
                 }
             }).ConfigureAwait(false);
-        }
         
-        await Task.CompletedTask;
+#else
+            try
+            {
+                await StateMachine.SendAsync(errorEvent);
+                await StateMachine.SendAsync("onError");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to send error event for service '{service.ServiceName}': {ex.Message}");
+            }
+#endif
+        }
+            await Task.CompletedTask;
     }
     
     /// <summary>

@@ -128,32 +128,32 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestInitialState()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence($"#trafficLight.light.red.bright;{_stateMachine!.machineId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestTransitionRedToGreen()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         if(_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence($"#trafficLight.light.green.bright;{_stateMachine!.machineId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestGuardCondition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = false;
         _stateMachine!.Send("TIMER");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         // Should remain in last state as guard condition fails
         currentState.AssertEquivalence($"#trafficLight.light.red.bright;{_stateMachine!.machineId}.pedestrian.cannotWalk");
     }
@@ -161,12 +161,12 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestEntryAndExitActions()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions2, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
         _stateMachine!.Send("TIMER");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
 
         Assert.Contains("Exiting red.bright", exitActions);
         Assert.Contains("Exiting red", exitActions);
@@ -178,9 +178,9 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestParallelStates()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         _stateMachine!.Send("PUSH_BUTTON");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         Assert.Contains("canWalk", currentState);
         Assert.Contains("red", currentState);
     }
@@ -188,28 +188,28 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestNestedStates()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
         //_stateMachine.Send("DARKER");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         //currentState.AssertEquivalence($"#trafficLight.light.green.dark;#{uniqueId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestInvalidTransition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         _stateMachine!.Send("INVALID_EVENT");
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence($"#trafficLight.light.red.bright;{_stateMachine!.machineId}.pedestrian.cannotWalk");
     }
 
     [Fact]
     public void TestNoTargetEvent()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions2, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
@@ -221,12 +221,11 @@ public class TrafficMachine : IDisposable
     [Fact]
     public async void TestImplicitTargetTransition()
     {
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(json, guidIsolate: false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
-        // Send event to trigger the implicit target transition
-        var currentState = await _stateMachine!.SendAsyncWithState("IMPLICIT_TARGET");
+        var currentState = await _stateMachine!.SendAsync("IMPLICIT_TARGET");
         Assert.Contains("yellow", currentState);
     }
     

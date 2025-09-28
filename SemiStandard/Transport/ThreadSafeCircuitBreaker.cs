@@ -23,6 +23,9 @@ namespace XStateNet.Semi.Transport
         private long _lastFailureTimeTicks = 0;
         private long _openedTimeTicks = 0;
 
+        // Half-open test execution guard - ensures only one test in half-open
+        private int _halfOpenTestInProgress = 0;
+
         // Lock for complex state transitions only
         private readonly ReaderWriterLockSlim _stateTransitionLock = new(LockRecursionPolicy.NoRecursion);
 
@@ -57,6 +60,10 @@ namespace XStateNet.Semi.Transport
         public long FailureCount => Interlocked.Read(ref _failureCount);
         public long SuccessCount => Interlocked.Read(ref _successCount);
         public bool IsOpen => State == CircuitState.Open;
+
+        // Protected accessors for derived classes
+        protected long GetOpenedTimeTicks() => Interlocked.Read(ref _openedTimeTicks);
+        protected TimeSpan GetOpenDuration() => _openDuration;
         public bool IsClosed => State == CircuitState.Closed;
         public bool IsHalfOpen => State == CircuitState.HalfOpen;
 
@@ -86,6 +93,36 @@ namespace XStateNet.Semi.Transport
                     $"Circuit breaker is open. Will retry after {GetRemainingOpenTime():F1} seconds");
             }
 
+            // Half-open state: Allow only ONE test execution
+            if (currentState == CircuitState.HalfOpen)
+            {
+                // Try to acquire the test slot atomically
+                var acquired = Interlocked.CompareExchange(ref _halfOpenTestInProgress, 1, 0) == 0;
+                if (!acquired)
+                {
+                    // Another thread is already testing - reject this one
+                    throw new CircuitBreakerOpenException("Circuit breaker is in half-open state and test is in progress");
+                }
+
+                try
+                {
+                    var result = await operation(cancellationToken).ConfigureAwait(false);
+                    RecordSuccess();
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    RecordFailure(ex);
+                    throw;
+                }
+                finally
+                {
+                    // Release the test slot
+                    Interlocked.Exchange(ref _halfOpenTestInProgress, 0);
+                }
+            }
+
+            // Normal execution for closed state
             try
             {
                 var result = await operation(cancellationToken).ConfigureAwait(false);
@@ -296,6 +333,7 @@ namespace XStateNet.Semi.Transport
                 // Reset counters when entering half-open
                 Interlocked.Exchange(ref _failureCount, 0);
                 Interlocked.Exchange(ref _successCount, 0);
+                Interlocked.Exchange(ref _halfOpenTestInProgress, 0); // Reset test flag
                 Interlocked.Exchange(ref _state, (int)CircuitState.HalfOpen);
 
                 _logger?.LogInformation(

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 
 namespace SemiStandard.E42
@@ -278,7 +279,31 @@ namespace SemiStandard.E42
             }
             else
             {
-                CurrentState = Enum.Parse<RecipeState>(state);
+                // Handle state names that include machine ID prefix
+                if (state.Contains('.'))
+                {
+                    state = state.Split('.').Last();
+                }
+                // Also handle state names that start with # and contain the actual state after underscore
+                if (state.Contains('_'))
+                {
+                    var parts = state.Split('_');
+                    var lastPart = parts.Last();
+                    if (Enum.TryParse<RecipeState>(lastPart, out var parsedState))
+                    {
+                        CurrentState = parsedState;
+                        return;
+                    }
+                }
+
+                if (Enum.TryParse<RecipeState>(state, out var recipeState))
+                {
+                    CurrentState = recipeState;
+                }
+                else
+                {
+                    CurrentState = RecipeState.NoRecipe;
+                }
             }
         }
         
@@ -347,91 +372,151 @@ namespace SemiStandard.E42
         }
         
         // Public methods
-        public void RequestDownload(RecipeData recipeData)
+        public async Task RequestDownloadAsync(RecipeData recipeData)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "DOWNLOAD_REQUEST",
                 Data = recipeData
             });
             UpdateState();
         }
-        
-        public void DownloadComplete(RecipeData recipeData)
+
+        public void RequestDownload(RecipeData recipeData)
         {
-            _stateMachine.Send(new StateMachineEvent
+            RequestDownloadAsync(recipeData).GetAwaiter().GetResult();
+        }
+        
+        public async Task DownloadCompleteAsync(RecipeData recipeData)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "DOWNLOAD_COMPLETE",
                 Data = recipeData
             });
             UpdateState();
         }
-        
-        public void DownloadFailed(string error)
+
+        public void DownloadComplete(RecipeData recipeData)
         {
-            _stateMachine.Send(new StateMachineEvent
+            DownloadCompleteAsync(recipeData).GetAwaiter().GetResult();
+        }
+        
+        public async Task DownloadFailedAsync(string error)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "DOWNLOAD_FAILED",
                 Data = new ErrorInfo { Message = error }
             });
             UpdateState();
         }
+
+        public void DownloadFailed(string error)
+        {
+            DownloadFailedAsync(error).GetAwaiter().GetResult();
+        }
         
+        public async Task RequestVerificationAsync()
+        {
+            await _stateMachine.SendAsync("VERIFY_REQUEST");
+            UpdateState();
+        }
+
         public void RequestVerification()
         {
-            _stateMachine.Send("VERIFY_REQUEST");
-            UpdateState();
+            RequestVerificationAsync().GetAwaiter().GetResult();
         }
         
+        public async Task VerificationCompleteAsync()
+        {
+            await _stateMachine.SendAsync("VERIFY_COMPLETE");
+            UpdateState();
+        }
+
         public void VerificationComplete()
         {
-            _stateMachine.Send("VERIFY_COMPLETE");
-            UpdateState();
+            VerificationCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task RequestSelectionAsync()
+        {
+            await _stateMachine.SendAsync("SELECT_REQUEST");
+            UpdateState();
+        }
+
         public void RequestSelection()
         {
-            _stateMachine.Send("SELECT_REQUEST");
-            UpdateState();
+            RequestSelectionAsync().GetAwaiter().GetResult();
         }
         
+        public async Task SelectionCompleteAsync()
+        {
+            await _stateMachine.SendAsync("SELECT_COMPLETE");
+            UpdateState();
+        }
+
         public void SelectionComplete()
         {
-            _stateMachine.Send("SELECT_COMPLETE");
-            UpdateState();
+            SelectionCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ExecuteAsync()
+        {
+            await _stateMachine.SendAsync("EXECUTE");
+            UpdateState();
+        }
+
         public void Execute()
         {
-            _stateMachine.Send("EXECUTE");
-            UpdateState();
+            ExecuteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ExecutionCompleteAsync()
+        {
+            await _stateMachine.SendAsync("EXECUTION_COMPLETE");
+            UpdateState();
+        }
+
         public void ExecutionComplete()
         {
-            _stateMachine.Send("EXECUTION_COMPLETE");
-            UpdateState();
+            ExecutionCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task DeselectAsync()
+        {
+            await _stateMachine.SendAsync("DESELECT");
+            UpdateState();
+        }
+
         public void Deselect()
         {
-            _stateMachine.Send("DESELECT");
-            UpdateState();
+            DeselectAsync().GetAwaiter().GetResult();
         }
         
+        public async Task DeselectCompleteAsync()
+        {
+            await _stateMachine.SendAsync("DESELECT_COMPLETE");
+            UpdateState();
+        }
+
         public void DeselectComplete()
         {
-            _stateMachine.Send("DESELECT_COMPLETE");
-            UpdateState();
+            DeselectCompleteAsync().GetAwaiter().GetResult();
         }
         
-        public void UpdateParameter(string name, object value)
+        public async Task UpdateParameterAsync(string name, object value)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "PARAMETER_CHANGE",
                 Data = new ParameterUpdate { Name = name, Value = value }
             });
+        }
+
+        public void UpdateParameter(string name, object value)
+        {
+            UpdateParameterAsync(name, value).GetAwaiter().GetResult();
         }
         
         // Events

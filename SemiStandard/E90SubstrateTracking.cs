@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -77,7 +78,7 @@ public class E90SubstrateTracking
     /// <summary>
     /// Update substrate location
     /// </summary>
-    public void UpdateLocation(string substrateid, string locationId, SubstrateLocationType locationType)
+    public async Task UpdateLocationAsync(string substrateid, string locationId, SubstrateLocationType locationType)
     {
         if (!_substrates.ContainsKey(substrateid))
             return;
@@ -108,13 +109,13 @@ public class E90SubstrateTracking
                 switch (locationType)
                 {
                     case SubstrateLocationType.ProcessModule:
-                        substrate.StateMachine.Send("PLACED_IN_PROCESS_MODULE");
+                        _ = Task.Run(async () => await substrate.StateMachine.SendAsync("PLACED_IN_PROCESS_MODULE"));
                         break;
                     case SubstrateLocationType.Carrier:
-                        substrate.StateMachine.Send("PLACED_IN_CARRIER");
+                        _ = Task.Run(async () => await substrate.StateMachine.SendAsync("PLACED_IN_CARRIER"));
                         break;
                     case SubstrateLocationType.Aligner:
-                        substrate.StateMachine.Send("PLACED_IN_ALIGNER");
+                        _ = Task.Run(async () => await substrate.StateMachine.SendAsync("PLACED_IN_ALIGNER"));
                         break;
                 }
             }
@@ -124,12 +125,12 @@ public class E90SubstrateTracking
     /// <summary>
     /// Start processing a substrate
     /// </summary>
-    public bool StartProcessing(string substrateid, string? recipeId = null)
+    public async Task<bool> StartProcessingAsync(string substrateid, string? recipeId = null)
     {
         if (_substrates.TryGetValue(substrateid, out var substrate))
         {
             substrate.RecipeId = recipeId;
-            substrate.StateMachine.Send("START_PROCESS");
+            await substrate.StateMachine.SendAsync("START_PROCESS");
             AddHistory(substrateid, "InProcess", null, $"Started processing with recipe {recipeId}");
             return true;
         }
@@ -139,11 +140,11 @@ public class E90SubstrateTracking
     /// <summary>
     /// Complete processing
     /// </summary>
-    public bool CompleteProcessing(string substrateid, bool success = true)
+    public async Task<bool> CompleteProcessingAsync(string substrateid, bool success = true)
     {
         if (_substrates.TryGetValue(substrateid, out var substrate))
         {
-            substrate.StateMachine.Send(success ? "PROCESS_COMPLETE" : "PROCESS_ABORT");
+            await substrate.StateMachine.SendAsync(success ? "PROCESS_COMPLETE" : "PROCESS_ABORT");
             AddHistory(substrateid, success ? "Processed" : "Aborted", null, 
                 success ? "Processing completed" : "Processing aborted");
             return true;
@@ -154,11 +155,11 @@ public class E90SubstrateTracking
     /// <summary>
     /// Remove substrate from tracking
     /// </summary>
-    public bool RemoveSubstrate(string substrateid)
+    public async Task<bool> RemoveSubstrateAsync(string substrateid)
     {
         if (_substrates.TryGetValue(substrateid, out var substrate))
         {
-            substrate.StateMachine.Send("REMOVE");
+            await substrate.StateMachine.SendAsync("REMOVE");
             _substrates.TryRemove(substrateid, out _);
             _locations.TryRemove(substrateid, out _);
             AddHistory(substrateid, "Removed", null, "Substrate removed from tracking");
@@ -166,7 +167,28 @@ public class E90SubstrateTracking
         }
         return false;
     }
-    
+
+    // Backward compatibility methods
+    public void UpdateLocation(string substrateid, string locationId, SubstrateLocationType locationType)
+    {
+        UpdateLocationAsync(substrateid, locationId, locationType).GetAwaiter().GetResult();
+    }
+
+    public bool StartProcessing(string substrateid, string? recipeId = null)
+    {
+        return StartProcessingAsync(substrateid, recipeId).GetAwaiter().GetResult();
+    }
+
+    public bool CompleteProcessing(string substrateid, bool success = true)
+    {
+        return CompleteProcessingAsync(substrateid, success).GetAwaiter().GetResult();
+    }
+
+    public bool RemoveSubstrate(string substrateid)
+    {
+        return RemoveSubstrateAsync(substrateid).GetAwaiter().GetResult();
+    }
+
     /// <summary>
     /// Get substrate information
     /// </summary>
@@ -291,7 +313,7 @@ public class SubstrateStateMachine
                                       $"\"id\": \"E90Substrate_{substrateid}_{Guid.NewGuid().ToString("N")[..8]}\"");
         
         // Create state machine from JSON script using XStateNet's intended API
-        return StateMachine.CreateFromScript(jsonScript, actionMap);
+        return StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, guidIsolate:true, actionMap);
     }
     
     /// <summary>

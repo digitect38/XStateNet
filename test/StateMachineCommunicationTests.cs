@@ -276,7 +276,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             })
         };
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+        return StateMachineFactory.CreateFromScript(json, false, true, actionMap);
     }
     
     private StateMachine CreateParentMachine()
@@ -301,7 +301,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             }
         }";
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true);
+        return StateMachineFactory.CreateFromScript(json, guidIsolate: true);
     }
     
     private StateMachine CreateChildMachine(string id, StateMachine parent)
@@ -336,7 +336,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             })
         };
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+        return StateMachineFactory.CreateFromScript(json, false, true, actionMap);
     }
     
     private StateMachine CreateBroadcaster()
@@ -360,7 +360,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             }
         }";
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true);
+        return StateMachineFactory.CreateFromScript(json, guidIsolate: true);
     }
     
     private StateMachine CreateSubscriber(string id, Action onReceive)
@@ -391,7 +391,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             new NamedAction("process", (sm) => onReceive())
         };
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+        return StateMachineFactory.CreateFromScript(json, false, true, actionMap);
     }
     
     private StateMachine CreateChainedMachine(string id, Action onComplete, string? nextId)
@@ -425,7 +425,7 @@ public class StateMachineCommunicationTests : XStateNet.Tests.TestBase
             new NamedAction("notifyComplete", (sm) => onComplete())
         };
         
-        return StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+        return StateMachineFactory.CreateFromScript(json, true, true, actionMap);
     }
     
     // Test coordinator helper class

@@ -90,7 +90,7 @@ namespace XStateNet.Semi.Testing
                     return;
                 }
 
-                var json = File.ReadAllText(jsonPath);
+                var jsonScript = File.ReadAllText(jsonPath);
                 var actions = new ActionMap();
                 var guards = new GuardMap();
                 
@@ -99,15 +99,15 @@ namespace XStateNet.Semi.Testing
                 SetupGuardsForMachine(name, guards);
                 
                 // Add generic handlers for any actions not explicitly defined
-                AddGenericActionsFromJson(json, actions);
+                AddGenericActionsFromJson(jsonScript, actions);
                 
-                var machine = StateMachine.CreateFromScript(json, actions, guards);
+                var machine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, true, actions, guards);
                 // Don't set machineId to the name - it will use the ID from the JSON
                 
                 // Subscribe to state changes
                 machine.OnTransition += (from, to, eventName) =>
                 {
-                    var currentState = machine.GetActiveStateString();
+                    var currentState = machine.GetActiveStateNames();
                     _logger?.LogInformation("[{Machine}] Transition: {From} -> {To} via {Event}", name, 
                         from?.Name ?? "null", to?.Name ?? "null", eventName);
                     _logger?.LogInformation("[{Machine}] Current state string: '{State}'", name, currentState);
@@ -125,7 +125,7 @@ namespace XStateNet.Semi.Testing
                             {
                                 await Task.Delay(2000);
                                 _logger?.LogInformation("Retrying GEM communication establishment...");
-                                machine.Send("ENABLE");
+                                await machine.SendAsync("ENABLE");
                             });
                         }
                     }
@@ -583,7 +583,7 @@ namespace XStateNet.Semi.Testing
             // Send initial state to GEM machine
             if (_stateMachines.TryGetValue(GEM_MACHINE, out var gemMachine))
             {
-                gemMachine.Send("ENABLE");
+                await gemMachine.SendAsync("ENABLE");
             }
             
             _logger?.LogInformation("XState Equipment Controller started on {Endpoint}", _endpoint);
@@ -638,13 +638,13 @@ namespace XStateNet.Semi.Testing
                     if (_stateMachines.TryGetValue(GEM_MACHINE, out var gemMachine))
                     {
                         _logger?.LogInformation("Routing S1F13 to GEM state machine");
-                        gemMachine.Send("RECEIVE_S1F13");
+                        await gemMachine.SendAsync("RECEIVE_S1F13");
                         
                         // Also send confirmation that we should transition
                         Task.Run(async () =>
                         {
                             await Task.Delay(100);
-                            gemMachine.Send("SEND_S1F14");
+                            await gemMachine.SendAsync("SEND_S1F14");
                         });
                     }
                     break;
@@ -652,7 +652,7 @@ namespace XStateNet.Semi.Testing
                 case "S1F17": // Request Online
                     if (_stateMachines.TryGetValue(GEM_MACHINE, out var gem))
                     {
-                        gem.Send("GO_ONLINE");
+                        await gem.SendAsync("GO_ONLINE");
                     }
                     break;
                     
@@ -663,14 +663,14 @@ namespace XStateNet.Semi.Testing
                 case "S3F17": // Carrier Action Request
                     if (_stateMachines.TryGetValue(CARRIER_MACHINE, out var carrier))
                     {
-                        carrier.Send("CARRIER_ACTION");
+                        await carrier.SendAsync("CARRIER_ACTION");
                     }
                     break;
                     
                 case "S14F1": // Control Job Request
                     if (_stateMachines.TryGetValue(CONTROL_JOB_MACHINE, out var controlJob))
                     {
-                        controlJob.Send("CREATE_JOB");
+                        await controlJob.SendAsync("CREATE_JOB");
                     }
                     break;
             }
@@ -693,14 +693,14 @@ namespace XStateNet.Semi.Testing
                     case "START":
                         if (_stateMachines.TryGetValue(EQUIPMENT_MACHINE, out var equipment))
                         {
-                            equipment.Send("START_PROCESSING");
+                            await equipment.SendAsync("START_PROCESSING");
                         }
                         break;
                         
                     case "STOP":
                         if (_stateMachines.TryGetValue(EQUIPMENT_MACHINE, out var equip))
                         {
-                            equip.Send("STOP_PROCESSING");
+                            await equip.SendAsync("STOP_PROCESSING");
                         }
                         break;
                 }
@@ -744,7 +744,7 @@ namespace XStateNet.Semi.Testing
                     // Update HSMS session state machine
                     if (_stateMachines.TryGetValue(HSMS_SESSION_MACHINE, out var hsmsSession))
                     {
-                        hsmsSession.Send("SELECT");
+                        await hsmsSession.SendAsync("SELECT");
                     }
                     break;
                     
@@ -757,7 +757,7 @@ namespace XStateNet.Semi.Testing
                     
                     if (_stateMachines.TryGetValue(HSMS_SESSION_MACHINE, out var hsms))
                     {
-                        hsms.Send("DESELECT");
+                        await hsms.SendAsync("DESELECT");
                     }
                     break;
                     
@@ -856,10 +856,10 @@ namespace XStateNet.Semi.Testing
                 switch (state)
                 {
                     case HsmsConnection.HsmsConnectionState.Connected:
-                        hsmsSession.Send("CONNECT");
+                        _ = Task.Run(async () => await hsmsSession.SendAsync("CONNECT"));
                         break;
                     case HsmsConnection.HsmsConnectionState.NotConnected:
-                        hsmsSession.Send("DISCONNECT");
+                        _ = Task.Run(async () => await hsmsSession.SendAsync("DISCONNECT"));
                         break;
                 }
             }
@@ -876,7 +876,7 @@ namespace XStateNet.Semi.Testing
         public string? GetMachineState(string machineName)
         {
             return _stateMachines.TryGetValue(machineName, out var machine) 
-                ? machine.GetActiveStateString() 
+                ? machine.GetActiveStateNames() 
                 : null;
         }
 
@@ -888,7 +888,7 @@ namespace XStateNet.Semi.Testing
             var states = new ConcurrentDictionary<string, string>();
             foreach (var (name, machine) in _stateMachines)
             {
-                states[name] = machine.GetActiveStateString();
+                states[name] = machine.GetActiveStateNames();
             }
             return states;
         }

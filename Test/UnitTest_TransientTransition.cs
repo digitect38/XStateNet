@@ -27,14 +27,14 @@ namespace XStateNet.UnitTest
             // Enable debug logging
             Logger.CurrentLevel = Logger.LogLevel.Debug;
 
-            var stateMachine = StateMachine.CreateFromScript(stateMachineJson);
+            var stateMachine = StateMachineFactory.CreateFromScript(stateMachineJson, false, true);
             stateMachine.Start();
 
             // The transition should happen immediately
             await Task.Delay(50);
 
-            var currentState = stateMachine.GetActiveStateString();
-            Assert.Equal("#transient.B", currentState);
+            var currentState = stateMachine.GetActiveStateNames();
+            Assert.Equal($"{stateMachine.machineId}.B", currentState);
         }
     }
 }

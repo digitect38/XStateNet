@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 
 namespace SemiStandard.E40
@@ -155,13 +156,37 @@ namespace SemiStandard.E40
             }
             else
             {
-                CurrentState = Enum.Parse<ProcessJobState>(state);
+                // Handle state names that include machine ID prefix
+                if (state.Contains('.'))
+                {
+                    state = state.Split('.').Last();
+                }
+                // Also handle state names that start with # and contain the actual state after underscore
+                if (state.Contains('_'))
+                {
+                    var parts = state.Split('_');
+                    var lastPart = parts.Last();
+                    if (Enum.TryParse<ProcessJobState>(lastPart, out var parsedState))
+                    {
+                        CurrentState = parsedState;
+                        return;
+                    }
+                }
+
+                if (Enum.TryParse<ProcessJobState>(state, out var processJobState))
+                {
+                    CurrentState = processJobState;
+                }
+                else
+                {
+                    CurrentState = ProcessJobState.NoState;
+                }
             }
         }
         
-        public void Create(string recipeId, List<string> materialIds, ConcurrentDictionary<string, object>? recipeParameters = null)
+        public async Task CreateAsync(string recipeId, List<string> materialIds, ConcurrentDictionary<string, object>? recipeParameters = null)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "CREATE",
                 Data = new ProcessJobData
@@ -173,87 +198,157 @@ namespace SemiStandard.E40
             });
             UpdateState();
         }
+
+        public void Create(string recipeId, List<string> materialIds, ConcurrentDictionary<string, object>? recipeParameters = null)
+        {
+            CreateAsync(recipeId, materialIds, recipeParameters).GetAwaiter().GetResult();
+        }
         
+        public async Task SetupAsync()
+        {
+            await _stateMachine.SendAsync("SETUP");
+            UpdateState();
+        }
+
         public void Setup()
         {
-            _stateMachine.Send("SETUP");
-            UpdateState();
+            SetupAsync().GetAwaiter().GetResult();
         }
         
+        public async Task SetupCompleteAsync()
+        {
+            await _stateMachine.SendAsync("SETUP_COMPLETE");
+            UpdateState();
+        }
+
         public void SetupComplete()
         {
-            _stateMachine.Send("SETUP_COMPLETE");
-            UpdateState();
+            SetupCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task StartAsync()
+        {
+            await _stateMachine.SendAsync("START");
+            UpdateState();
+        }
+
         public void Start()
         {
-            _stateMachine.Send("START");
-            UpdateState();
+            StartAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ProcessingCompleteAsync()
+        {
+            await _stateMachine.SendAsync("PROCESSING_COMPLETE");
+            UpdateState();
+        }
+
         public void ProcessingComplete()
         {
-            _stateMachine.Send("PROCESSING_COMPLETE");
-            UpdateState();
+            ProcessingCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task PauseRequestAsync()
+        {
+            await _stateMachine.SendAsync("PAUSE_REQUEST");
+            UpdateState();
+        }
+
         public void PauseRequest()
         {
-            _stateMachine.Send("PAUSE_REQUEST");
-            UpdateState();
+            PauseRequestAsync().GetAwaiter().GetResult();
         }
         
+        public async Task PauseCompleteAsync()
+        {
+            await _stateMachine.SendAsync("PAUSE_COMPLETE");
+            UpdateState();
+        }
+
         public void PauseComplete()
         {
-            _stateMachine.Send("PAUSE_COMPLETE");
-            UpdateState();
+            PauseCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ResumeAsync()
+        {
+            await _stateMachine.SendAsync("RESUME");
+            UpdateState();
+        }
+
         public void Resume()
         {
-            _stateMachine.Send("RESUME");
-            UpdateState();
+            ResumeAsync().GetAwaiter().GetResult();
         }
         
+        public async Task StopAsync()
+        {
+            await _stateMachine.SendAsync("STOP");
+            UpdateState();
+        }
+
         public void Stop()
         {
-            _stateMachine.Send("STOP");
-            UpdateState();
+            StopAsync().GetAwaiter().GetResult();
         }
         
+        public async Task StopCompleteAsync()
+        {
+            await _stateMachine.SendAsync("STOP_COMPLETE");
+            UpdateState();
+        }
+
         public void StopComplete()
         {
-            _stateMachine.Send("STOP_COMPLETE");
-            UpdateState();
+            StopCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task AbortAsync()
+        {
+            await _stateMachine.SendAsync("ABORT");
+            UpdateState();
+        }
+
         public void Abort()
         {
-            _stateMachine.Send("ABORT");
-            UpdateState();
+            AbortAsync().GetAwaiter().GetResult();
         }
         
+        public async Task AbortCompleteAsync()
+        {
+            await _stateMachine.SendAsync("ABORT_COMPLETE");
+            UpdateState();
+        }
+
         public void AbortComplete()
         {
-            _stateMachine.Send("ABORT_COMPLETE");
-            UpdateState();
+            AbortCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task RemoveAsync()
+        {
+            await _stateMachine.SendAsync("REMOVE");
+            UpdateState();
+        }
+
         public void Remove()
         {
-            _stateMachine.Send("REMOVE");
-            UpdateState();
+            RemoveAsync().GetAwaiter().GetResult();
         }
         
-        public void Error(string errorCode, string errorMessage)
+        public async Task ErrorAsync(string errorCode, string errorMessage)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "ERROR",
                 Data = new ErrorData { ErrorCode = errorCode, ErrorMessage = errorMessage }
             });
             UpdateState();
+        }
+
+        public void Error(string errorCode, string errorMessage)
+        {
+            ErrorAsync(errorCode, errorMessage).GetAwaiter().GetResult();
         }
         
         public TimeSpan? GetProcessingTime()

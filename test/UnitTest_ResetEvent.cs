@@ -37,11 +37,11 @@ public class UnitTest_ResetEvent : IDisposable
         _actions = new ActionMap
         {
             ["logEntry"] = new List<NamedAction> { new NamedAction("logEntry", (sm) => {
-                _actionLog.Add($"entry:{sm.GetActiveStateString()}");
+                _actionLog.Add($"entry:{sm.GetActiveStateNames()}");
                 _counters["entries"] = _counters.GetValueOrDefault("entries", 0) + 1;
             }) },
             ["logExit"] = new List<NamedAction> { new NamedAction("logExit", (sm) => {
-                _actionLog.Add($"exit:{sm.GetActiveStateString()}");
+                _actionLog.Add($"exit:{sm.GetActiveStateNames()}");
                 _counters["exits"] = _counters.GetValueOrDefault("exits", 0) + 1;
             }) },
             ["incrementCounter"] = new List<NamedAction> { new NamedAction("incrementCounter", (sm) => {
@@ -132,7 +132,7 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("START");
         await _stateMachine.SendAsync("PAUSE");
 
-        Assert.Contains("paused", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.paused", _stateMachine.GetActiveStateNames());
 
         var counterValue = _stateMachine.ContextMap?["counter"];
         Assert.Equal(1, counterValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : Convert.ToInt32(counterValue));
@@ -144,10 +144,10 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("RESET");
 
         // Assert - Should be back at initial state
-        Assert.Contains("idle", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
         var resetCounterValue = _stateMachine.ContextMap?["counter"];
         Assert.Equal(0, resetCounterValue is Newtonsoft.Json.Linq.JValue jv2 ? jv2.ToObject<int>() : Convert.ToInt32(resetCounterValue)); // Context reset
-        Assert.Contains("entry:#resetTest.idle", _actionLog); // Initial entry re-executed
+        Assert.Contains($"entry:{_stateMachine.machineId}.idle", _actionLog); // Initial entry re-executed
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("DEEP");
         await _stateMachine.SendAsync("NEXT");
 
-        Assert.Contains("parent2.child3", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.parent2.child3", _stateMachine.GetActiveStateNames());
 
         _actionLog.Clear();
 
@@ -275,9 +275,9 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("RESET");
 
         // Assert - Back to initial parent and child
-        Assert.Contains("parent1.child1", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.parent1.child1", _stateMachine.GetActiveStateNames());
         // When parent1's entry action runs, the active state is already parent1.child1
-        Assert.Contains("entry:#nestedReset.parent1.child1", _actionLog);
+        Assert.Contains($"entry:{_stateMachine.machineId}.parent1.child1", _actionLog);
         // There should be at least one entry log for the reset
         Assert.NotEmpty(_actionLog.Where(log => log.StartsWith("entry:")));
     }
@@ -342,9 +342,9 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.WaitForStateAsync("region1.r1s2", 2000);
         await _stateMachine.WaitForStateAsync("region2.r2s2", 2000);
 
-        var activeStates = _stateMachine.GetActiveStateString();
-        Assert.Contains("region1.r1s2", activeStates);
-        Assert.Contains("region2.r2s2", activeStates);
+        var activeStates = _stateMachine.GetActiveStateNames();
+        Assert.Contains($"{_stateMachine.machineId}.parallel.region1.r1s2", activeStates);
+        Assert.Contains($"{_stateMachine.machineId}.parallel.region2.r2s2", activeStates);
 
         _actionLog.Clear();
 
@@ -356,9 +356,9 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.WaitForStateAsync("region2.r2s1", 500);
 
         // Assert - Both regions back to initial
-        activeStates = _stateMachine.GetActiveStateString();
-        Assert.Contains("region1.r1s1", activeStates);
-        Assert.Contains("region2.r2s1", activeStates);
+        activeStates = _stateMachine.GetActiveStateNames();
+        Assert.Contains($"{_stateMachine.machineId}.parallel.region1.r1s1", activeStates);
+        Assert.Contains($"{_stateMachine.machineId}.parallel.region2.r2s1", activeStates);
     }
 
     [Fact]
@@ -413,12 +413,12 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("EXIT"); // Exit compound
 
         // Re-enter compound - should go to third due to history
-        var state = await _stateMachine.SendAsyncWithState("ENTER_COMPOUND");
+        var state = await _stateMachine.SendAsync("ENTER_COMPOUND");
         Assert.Contains("compound.third", state);
-        state = await _stateMachine.SendAsyncWithState("RESET");
+        state = await _stateMachine.SendAsync("RESET");
 
         // Enter compound again - should go to initial, not history
-        state = await _stateMachine.SendAsyncWithState("ENTER_COMPOUND");
+        state = await _stateMachine.SendAsync("ENTER_COMPOUND");
         Assert.Contains("compound.first", state);
     }
 
@@ -461,18 +461,16 @@ public class UnitTest_ResetEvent : IDisposable
 
         // Start service
         await _stateMachine.SendAsync("START");
-        await Task.Delay(100); // Let service start
 
         Assert.Contains("service:started", _actionLog);
-        Assert.Contains("running", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.running", _stateMachine.GetActiveStateNames());
 
         // Act - Reset before service completes
         await _stateMachine.SendAsync("RESET");
-        await Task.Delay(200);
 
         // Assert - Service should be cancelled, not completed
         Assert.DoesNotContain("service:completed", _actionLog);
-        Assert.Contains("idle", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
 
         // Verify service doesn't complete after reset
         await Task.Delay(1000);
@@ -523,8 +521,8 @@ public class UnitTest_ResetEvent : IDisposable
         await _stateMachine.SendAsync("RESET");
 
         // Assert - Should be at initial, not state3
-        Assert.Contains("state1", _stateMachine.GetActiveStateString());
-        Assert.DoesNotContain("state3", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.state1", _stateMachine.GetActiveStateNames());
+        Assert.DoesNotContain($"{_stateMachine.machineId}.state3", _stateMachine.GetActiveStateNames());
     }
 
     [Fact]
@@ -562,16 +560,16 @@ public class UnitTest_ResetEvent : IDisposable
         // First reset
         await _stateMachine.SendAsync("NEXT");
         await _stateMachine.SendAsync("RESET");
-        Assert.Contains("initial", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.initial", _stateMachine.GetActiveStateNames());
 
         // Second reset
         await _stateMachine.SendAsync("NEXT");
         await _stateMachine.SendAsync("RESET");
-        Assert.Contains("initial", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.initial", _stateMachine.GetActiveStateNames());
 
         // Third reset
         await _stateMachine.SendAsync("RESET");
-        Assert.Contains("initial", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.initial", _stateMachine.GetActiveStateNames());
 
         // Each reset should re-execute initial entry
         Assert.True(_counters["entries"] >= 3);
@@ -610,14 +608,14 @@ public class UnitTest_ResetEvent : IDisposable
 
         // Go to final state
         await _stateMachine.SendAsync("FINISH");
-        Assert.Contains("done", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.done", _stateMachine.GetActiveStateNames());
 
         // Act - Reset from final state
         await _stateMachine.SendAsync("RESET");
 
         // Assert - Should restart
-        Assert.Contains("start", _stateMachine.GetActiveStateString());
-        Assert.DoesNotContain("done", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.start", _stateMachine.GetActiveStateNames());
+        Assert.DoesNotContain($"{_stateMachine.machineId}.done", _stateMachine.GetActiveStateNames());
     }
 
     public void Dispose()

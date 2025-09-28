@@ -11,12 +11,14 @@ using Xunit.Abstractions;
 using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Semi.Transport;
 using XStateNet.Semi.Secs;
+using XStateNet.Tests.TestInfrastructure;
 
 namespace XStateNet.Tests.Concurrency
 {
     /// <summary>
     /// Comprehensive concurrency tests for thread safety and race conditions
     /// </summary>
+    [Collection("TimingSensitive")]
     public class ConcurrencyTests : IDisposable
     {
         private readonly ITestOutputHelper _output;
@@ -34,6 +36,7 @@ namespace XStateNet.Tests.Concurrency
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task SecsMessageCache_ConcurrentOperations_NoRaceConditions()
         {
             // Arrange
@@ -120,6 +123,7 @@ namespace XStateNet.Tests.Concurrency
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task OptimizedInMemoryEventBus_ConcurrentPubSub_NoDeadlocks()
         {
             // Arrange

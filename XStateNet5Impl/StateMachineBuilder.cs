@@ -152,8 +152,10 @@ namespace XStateNet
                 throw new InvalidOperationException("JSON script is required");
 
             var processedScript = ProcessJsonScript(instanceId);
-            var stateMachine = StateMachine.CreateFromScript(
+            var stateMachine = StateMachineFactory.CreateFromScript(
                 processedScript,
+                threadSafe:false,
+                true,
                 _actionMap,
                 _guardMap,
                 serviceMap,

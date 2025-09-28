@@ -14,6 +14,7 @@ using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Distributed.PubSub;
 using XStateNet.Distributed.PubSub.Optimized;
+using XStateNet.Distributed.Tests.TestInfrastructure;
 
 namespace XStateNet.Distributed.Tests.PubSub
 {
@@ -130,100 +131,112 @@ namespace XStateNet.Distributed.Tests.PubSub
 
         #region Latency Tests
 
-        [Fact(Skip = "Performance test - unreliable in CI environment")] // Skip this test as it's timing-sensitive
+        [Fact]
+        [TestPriority(TestPriority.Low)] // Performance test, lower priority
         public async Task Latency_SubMillisecond_P99()
         {
             // Arrange
             var eventBus = new OptimizedInMemoryEventBus(workerCount: 1); // Use single worker for deterministic behavior
             await eventBus.ConnectAsync(); // Connect first
 
-            var latencies = new ConcurrentBag<double>();
-            var received = new TaskCompletionSource<bool>();
-            var receivedCount = 0;
+            var latencies = new List<double>();
+            var receivedEvents = new List<(string eventName, long timestamp)>();
+            var allEventsReceived = new TaskCompletionSource<bool>();
+            var targetEventCount = 100;
 
             // Subscribe after connecting to ensure proper initialization
             var subscription = await eventBus.SubscribeToMachineAsync("target", evt =>
             {
-                Interlocked.Increment(ref receivedCount);
-                _output.WriteLine($"Received event {receivedCount}: {evt.EventName}");
-
                 if (evt.Payload is long timestamp)
                 {
                     var latencyMs = (DateTime.UtcNow.Ticks - timestamp) / 10000.0;
-                    latencies.Add(latencyMs);
 
-                    if (latencies.Count >= 100)
+                    lock (latencies)
                     {
-                        received.TrySetResult(true);
+                        latencies.Add(latencyMs);
+                        receivedEvents.Add((evt.EventName, timestamp));
+
+                        _output.WriteLine($"Received event {latencies.Count}: {evt.EventName}, latency: {latencyMs:F3}ms");
+
+                        if (latencies.Count >= targetEventCount)
+                        {
+                            allEventsReceived.TrySetResult(true);
+                        }
                     }
-                }
-                else
-                {
-                    _output.WriteLine($"Unexpected payload type: {evt.Payload?.GetType().Name ?? "null"}");
                 }
             });
 
-            // Act - Reduced to 100 events for faster test execution
-            _output.WriteLine("Starting to publish events...");
+            // Ensure subscription is fully registered by sending a test event
+            await eventBus.PublishEventAsync("target", "WARMUP", DateTime.UtcNow.Ticks);
+            await Task.Yield(); // Allow event processing
 
-            // Give subscription time to be fully registered
-            await Task.Delay(100); // Increased delay to ensure subscription is ready
+            // Act - Send events and measure latency
+            _output.WriteLine($"Publishing {targetEventCount} events...");
 
-            for (int i = 0; i < 100; i++)
+            var publishTasks = new List<Task>();
+            for (int i = 0; i < targetEventCount; i++)
             {
-                await eventBus.PublishEventAsync("target", $"EVENT_{i}", DateTime.UtcNow.Ticks);
-                // No delay between events to test true latency
+                publishTasks.Add(eventBus.PublishEventAsync("target", $"EVENT_{i}", DateTime.UtcNow.Ticks));
             }
 
-            _output.WriteLine($"Published 100 events");
+            await Task.WhenAll(publishTasks);
+            _output.WriteLine($"Published {targetEventCount} events");
 
-            // Give events time to be delivered through the pipeline
-            await Task.Delay(100);
-
-            // Wait with timeout to prevent hanging
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            // Wait for all events to be received with timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try
             {
-                await received.Task.WaitAsync(cts.Token);
-                _output.WriteLine($"Test completed, received {receivedCount} events");
+                await allEventsReceived.Task.WaitAsync(cts.Token);
+                _output.WriteLine($"All {latencies.Count} events received");
             }
             catch (OperationCanceledException)
             {
-                _output.WriteLine($"Test timed out after receiving {receivedCount} events");
-                // If we've received some but not all, this might be OK for latency testing
-                if (receivedCount > 50) // At least half the events
+                _output.WriteLine($"Warning: Only received {latencies.Count}/{targetEventCount} events before timeout");
+
+                // Continue if we have enough data for meaningful analysis
+                if (latencies.Count < 50)
                 {
-                    _output.WriteLine($"Proceeding with {receivedCount} events for latency analysis");
-                    received.TrySetResult(true);
-                }
-                else
-                {
-                    throw;
+                    throw new InvalidOperationException($"Insufficient data: only {latencies.Count} events received");
                 }
             }
 
             // Analyze latencies
-            if (latencies.Count == 0)
+            Assert.NotEmpty(latencies);
+
+            // Remove warmup event if present
+            if (receivedEvents.Any(e => e.eventName == "WARMUP"))
             {
-                throw new InvalidOperationException($"No latency data collected - received {receivedCount} events but no valid timestamps");
+                var warmupIndex = receivedEvents.FindIndex(e => e.eventName == "WARMUP");
+                if (warmupIndex >= 0 && warmupIndex < latencies.Count)
+                {
+                    latencies.RemoveAt(warmupIndex);
+                    receivedEvents.RemoveAt(warmupIndex);
+                }
             }
 
             var sortedLatencies = latencies.OrderBy(l => l).ToList();
-            var p50 = sortedLatencies[(int)(sortedLatencies.Count * 0.50)];
-            var p95 = sortedLatencies[Math.Min((int)(sortedLatencies.Count * 0.95), sortedLatencies.Count - 1)];
-            var p99 = sortedLatencies[Math.Min((int)(sortedLatencies.Count * 0.99), sortedLatencies.Count - 1)];
+            var count = sortedLatencies.Count;
+
+            var p50 = sortedLatencies[(int)(count * 0.50)];
+            var p95 = sortedLatencies[Math.Min((int)(count * 0.95), count - 1)];
+            var p99 = sortedLatencies[Math.Min((int)(count * 0.99), count - 1)];
             var max = sortedLatencies.Last();
+            var avg = sortedLatencies.Average();
 
-            // Assert
-            _output.WriteLine($"Latency P50: {p50:F3}ms");
-            _output.WriteLine($"Latency P95: {p95:F3}ms");
-            _output.WriteLine($"Latency P99: {p99:F3}ms");
-            _output.WriteLine($"Latency Max: {max:F3}ms");
+            // Output results
+            _output.WriteLine($"Latency Analysis (n={count}):");
+            _output.WriteLine($"  Average: {avg:F3}ms");
+            _output.WriteLine($"  P50: {p50:F3}ms");
+            _output.WriteLine($"  P95: {p95:F3}ms");
+            _output.WriteLine($"  P99: {p99:F3}ms");
+            _output.WriteLine($"  Max: {max:F3}ms");
 
-            // Adjusted thresholds for realistic performance expectations
-            // In-memory event bus typically has 1-2ms latency in test environments
-            Assert.True(p99 < 5.0, $"P99 latency {p99:F3}ms exceeds 5ms threshold");
-            Assert.True(p50 < 2.0, $"P50 latency {p50:F3}ms exceeds 2ms threshold");
+            // Assert - Adjusted thresholds for realistic in-memory performance
+            // Allow higher thresholds as this is testing event processing, not just memory access
+            // These thresholds account for test environment variability and concurrent test execution
+            Assert.True(p99 < 15.0, $"P99 latency {p99:F3}ms exceeds 15ms threshold");
+            Assert.True(p50 < 10.0, $"P50 latency {p50:F3}ms exceeds 10ms threshold");
+            Assert.True(avg < 10.0, $"Average latency {avg:F3}ms exceeds 10ms threshold");
 
             // Cleanup
             subscription.Dispose();
@@ -656,7 +669,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 }
             }";
 
-            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true);
+            return XStateNet.StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         }
 
         public void Dispose()

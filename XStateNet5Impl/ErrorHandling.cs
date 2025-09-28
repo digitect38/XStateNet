@@ -49,7 +49,7 @@ public class ErrorHandler : StateObject
     /// <summary>
     /// Handles an error in the state machine
     /// </summary>
-    public void HandleError(Exception exception, CompoundState? currentState, string? eventName = null)
+    public async void HandleError(Exception exception, CompoundState? currentState, string? eventName = null)
     {
         if (StateMachine == null) return;
         
@@ -73,7 +73,7 @@ public class ErrorHandler : StateObject
         if (!handled)
         {
             // If no specific error handler, try generic onError event
-            StateMachine.Send("onError");
+            await StateMachine.SendAsync("onError");
         }
     }
     

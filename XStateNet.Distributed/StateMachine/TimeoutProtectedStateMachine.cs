@@ -43,7 +43,7 @@ namespace XStateNet.Distributed.StateMachines
         private DateTime _lastStateChangeTime;
 
         public string Id => _innerMachine.machineId;
-        public string CurrentState => _innerMachine.GetActiveStateString();
+        public string CurrentState => _innerMachine.GetActiveStateNames();
         public bool IsRunning => _innerMachine.IsRunning;
 
         // IStateMachine implementation
@@ -546,27 +546,14 @@ namespace XStateNet.Distributed.StateMachines
 
         public void Stop() => _innerMachine.Stop();
 
-        // IStateMachine methods
-#pragma warning disable CS0618 // Type or member is obsolete
-        public void Send(string eventName, object? eventData = null)
-#pragma warning restore CS0618
+        public async Task<string> SendAsync(string eventName, object? eventData = null)
         {
-            _innerMachine.Send(eventName, eventData);
-        }
-
-        public async Task SendAsync(string eventName, object? eventData = null)
-        {
-            await _innerMachine.SendAsync(eventName, eventData);
-        }
-
-        public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
-        {
-            return await _innerMachine.SendAsyncWithState(eventName, eventData);
+            return await _innerMachine.SendAsync(eventName, eventData);
         }
 
         public string GetActiveStateString()
         {
-            return _innerMachine.GetActiveStateString();
+            return _innerMachine.GetActiveStateNames();
         }
 
         public List<CompoundState> GetActiveStates()
@@ -585,19 +572,6 @@ namespace XStateNet.Distributed.StateMachines
             try
             {
                 await _innerMachine.SendAsync(eventName, payload);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public bool SendEvent(string eventName, object? payload = null)
-        {
-            try
-            {
-                _innerMachine.Send(eventName, payload);
                 return true;
             }
             catch

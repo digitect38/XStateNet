@@ -49,7 +49,7 @@ namespace XStateNet.GPU.Integration
             // Use guidIsolate to ensure unique machine IDs for parallel test execution
             for (int i = 0; i < Math.Min(instanceCount, 10); i++) // Keep first 10 for validation
             {
-                var machine = StateMachine.CreateFromScript(_machineDefinitionJson, true, actions);
+                var machine = StateMachineFactory.CreateFromScript(_machineDefinitionJson, threadSafe: false, true, actions);
                 machine.Start(); // Start the machine so it can process events
                 _cpuMachines[i] = machine;
             }
@@ -248,7 +248,7 @@ namespace XStateNet.GPU.Integration
                 var cpuMachine = kvp.Value;
 
                 string gpuState = _gpuPool.GetState(instanceId);
-                string cpuStateRaw = cpuMachine.GetActiveStateString();
+                string cpuStateRaw = cpuMachine.GetActiveStateNames();
                 string cpuState = GetSimpleStateName(cpuStateRaw);
 
                 if (gpuState != cpuState)
@@ -294,7 +294,7 @@ namespace XStateNet.GPU.Integration
         public StateMachine CreateMachineFromInstance(int instanceId)
         {
             // Use guidIsolate to avoid conflicts
-            var machine = StateMachine.CreateFromScript(_machineDefinitionJson, true);
+            var machine = StateMachineFactory.CreateFromScript(_machineDefinitionJson, false, true);
 
             // Sync state from GPU
             string currentState = _gpuPool.GetState(instanceId);

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -164,47 +165,72 @@ public class E84HandoffController
     /// <summary>
     /// Signal carrier stage 0 sensor
     /// </summary>
+    public async Task SetCS0Async(bool on)
+    {
+        await _stateMachine.SendAsync(on ? "CS_0_ON" : "CS_0_OFF");
+    }
+
     public void SetCS0(bool on)
     {
-        _stateMachine.Send(on ? "CS_0_ON" : "CS_0_OFF");
+        SetCS0Async(on).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal valid carrier
     /// </summary>
+    public async Task SetValidAsync(bool on)
+    {
+        await _stateMachine.SendAsync(on ? "VALID_ON" : "VALID_OFF");
+    }
+
     public void SetValid(bool on)
     {
-        _stateMachine.Send(on ? "VALID_ON" : "VALID_OFF");
+        SetValidAsync(on).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal transfer request from AGV/OHT
     /// </summary>
+    public async Task SetTransferRequestAsync(bool on)
+    {
+        await _stateMachine.SendAsync(on ? "TR_REQ_ON" : "TR_REQ_OFF");
+    }
+
     public void SetTransferRequest(bool on)
     {
-        _stateMachine.Send(on ? "TR_REQ_ON" : "TR_REQ_OFF");
+        SetTransferRequestAsync(on).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal busy status
     /// </summary>
+    public async Task SetBusyAsync(bool on)
+    {
+        await _stateMachine.SendAsync(on ? "BUSY_ON" : "BUSY_OFF");
+    }
+
     public void SetBusy(bool on)
     {
-        _stateMachine.Send(on ? "BUSY_ON" : "BUSY_OFF");
+        SetBusyAsync(on).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Signal transfer complete
     /// </summary>
+    public async Task SetCompleteAsync(bool on)
+    {
+        await _stateMachine.SendAsync(on ? "COMPT_ON" : "COMPT_OFF");
+    }
+
     public void SetComplete(bool on)
     {
-        _stateMachine.Send(on ? "COMPT_ON" : "COMPT_OFF");
+        SetCompleteAsync(on).GetAwaiter().GetResult();
     }
     
     /// <summary>
     /// Reset handoff controller
     /// </summary>
-    public void Reset()
+    public async Task ResetAsync()
     {
         // Clear all signals first
         LoadRequest = false;
@@ -212,10 +238,15 @@ public class E84HandoffController
         Ready = false;
         HoAvailable = false;
         EsInterlock = false;
-        
+
         // Send CS_0_OFF to return to idle from notReady state
-        _stateMachine.Send("CS_0_OFF");
-        _stateMachine.Send("RESET");
+        await _stateMachine.SendAsync("CS_0_OFF");
+        await _stateMachine.SendAsync("RESET");
+    }
+
+    public void Reset()
+    {
+        ResetAsync().GetAwaiter().GetResult();
     }
     
     /// <summary>

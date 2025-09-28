@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
+using XStateNet.Tests.TestInfrastructure;
 
 namespace XStateNet.Tests
 {
@@ -15,6 +16,7 @@ namespace XStateNet.Tests
     /// Integration tests to verify the improved async patterns work correctly
     /// and don't have the original issues (fire-and-forget, deadlocks, etc.)
     /// </summary>
+    [Collection("TimingSensitive")]
     public class ImprovedAsyncPatternsIntegrationTests : IAsyncLifetime
     {
         private readonly ITestOutputHelper _output;
@@ -189,6 +191,7 @@ namespace XStateNet.Tests
         /// Test 6: Stress test - many concurrent operations without deadlock
         /// </summary>
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task Test_StressTest_ConcurrentOperations_NoDeadlock()
         {
             // Arrange
@@ -236,6 +239,7 @@ namespace XStateNet.Tests
         /// Test 7: Verify state changes are thread-safe
         /// </summary>
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task Test_StateChanges_ThreadSafe()
         {
             // Arrange

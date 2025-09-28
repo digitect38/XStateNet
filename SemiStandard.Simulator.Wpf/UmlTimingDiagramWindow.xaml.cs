@@ -664,7 +664,7 @@ public partial class UmlTimingDiagramWindow : Window
             {
                 System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Found lane for {machineName}");
                 // Set initial current state from the machine
-                var currentStateName = machine.GetActiveStateString();
+                var currentStateName = machine.GetActiveStateNames();
                 lane.CurrentState = currentStateName;
                 UpdateLaneHeader(lane);
                 
@@ -699,7 +699,7 @@ public partial class UmlTimingDiagramWindow : Window
                 {
                     
                     // Add transition to timing diagram
-                    var currentStateName = machine.GetActiveStateString();
+                    var currentStateName = machine.GetActiveStateNames();
                     
                     // Use Dispatcher.Invoke to ensure UI updates happen on UI thread
                     Dispatcher.Invoke(() =>

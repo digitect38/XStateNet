@@ -148,7 +148,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate:true, _actions, _guards, null, null, _activities);
         _stateMachine.Start();
 
         // Act
@@ -183,7 +183,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
         _stateMachine.Start();
 
         // Act
@@ -218,7 +218,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -257,7 +257,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -306,7 +306,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -372,7 +372,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -448,7 +448,7 @@ public class UnitTest_Activities : IDisposable
             })
         });
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -505,7 +505,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
         _stateMachine.Start();
@@ -548,7 +548,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
         _stateMachine.Start();
 
         // Act - First entry

@@ -20,29 +20,29 @@ public class InConditionTests : IDisposable
 
         var stateMachineJson = InConditionStateMachineWithParallel.InConditionStateMachineScript;
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, _actions, _guards).Start();
     }
 
     [Fact]
     public void TestInConditionWithParallelStateMet()
     {
         // Check initial states
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA1;#inConditionMachine.stateB.subStateB1");
 
         // Transition stateA.subStateA1 to stateA.subStateA2
         _stateMachine!.Send("EVENT1");
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.subStateB1");
         
         // Transition stateB.subStateB1 to stateB.subStateB2
         _stateMachine!.Send("EVENT2");
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.subStateB2");
 
         // Check InCondition
         _stateMachine!.Send("CHECK_IN_CONDITION");
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA2;#inConditionMachine.stateB.finalState");
         }
 
@@ -50,17 +50,17 @@ public class InConditionTests : IDisposable
     public void TestInConditionWithParallelStateNotMet()
     {
         // Check initial states
-        var currentState = _stateMachine!.GetActiveStateString();
+        var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA1;#inConditionMachine.stateB.subStateB1");
 
         // Transition stateB.subStateB1 to stateB.subStateB2
         _stateMachine!.Send("EVENT2");
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA1;#inConditionMachine.stateB.subStateB2");
 
         // Check InCondition, should not transition
         _stateMachine!.Send("CHECK_IN_CONDITION");
-        currentState = _stateMachine!.GetActiveStateString();
+        currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence("#inConditionMachine.stateA.subStateA1;#inConditionMachine.stateB.subStateB2");
     }
     

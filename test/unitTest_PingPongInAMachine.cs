@@ -28,7 +28,7 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
 
         var stateMachineJson = PingPongMachine.PingPongStateMachineScript;
 
-        _pingPongStateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson, _actions, _guards).Start();
+        _pingPongStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe:false, false, _actions, _guards).Start();
     }
 
     Action<StateMachine> send_to_b = (sm) => sm.Send("to_b");
@@ -38,14 +38,14 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
     public async Task TestPingPongStateMachines()
     {
         // Initial states
-        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetActiveStateNames().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
 
         // Wait for the ping-pong actions to occur
         await Task.Delay(1100);
-        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.b;#pingPongMachine.B.b");
+        _pingPongStateMachine.GetActiveStateNames().AssertEquivalence("#pingPongMachine.A.b;#pingPongMachine.B.b");
 
         await Task.Delay(1100);
-        _pingPongStateMachine.GetActiveStateString().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
+        _pingPongStateMachine.GetActiveStateNames().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
     }
     
     public void Dispose()

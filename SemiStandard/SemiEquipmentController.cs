@@ -167,7 +167,7 @@ public class SemiEquipmentController
         };
         
         // Create state machine from JSON script using XStateNet's intended API
-        _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
+        _stateMachine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe:false, true, actionMap);
         _stateMachine.Start();
     }
     
@@ -231,20 +231,20 @@ public class SemiEquipmentController
         switch (command.ToUpper())
         {
             case "START":
-                _stateMachine.Send("start");
+                await _stateMachine.SendAsync("start");
                 return true;
                 
             case "STOP":
             case "ABORT":
-                _stateMachine.Send("abort");
+                await _stateMachine.SendAsync("abort");
                 return true;
                 
             case "REMOTE":
-                _stateMachine.Send("goRemote");
+                await _stateMachine.SendAsync("goRemote");
                 return true;
                 
             case "LOCAL":
-                _stateMachine.Send("goLocal");
+                await _stateMachine.SendAsync("goLocal");
                 return true;
                 
             default:
@@ -307,7 +307,7 @@ public class SemiEquipmentController
         if (substrate == null) return false;
         
         // Send event to move to NeedsProcessing state
-        substrate.StateMachine.Send("SELECT_FOR_PROCESS");
+        await substrate.StateMachine.SendAsync("SELECT_FOR_PROCESS");
         
         // Move to process module
         _substrateTracking.UpdateLocation(substrateid, "PM1", SubstrateLocationType.ProcessModule);
@@ -353,9 +353,15 @@ public class SemiEquipmentController
     /// <summary>
     /// Send event to state machine
     /// </summary>
+    public async Task SendEventAsync(string eventName)
+    {
+        await _stateMachine.SendAsync(eventName);
+    }
+
+    // Backward compatibility
     public void SendEvent(string eventName)
     {
-        _stateMachine.Send(eventName);
+        SendEventAsync(eventName).GetAwaiter().GetResult();
     }
     
     /// <summary>

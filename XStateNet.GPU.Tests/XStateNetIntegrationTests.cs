@@ -10,6 +10,7 @@ using System.Xml;
 
 namespace XStateNet.GPU.Tests
 {
+    [Collection("TimingSensitive")]
     public class XStateNetIntegrationTests : IDisposable
     {
         string TrafficLightScript
@@ -110,7 +111,8 @@ namespace XStateNet.GPU.Tests
             }
         }
 
-        [Fact(Skip = "CPU state tracking needs investigation")]
+        [Fact]
+        [TestPriority(TestPriority.High)]
         public async Task XStateNetGPUBridge_ValidatesConsistencyWithCPU()
         {
             // Arrange

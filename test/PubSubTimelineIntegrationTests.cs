@@ -334,7 +334,7 @@ namespace TimelineWPF.Tests
             // Log for debugging
             if (!allItems.Any())
             {
-                Console.WriteLine($"No timeline items found. Machine state: {machine.GetActiveStateString()}");
+                Console.WriteLine($"No timeline items found. Machine state: {machine.GetActiveStateNames()}");
             }
 
             // Should have at least some timeline items
@@ -407,7 +407,7 @@ namespace TimelineWPF.Tests
                 ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
             };
 
-            var machine = StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
             machine.Start();
             _machines.Add(machine);
             return machine;

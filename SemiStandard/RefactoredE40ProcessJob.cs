@@ -31,7 +31,7 @@ namespace SemiStandard
         {
             get
             {
-                var stateString = _stateMachine.GetActiveStateString();
+                var stateString = _stateMachine.GetActiveStateNames();
                 if (string.IsNullOrEmpty(stateString))
                     return string.Empty;
 
@@ -167,8 +167,9 @@ namespace SemiStandard
                 // The state machine will work without guards
             };
 
-            // Create the state machine from the external script file
-            _stateMachine = StateMachine.CreateFromFile(scriptPath, actions, guards);
+            // Create the state machine from the external script file            
+            var jsonScript = Security.SafeReadFile(scriptPath);
+            _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(jsonScript, false, false, actions, guards, null, null, null);
 
             // Initialize context to match JSON schema
             _stateMachine.ContextMap["processJobId"] = _processJobId;
@@ -222,7 +223,7 @@ namespace SemiStandard
         /// </summary>
         public async Task<string> SendEventWithStateAsync(string eventName, object? eventData = null)
         {
-            return await _stateMachine.SendAsyncWithState(eventName, eventData);
+            return await _stateMachine.SendAsync(eventName, eventData);
         }
 
         /// <summary>

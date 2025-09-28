@@ -75,7 +75,7 @@ namespace XStateNet.Distributed.Resilience
                 }
             }";
 
-            return StateMachine.CreateFromScript(configJson, true, actionMap, guardMap);
+            return StateMachineFactory.CreateFromScript(configJson, false, true, actionMap, guardMap);
         }
     }
 }

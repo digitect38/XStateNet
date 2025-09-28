@@ -12,7 +12,7 @@ namespace AdvancedFeatures
         private StateMachine CreateStateMachine(string uniqueId)
         {
             var script = GetScript(uniqueId);
-            var stateMachine = StateMachine.CreateFromScript(script, new ActionMap(), new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, false, new ActionMap(), new GuardMap());
             stateMachine.Start();
             return stateMachine;
         }

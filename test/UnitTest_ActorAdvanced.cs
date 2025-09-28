@@ -124,7 +124,7 @@ public class UnitTest_ActorAdvanced : IDisposable
             }
         }";
 
-        var stateMachine = StateMachine.CreateFromScript(json);
+        var stateMachine = StateMachineFactory.CreateFromScript(json, false, true);
         var props = Props.CreateStateMachine(stateMachine);
         var actor = _system.ActorOf(props, "traffic");
 
@@ -133,11 +133,11 @@ public class UnitTest_ActorAdvanced : IDisposable
         await Task.Delay(50);
 
         // Assert
-        Assert.Contains("green", stateMachine.GetActiveStateString());
+        Assert.Contains($"{stateMachine.machineId}.green", stateMachine.GetActiveStateNames());
 
         await actor.TellAsync(new StateEvent("TIMER"));
         await Task.Delay(50);
-        Assert.Contains("yellow", stateMachine.GetActiveStateString());
+        Assert.Contains($"{stateMachine.machineId}.yellow", stateMachine.GetActiveStateNames());
     }
 
     [Fact]
@@ -173,8 +173,8 @@ public class UnitTest_ActorAdvanced : IDisposable
             }
         }";
 
-        var pingMachine = StateMachine.CreateFromScript(pingScript);
-        var pongMachine = StateMachine.CreateFromScript(pongScript);
+        var pingMachine = StateMachineFactory.CreateFromScript(pingScript, false, true);
+        var pongMachine = StateMachineFactory.CreateFromScript(pongScript, false, true);
 
         var pingActor = _system.ActorOf(Props.CreateStateMachine(pingMachine), "ping");
         var pongActor = _system.ActorOf(Props.CreateStateMachine(pongMachine), "pong");
@@ -186,8 +186,8 @@ public class UnitTest_ActorAdvanced : IDisposable
         await Task.Delay(50);
 
         // Assert
-        Assert.Contains("pinging", pingMachine.GetActiveStateString());
-        Assert.Contains("ponging", pongMachine.GetActiveStateString());
+        Assert.Contains($"{pingMachine.machineId}.pinging", pingMachine.GetActiveStateNames());
+        Assert.Contains($"{pongMachine.machineId}.ponging", pongMachine.GetActiveStateNames());
     }
 
     #endregion

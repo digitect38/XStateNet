@@ -70,11 +70,11 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
 
-        Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateString()}");
-        Assert.Contains("idle", _stateMachine.GetActiveStateString());
+        Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateNames()}");
+        Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
 
         try
         {
@@ -85,7 +85,7 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
             Console.WriteLine($"Exception caught: {ex.Message}");
         }
 
-        Console.WriteLine($"State after START: {_stateMachine.GetActiveStateString()}");
+        Console.WriteLine($"State after START: {_stateMachine.GetActiveStateNames()}");
 
         // Check if error was stored in context
         if (_stateMachine.ContextMap != null)
@@ -104,12 +104,12 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         Console.WriteLine("Manually sending onError event");
         _stateMachine!.Send("onError");
 
-        Console.WriteLine($"State after onError: {_stateMachine.GetActiveStateString()}");
+        Console.WriteLine($"State after onError: {_stateMachine.GetActiveStateNames()}");
         Console.WriteLine($"Error handled: {_errorHandled}");
         Console.WriteLine($"Action log: {string.Join(", ", _actionLog)}");
 
         // The error should be caught and handled
-        Assert.Contains("error", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.error", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
     }
     

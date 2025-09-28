@@ -333,7 +333,7 @@ public class StateMachineActorV2 : ActorBase
         await base.PostStop();
     }
 
-    protected override Task Receive(object message)
+    protected override async Task Receive(object message)
     {
         if (_stateMachine == null)
         {
@@ -343,11 +343,11 @@ public class StateMachineActorV2 : ActorBase
         switch (message)
         {
             case StateEvent stateEvent:
-                _stateMachine.Send(stateEvent.EventName, stateEvent.Data);
+                await _stateMachine.SendAsync(stateEvent.EventName, stateEvent.Data);
                 break;
 
             case string eventName:
-                _stateMachine.Send(eventName);
+                await _stateMachine.SendAsync(eventName);
                 break;
 
             default:
@@ -358,8 +358,6 @@ public class StateMachineActorV2 : ActorBase
                 }
                 break;
         }
-
-        return Task.CompletedTask;
     }
 }
 

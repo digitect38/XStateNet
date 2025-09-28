@@ -38,7 +38,7 @@ public class StateCheckingTests
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         machine.Start();
 
         // Assert - Initial state (use full path with machine ID)
@@ -99,20 +99,20 @@ public class StateCheckingTests
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         machine.Start();
 
         // Assert - Initial state
-        var initialState = machine.GetActiveStateString(leafOnly: true);
+        var initialState = machine.GetActiveStateNames(leafOnly: true);
         Assert.Contains("idle", initialState);
         
         // Act - Start working and get new state
-        var workingState = await machine.SendAsyncWithState("START");
+        var workingState = await machine.SendAsync("START");
 
-        // Assert - Working state (SendAsyncWithState returns full state by default)
+        // Assert - Working state (SendAsync returns full state by default)
         Assert.Contains("processing", workingState);
 
-        // Get full path (already have it from SendAsyncWithState)
+        // Get full path (already have it from SendAsync)
         var fullPath = workingState;
         Assert.Contains("working", fullPath);
         Assert.Contains("processing", fullPath);
@@ -145,7 +145,7 @@ public class StateCheckingTests
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         // Machine starts in pending.fetch state immediately, no need to wait
 
@@ -194,8 +194,8 @@ public class StateCheckingTests
             }
         }";
         
-        var machine1 = StateMachine.CreateFromScript(machine1Json, guidIsolate: true);
-        var machine2 = StateMachine.CreateFromScript(machine2Json, guidIsolate: true);
+        var machine1 = StateMachineFactory.CreateFromScript(machine1Json, guidIsolate: true);
+        var machine2 = StateMachineFactory.CreateFromScript(machine2Json, guidIsolate: true);
         
         machine1.Start();
         machine2.Start();
@@ -242,7 +242,7 @@ public class StateCheckingTests
             }
         }";
 
-        var door = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var door = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         door.Start();
 
         // Act - Conditional logic based on state
@@ -299,13 +299,13 @@ public class StateCheckingTests
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+        var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
         machine.Start();
         var machineId = machine.machineId;
         // Machine starts immediately in parallel states, no need to wait
 
         // Assert - Both parallel regions should be active
-        var activeStates = machine.GetActiveStateString(leafOnly: false);
+        var activeStates = machine.GetActiveStateNames(leafOnly: false);
         Assert.Contains("lights", activeStates);
         Assert.Contains("heating", activeStates);
         Assert.Contains("off", activeStates);

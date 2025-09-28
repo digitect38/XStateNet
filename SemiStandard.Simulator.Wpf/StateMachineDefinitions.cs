@@ -394,14 +394,14 @@ namespace SemiStandard.Simulator.Wpf
                 // Add a generic state change logger (removed since we use OnTransition delegate)
 
                 // Create the state machine
-                var machine = StateMachine.CreateFromScript(script, actions);
+                var machine = XStateNet.StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions);
                 
                 // Subscribe to state changes
                 machine.OnTransition += (fromState, toState, eventName) =>
                 {
                     var fromStateName = fromState?.Name ?? "null";
                     var toStateName = toState?.Name ?? "null";
-                    var currentStateName = machine.GetActiveStateString();
+                    var currentStateName = machine.GetActiveStateNames();
                     onStateChange?.Invoke(machineName, fromStateName, currentStateName, eventName);
                 };
 

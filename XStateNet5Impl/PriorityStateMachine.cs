@@ -188,6 +188,40 @@ namespace XStateNet
         }
 
         /// <summary>
+        /// Send event in a fire-and-forget manner
+        /// </summary>
+        public void SendAndForget(string eventName, object? eventData = null)
+        {
+            try
+            {
+                var priority = DeterminePriority(eventName, CurrentState);
+                var priorityEvent = new PriorityEvent(eventName, eventData, priority, DateTime.UtcNow);
+                var channel = _priorityChannels[(int)priority];
+
+                if (!channel.Writer.TryWrite(priorityEvent))
+                {
+                    // If queue is full, log error but don't throw
+                    ErrorOccurred?.Invoke(new InvalidOperationException($"Failed to queue event {eventName} in fire-and-forget mode"));
+                }
+
+                // For critical events, signal immediate processing
+                if (priority == EventPriority.Critical)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await _criticalSemaphore.WaitAsync(0).ConfigureAwait(false);
+                        _criticalSemaphore.Release();
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception but don't throw since this is fire-and-forget
+                ErrorOccurred?.Invoke(ex);
+            }
+        }
+
+        /// <summary>
         /// Send event with explicit priority
         /// </summary>
         public async Task<string> SendWithPriorityAsync(

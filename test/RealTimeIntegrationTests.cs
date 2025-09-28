@@ -64,7 +64,7 @@ namespace TimelineWPF.Tests
                 ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
             };
 
-            var machine = StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
             machine.Start();
             _machines.Add(machine);
             return machine;
@@ -108,7 +108,7 @@ namespace TimelineWPF.Tests
                 ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
             };
 
-            var machine = StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
             machine.Start();
             _machines.Add(machine);
             return machine;

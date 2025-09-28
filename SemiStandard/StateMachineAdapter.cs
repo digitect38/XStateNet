@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using XStateNet;
 
 namespace SemiStandard
@@ -100,42 +102,72 @@ namespace SemiStandard
             RegisterAction(name, activity);
         }
         
-        public void Start()
+        public async Task StartAsync()
         {
             if (_stateMachine == null)
             {
                 // Convert single quotes to double quotes for JSON parsing
                 var jsonConfig = _jsonConfig.Replace("'", "\"");
-                _stateMachine = XStateNet.StateMachine.CreateFromScript(
-                    jsonConfig, 
+                _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(
+                    jsonConfig,
+                    threadSafe: false,
+                    guidIsolate:false,
                     _actionMap,
                     _guardMap,
                     new ServiceMap(),
                     new DelayMap()
                 );
-                _stateMachine.Start();
-                UpdateCurrentState();
+                await _stateMachine.StartAsync();
+                await UpdateCurrentStateAsync();
             }
         }
-        
+
+        // Keep synchronous Start for backward compatibility
+        public void Start()
+        {
+            StartAsync().GetAwaiter().GetResult();
+        }
+
+        // Keep synchronous Send methods for backward compatibility
         public void Send(string eventName)
         {
-            _stateMachine?.Send(eventName);
-            UpdateCurrentState();
+            SendAsync(eventName).GetAwaiter().GetResult();
         }
-        
+
         public void Send(StateMachineEvent machineEvent)
         {
-            if (machineEvent.Data != null)
+            SendAsync(machineEvent).GetAwaiter().GetResult();
+        }
+        
+        public async Task SendAsync(string eventName)
+        {
+            if (_stateMachine != null)
             {
-                // Store event data in context for actions to access
-                _context["_eventData"] = machineEvent.Data;
+                await _stateMachine.SendAsync(eventName);
+                await UpdateCurrentStateAsync();
             }
-            _stateMachine?.Send(machineEvent.Name);
-            UpdateCurrentState();
+        }
+        
+        public async Task SendAsync(StateMachineEvent machineEvent)
+        {
+            if (_stateMachine != null)
+            {
+                if (machineEvent.Data != null)
+                {
+                    // Store event data in context for actions to access
+                    _context["_eventData"] = machineEvent.Data;
+                }
+                await _stateMachine.SendAsync(machineEvent.Name, machineEvent.Data);
+                await UpdateCurrentStateAsync();
+            }
         }
         
         private void UpdateCurrentState()
+        {
+            UpdateCurrentStateAsync().GetAwaiter().GetResult();
+        }
+
+        private async Task UpdateCurrentStateAsync()
         {
             if (_stateMachine != null)
             {
@@ -152,9 +184,9 @@ namespace SemiStandard
                 }
                 else
                 {
-                    // Fallback - use context to track state
-                    _currentState = _context.ContainsKey("_currentState") ? 
-                        _context["_currentState"]?.ToString() ?? "Unknown" : "Unknown";
+                    // Fallback - get active states from state machine
+                    var activeStates = _stateMachine.GetActiveStateNames();
+                    _currentState = !string.IsNullOrEmpty(activeStates) ? activeStates : "Unknown";
                 }
             }
         }
@@ -170,7 +202,33 @@ namespace SemiStandard
                 return new[] { new StateNode { Name = _currentState } };
             }
         }
-        
+
+        /// <summary>
+        /// Waits for the state machine to reach a specific state and complete all associated actions
+        /// </summary>
+        /// <param name="stateName">The name of the state to wait for</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default: 5000)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The state name when reached</returns>
+        public async Task<string> WaitForStateWithActionsAsync(string stateName, int timeoutMs = 5000, CancellationToken cancellationToken = default)
+        {
+            if (_stateMachine == null)
+            {
+                throw new InvalidOperationException("State machine is not started");
+            }
+
+            // Delegate to the underlying state machine's implementation
+            return await _stateMachine.WaitForStateWithActionsAsync(stateName, timeoutMs, cancellationToken);
+        }
+
+        /// <summary>
+        /// Synchronous version of WaitForStateWithActionsAsync for backward compatibility
+        /// </summary>
+        public string WaitForStateWithActions(string stateName, int timeoutMs = 5000)
+        {
+            return WaitForStateWithActionsAsync(stateName, timeoutMs).GetAwaiter().GetResult();
+        }
+
         public class StateNode
         {
             public string Name { get; set; } = string.Empty;

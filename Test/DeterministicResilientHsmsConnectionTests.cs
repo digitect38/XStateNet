@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Extensions.Logging;
+using XStateNet.Tests.TestInfrastructure;
 
 namespace XStateNet.Tests
 {
     /// <summary>
     /// Deterministic tests for ResilientHsmsConnection that don't rely on timing or actual network connections
     /// </summary>
+    [Collection("TimingSensitive")]
     public class DeterministicResilientHsmsConnectionTests : IAsyncLifetime
     {
         private readonly ITestOutputHelper _output;
@@ -80,6 +82,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task MockConnection_StateTransitions_AreThreadSafe()
         {
             // Arrange
@@ -150,6 +153,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
+        [TestPriority(TestPriority.Critical)]
         public async Task MockConnection_ConcurrentOperations_HandledGracefully()
         {
             // Arrange

@@ -53,7 +53,7 @@ public class DiagrammingFrameworkTests : IDisposable
         var script = GetScript(uniqueId);
 
         // Initialize state machine
-        var stateMachine = (StateMachine)StateMachine.CreateFromScript(script, actionMap, guardMap).Start();
+        var stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe: false, false, actionMap, guardMap).Start();
         return stateMachine;
     }
 
@@ -65,7 +65,7 @@ public class DiagrammingFrameworkTests : IDisposable
         var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
-        var states = stateMachine!.GetActiveStateString();
+        var states = stateMachine!.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.idle");
     }
 
@@ -78,7 +78,7 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
         stateMachine!.Send("L_BUTTON_DOWN");
-        var states = stateMachine!.GetActiveStateString();
+        var states = stateMachine!.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
@@ -91,7 +91,7 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
         stateMachine!.Send("L_BUTTON_DOWN");
-        var states = stateMachine!.GetActiveStateString();
+        var states = stateMachine!.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selecting");
     }
 
@@ -106,7 +106,7 @@ public class DiagrammingFrameworkTests : IDisposable
         stateMachine.Send("L_BUTTON_DOWN");
         stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 0;
-        var states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
+        var states = await stateMachine.SendAsync("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.idle");
     }
 
@@ -121,7 +121,7 @@ public class DiagrammingFrameworkTests : IDisposable
         stateMachine.Send("L_BUTTON_DOWN");
         stateMachine.Send("MOUSE_MOVE");
         _context["selectionCount"] = 1;
-        var states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
+        var states = await stateMachine.SendAsync("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.selecting");
     }
 
@@ -133,15 +133,15 @@ public class DiagrammingFrameworkTests : IDisposable
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        var states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
+        var states = await stateMachine.SendAsync("L_BUTTON_DOWN");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
         _context["onResize"] = false;
 
-        states = await stateMachine.SendAsyncWithState("MOUSE_MOVE");
+        states = await stateMachine.SendAsync("MOUSE_MOVE");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
-        states = await stateMachine.SendAsyncWithState("L_BUTTON_UP");
+        states = await stateMachine.SendAsync("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
@@ -153,9 +153,9 @@ public class DiagrammingFrameworkTests : IDisposable
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        var states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
+        var states = await stateMachine.SendAsync("L_BUTTON_DOWN");
 
-        //var states = stateMachine.GetActiveStateString();
+        //var states = stateMachine.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
 
 
@@ -164,12 +164,12 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["l_button_down"] = false;
 
         stateMachine.Send("MOUSE_MOVE");
-        states = await stateMachine.SendAsyncWithState("MOUSE_MOVE");
+        states = await stateMachine.SendAsync("MOUSE_MOVE");
 
-        //states = stateMachine.GetActiveStateString();
+        //states = stateMachine.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selected.resizing.idle");
 
-        states = await stateMachine.SendAsyncWithState("L_BUTTON_DOWN");
+        states = await stateMachine.SendAsync("L_BUTTON_DOWN");
         states.AssertEquivalence($"#{uniqueId}.selected.resizing.resizing");
     }
 

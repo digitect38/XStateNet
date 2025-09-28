@@ -28,7 +28,7 @@ class TestStateChange
             }
         }";
 
-        var machine = StateMachine.CreateFromScript(json);
+        var machine = StateMachine.CreateFromScript(json, true);
 
         int stateChangeCount = 0;
         machine.StateChanged += (newState) =>

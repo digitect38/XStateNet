@@ -50,7 +50,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachine.CreateFromScript(script, actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
         stateMachine.Start();
 
         // Act
@@ -103,7 +103,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachine.CreateFromScript(script, actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
         stateMachine.Start();
 
         // Act
@@ -161,7 +161,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachine.CreateFromScript(script, actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
         stateMachine.Start();
 
         // Act

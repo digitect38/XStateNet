@@ -70,7 +70,7 @@ namespace XStateNet.Distributed.Tests.Benchmarks
                 ["doWork"] = new List<NamedAction> { new NamedAction("doWork", _ => { }) }
             };
 
-            _stateMachine = XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+            _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true, actionMap);
 
             // Create notification services
             _standardService = new EventNotificationService(_stateMachine, _standardEventBus, "bench-1");

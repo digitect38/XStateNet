@@ -501,7 +501,7 @@ namespace XStateNet.Distributed.StateMachines
                 })
             };
 
-            return StateMachine.CreateFromScript(config, actionMap);
+            return StateMachineFactory.CreateFromScript(config, threadSafe:false, true, actionMap);
         }
 
         private void StartTimeout(string timeoutId, TimeSpan timeout, Action onTimeout)
@@ -639,25 +639,14 @@ namespace XStateNet.Distributed.StateMachines
             _protectionMachine.Stop();
         }
 
-        public void Send(string eventName, object? eventData = null)
+        public async Task<string> SendAsync(string eventName, object? eventData = null)
         {
-            SendAsync(eventName, eventData).GetAwaiter().GetResult();
-        }
-
-        public async Task SendAsync(string eventName, object? eventData = null)
-        {
-            await SendAsync(eventName, eventData, CancellationToken.None);
-        }
-
-        public async Task<string> SendAsyncWithState(string eventName, object? eventData = null)
-        {
-            await SendAsync(eventName, eventData);
-            return GetActiveStateString();
+            return await _innerMachine.SendAsync(eventName, eventData);
         }
 
         public string GetActiveStateString()
         {
-            return _innerMachine.GetActiveStateString();
+            return _innerMachine.GetActiveStateNames();
         }
 
         public List<CompoundState> GetActiveStates()

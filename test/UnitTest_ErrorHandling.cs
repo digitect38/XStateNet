@@ -83,15 +83,15 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
         
-        Assert.Contains("idle", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
         
         _stateMachine!.Send("START");
 
         // The error should be caught and handled
-        Assert.Contains("error", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.error", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
         Assert.Equal("Test error", _errorMessage);
         Assert.Equal("InvalidOperationException", _errorType);
@@ -151,12 +151,12 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
         
         // Test InvalidOperationException handling
         _stateMachine!.Send("THROW_INVALID");
-        Assert.Contains("handledInvalid", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.handledInvalid", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
         Assert.Equal("InvalidOperationException", _errorType);
         
@@ -165,22 +165,21 @@ public class UnitTest_ErrorHandling : IDisposable
         _errorMessage = null;
         _errorType = null;
         _actionLog.Clear();
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
         
         _stateMachine!.Send("THROW_ARGUMENT");
-        Assert.Contains("handledArgument", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.handledArgument", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
         Assert.Equal("ArgumentException", _errorType);
     }
     
     [Fact]
-    public void TestErrorHandlingWithGuards()
+    public async void TestErrorHandlingWithGuards()
     {
-        string uniqueId = $"'guardedErrorTest{Guid.NewGuid():N}'";
         string script = @"
         {
-            'id': " + uniqueId + @",
+            'id': 'guardedErrorTest',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -210,24 +209,22 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
-        _stateMachine!.Start();
-        
-        _stateMachine!.Send("START");
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
+        await _stateMachine!.StartAsync();        
+        var stateString = await _stateMachine!.SendAsync("START");
         
         // Should recover because InvalidOperationException is recoverable
-        Assert.Contains("recovered", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.recovered", stateString);
         Assert.Contains("recover", _actionLog);
         Assert.NotNull(_stateMachine.ContextMap!["recovered"]);
     }
     
     [Fact]
     public void TestNestedErrorHandling()
-    {
-        string uniqueId = $"nestedErrorTest{Guid.NewGuid():N}";
+    {        
         string script = @"
         {
-            'id': '" + uniqueId + @"',
+            'id': 'nestedErrorTest_1234',
             'initial': 'level1',
             'states': {
                 'level1': {
@@ -246,7 +243,7 @@ public class UnitTest_ErrorHandling : IDisposable
                                 }
                             },
                             'onError': {
-                                'target': '#" + uniqueId + @".level1.localError',
+                                'target': '#nestedErrorTest_1234.level1.localError',
                                 'actions': 'handleError'
                             }
                         },
@@ -264,13 +261,13 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, false, _actions, _guards);
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
         
         // Error should be caught at level2 and transition to localError
-        Assert.Contains("localError", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.level1.localError", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
     }
     
@@ -311,14 +308,14 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine.ContextMap!["attempts"] = 0;
         _stateMachine!.Start();
         
         _stateMachine!.Send("START");
         
         // Error context should be preserved
-        Assert.Contains("retry", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.retry", _stateMachine.GetActiveStateNames());
         Assert.NotNull(_stateMachine.ContextMap["_lastError"]);
         Assert.Equal("Test error", _errorMessage);
         
@@ -326,7 +323,7 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine.ContextMap!["attempts"] = (int)(_stateMachine.ContextMap!["attempts"] ?? 0) + 1;
         
         _stateMachine!.Send("GIVE_UP");
-        Assert.Contains("failed", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.failed", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _stateMachine.ContextMap["attempts"]);
     }
     
@@ -376,17 +373,17 @@ public class UnitTest_ErrorHandling : IDisposable
             }
         }";
         
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
         
-        var initialState = _stateMachine!.GetActiveStateString();
+        var initialState = _stateMachine!.GetActiveStateNames();
         Assert.Contains("regionA.idle", initialState);
         Assert.Contains("regionB.working", initialState);
         
         _stateMachine!.Send("ERROR_A");
         
         // Region A should handle its error locally
-        var afterError = _stateMachine!.GetActiveStateString();
+        var afterError = _stateMachine!.GetActiveStateNames();
         Assert.Contains("regionA.failed", afterError);
         Assert.Contains("regionB.working", afterError); // Region B continues
         Assert.True(_errorHandled);

@@ -35,15 +35,19 @@ public class EventQueue : IDisposable
     }
 
     /// <summary>
-    /// Enqueue an event for processing
+    /// Enqueue an event for processing and wait for completion
     /// </summary>
-    public async Task SendAsync(string eventName)
+    public async Task<string> SendAsync(string eventName)
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(EventQueue));
-        
-        var message = new EventMessage(eventName, DateTime.UtcNow);
+
+        var completionSource = new TaskCompletionSource<string>();
+        var message = new EventMessage(eventName, DateTime.UtcNow, completionSource);
         await _channel.Writer.WriteAsync(message);
+
+        // Wait for the event to be processed
+        return await completionSource.Task;
     }
 
     /// <summary>
@@ -59,10 +63,15 @@ public class EventQueue : IDisposable
                 try
                 {
                     await _stateMachine.ProcessEventAsync(message.EventName);
+
+                    // Signal completion with the current state
+                    var currentState = _stateMachine.GetActiveStateNames();
+                    message.CompletionSource?.SetResult(currentState);
                 }
                 catch (Exception ex)
                 {
                     Logger.Error($"Error processing event {message.EventName}: {ex.Message}");
+                    message.CompletionSource?.SetException(ex);
                 }
                 finally
                 {
@@ -107,7 +116,7 @@ public class EventQueue : IDisposable
         _processingSemaphore.Dispose();
     }
 
-    private record EventMessage(string EventName, DateTime Timestamp);
+    private record EventMessage(string EventName, DateTime Timestamp, TaskCompletionSource<string>? CompletionSource = null);
 }
 
 /// <summary>
@@ -223,7 +232,7 @@ public class SafeTransitionExecutor : TransitionExecutor
     /// <summary>
     /// Execute transition with proper async handling
     /// </summary>
-    public async Task ExecuteAsync(Transition? transition, string eventName)
+    public override async Task ExecuteAsync(Transition? transition, string eventName)
     {
         if (transition == null) return;
         if (StateMachine == null)
@@ -356,6 +365,9 @@ public class SafeTransitionExecutor : TransitionExecutor
                 {
                     StateMachine!.RaiseTransition(sourceNode as CompoundState, targetNode, eventName);
                 }
+
+                // Fire StateChanged event after transition is complete
+                StateMachine!.RaiseStateChanged();
             }
             else
             {

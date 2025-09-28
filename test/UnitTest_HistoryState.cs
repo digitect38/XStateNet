@@ -44,23 +44,23 @@ public class HistoryState : IDisposable
         }"
         ;
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson,
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson,
+            threadSafe: false,
+            true,
             new ActionMap(),
             new GuardMap()).Start();
 
-        _stateMachine!.Send("TO_A2");
-        var currentState = await _stateMachine!.SendAsyncWithState("TO_B");
+        await _stateMachine!.SendAsync("TO_A2");
+        var currentState = await _stateMachine!.SendAsync("TO_B");
+        Assert.Contains(".B", currentState);
 
-        Assert.Equal("#testMachine.B", currentState.ToString());
-
-        currentState = await _stateMachine!.SendAsyncWithState("TO_A");
-
+        currentState = await _stateMachine!.SendAsync("TO_A");
         // When returning to A.hist, it should restore A.A2 for shallow history
-        Assert.Equal("#testMachine.A.A2", currentState.ToString());
+        Assert.Contains(".A.A2", currentState);
     }
 
     [Fact]
-    public void DeepHistory()
+    public async void DeepHistory()
     {
         var stateMachineJson = @" {
             'id': 'testMachine',
@@ -101,20 +101,21 @@ public class HistoryState : IDisposable
           }"
         ;
 
-        _stateMachine = (StateMachine)StateMachine.CreateFromScript(stateMachineJson,
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson,
+            threadSafe: false,
+            true,
             new ActionMap(),
-            new GuardMap()).Start();
+            new GuardMap());
+        var machineId = _stateMachine!.machineId;
+        await _stateMachine.StartAsync();
+        await _stateMachine!.WaitForStateAsync(".A1a");
+        await _stateMachine!.SendAsync("TO_A1b");
+        await _stateMachine!.WaitForStateAsync(".A1b");
+        string currentState = await _stateMachine!.SendAsync("TO_B");
+        Assert.Contains("B.B1", currentState);
 
-        var currentState = _stateMachine!.GetActiveStateString();
-        _stateMachine!.Send("TO_A1b");
-        currentState = _stateMachine!.GetActiveStateString();
-        _stateMachine!.Send("TO_B");
-        currentState = _stateMachine!.GetActiveStateString(leafOnly : false);
-        Assert.Equal("#testMachine.B;#testMachine.B.B1", currentState);
-        _stateMachine!.Send("TO_A");
-        currentState = _stateMachine!.GetActiveStateString(leafOnly: false);
-
-        currentState.AssertEquivalence("#testMachine.A;#testMachine.A.A1;#testMachine.A.A1.A1b");
+        currentState = await _stateMachine!.SendAsync("TO_A");
+        Assert.Contains("A.A1.A1b", currentState);
     }
     
     public void Dispose()

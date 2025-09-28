@@ -50,7 +50,7 @@ namespace XStateNet.UnitTest
                 }}
             }}";
 
-            var stateMachine = StateMachine.CreateFromScript(script, actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
 
             Logger.Info("Starting state machine");
             stateMachine.Start();

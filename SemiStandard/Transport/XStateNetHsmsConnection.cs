@@ -184,14 +184,14 @@ namespace XStateNet.Semi.Transport
                             await ConnectPassiveAsync(_cancellationTokenSource.Token);
                         }
                         
-                        sm.Send("CONNECTED");
+                        _ = Task.Run(async () => await sm.SendAsync("CONNECTED"));
                         _connectTcs?.TrySetResult(true);
                     }
                     catch (Exception ex)
                     {
                         _lastError = ex;
                         _logger?.LogError(ex, "Connection failed");
-                        sm.Send("CONNECT_FAILED");
+                        _ = Task.Run(async () => await sm.SendAsync("CONNECT_FAILED"));
                         _connectTcs?.TrySetException(ex);
                     }
                 })
@@ -226,13 +226,13 @@ namespace XStateNet.Semi.Transport
                         _stream?.Close();
                         _tcpClient?.Close();
                         
-                        sm.Send("DISCONNECTED");
+                        _ = Task.Run(async () => await sm.SendAsync("DISCONNECTED"));
                         _disconnectTcs?.TrySetResult(true);
                     }
                     catch (Exception ex)
                     {
                         _logger?.LogError(ex, "Error during disconnect");
-                        sm.Send("DISCONNECTED");
+                        _ = Task.Run(async () => await sm.SendAsync("DISCONNECTED"));
                     }
                 })
             };
@@ -289,12 +289,12 @@ namespace XStateNet.Semi.Transport
                 return retryCount < 3; // Max 3 retries
             });
             
-            return StateMachine.CreateFromScript(config, actionMap, guardMap);
+            return StateMachineFactory.CreateFromScript(config, threadSafe: false, true, actionMap, guardMap);
         }
 
         private HsmsConnectionState GetCurrentState()
         {
-            var stateString = _stateMachine.GetActiveStateString();
+            var stateString = _stateMachine.GetActiveStateNames();
             return stateString?.ToLowerInvariant() switch
             {
                 var s when s?.Contains("notconnected") == true => HsmsConnectionState.NotConnected,
@@ -322,11 +322,11 @@ namespace XStateNet.Semi.Transport
 
             using (cancellationToken.Register(() =>
             {
-                _stateMachine.Send("CANCEL");
+                _ = Task.Run(async () => await _stateMachine.SendAsync("CANCEL"));
                 _connectTcs.TrySetCanceled();
             }))
             {
-                _stateMachine.Send("CONNECT");
+                await _stateMachine.SendAsync("CONNECT");
                 await _connectTcs.Task;
             }
         }
@@ -438,7 +438,7 @@ namespace XStateNet.Semi.Transport
             };
 
             await SendMessageAsync(selectReq, cancellationToken);
-            _stateMachine.Send("SELECT");
+            await _stateMachine.SendAsync("SELECT");
             _logger?.LogInformation("Sent Select.req, transitioning to Selected state");
         }
 
@@ -459,7 +459,7 @@ namespace XStateNet.Semi.Transport
             };
 
             await SendMessageAsync(deselectReq, cancellationToken);
-            _stateMachine.Send("DESELECT");
+            await _stateMachine.SendAsync("DESELECT");
             _logger?.LogInformation("Sent Deselect.req, transitioning to Connected state");
         }
 
@@ -490,7 +490,7 @@ namespace XStateNet.Semi.Transport
                                 if (read == 0)
                                 {
                                     _lastError = new EndOfStreamException("Connection closed by remote");
-                                    _stateMachine.Send("CONNECTION_LOST");
+                                    _ = Task.Run(async () => await _stateMachine.SendAsync("CONNECTION_LOST"));
                                     return;
                                 }
 
@@ -524,7 +524,7 @@ namespace XStateNet.Semi.Transport
                                     if (read == 0)
                                     {
                                         _lastError = new EndOfStreamException("Connection closed by remote");
-                                        _stateMachine.Send("CONNECTION_LOST");
+                                        _ = Task.Run(async () => await _stateMachine.SendAsync("CONNECTION_LOST"));
                                         return;
                                     }
 
@@ -543,7 +543,7 @@ namespace XStateNet.Semi.Transport
                         {
                             _logger?.LogError(ex, "Error receiving message");
                             _lastError = ex;
-                            _stateMachine.Send("ERROR");
+                            _ = Task.Run(async () => await _stateMachine.SendAsync("ERROR"));
                             break;
                         }
                     }
@@ -625,7 +625,7 @@ namespace XStateNet.Semi.Transport
                 return;
 
             _disconnectTcs = new TaskCompletionSource<bool>();
-            _stateMachine.Send("DISCONNECT");
+            await _stateMachine.SendAsync("DISCONNECT");
             await _disconnectTcs.Task;
         }
 
@@ -641,11 +641,11 @@ namespace XStateNet.Semi.Transport
 
             using (cancellationToken.Register(() =>
             {
-                _stateMachine.Send("CANCEL");
+                _ = Task.Run(async () => await _stateMachine.SendAsync("CANCEL"));
                 _connectTcs.TrySetCanceled();
             }))
             {
-                _stateMachine.Send("RECONNECT");
+                await _stateMachine.SendAsync("RECONNECT");
                 await _connectTcs.Task;
             }
         }
@@ -655,7 +655,7 @@ namespace XStateNet.Semi.Transport
         /// </summary>
         public void Reset()
         {
-            _stateMachine.Send("RESET");
+            _stateMachine.SendAsync("RESET").GetAwaiter().GetResult();
             _lastError = null;
         }
 

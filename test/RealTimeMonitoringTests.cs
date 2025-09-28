@@ -72,7 +72,7 @@ namespace XStateNet.Tests
                 ["canPause"] = new NamedGuard("canPause", sm => true)
             };
 
-            var machine = StateMachine.CreateFromScript(json, guidIsolate: true, actionMap, guardMap);
+            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap, guardMap);
             machine.Start();
             _machines.Add(machine);
             return machine;
@@ -354,7 +354,7 @@ namespace XStateNet.Tests
 
             // All transitions are now atomic, no need for delays
             // Ensure we end in a valid state (could be any of the defined states)
-            var finalState = machine.GetActiveStateString();
+            var finalState = machine.GetActiveStateNames();
             Assert.True(
                 finalState.Contains("idle") ||
                 finalState.Contains("running") ||

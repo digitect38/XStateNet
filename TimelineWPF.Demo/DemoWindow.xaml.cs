@@ -89,7 +89,7 @@ namespace TimelineWPF.Demo
             var machine = _stateMachines[machineName];
 
             // Generate event based on current state
-            var currentState = machine.GetActiveStateString();
+            var currentState = machine.GetActiveStateNames();
             if (currentState != null)
             {
                 // Simulate state transition
@@ -101,7 +101,7 @@ namespace TimelineWPF.Demo
 
                     // Manually publish the event and transition since XStateNet doesn't have these events yet
                     _timelineManager.PublishEvent(machineName, eventName);
-                    var newState = machine.GetActiveStateString();
+                    var newState = machine.GetActiveStateNames();
                     _timelineManager.PublishStateTransition(machineName, currentState, newState, eventName);
 
                     _eventCount++;
@@ -218,7 +218,7 @@ namespace TimelineWPF.Demo
                 // CreateFromScript might need actions and guards even if empty
                 var actions = new ActionMap();
                 var guards = new GuardMap();
-                return StateMachine.CreateFromScript(script, actions, guards);
+                return StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, guards);
             }
             catch (Exception ex)
             {
@@ -292,7 +292,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void LoadManufacturingDemo()
@@ -356,7 +356,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void AddQualityControl(string name)
@@ -402,7 +402,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void AddPackaging(string name)
@@ -445,7 +445,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void LoadNetworkProtocolDemo()
@@ -515,7 +515,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void AddHttpSession(string name)
@@ -566,7 +566,7 @@ namespace TimelineWPF.Demo
                 }
             }";
 
-            return StateMachine.CreateFromScript(script);
+            return StateMachineFactory.CreateFromScript(script);
         }
 
         private void ClearAll()
@@ -756,9 +756,9 @@ namespace TimelineWPF.Demo
                     if (_stateMachines.ContainsKey(machineName))
                     {
                         var machine = _stateMachines[machineName];
-                        var currentState = machine.GetActiveStateString();
+                        var currentState = machine.GetActiveStateNames();
                         machine.Send(eventName);
-                        var newState = machine.GetActiveStateString();
+                        var newState = machine.GetActiveStateNames();
 
                         // Publish via Pub/Sub instead of direct update
                         _timelineManager.PublishStateTransition(machineName, currentState, newState, eventName);

@@ -190,7 +190,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 TimeSpan.FromSeconds(1));
 
             // Send GO and verify state reaches running
-            var runningState = await machine.SendAsyncWithState("GO");
+            var runningState = await machine.SendAsync("GO");
 
             // Also wait for the event notification to ensure it was captured
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
@@ -209,7 +209,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
 
             // Send STOP and verify state returns to idle
-            var idleState = await machine.SendAsyncWithState("STOP");
+            var idleState = await machine.SendAsync("STOP");
 
             // Also wait for the event notification to ensure it was captured
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
@@ -891,7 +891,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Note: This is a simplified version - in production you'd need proper subscription
             // For this example, we're assuming the handler is already set up in the test
 
-            machine.Send(eventToSend);
+            await machine.SendAsync(eventToSend);
 
             using (var cts = new CancellationTokenSource(actualTimeout))
             {
@@ -933,7 +933,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 ["cleanup"] = new List<NamedAction> { new NamedAction("cleanup", _ => { }) }
             };
 
-            return XStateNet.StateMachine.CreateFromScript(json, guidIsolate: true, actionMap);
+            return XStateNet.StateMachineFactory.CreateFromScript(json, threadSafe: false, guidIsolate: true, actionMap);
         }
 
         public void Dispose()
@@ -1039,7 +1039,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                     }
                 }";
 
-                var machine = StateMachine.CreateFromScript(json, guidIsolate: true);
+                var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
                 machine.Start();
 
                 var stateHistory = new List<string>();
@@ -1064,17 +1064,17 @@ namespace XStateNet.Distributed.Tests.PubSub
                 };
 
                 // Send events - state changes are captured and verified via subscription
-                // Also demonstrate the new SendAsyncWithState that returns the new state
-                var state1 = await machine.SendAsyncWithState("START");
+                // Also demonstrate the new SendAsync that returns the new state
+                var state1 = await machine.SendAsync("START");
                 Assert.Equal($"{machine.machineId}.running", state1);
 
-                var state2 = await machine.SendAsyncWithState("PAUSE");
+                var state2 = await machine.SendAsync("PAUSE");
                 Assert.Equal($"{machine.machineId}.paused", state2);
 
-                var state3 = await machine.SendAsyncWithState("RESUME");
+                var state3 = await machine.SendAsync("RESUME");
                 Assert.Equal($"{machine.machineId}.running", state3);
 
-                var state4 = await machine.SendAsyncWithState("STOP");
+                var state4 = await machine.SendAsync("STOP");
                 Assert.Equal($"{machine.machineId}.idle", state4);
 
                 // Verify all expected transitions occurred

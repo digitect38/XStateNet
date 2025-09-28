@@ -51,7 +51,7 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
         
-        var stateMachine = StateMachine.CreateFromScript(script, guidIsolate: true, _actions, _guards);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards);
         var actor = ActorSystem.Instance.Spawn("actor1", id => new StateMachineActor(id, stateMachine));
         
         Assert.Equal("actor1", actor.Id);
@@ -61,9 +61,9 @@ public class UnitTest_ActorModel : IDisposable
         Assert.Equal(ActorStatus.Running, actor.Status);
         
         await actor.SendAsync("WORK");
-        await Task.Delay(50); // Allow message processing
-        
-        Assert.Contains("working", actor.Machine.GetActiveStateString());
+        //await actor.Machine.WaitForStateWithActionsAsync("working", 1000);
+        await actor.Machine.WaitForStateAsync("working", 1000);
+        Assert.Contains($"{actor.Machine.machineId}.working", actor.Machine.GetActiveStateNames().ToString());
         
         await actor.StopAsync();
         Assert.Equal(ActorStatus.Stopped, actor.Status);
@@ -83,7 +83,7 @@ public class UnitTest_ActorModel : IDisposable
                     }
                 },
                 'pinging': {
-                    'entry': 'sendPong',
+                    'entry': 'sendPing',
                     'on': {
                         'PONG_RECEIVED': 'waiting'
                     }
@@ -102,7 +102,7 @@ public class UnitTest_ActorModel : IDisposable
                     }
                 },
                 'ponging': {
-                    'entry': 'sendPing',
+                    'entry': 'sendPong',
                     'on': {
                         'DONE': 'waiting'
                     }
@@ -115,36 +115,39 @@ public class UnitTest_ActorModel : IDisposable
         
         var pingActions = new ActionMap
         {
-            ["sendPong"] = new List<NamedAction> { new NamedAction("sendPong", async (sm) => {
+            ["sendPing"] = new List<NamedAction> { new NamedAction("sendPing", async (sm) => {
                 await ActorSystem.Instance.SendToActor("pongActor", "PING");
             }) }
         };
 
         var pongActions = new ActionMap
         {
-            ["sendPing"] = new List<NamedAction> { new NamedAction("sendPing", async (sm) => {
+            ["sendPong"] = new List<NamedAction> { new NamedAction("sendPong", async (sm) => {
                 pingReceived = true;
                 await ActorSystem.Instance.SendToActor("pingActor", "PONG_RECEIVED");
+                await ActorSystem.Instance.SendToActor("pongActor", "DONE");
                 pongReceived = true;
             }) }
         };
 
-        var pingMachine = StateMachine.CreateFromScript(pingScript, guidIsolate: true, pingActions, _guards);
-        var pongMachine = StateMachine.CreateFromScript(pongScript, guidIsolate: true, pongActions, _guards);
+        var pingMachine = StateMachineFactory.CreateFromScript(pingScript, threadSafe: false, guidIsolate: true, pingActions, _guards);
+        var pongMachine = StateMachineFactory.CreateFromScript(pongScript, threadSafe: false, guidIsolate: true, pongActions, _guards);
 
         var pingActor = ActorSystem.Instance.Spawn("pingActor", id => new StateMachineActor(id, pingMachine));
         var pongActor = ActorSystem.Instance.Spawn("pongActor", id => new StateMachineActor(id, pongMachine));
         
         await pingActor.StartAsync();
         await pongActor.StartAsync();
-        
+
         await pingActor.SendAsync("START");
-        await Task.Delay(100); // Allow message processing
-        
+        await pingActor.Machine.WaitForStateWithActionsAsync("waiting", 1000);
+        await pongActor.Machine.WaitForStateWithActionsAsync("waiting", 1000);
+
+
         Assert.True(pingReceived);
         Assert.True(pongReceived);
-        Assert.Contains("waiting", pingActor.Machine.GetActiveStateString());
-        Assert.Contains("ponging", pongActor.Machine.GetActiveStateString());
+        Assert.Contains($"{pingActor.Machine.machineId}.waiting", pingActor.Machine.GetActiveStateNames());
+        Assert.Contains($"{pongActor.Machine.machineId}.waiting", pongActor.Machine.GetActiveStateNames());
     }
     
     [Fact]
@@ -189,8 +192,8 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
 
-        var parentMachine = StateMachine.CreateFromScript(parentScript, _actions, _guards);
-        var childMachine = StateMachine.CreateFromScript(childScript, _actions, _guards);
+        var parentMachine = StateMachineFactory.CreateFromScript(parentScript, threadSafe: false, false, _actions, _guards);
+        var childMachine = StateMachineFactory.CreateFromScript(childScript, threadSafe: false, false, _actions, _guards);
 
         var parentActor = ActorSystem.Instance.Spawn($"parent_{testId}", id => new StateMachineActor(id, parentMachine));
         await parentActor.StartAsync();
@@ -201,7 +204,7 @@ public class UnitTest_ActorModel : IDisposable
 
         Assert.Equal($"parent_{testId}.child1", childActor.Id);
         Assert.Equal(ActorStatus.Running, childActor.Status);
-        Assert.Contains("active", childActor.Machine.GetActiveStateString());
+        Assert.Contains($"{childActor.Machine.machineId}.active", childActor.Machine.GetActiveStateNames());
         
         await childActor.SendAsync("STOP");
 
@@ -212,7 +215,7 @@ public class UnitTest_ActorModel : IDisposable
 
         while (elapsed < maxWaitTime)
         {
-            var currentState = childActor.Machine.GetActiveStateString();
+            var currentState = childActor.Machine.GetActiveStateNames();
             if (currentState.Contains("stopped"))
             {
                 break;
@@ -221,7 +224,7 @@ public class UnitTest_ActorModel : IDisposable
             elapsed += waitInterval;
         }
 
-        Assert.Contains("stopped", childActor.Machine.GetActiveStateString());
+        Assert.Contains($"{childActor.Machine.machineId}.stopped", childActor.Machine.GetActiveStateNames());
     }
     
     [Fact]
@@ -253,13 +256,13 @@ public class UnitTest_ActorModel : IDisposable
             }) }
         };
         
-        var stateMachine = StateMachine.CreateFromScript(script, errorActions, _guards);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,errorActions, _guards);
         var actor = ActorSystem.Instance.Spawn("errorActor", id => new StateMachineActor(id, stateMachine));
         
         await actor.StartAsync();
         await actor.SendAsync("CAUSE_ERROR");
-        await Task.Delay(50);
-        
+        await actor.Machine.WaitForStateWithActionsAsync("error", 1000);
+
         // Actor should handle the error and set status appropriately
         Assert.Equal(ActorStatus.Error, actor.Status);
     }
@@ -293,7 +296,7 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
 
-        var stateMachine = StateMachine.CreateFromScript(script, countingActions, _guards);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,countingActions, _guards);
         var actor = ActorSystem.Instance.Spawn(uniqueId, id => new StateMachineActor(id, stateMachine));
 
         await actor.StartAsync();
@@ -342,18 +345,18 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
         
-        var stateMachine = StateMachine.CreateFromScript(script, dataActions, _guards);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,dataActions, _guards);
         var actor = ActorSystem.Instance.Spawn("dataActor", id => new StateMachineActor(id, stateMachine));
         
         await actor.StartAsync();
         
         var testData = new { Name = "Test", Value = 123 };
         await actor.SendAsync("RECEIVE_DATA", testData);
-        
-        await Task.Delay(50);
-        
+        await actor.Machine.WaitForStateWithActionsAsync("received", 1000);
+
+
         Assert.NotNull(receivedData);
         Assert.Equal(testData, receivedData);
-        Assert.Contains("received", actor.Machine.GetActiveStateString());
+        Assert.Contains($"{actor.Machine.machineId}.received", actor.Machine.GetActiveStateNames());
     }
 }

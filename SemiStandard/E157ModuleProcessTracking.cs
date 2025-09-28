@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 
 namespace SemiStandard.E157
@@ -298,94 +299,149 @@ namespace SemiStandard.E157
         }
         
         // Material Management
-        public void MaterialArrive(string materialId, string recipeStep)
+        public async Task MaterialArriveAsync(string materialId, string recipeStep)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "MATERIAL_ARRIVE",
                 Data = new MaterialData { MaterialId = materialId, RecipeStep = recipeStep }
             });
             UpdateState();
         }
+
+        public void MaterialArrive(string materialId, string recipeStep)
+        {
+            MaterialArriveAsync(materialId, recipeStep).GetAwaiter().GetResult();
+        }
         
+        public async Task StartPreProcessAsync()
+        {
+            await _stateMachine.SendAsync("START_PRE_PROCESS");
+            UpdateState();
+        }
+
         public void StartPreProcess()
         {
-            _stateMachine.Send("START_PRE_PROCESS");
-            UpdateState();
+            StartPreProcessAsync().GetAwaiter().GetResult();
         }
         
+        public async Task SkipPreProcessAsync()
+        {
+            await _stateMachine.SendAsync("SKIP_PRE_PROCESS");
+            UpdateState();
+        }
+
         public void SkipPreProcess()
         {
-            _stateMachine.Send("SKIP_PRE_PROCESS");
-            UpdateState();
+            SkipPreProcessAsync().GetAwaiter().GetResult();
         }
         
-        public void PreProcessComplete(ConcurrentDictionary<string, object>? results = null)
+        public async Task PreProcessCompleteAsync(ConcurrentDictionary<string, object>? results = null)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "PRE_PROCESS_COMPLETE",
                 Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
-        
-        public void ProcessComplete(ConcurrentDictionary<string, object>? results = null)
+
+        public void PreProcessComplete(ConcurrentDictionary<string, object>? results = null)
         {
-            _stateMachine.Send(new StateMachineEvent
+            PreProcessCompleteAsync(results).GetAwaiter().GetResult();
+        }
+        
+        public async Task ProcessCompleteAsync(ConcurrentDictionary<string, object>? results = null)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "PROCESS_COMPLETE",
                 Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
-        
-        public void PostProcessComplete(ConcurrentDictionary<string, object>? results = null)
+
+        public void ProcessComplete(ConcurrentDictionary<string, object>? results = null)
         {
-            _stateMachine.Send(new StateMachineEvent
+            ProcessCompleteAsync(results).GetAwaiter().GetResult();
+        }
+        
+        public async Task PostProcessCompleteAsync(ConcurrentDictionary<string, object>? results = null)
+        {
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "POST_PROCESS_COMPLETE",
                 Data = new ProcessResults { Data = results ?? new ConcurrentDictionary<string, object>() }
             });
             UpdateState();
         }
+
+        public void PostProcessComplete(ConcurrentDictionary<string, object>? results = null)
+        {
+            PostProcessCompleteAsync(results).GetAwaiter().GetResult();
+        }
         
+        public async Task SkipPostProcessAsync()
+        {
+            await _stateMachine.SendAsync("SKIP_POST_PROCESS");
+            UpdateState();
+        }
+
         public void SkipPostProcess()
         {
-            _stateMachine.Send("SKIP_POST_PROCESS");
-            UpdateState();
+            SkipPostProcessAsync().GetAwaiter().GetResult();
         }
         
+        public async Task MaterialRemoveAsync()
+        {
+            await _stateMachine.SendAsync("MATERIAL_REMOVE");
+            UpdateState();
+        }
+
         public void MaterialRemove()
         {
-            _stateMachine.Send("MATERIAL_REMOVE");
-            UpdateState();
+            MaterialRemoveAsync().GetAwaiter().GetResult();
         }
         
-        public void NextMaterial(string materialId, string recipeStep)
+        public async Task NextMaterialAsync(string materialId, string recipeStep)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "NEXT_MATERIAL",
                 Data = new MaterialData { MaterialId = materialId, RecipeStep = recipeStep }
             });
             UpdateState();
         }
+
+        public void NextMaterial(string materialId, string recipeStep)
+        {
+            NextMaterialAsync(materialId, recipeStep).GetAwaiter().GetResult();
+        }
         
         // Process Control
+        public async Task PauseAsync()
+        {
+            await _stateMachine.SendAsync("PAUSE");
+            UpdateState();
+        }
+
         public void Pause()
         {
-            _stateMachine.Send("PAUSE");
-            UpdateState();
+            PauseAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ResumeAsync()
+        {
+            await _stateMachine.SendAsync("RESUME");
+            UpdateState();
+        }
+
         public void Resume()
         {
-            _stateMachine.Send("RESUME");
-            UpdateState();
+            ResumeAsync().GetAwaiter().GetResult();
         }
         
-        public void ReportError(string code, string message)
+        public async Task ReportErrorAsync(string code, string message)
         {
             var eventName = CurrentState switch
             {
@@ -394,38 +450,63 @@ namespace SemiStandard.E157
                 ModuleState.PostProcessing => "POST_PROCESS_ERROR",
                 _ => "ERROR"
             };
-            
-            _stateMachine.Send(new StateMachineEvent
+
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = eventName,
                 Data = new ErrorInfo { Code = code, Message = message }
             });
             UpdateState();
         }
-        
-        public void ClearError()
+
+        public void ReportError(string code, string message)
         {
-            _stateMachine.Send("ERROR_CLEAR");
-            UpdateState();
+            ReportErrorAsync(code, message).GetAwaiter().GetResult();
         }
         
+        public async Task ClearErrorAsync()
+        {
+            await _stateMachine.SendAsync("ERROR_CLEAR");
+            UpdateState();
+        }
+
+        public void ClearError()
+        {
+            ClearErrorAsync().GetAwaiter().GetResult();
+        }
+        
+        public async Task AbortAsync()
+        {
+            await _stateMachine.SendAsync("ABORT");
+            UpdateState();
+        }
+
         public void Abort()
         {
-            _stateMachine.Send("ABORT");
-            UpdateState();
+            AbortAsync().GetAwaiter().GetResult();
         }
         
         // Maintenance
-        public void StartMaintenance()
+        public async Task StartMaintenanceAsync()
         {
-            _stateMachine.Send("MAINTENANCE_START");
+            await _stateMachine.SendAsync("MAINTENANCE_START");
             UpdateState();
         }
+
+        public void StartMaintenance()
+        {
+            StartMaintenanceAsync().GetAwaiter().GetResult();
+        }
         
+        public async Task MaintenanceCompleteAsync()
+        {
+            await _stateMachine.SendAsync("MAINTENANCE_COMPLETE");
+            UpdateState();
+        }
+
         public void MaintenanceComplete()
         {
-            _stateMachine.Send("MAINTENANCE_COMPLETE");
-            UpdateState();
+            MaintenanceCompleteAsync().GetAwaiter().GetResult();
         }
         
         // Reporting

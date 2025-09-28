@@ -84,7 +84,7 @@ namespace XStateNet.Distributed.Examples
                 ["notifyYellowLight"] = new List<NamedAction> { new NamedAction("notifyYellowLight", sm => { }) }
             };
 
-            var trafficLight = StateMachine.CreateFromScript(trafficLightJson, actionMap);
+            var trafficLight = StateMachineFactory.CreateFromScript(trafficLightJson, false, true, actionMap);
 
             // Create event notification service
 #if false
@@ -239,8 +239,8 @@ namespace XStateNet.Distributed.Examples
                 ["hasStock"] = new NamedGuard("hasStock", sm => true) // Simulate stock available
             };
 
-            var orderMachine = StateMachine.CreateFromScript(orderMachineJson, orderActions);
-            var inventoryMachine = StateMachine.CreateFromScript(inventoryMachineJson, inventoryActions, inventoryGuards);
+            var orderMachine = StateMachineFactory.CreateFromScript(orderMachineJson, false, true, orderActions);
+            var inventoryMachine = StateMachineFactory.CreateFromScript(inventoryMachineJson, false, true, inventoryActions, inventoryGuards);
 
             // Create notification services
             var orderNotifications = new EventNotificationService(
@@ -335,7 +335,7 @@ namespace XStateNet.Distributed.Examples
                 }
             };
 
-            var counterMachine = StateMachine.CreateFromScript(counterJson, actionMap);
+            var counterMachine = StateMachineFactory.CreateFromScript(counterJson, false, true, actionMap);
 #if false
             var notificationService = new EventNotificationService(
                 counterMachine, eventBus, "counter-1",

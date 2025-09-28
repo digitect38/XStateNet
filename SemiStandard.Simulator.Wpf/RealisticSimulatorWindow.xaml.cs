@@ -1382,7 +1382,7 @@ namespace SemiStandard.Simulator.Wpf
             });
         }
         
-        private void GenerateDemoStateTransitions()
+        private async void GenerateDemoStateTransitions()
         {
             // Use real XStateNet state machines to trigger transitions
             if (_stateMachines.Count == 0)
@@ -1392,22 +1392,21 @@ namespace SemiStandard.Simulator.Wpf
             }
             
             // Initial state machine setup using real state machines
-            _stateMachines["EquipmentController"]?.Send("POWER_ON");
-            System.Threading.Thread.Sleep(100);
-            _stateMachines["TransportHandler"]?.Send("INIT_COMPLETE");
-            System.Threading.Thread.Sleep(100);
-            _stateMachines["ProcessManager"]?.Send("SYSTEM_READY");
-            System.Threading.Thread.Sleep(100);
-            _stateMachines["EquipmentController"]?.Send("INIT_SUCCESS");
+            await _stateMachines["EquipmentController"]?.SendAsync("POWER_ON");
+            await _stateMachines["TransportHandler"]?.SendAsync("INIT_COMPLETE");
+            await Task.Delay(100);
+            await _stateMachines["ProcessManager"]?.SendAsync("SYSTEM_READY");
+            await Task.Delay(100);
+            await _stateMachines["EquipmentController"]?.SendAsync("INIT_SUCCESS");
             
             // Initialize SEMI standard state machines using real events
-            _stateMachines["E30GEM"]?.Send("ENABLE_COMMAND");
-            _stateMachines["E87Carrier"]?.Send("CARRIER_DETECTED");
-            _stateMachines["E94ControlJob"]?.Send("CREATE_JOB");
-            _stateMachines["E37HSMSSession"]?.Send("CONNECT");
-            _stateMachines["ProcessControl"]?.Send("START_REQUEST");
-            _stateMachines["MaterialHandling"]?.Send("LOAD_START");
-            _stateMachines["AlarmManager"]?.Send("WARNING_DETECTED");
+            await _stateMachines["E30GEM"]?.SendAsync("ENABLE_COMMAND");
+            await _stateMachines["E87Carrier"]?.SendAsync("CARRIER_DETECTED");
+            await _stateMachines["E94ControlJob"]?.SendAsync("CREATE_JOB");
+            await _stateMachines["E37HSMSSession"]?.SendAsync("CONNECT");
+            await _stateMachines["ProcessControl"]?.SendAsync("START_REQUEST");
+            await _stateMachines["MaterialHandling"]?.SendAsync("LOAD_START");
+            await _stateMachines["AlarmManager"]?.SendAsync("WARNING_DETECTED");
             
             // Simulate periodic state changes
             var stateTimer = new DispatcherTimer();

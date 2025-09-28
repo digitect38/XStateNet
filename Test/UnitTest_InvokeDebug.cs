@@ -79,35 +79,24 @@ namespace XStateV5_Test.AdvancedFeatures
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, null, _services);
+            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, null, _services);
 
             // Add debug logging
             _stateMachine.OnTransition += (from, to, evt) => {
                 _eventLog.Add($"transition:{from?.Name ?? "null"}->{to?.Name ?? "null"}:{evt}");
             };
 
-            // Debug: Check if states have entry actions
-            var runningState = _stateMachine.GetState("#simpleInvoke.running") as XStateNet.CompoundState;
-            if (runningState != null)
-            {
-                _eventLog.Add($"running-state-entry-actions:{runningState.EntryActions?.Count ?? 0}");
-                if (runningState.EntryActions != null)
-                {
-                    foreach (var action in runningState.EntryActions)
-                    {
-                        _eventLog.Add($"entry-action:{action.Name}");
-                    }
-                }
-            }
+            // Debug: Check if states have entry actions after starting
+            _eventLog.Add("state-machine-created");
 
             _stateMachine.Start();
-            _eventLog.Add($"initial-state:{_stateMachine.GetActiveStateString()}");
+            _eventLog.Add($"initial-state:{_stateMachine.GetActiveStateNames()}");
 
             // Act
             _stateMachine.Send("START");
-            _eventLog.Add($"after-start-event:{_stateMachine.GetActiveStateString()}");
+            _eventLog.Add($"after-start-event:{_stateMachine.GetActiveStateNames()}");
             await Task.Delay(200);
-            _eventLog.Add($"final-state:{_stateMachine.GetActiveStateString()}");
+            _eventLog.Add($"final-state:{_stateMachine.GetActiveStateNames()}");
 
             // Debug output
             Console.WriteLine("Event log:");
@@ -120,8 +109,7 @@ namespace XStateV5_Test.AdvancedFeatures
             Assert.Contains("counter:incremented:1", _eventLog);
             Assert.Contains("service:started", _eventLog);
             Assert.Contains("service:completed", _eventLog);
-            var machineId = _stateMachine.machineId;
-            Assert.True(_stateMachine.IsInState(_stateMachine, $"{machineId}.done"));
+            Assert.Contains($"{_stateMachine.machineId}.done", _stateMachine.GetActiveStateNames());
         }
 
         [Fact]
@@ -154,7 +142,7 @@ namespace XStateV5_Test.AdvancedFeatures
                 }
             }";
 
-            _stateMachine = StateMachine.CreateFromScript(script, _actions, null, _services);
+            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, null, _services);
             _stateMachine.Start();
 
             // Act

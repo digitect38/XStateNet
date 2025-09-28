@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using SemiStandard;
 
 namespace SemiStandard.E142
@@ -249,75 +250,155 @@ namespace SemiStandard.E142
             }
             else
             {
-                CurrentState = Enum.Parse<WaferMapState>(state);
+                // Handle state names that include machine ID prefix (e.g., "#E142_WaferMap_xxx.NoMap")
+                if (state.Contains('.'))
+                {
+                    state = state.Split('.').Last();
+                }
+                // Also handle state names that start with # and contain the actual state after underscore
+                if (state.Contains('_'))
+                {
+                    var parts = state.Split('_');
+                    // Try to parse the last part as the state
+                    var lastPart = parts.Last();
+                    if (Enum.TryParse<WaferMapState>(lastPart, out var parsedState))
+                    {
+                        CurrentState = parsedState;
+                        return;
+                    }
+                }
+
+                // Try to parse the cleaned state name
+                if (Enum.TryParse<WaferMapState>(state, out var waferMapState))
+                {
+                    CurrentState = waferMapState;
+                }
+                else
+                {
+                    CurrentState = WaferMapState.NoMap;
+                }
             }
         }
         
         // Map lifecycle operations
-        public void Load(WaferMapData mapData)
+        public async Task LoadAsync(WaferMapData mapData)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "LOAD",
                 Data = mapData
             });
             UpdateState();
         }
+
+        // Backward compatibility
+        public void Load(WaferMapData mapData)
+        {
+            LoadAsync(mapData).GetAwaiter().GetResult();
+        }
         
+        public async Task ApplyAsync()
+        {
+            await _stateMachine.SendAsync("APPLY");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void Apply()
         {
-            _stateMachine.Send("APPLY");
-            UpdateState();
+            ApplyAsync().GetAwaiter().GetResult();
         }
         
+        public async Task ReleaseAsync()
+        {
+            await _stateMachine.SendAsync("RELEASE");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void Release()
         {
-            _stateMachine.Send("RELEASE");
-            UpdateState();
+            ReleaseAsync().GetAwaiter().GetResult();
         }
         
-        public void Update(MapUpdateData updateData)
+        public async Task UpdateAsync(MapUpdateData updateData)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "UPDATE",
                 Data = updateData
             });
             UpdateState();
         }
+
+        // Backward compatibility
+        public void Update(MapUpdateData updateData)
+        {
+            UpdateAsync(updateData).GetAwaiter().GetResult();
+        }
         
+        public async Task UpdateCompleteAsync()
+        {
+            await _stateMachine.SendAsync("UPDATE_COMPLETE");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void UpdateComplete()
         {
-            _stateMachine.Send("UPDATE_COMPLETE");
-            UpdateState();
+            UpdateCompleteAsync().GetAwaiter().GetResult();
         }
         
+        public async Task UpdateFailedAsync()
+        {
+            await _stateMachine.SendAsync("UPDATE_FAILED");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void UpdateFailed()
         {
-            _stateMachine.Send("UPDATE_FAILED");
-            UpdateState();
+            UpdateFailedAsync().GetAwaiter().GetResult();
         }
         
+        public async Task UnloadAsync()
+        {
+            await _stateMachine.SendAsync("UNLOAD");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void Unload()
         {
-            _stateMachine.Send("UNLOAD");
-            UpdateState();
+            UnloadAsync().GetAwaiter().GetResult();
         }
         
+        public async Task UnloadCompleteAsync()
+        {
+            await _stateMachine.SendAsync("UNLOAD_COMPLETE");
+            UpdateState();
+        }
+
+        // Backward compatibility
         public void UnloadComplete()
         {
-            _stateMachine.Send("UNLOAD_COMPLETE");
-            UpdateState();
+            UnloadCompleteAsync().GetAwaiter().GetResult();
         }
         
         // Die operations
-        public void UpdateDieTestResult(int x, int y, int binCode, string testResult)
+        public async Task UpdateDieTestResultAsync(int x, int y, int binCode, string testResult)
         {
-            _stateMachine.Send(new StateMachineEvent
+            await _stateMachine.SendAsync(new StateMachineEvent
             {
                 Name = "DIE_TESTED",
                 Data = new DieTestResult { X = x, Y = y, BinCode = binCode, TestResult = testResult }
             });
+        }
+
+        // Backward compatibility
+        public void UpdateDieTestResult(int x, int y, int binCode, string testResult)
+        {
+            UpdateDieTestResultAsync(x, y, binCode, testResult).GetAwaiter().GetResult();
         }
         
         public DieData? GetDieInfo(int x, int y)

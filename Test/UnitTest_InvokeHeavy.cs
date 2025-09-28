@@ -351,7 +351,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         _stateMachine.ContextMap!["serviceInput"] = "test-input";
         await _stateMachine.StartAsync();
 
@@ -418,7 +418,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act - Wait for the service to complete after retries
@@ -472,7 +472,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act
@@ -536,7 +536,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         await _stateMachine.StartAsync();
 
         // Act - Wait for services to complete
@@ -587,7 +587,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         await _stateMachine.StartAsync();
 
         // Act
@@ -644,7 +644,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, false, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: false, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act - Wait for error to be handled
@@ -710,7 +710,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         _stateMachine.Start();
 
         // Act - Wait for fast service to complete
@@ -809,7 +809,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
 
         // Act - Start the machine and send START event
         _stateMachine.Start();
@@ -951,7 +951,7 @@ public class UnitTest_InvokeHeavy : IDisposable
             }
         }";
 
-        _stateMachine = StateMachine.CreateFromScript(script, true, _actions, _guards, _services);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, _services);
         _stateMachine.ContextMap!["serviceInput"] = "workflow-data";
 
         // Act

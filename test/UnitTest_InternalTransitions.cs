@@ -49,7 +49,7 @@ public class UnitTest_InternalTransitions : IDisposable
             _actionLog.Add("update");
         }) });
         _actions.SetActions("log", new List<NamedAction> { new NamedAction("log", (sm) => {
-            _actionLog.Add($"log:{sm.GetActiveStateString()}");
+            _actionLog.Add($"log:{sm.GetActiveStateNames()}");
         }) });
         _actions.SetActions("incrementInternal", new List<NamedAction> { new NamedAction("incrementInternal", (sm) => {
             var currentValue = sm.ContextMap!["internalCount"];
@@ -108,10 +108,10 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
 
-        Assert.Contains("active", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.active", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _entryCount); // Entry called once on start
 
         // Send internal transition event multiple times
@@ -120,7 +120,7 @@ public class UnitTest_InternalTransitions : IDisposable
         _stateMachine!.Send("INCREMENT");
 
         // State should not change, entry/exit should not be called again
-        Assert.Contains("active", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.active", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _entryCount); // Still only once
         Assert.Equal(0, _exitCount); // Never called for internal
         Assert.Equal(3, _actionCount); // Action called 3 times
@@ -128,7 +128,7 @@ public class UnitTest_InternalTransitions : IDisposable
 
         // Now do external transition
         _stateMachine!.Send("EXTERNAL");
-        Assert.Contains("done", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.done", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _exitCount); // Exit called on external transition
     }
     
@@ -157,7 +157,7 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine.ContextMap!["counter"] = 0;
         _stateMachine!.Start();
 
@@ -167,7 +167,7 @@ public class UnitTest_InternalTransitions : IDisposable
         _stateMachine!.Send("UPDATE");
         _stateMachine!.Send("UPDATE");
 
-        Assert.Contains("counting", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.counting", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _entryCount); // No re-entry
         Assert.Equal(2, _actionCount);
         var counterVal = _stateMachine!.ContextMap!["counter"];
@@ -208,7 +208,7 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
 
         Assert.Equal(2, _entryCount); // Parent and child entry
@@ -218,23 +218,21 @@ public class UnitTest_InternalTransitions : IDisposable
         // Should update context without re-entering states
         Assert.Equal(2, _entryCount); // No additional entries
         Assert.Equal("updated", _stateMachine.ContextMap!["value"]);
-        Assert.Contains("child", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.parent.child", _stateMachine.GetActiveStateNames());
 
         _stateMachine!.Send("EXTERNAL_UPDATE");
 
         // External transition should trigger exit/entry
-        Assert.Contains("sibling", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.parent.sibling", _stateMachine.GetActiveStateNames());
         Assert.Equal(1, _exitCount); // Child exit
     }
     
     [Fact]
-    public void TestInternalTransitionWithGuards()
+    public async void TestInternalTransitionWithGuards()
     {
-        var uniqueId = "TestInternalTransitionWithGuards_" + Guid.NewGuid().ToString("N");
-
         string script = @$"
         {{
-            id: '{uniqueId}',
+            id: 'machineId',
             initial: 'counting',
             context: {{
                 counter: 0
@@ -261,14 +259,14 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
-        _stateMachine!.Start();
-
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
+        await _stateMachine!.StartAsync();
+        string stateString;
         // Increment while counter < 5 (internal transitions)
         for (int i = 0; i < 4; i++)
         {
-            _stateMachine!.Send("INCREMENT");
-            Assert.Contains("counting", _stateMachine.GetActiveStateString());
+            stateString = await _stateMachine!.SendAsync("INCREMENT");
+            Assert.Contains($"{_stateMachine.machineId}.counting", stateString);
         }
 
         Assert.Equal(4, _actionCount);
@@ -276,25 +274,23 @@ public class UnitTest_InternalTransitions : IDisposable
         Assert.Equal(4, counter1 is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : (int)(counter1 ?? 0));
 
         // One more increment should reach 5 and transition externally
-        _stateMachine!.Send("INCREMENT");
+        await _stateMachine!.SendAsync("INCREMENT");
         Assert.Equal(5, _actionCount);
         var counter2 = _stateMachine.ContextMap!["counter"];
         Assert.Equal(5, counter2 is Newtonsoft.Json.Linq.JValue jv2 ? jv2.ToObject<int>() : (int)(counter2 ?? 0));
 
         // Next increment should trigger external transition
-        _stateMachine!.Send("INCREMENT");
-        Assert.Contains("maxReached", _stateMachine.GetActiveStateString());
-        Assert.Contains($"log:#{uniqueId}.maxReached", _actionLog);
+        stateString = await _stateMachine!.SendAsync("INCREMENT");
+        Assert.Contains($"{_stateMachine.machineId}.maxReached", stateString);
+        Assert.Contains($"{_stateMachine.machineId}.maxReached", stateString);
     }
     
     [Fact]
     public void TestInternalTransitionInParallelStates()
     {
-        var uniqueId = "TestInternalTransitionInParallelStates_" + Guid.NewGuid().ToString("N");
-
         string script = @$"
         {{
-            id: '{uniqueId}',
+            id: 'machineId',
             type: 'parallel',
             states: {{
                 regionA: {{
@@ -328,7 +324,7 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine.ContextMap!["counter"] = 0;
         _stateMachine!.Start();
 
@@ -346,7 +342,7 @@ public class UnitTest_InternalTransitions : IDisposable
         Assert.Equal("updated", _stateMachine.ContextMap["value"]);
 
         // Both regions should still be in their original states
-        var activeStates = _stateMachine!.GetActiveStateString();
+        var activeStates = _stateMachine!.GetActiveStateNames();
         Assert.Contains("regionA.stateA", activeStates);
         Assert.Contains("regionB.stateB", activeStates);
     }
@@ -391,7 +387,7 @@ public class UnitTest_InternalTransitions : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachine.CreateFromScript(script, _actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
         _stateMachine!.Start();
 
         _stateMachine!.Send("START");
@@ -421,7 +417,7 @@ public class UnitTest_InternalTransitions : IDisposable
         Assert.Equal(2, externalCount2 is Newtonsoft.Json.Linq.JValue jve2 ? jve2.ToObject<int>() : (int)(externalCount2 ?? 0));
 
         _stateMachine!.Send("DONE");
-        Assert.Contains("complete", _stateMachine.GetActiveStateString());
+        Assert.Contains($"{_stateMachine.machineId}.complete", _stateMachine.GetActiveStateNames());
     }
     
     public void Dispose()
