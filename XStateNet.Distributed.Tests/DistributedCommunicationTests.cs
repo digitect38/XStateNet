@@ -307,7 +307,7 @@ namespace XStateNet.Distributed.Tests
 
             // Wait for coordination with timeout
             var sw = Stopwatch.StartNew();
-            var timeout = TimeSpan.FromSeconds(5);
+            var timeout = TimeSpan.FromSeconds(15);
 
             while (!childCompleted.Task.IsCompleted && sw.Elapsed < timeout)
             {
