@@ -53,7 +53,7 @@ namespace SemiStandard.Tests
             Logger.IncludeCallerInfo = true;
 
             // Set desired log level
-            Logger.CurrentLevel = Logger.LogLevel.Info;
+            Logger.CurrentLevel = Logger.LogLevel.Warning;
         }
         
         private void InitializeActions()

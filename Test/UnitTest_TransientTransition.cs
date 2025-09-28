@@ -24,8 +24,8 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            // Enable debug logging
-            Logger.CurrentLevel = Logger.LogLevel.Debug;
+            // Set log level to Warning
+            Logger.CurrentLevel = Logger.LogLevel.Warning;
 
             var stateMachine = StateMachineFactory.CreateFromScript(stateMachineJson, false, true);
             stateMachine.Start();
