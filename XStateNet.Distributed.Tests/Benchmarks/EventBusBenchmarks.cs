@@ -16,6 +16,10 @@ using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Distributed.PubSub;
 using XStateNet.Distributed.PubSub.Optimized;
 
+// Suppress obsolete warning - Benchmark code measuring event bus performance
+// Benchmarks test StateMachineFactory.CreateFromScript for performance comparison
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Tests.Benchmarks
 {
     [MemoryDiagnoser]

@@ -5,6 +5,10 @@ using XStateNet;
 using XStateNet.Distributed.EventBus;
 using TimelineWPF.ViewModels;
 
+// Suppress obsolete warning - WPF demo application showing timeline visualization
+// Demo uses StateMachineFactory.CreateFromScript for visual demonstration purposes
+#pragma warning disable CS0618
+
 namespace TimelineWPF
 {
     public partial class DemoWindow : Window
