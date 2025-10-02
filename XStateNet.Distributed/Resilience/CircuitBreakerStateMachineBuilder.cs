@@ -1,5 +1,9 @@
 using XStateNet;
 
+// Suppress obsolete warning - Circuit breaker infrastructure uses StateMachine for resilience patterns
+// Distributed resilience requires StateMachineFactory.CreateFromScript for circuit breaker state management
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Resilience
 {
     /// <summary>

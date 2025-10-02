@@ -2,11 +2,15 @@ using System;
 using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Helpers;
 using Xunit;
+
+// Suppress obsolete warning - standalone reset event test with no inter-machine communication
+#pragma warning disable CS0618
 
 namespace XStateV5_Test.CoreFeatures;
 
@@ -29,6 +33,15 @@ public class UnitTest_ResetEvent : IDisposable
     private GuardMap _guards;
     private ServiceMap _services;
 
+    // ���¸ӽſ� DI�� ����
+    private readonly ServiceSignals _signals = new();
+
+    // �׼� �� ����
+    void OnServiceStarted() => _signals.Started.TrySetResult(true);
+    void OnServiceCompleted() => _signals.Completed.TrySetResult(true);
+    void OnServiceCancelled() => _signals.Cancelled.TrySetResult(true);
+
+
     public UnitTest_ResetEvent()
     {
         _actionLog = new ConcurrentBag<string>();
@@ -36,15 +49,15 @@ public class UnitTest_ResetEvent : IDisposable
 
         _actions = new ActionMap
         {
-            ["logEntry"] = new List<NamedAction> { new NamedAction("logEntry", (sm) => {
+            ["logEntry"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add($"entry:{sm.GetActiveStateNames()}");
                 _counters["entries"] = _counters.GetValueOrDefault("entries", 0) + 1;
-            }) },
-            ["logExit"] = new List<NamedAction> { new NamedAction("logExit", (sm) => {
+            }, "logEntry") },
+            ["logExit"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add($"exit:{sm.GetActiveStateNames()}");
                 _counters["exits"] = _counters.GetValueOrDefault("exits", 0) + 1;
-            }) },
-            ["incrementCounter"] = new List<NamedAction> { new NamedAction("incrementCounter", (sm) => {
+            }, "logExit") },
+            ["incrementCounter"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 var counterValue = sm.ContextMap?["counter"];
                 var counter = 0;
                 if(counterValue is Newtonsoft.Json.Linq.JValue jv) {
@@ -54,36 +67,36 @@ public class UnitTest_ResetEvent : IDisposable
                 }
                 sm.ContextMap!["counter"] = counter + 1;
                 _actionLog.Add($"counter:{counter + 1}");
-            }) },
-            ["logAction"] = new List<NamedAction> { new NamedAction("logAction", (sm) => {
+            }, "incrementCounter") },
+            ["logAction"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add($"action:executed");
-            }) },
-            ["initializeContext"] = new List<NamedAction> { new NamedAction("initializeContext", (sm) => {
+            }, "logAction") },
+            ["initializeContext"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 sm.ContextMap!["initialized"] = true;
                 _actionLog.Add("context:initialized");
-            }) },
-            ["modifyContext"] = new List<NamedAction> { new NamedAction("modifyContext", (sm) => {
+            }, "initializeContext") },
+            ["modifyContext"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 sm.ContextMap!["modified"] = true;
                 sm.ContextMap!["counter"] = 99;
                 _actionLog.Add("context:modified");
-            }) }
+            }, "modifyContext") }
         };
 
         _guards = new GuardMap
         {
-            ["isReady"] = new NamedGuard("isReady", (sm) => {
+            ["isReady"] = new NamedGuard((sm) => {
                 return sm.ContextMap?["ready"] as bool? ?? false;
-            })
+            }, "isReady")
         };
 
         _services = new ServiceMap
         {
-            ["longRunningService"] = new NamedService("longRunningService", async (sm, ct) => {
+            ["longRunningService"] = new NamedService(async (sm, ct) => {
                 _actionLog.Add("service:started");
                 await Task.Delay(1000, ct);
                 _actionLog.Add("service:completed");
                 return "service result";
-            })
+            }, "longRunningService")
         };
     }
 
@@ -457,24 +470,73 @@ public class UnitTest_ResetEvent : IDisposable
             .WithAutoStart(true)
             .Build("serviceReset");
 
+#if false
+
+ 
+        // Act 1: ����
+        var stateString = await _stateMachine.SendAsync("START");
+
+        // Assert 1: running ���� �� ���� ��ȣ ���
+        Assert.Contains($"{_stateMachine.machineId}.running", stateString);
+
+        var startedTask = _signals.Started.Task;
+        var startedWon = await Task.WhenAny(startedTask, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.Same(startedTask, startedWon); // ���� ��ȣ�� �;� ��
+
+        var sss = stateString;
+        // Act 2: �Ϸ� ���� Reset
+        stateString = await _stateMachine.SendAsync("RESET");
+
+        // Assert 2: idle ���� �� ��� ��ȣ, 'completed'�� ���� �� ��
+        Assert.Contains($"{_stateMachine.machineId}.idle", stateString);
+
+        var completedTask = _signals.Completed.Task;
+        var cancelledTask = _signals.Cancelled.Task;
+
+        // '��Ұ� ����'�� �����ϰ�, �Ϸᰡ �ڴʰ� ������ ������ Ȯ��
+        var first = await Task.WhenAny(Task.WhenAny(cancelledTask, completedTask), Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.NotEqual(first, completedTask); // completed�� ���� ���� ����
+        Assert.Same(cancelledTask, await Task.WhenAny(cancelledTask, Task.Delay(TimeSpan.FromSeconds(2))));
+
+        // ���Ŀ��� completed�� ���� �ʾƾ� ��(�帮��Ʈ ����)
+        var notCompleted = await Task.WhenAny(completedTask, Task.Delay(TimeSpan.FromSeconds(1)));
+        Assert.NotSame(notCompleted, completedTask);
+#else
         //_stateMachine.Start();
 
         // Start service
-        await _stateMachine.SendAsync("START");
+        var stateString = await _stateMachine.SendAsync("START");
+
+        // Wait for service to start using Stopwatch
+        var sw = Stopwatch.StartNew();
+        while (!_actionLog.Contains("service:started") && sw.ElapsedMilliseconds < 100)
+        {
+            await Task.Yield();
+        }
 
         Assert.Contains("service:started", _actionLog);
-        Assert.Contains($"{_stateMachine.machineId}.running", _stateMachine.GetActiveStateNames());
+        Assert.Contains($"{_stateMachine.machineId}.running", stateString);
 
         // Act - Reset before service completes
-        await _stateMachine.SendAsync("RESET");
+        stateString = await _stateMachine.SendAsync("RESET");
 
         // Assert - Service should be cancelled, not completed
         Assert.DoesNotContain("service:completed", _actionLog);
-        Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
+        Assert.Contains($"{_stateMachine.machineId}.idle", stateString);
 
-        // Verify service doesn't complete after reset
-        await Task.Delay(1000);
+        // Verify service doesn't complete after reset using Stopwatch
+        sw.Restart();
+        while (sw.ElapsedMilliseconds < 1100)
+        {
+            if (_actionLog.Contains("service:completed"))
+            {
+                break;
+            }
+            await Task.Yield();
+        }
+
         Assert.DoesNotContain("service:completed", _actionLog);
+#endif
     }
 
     [Fact]
@@ -624,3 +686,12 @@ public class UnitTest_ResetEvent : IDisposable
         _stateMachine = null;
     }
 }
+
+// ���δ���/�׽�Ʈ ��: ���� ����������Ŭ ��ȣ
+public sealed class ServiceSignals
+{
+    public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource<bool> Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource<bool> Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+}
+

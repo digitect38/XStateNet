@@ -84,13 +84,37 @@ namespace OrchestratorTestApp
                 }";
 
                 Console.WriteLine("2. Creating sync1 machine...");
-                var sync1 = PureStateMachineFactory.CreateFromScript("sync1", sync1Json, orchestrator, syncActions);
+                var sync1 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: "sync1",
+                    json: sync1Json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: syncActions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
 
                 Console.WriteLine("3. Creating sync2 machine...");
-                var sync2 = PureStateMachineFactory.CreateFromScript("sync2", sync2Json, orchestrator, null);
+                var sync2 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: "sync2",
+                    json: sync2Json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: null,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
 
                 Console.WriteLine("4. Creating sync3 machine...");
-                var sync3 = PureStateMachineFactory.CreateFromScript("sync3", sync3Json, orchestrator, null);
+                var sync3 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: "sync3",
+                    json: sync3Json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: null,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
 
                 Console.WriteLine("5. Starting all machines...");
                 await Task.WhenAll(

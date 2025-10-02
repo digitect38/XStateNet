@@ -5,29 +5,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using XStateNet;
+using XStateNet.Orchestration;
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
 
 namespace TimelineWPF.Tests
 {
-    public class RealTimeIntegrationTests : IDisposable
+    public class RealTimeIntegrationTests : XStateNet.Tests.OrchestratorTestBase
     {
-        private readonly List<StateMachine> _machines = new();
         private readonly List<RealTimeStateMachineAdapter> _adapters = new();
 
-        public void Dispose()
+        private StateMachine? GetUnderlying(IPureStateMachine machine)
+        {
+            return (machine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+        }
+
+        private async Task SendToMachineAsync(string machineId, string eventName)
+        {
+            await _orchestrator.SendEventAsync("test", machineId, eventName);
+        }
+
+        public override void Dispose()
         {
             foreach (var adapter in _adapters)
             {
                 adapter.Dispose();
             }
-            foreach (var machine in _machines)
-            {
-                machine.Stop();
-            }
+            base.Dispose();
         }
 
-        private StateMachine CreateTestMachineWithFixedId(string fixedId)
+        private (StateMachine machine, string machineId) CreateTestMachineWithFixedId(string fixedId)
         {
             var json = @"{
                 'id': '" + fixedId + @"',
@@ -57,22 +64,22 @@ namespace TimelineWPF.Tests
                 }
             }";
 
-            var actionMap = new ActionMap
+            var actions = new Dictionary<string, Action<OrchestratedContext>>
             {
-                ["onStart"] = new List<NamedAction> { new NamedAction("onStart", _ => { }) },
-                ["enterActive"] = new List<NamedAction> { new NamedAction("enterActive", _ => { }) },
-                ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
+                ["onStart"] = ctx => { },
+                ["enterActive"] = ctx => { },
+                ["exitActive"] = ctx => { }
             };
 
-            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
-            machine.Start();
-            _machines.Add(machine);
-            return machine;
+            var pureMachine = CreateMachine(fixedId, json, actions);
+            pureMachine.StartAsync().Wait();
+            var underlying = GetUnderlying(pureMachine);
+            return (underlying!, fixedId);
         }
 
-        private StateMachine CreateTestMachine(string id)
+        private (StateMachine machine, string machineId) CreateTestMachine(string id)
         {
-            string uniqueId = $"#{id}-{Guid.NewGuid()}";
+            string uniqueId = $"{id}_{Guid.NewGuid():N}";
             var json = @"{
                 'id': '" + uniqueId + @"',
                 'initial': 'idle',
@@ -101,17 +108,17 @@ namespace TimelineWPF.Tests
                 }
             }";
 
-            var actionMap = new ActionMap
+            var actions = new Dictionary<string, Action<OrchestratedContext>>
             {
-                ["onStart"] = new List<NamedAction> { new NamedAction("onStart", _ => { }) },
-                ["enterActive"] = new List<NamedAction> { new NamedAction("enterActive", _ => { }) },
-                ["exitActive"] = new List<NamedAction> { new NamedAction("exitActive", _ => { }) }
+                ["onStart"] = ctx => { },
+                ["enterActive"] = ctx => { },
+                ["exitActive"] = ctx => { }
             };
 
-            var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
-            machine.Start();
-            _machines.Add(machine);
-            return machine;
+            var pureMachine = CreateMachine(uniqueId, json, actions);
+            pureMachine.StartAsync().Wait();
+            var underlying = GetUnderlying(pureMachine);
+            return (underlying!, uniqueId);
         }
 
         [Fact]
@@ -124,7 +131,7 @@ namespace TimelineWPF.Tests
             var tcs = new TaskCompletionSource<bool>();
             adapter.ViewModelUpdated += (s, e) => tcs.TrySetResult(true);
 
-            var machine = CreateTestMachine("test-register");
+            var (machine, machineId) = CreateTestMachine("test-register");
 
             // Act
             adapter.RegisterStateMachine(machine, "Test Machine");
@@ -154,7 +161,7 @@ namespace TimelineWPF.Tests
             var registrationTcs = new TaskCompletionSource<bool>();
             adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
-            var machine = CreateTestMachine("test-transitions");
+            var (machine, machineId) = CreateTestMachine("test-transitions");
             adapter.RegisterStateMachine(machine, "Test Machine");
             var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
@@ -163,7 +170,7 @@ namespace TimelineWPF.Tests
             adapter.ViewModelUpdated += (s, e) => transitionTcs.TrySetResult(true);
 
             // Act
-            machine.Send("START");
+            await SendToMachineAsync(machineId, "START");
             completed = await Task.WhenAny(transitionTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == transitionTcs.Task, "Test timed out waiting for state transition.");
 
@@ -185,7 +192,7 @@ namespace TimelineWPF.Tests
             var registrationTcs = new TaskCompletionSource<bool>();
             adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
-            var machine = CreateTestMachine("test-events");
+            var (machine, machineId) = CreateTestMachine("test-events");
             adapter.RegisterStateMachine(machine, "Test Machine");
             var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
@@ -203,9 +210,9 @@ namespace TimelineWPF.Tests
             };
 
             // Act
-            machine.Send("START");
-            machine.Send("ERROR");
-            machine.Send("RESET");
+            await SendToMachineAsync(machineId, "START");
+            await SendToMachineAsync(machineId, "ERROR");
+            await SendToMachineAsync(machineId, "RESET");
             completed = await Task.WhenAny(eventTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == eventTcs.Task, "Test timed out waiting for events.");
 
@@ -229,7 +236,7 @@ namespace TimelineWPF.Tests
             var registrationTcs = new TaskCompletionSource<bool>();
             adapter.ViewModelUpdated += (s, e) => registrationTcs.TrySetResult(true);
 
-            var machine = CreateTestMachine("test-actions");
+            var (machine, machineId) = CreateTestMachine("test-actions");
             adapter.RegisterStateMachine(machine, "Test Machine");
             var completed = await Task.WhenAny(registrationTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == registrationTcs.Task, "Test timed out waiting for registration.");
@@ -246,7 +253,7 @@ namespace TimelineWPF.Tests
             };
 
             // Act
-            machine.Send("START"); // Should trigger onStart and enterActive
+            await SendToMachineAsync(machineId, "START"); // Should trigger onStart and enterActive
             completed = await Task.WhenAny(actionTcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == actionTcs.Task, "Test timed out waiting for actions.");
 
@@ -269,7 +276,7 @@ namespace TimelineWPF.Tests
             var updateReceived = false;
             adapter.ViewModelUpdated += (s, e) => updateReceived = true;
 
-            var machine = CreateTestMachine("test-unregister");
+            var (machine, machineId) = CreateTestMachine("test-unregister");
             adapter.RegisterStateMachine(machine, "Test Machine");
             await Task.Delay(100); // Allow registration to complete
             Assert.Single(viewModel.GetStateMachines());
@@ -285,7 +292,7 @@ namespace TimelineWPF.Tests
 
             // Verify no more updates are received
             updateReceived = false;
-            machine.Send("START");
+            await SendToMachineAsync(machineId, "START");
             await Task.Delay(200); // Wait to see if an update occurs
             Assert.False(updateReceived, "Should not receive updates after unregistering.");
         }
@@ -310,16 +317,16 @@ namespace TimelineWPF.Tests
                 }
             };
 
-            var machine1 = CreateTestMachine("test-multi-1");
-            var machine2 = CreateTestMachine("test-multi-2");
+            var (machine1, machineId1) = CreateTestMachine("test-multi-1");
+            var (machine2, machineId2) = CreateTestMachine("test-multi-2");
 
             // Act
             adapter.RegisterStateMachine(machine1, "Machine 1");
             adapter.RegisterStateMachine(machine2, "Machine 2");
 
-            machine1.Send("START");
-            machine2.Send("START");
-            machine2.Send("ERROR");
+            await SendToMachineAsync(machineId1, "START");
+            await SendToMachineAsync(machineId2, "START");
+            await SendToMachineAsync(machineId2, "ERROR");
 
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
             Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
@@ -358,15 +365,15 @@ namespace TimelineWPF.Tests
                 }
             };
 
-            var machine = CreateTestMachine("test-timestamps");
+            var (machine, machineId) = CreateTestMachine("test-timestamps");
             adapter.RegisterStateMachine(machine, "Test Machine");
 
             // Act
-            machine.Send("START");
+            await SendToMachineAsync(machineId, "START");
             await Task.Delay(10);
-            machine.Send("ERROR");
+            await SendToMachineAsync(machineId, "ERROR");
             await Task.Delay(10);
-            machine.Send("RESET");
+            await SendToMachineAsync(machineId, "RESET");
 
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
@@ -392,8 +399,8 @@ namespace TimelineWPF.Tests
             var updateReceived = false;
             adapter.ViewModelUpdated += (s, e) => updateReceived = true;
 
-            var machine1 = CreateTestMachine("test-clear-1");
-            var machine2 = CreateTestMachine("test-clear-2");
+            var (machine1, machineId1) = CreateTestMachine("test-clear-1");
+            var (machine2, machineId2) = CreateTestMachine("test-clear-2");
 
             adapter.RegisterStateMachine(machine1, "Machine 1");
             adapter.RegisterStateMachine(machine2, "Machine 2");
@@ -409,8 +416,8 @@ namespace TimelineWPF.Tests
 
             // Events should not be captured after clearing
             updateReceived = false;
-            machine1.Send("START");
-            machine2.Send("START");
+            await SendToMachineAsync(machineId1, "START");
+            await SendToMachineAsync(machineId2, "START");
             await Task.Delay(200); // Wait to see if an update occurs
 
             Assert.False(updateReceived, "Should not receive updates after clearing.");
@@ -438,13 +445,13 @@ namespace TimelineWPF.Tests
                 }
             };
 
-            var machine = CreateTestMachine("test-duration");
+            var (machine, machineId) = CreateTestMachine("test-duration");
             adapter.RegisterStateMachine(machine, "Test Machine");
 
             // Act
-            machine.Send("START");
+            await SendToMachineAsync(machineId, "START");
             await Task.Delay(100); // Stay in active for 100ms
-            machine.Send("STOP");
+            await SendToMachineAsync(machineId, "STOP");
 
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(1)));
             Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");
@@ -491,15 +498,15 @@ namespace TimelineWPF.Tests
 
             // For this test, we need a fixed ID to test re-registration
             var fixedId = $"test-reregister-{Guid.NewGuid():N}";
-            var machine = CreateTestMachineWithFixedId(fixedId);
+            var (machine, machineId) = CreateTestMachineWithFixedId(fixedId);
 
             // Act
             adapter.RegisterStateMachine(machine, "Original Name");
-            machine.Send("START");
+            await SendToMachineAsync(machineId, "START");
 
             // Re-register with different name
             adapter.RegisterStateMachine(machine, "New Name");
-            machine.Send("STOP");
+            await SendToMachineAsync(machineId, "STOP");
 
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
             Assert.True(completed == tcs.Task, "Test timed out waiting for view model updates.");

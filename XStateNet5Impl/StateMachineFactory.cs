@@ -98,6 +98,7 @@ public static class StateMachineFactory
     /// <summary>
     /// Create a state machine from script with machine ID replacement
     /// </summary>
+    [Obsolete("Use ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices with EventBusOrchestrator instead. Direct StateMachine creation bypasses the orchestrator and can lead to deadlocks.")]
     public static StateMachine CreateFromScript(
         StateMachine sm,
         string? jsonScript,
@@ -140,6 +141,7 @@ public static class StateMachineFactory
     /// <summary>
     /// Create a thread-safe state machine from script
     /// </summary>
+    [Obsolete("Use ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices with EventBusOrchestrator instead. Direct StateMachine creation bypasses the orchestrator and can lead to deadlocks.")]
     public static StateMachine CreateFromScript(
         string? jsonScript,
         bool threadSafe = false,

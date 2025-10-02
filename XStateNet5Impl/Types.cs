@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace XStateNet;
 
+#if false
 public class NamedAction
 {
     public string Name { get; set; }
@@ -17,38 +18,93 @@ public class NamedAction
         Action = action;
     }
 }
-
-public class NamedGuard
+#else
+public class NamedAction
 {
     public string Name { get; set; }
-    public Func<StateMachine, bool> PredicateFunc { get; set; }
+    public Func<StateMachine, Task> Action { get; set; }  // Async
 
-    public NamedGuard(string name, Func<StateMachine, bool> predicate)
+    public NamedAction(Func<StateMachine, Task> action, string name = null)
     {
         Name = name;
+        Action = action;
+    }
+
+    public NamedAction(string name, Func<StateMachine, Task> action)
+    {
+        Name = name;
+        Action = action;
+    }
+
+    // For backward compatibility, add overload for sync actions
+    public NamedAction(string name, Action<StateMachine> action)
+    {
+        Name = name;
+        Action = (sm) =>
+        {
+            action(sm);
+            return Task.CompletedTask;
+        };
+    }
+}
+
+#endif
+
+// Simplified: Constructor now accepts just the function, name is set from dictionary key
+public class NamedGuard
+{
+    public string? Name { get; }
+    public Func<StateMachine, bool> PredicateFunc { get; }
+
+    public NamedGuard(Func<StateMachine, bool> predicate, string? name = null)
+    {
         PredicateFunc = predicate;
+        Name = name;
+    }
+
+    // Backward compatibility: name-first constructor
+    public NamedGuard(string name, Func<StateMachine, bool> predicate)
+    {
+        PredicateFunc = predicate;
+        Name = name;
     }
 }
 
 public class NamedService   // for "invoke"
 {
-    public string Name { get; set; }
-    public Func<StateMachine, CancellationToken, Task<object>> ServiceFunc { get; set; }
+    public string? Name { get; }
+    public Func<StateMachine, CancellationToken, Task<object>> ServiceFunc { get; }
+
+    public NamedService(Func<StateMachine, CancellationToken, Task<object>> service, string? name = null)
+    {
+        ServiceFunc = service;
+        Name = name;
+    }
+
+    // Backward compatibility: name-first constructor
     public NamedService(string name, Func<StateMachine, CancellationToken, Task<object>> service)
     {
-        Name = name;
         ServiceFunc = service;
+        Name = name;
     }
 }
 
 public class NamedDelay   // for "delays"
 {
-    public string Name { get; set; }
-    public Func<StateMachine, int> DelayFunc { get; set; }
+    public string? Name { get; }
+    public Func<StateMachine, int> DelayFunc { get; }
+
+    public NamedDelay(Func<StateMachine, int> delayFunc, string? name = null)
+    {
+        DelayFunc = delayFunc;
+        Name = name;
+    }
+
+    // Backward compatibility: name-first constructor
     public NamedDelay(string name, Func<StateMachine, int> delayFunc)
     {
-        Name = name;
         DelayFunc = delayFunc;
+        Name = name;
     }
 }
 

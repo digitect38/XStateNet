@@ -5,6 +5,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
 
+// Suppress obsolete warning - ActorSystem-based tests use a different communication pattern
+// For standard inter-machine tests, use OrchestratorTestBase with EventBusOrchestrator
+#pragma warning disable CS0618
+
 namespace ActorModelTests;
 
 public class UnitTest_ActorModel : IDisposable
@@ -19,7 +23,7 @@ public class UnitTest_ActorModel : IDisposable
         
         _actions = new ActionMap
         {
-            ["log"] = new List<NamedAction> { new NamedAction("log", (sm) => Console.WriteLine($"Action in {sm.machineId}")) }
+            ["log"] = new List<NamedAction> { new NamedAction("log", async (sm) => Console.WriteLine($"Action in {sm.machineId}")) }
         };
         
         _guards = new GuardMap();
@@ -251,7 +255,7 @@ public class UnitTest_ActorModel : IDisposable
 
         var errorActions = new ActionMap
         {
-            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", (sm) => {
+            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", async (sm) => {
                 throw new InvalidOperationException("Test error");
             }) }
         };
@@ -274,7 +278,7 @@ public class UnitTest_ActorModel : IDisposable
 
         var countingActions = new ActionMap
         {
-            ["count"] = new List<NamedAction> { new NamedAction("count", (sm) => {
+            ["count"] = new List<NamedAction> { new NamedAction("count", async (sm) => {
                 Interlocked.Increment(ref messageCount);
             }) }
         };
@@ -320,7 +324,7 @@ public class UnitTest_ActorModel : IDisposable
         
         var dataActions = new ActionMap
         {
-            ["storeData"] = new List<NamedAction> { new NamedAction("storeData", (sm) => {
+            ["storeData"] = new List<NamedAction> { new NamedAction("storeData", async (sm) => {
                 receivedData = sm.ContextMap?["_eventData"];
             }) }
         };

@@ -138,7 +138,7 @@ public class E90SubstrateTrackingMachine
                 }
             );
 
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -169,7 +169,7 @@ public class E90SubstrateTrackingMachine
                 }
             );
 
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -263,6 +263,7 @@ public class SubstrateMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
 
     public string Id { get; }
     public string? LotId { get; set; }
@@ -274,7 +275,7 @@ public class SubstrateMachine
     public string? RecipeId { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; set; }
 
-    public string MachineId => $"E90_SUBSTRATE_{Id}";
+    public string MachineId => $"E90_SUBSTRATE_{Id}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public SubstrateMachine(string id, string? lotId, int? slotNumber, string equipmentId, EventBusOrchestrator orchestrator)
@@ -285,113 +286,116 @@ public class SubstrateMachine
         AcquiredTime = DateTime.UtcNow;
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition (from E90SubstrateStates.json)
-        var definition = @"{
-            ""id"": ""E90SubstrateStateMachine"",
-            ""initial"": ""WaitingForHost"",
-            ""context"": {
-                ""substrateId"": """",
-                ""lotId"": """",
-                ""slotNumber"": 0
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'WaitingForHost',
+            context: {
+                substrateId: '',
+                lotId: '',
+                slotNumber: 0
             },
-            ""states"": {
-                ""WaitingForHost"": {
-                    ""entry"": ""logWaitingForHost"",
-                    ""on"": {
-                        ""ACQUIRE"": ""InCarrier"",
-                        ""PLACED_IN_CARRIER"": ""InCarrier"",
-                        ""REMOVE"": ""Removed""
+            states: {
+                WaitingForHost: {
+                    entry: 'logWaitingForHost',
+                    on: {
+                        ACQUIRE: 'InCarrier',
+                        PLACED_IN_CARRIER: 'InCarrier',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""InCarrier"": {
-                    ""entry"": ""logInCarrier"",
-                    ""on"": {
-                        ""SELECT_FOR_PROCESS"": ""NeedsProcessing"",
-                        ""SKIP"": ""Skipped"",
-                        ""REJECT"": ""Rejected"",
-                        ""REMOVE"": ""Removed""
+                InCarrier: {
+                    entry: 'logInCarrier',
+                    on: {
+                        SELECT_FOR_PROCESS: 'NeedsProcessing',
+                        SKIP: 'Skipped',
+                        REJECT: 'Rejected',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""NeedsProcessing"": {
-                    ""entry"": ""logNeedsProcessing"",
-                    ""on"": {
-                        ""PLACED_IN_PROCESS_MODULE"": ""ReadyToProcess"",
-                        ""PLACED_IN_ALIGNER"": ""Aligning"",
-                        ""ABORT"": ""Aborted""
+                NeedsProcessing: {
+                    entry: 'logNeedsProcessing',
+                    on: {
+                        PLACED_IN_PROCESS_MODULE: 'ReadyToProcess',
+                        PLACED_IN_ALIGNER: 'Aligning',
+                        ABORT: 'Aborted'
                     }
                 },
-                ""Aligning"": {
-                    ""entry"": ""logAligning"",
-                    ""on"": {
-                        ""ALIGN_COMPLETE"": ""ReadyToProcess"",
-                        ""ALIGN_FAIL"": ""Rejected""
+                Aligning: {
+                    entry: 'logAligning',
+                    on: {
+                        ALIGN_COMPLETE: 'ReadyToProcess',
+                        ALIGN_FAIL: 'Rejected'
                     }
                 },
-                ""ReadyToProcess"": {
-                    ""entry"": ""logReadyToProcess"",
-                    ""on"": {
-                        ""START_PROCESS"": ""InProcess"",
-                        ""ABORT"": ""Aborted""
+                ReadyToProcess: {
+                    entry: 'logReadyToProcess',
+                    on: {
+                        START_PROCESS: 'InProcess',
+                        ABORT: 'Aborted'
                     }
                 },
-                ""InProcess"": {
-                    ""entry"": ""recordProcessStart"",
-                    ""exit"": ""recordProcessEnd"",
-                    ""on"": {
-                        ""PROCESS_COMPLETE"": ""Processed"",
-                        ""PROCESS_ABORT"": ""Aborted"",
-                        ""PROCESS_STOP"": ""Stopped"",
-                        ""PROCESS_ERROR"": ""Rejected""
+                InProcess: {
+                    entry: 'recordProcessStart',
+                    exit: 'recordProcessEnd',
+                    on: {
+                        PROCESS_COMPLETE: 'Processed',
+                        PROCESS_ABORT: 'Aborted',
+                        PROCESS_STOP: 'Stopped',
+                        PROCESS_ERROR: 'Rejected'
                     }
                 },
-                ""Processed"": {
-                    ""entry"": ""logProcessed"",
-                    ""on"": {
-                        ""PLACED_IN_CARRIER"": ""Complete"",
-                        ""REMOVE"": ""Removed""
+                Processed: {
+                    entry: 'logProcessed',
+                    on: {
+                        PLACED_IN_CARRIER: 'Complete',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""Aborted"": {
-                    ""entry"": ""logAborted"",
-                    ""on"": {
-                        ""PLACED_IN_CARRIER"": ""Complete"",
-                        ""REMOVE"": ""Removed""
+                Aborted: {
+                    entry: 'logAborted',
+                    on: {
+                        PLACED_IN_CARRIER: 'Complete',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""Stopped"": {
-                    ""entry"": ""logStopped"",
-                    ""on"": {
-                        ""RESUME"": ""InProcess"",
-                        ""ABORT"": ""Aborted""
+                Stopped: {
+                    entry: 'logStopped',
+                    on: {
+                        RESUME: 'InProcess',
+                        ABORT: 'Aborted'
                     }
                 },
-                ""Rejected"": {
-                    ""entry"": ""logRejected"",
-                    ""on"": {
-                        ""PLACED_IN_CARRIER"": ""Complete"",
-                        ""REMOVE"": ""Removed""
+                Rejected: {
+                    entry: 'logRejected',
+                    on: {
+                        PLACED_IN_CARRIER: 'Complete',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""Skipped"": {
-                    ""entry"": ""logSkipped"",
-                    ""on"": {
-                        ""PLACED_IN_CARRIER"": ""Complete"",
-                        ""REMOVE"": ""Removed""
+                Skipped: {
+                    entry: 'logSkipped',
+                    on: {
+                        PLACED_IN_CARRIER: 'Complete',
+                        REMOVE: 'Removed'
                     }
                 },
-                ""Complete"": {
-                    ""entry"": ""logComplete"",
-                    ""on"": {
-                        ""REMOVE"": ""Removed""
+                Complete: {
+                    entry: 'logComplete',
+                    on: {
+                        REMOVE: 'Removed'
                     }
                 },
-                ""Removed"": {
-                    ""entry"": ""logRemoved"",
-                    ""type"": ""final""
+                Removed: {
+                    entry: 'logRemoved',
+                    type: 'final'
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -573,88 +577,88 @@ public class SubstrateMachine
 
     // Public API methods for substrate lifecycle
 
-    public async Task<bool> AcquireAsync()
+    public async Task<EventResult> AcquireAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ACQUIRE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PlacedInCarrierAsync()
+    public async Task<EventResult> PlacedInCarrierAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_CARRIER", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SelectForProcessAsync()
+    public async Task<EventResult> SelectForProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT_FOR_PROCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PlacedInProcessModuleAsync()
+    public async Task<EventResult> PlacedInProcessModuleAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_PROCESS_MODULE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PlacedInAlignerAsync()
+    public async Task<EventResult> PlacedInAlignerAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_ALIGNER", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AlignCompleteAsync()
+    public async Task<EventResult> AlignCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ALIGN_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartProcessAsync()
+    public async Task<EventResult> StartProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_PROCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CompleteProcessAsync()
+    public async Task<EventResult> CompleteProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortProcessAsync()
+    public async Task<EventResult> AbortProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_ABORT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StopProcessAsync()
+    public async Task<EventResult> StopProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_STOP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ResumeAsync()
+    public async Task<EventResult> ResumeAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESUME", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> RejectAsync()
+    public async Task<EventResult> RejectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REJECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SkipAsync()
+    public async Task<EventResult> SkipAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SKIP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> RemoveAsync()
+    public async Task<EventResult> RemoveAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REMOVE", null);
-        return result.Success;
+        return result;
     }
 }
 

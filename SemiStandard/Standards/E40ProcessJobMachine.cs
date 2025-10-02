@@ -90,6 +90,7 @@ public class ProcessJobMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
 
     public string ProcessJobId { get; }
     public string RecipeId { get; set; }
@@ -100,7 +101,7 @@ public class ProcessJobMachine
     public ConcurrentDictionary<string, object> RecipeParameters { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E40_PROCESSJOB_{ProcessJobId}";
+    public string MachineId => $"E40_PROCESSJOB_{ProcessJobId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public ProcessJobMachine(string processJobId, string recipeId, List<string> materialIds, string equipmentId, EventBusOrchestrator orchestrator)
@@ -111,128 +112,131 @@ public class ProcessJobMachine
         RecipeParameters = new ConcurrentDictionary<string, object>();
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition with unique ID per process job
-        var definition = $@"{{
-            ""id"": ""E40_ProcessJob_{processJobId}"",
-            ""initial"": ""NoState"",
-            ""context"": {{
-                ""processJobId"": ""{processJobId}"",
-                ""recipeId"": ""{recipeId}"",
-                ""materialIds"": [],
-                ""startTime"": null,
-                ""endTime"": null,
-                ""errorCode"": null
-            }},
-            ""states"": {{
-                ""NoState"": {{
-                    ""entry"": ""logNoState"",
-                    ""on"": {{
-                        ""CREATE"": {{
-                            ""target"": ""Queued"",
-                            ""actions"": ""assignProcessJobData""
-                        }}
-                    }}
-                }},
-                ""Queued"": {{
-                    ""entry"": ""logQueued"",
-                    ""on"": {{
-                        ""SETUP"": ""SettingUp"",
-                        ""ABORT"": ""Aborting"",
-                        ""REMOVE"": ""NoState""
-                    }}
-                }},
-                ""SettingUp"": {{
-                    ""entry"": ""logSettingUp"",
-                    ""on"": {{
-                        ""SETUP_COMPLETE"": ""WaitingForStart"",
-                        ""SETUP_FAILED"": ""Queued"",
-                        ""ABORT"": ""Aborting""
-                    }}
-                }},
-                ""WaitingForStart"": {{
-                    ""entry"": ""logWaitingForStart"",
-                    ""on"": {{
-                        ""START"": {{
-                            ""target"": ""Processing"",
-                            ""actions"": ""recordStartTime""
-                        }},
-                        ""PAUSE_REQUEST"": ""Pausing"",
-                        ""STOP"": ""Stopping"",
-                        ""ABORT"": ""Aborting""
-                    }}
-                }},
-                ""Processing"": {{
-                    ""entry"": ""logProcessing"",
-                    ""on"": {{
-                        ""PROCESSING_COMPLETE"": {{
-                            ""target"": ""ProcessingComplete"",
-                            ""actions"": ""recordEndTime""
-                        }},
-                        ""PAUSE_REQUEST"": ""Pausing"",
-                        ""STOP"": ""Stopping"",
-                        ""ABORT"": ""Aborting"",
-                        ""ERROR"": {{
-                            ""target"": ""Aborting"",
-                            ""actions"": ""recordError""
-                        }}
-                    }}
-                }},
-                ""ProcessingComplete"": {{
-                    ""entry"": ""logProcessingComplete"",
-                    ""on"": {{
-                        ""REMOVE"": ""NoState"",
-                        ""RESTART"": ""Queued""
-                    }}
-                }},
-                ""Pausing"": {{
-                    ""entry"": ""logPausing"",
-                    ""on"": {{
-                        ""PAUSE_COMPLETE"": ""Paused"",
-                        ""PAUSE_FAILED"": ""Processing""
-                    }}
-                }},
-                ""Paused"": {{
-                    ""entry"": ""logPaused"",
-                    ""on"": {{
-                        ""RESUME"": ""Processing"",
-                        ""STOP"": ""Stopping"",
-                        ""ABORT"": ""Aborting""
-                    }}
-                }},
-                ""Stopping"": {{
-                    ""entry"": ""logStopping"",
-                    ""on"": {{
-                        ""STOP_COMPLETE"": {{
-                            ""target"": ""Stopped"",
-                            ""actions"": ""recordEndTime""
-                        }}
-                    }}
-                }},
-                ""Aborting"": {{
-                    ""entry"": ""logAborting"",
-                    ""on"": {{
-                        ""ABORT_COMPLETE"": {{
-                            ""target"": ""Aborted"",
-                            ""actions"": ""recordEndTime""
-                        }}
-                    }}
-                }},
-                ""Stopped"": {{
-                    ""entry"": ""logStopped"",
-                    ""on"": {{
-                        ""REMOVE"": ""NoState"",
-                        ""RESTART"": ""Queued""
-                    }}
-                }},
-                ""Aborted"": {{
-                    ""entry"": ""logAborted"",
-                    ""on"": {{
-                        ""REMOVE"": ""NoState""
-                    }}
-                }}
-            }}
-        }}";
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NoState',
+            context: {
+                processJobId: '{{processJobId}}',
+                recipeId: '{{recipeId}}',
+                materialIds: [],
+                startTime: null,
+                endTime: null,
+                errorCode: null
+            },
+            states: {
+                NoState: {
+                    entry: 'logNoState',
+                    on: {
+                        CREATE: {
+                            target: 'Queued',
+                            actions: 'assignProcessJobData'
+                        }
+                    }
+                },
+                Queued: {
+                    entry: 'logQueued',
+                    on: {
+                        SETUP: 'SettingUp',
+                        ABORT: 'Aborting',
+                        REMOVE: 'NoState'
+                    }
+                },
+                SettingUp: {
+                    entry: 'logSettingUp',
+                    on: {
+                        SETUP_COMPLETE: 'WaitingForStart',
+                        SETUP_FAILED: 'Queued',
+                        ABORT: 'Aborting'
+                    }
+                },
+                WaitingForStart: {
+                    entry: 'logWaitingForStart',
+                    on: {
+                        START: {
+                            target: 'Processing',
+                            actions: 'recordStartTime'
+                        },
+                        PAUSE_REQUEST: 'Pausing',
+                        STOP: 'Stopping',
+                        ABORT: 'Aborting'
+                    }
+                },
+                Processing: {
+                    entry: 'logProcessing',
+                    on: {
+                        PROCESSING_COMPLETE: {
+                            target: 'ProcessingComplete',
+                            actions: 'recordEndTime'
+                        },
+                        PAUSE_REQUEST: 'Pausing',
+                        STOP: 'Stopping',
+                        ABORT: 'Aborting',
+                        ERROR: {
+                            target: 'Aborting',
+                            actions: 'recordError'
+                        }
+                    }
+                },
+                ProcessingComplete: {
+                    entry: 'logProcessingComplete',
+                    on: {
+                        REMOVE: 'NoState',
+                        RESTART: 'Queued'
+                    }
+                },
+                Pausing: {
+                    entry: 'logPausing',
+                    on: {
+                        PAUSE_COMPLETE: 'Paused',
+                        PAUSE_FAILED: 'Processing'
+                    }
+                },
+                Paused: {
+                    entry: 'logPaused',
+                    on: {
+                        RESUME: 'Processing',
+                        STOP: 'Stopping',
+                        ABORT: 'Aborting'
+                    }
+                },
+                Stopping: {
+                    entry: 'logStopping',
+                    on: {
+                        STOP_COMPLETE: {
+                            target: 'Stopped',
+                            actions: 'recordEndTime'
+                        }
+                    }
+                },
+                Aborting: {
+                    entry: 'logAborting',
+                    on: {
+                        ABORT_COMPLETE: {
+                            target: 'Aborted',
+                            actions: 'recordEndTime'
+                        }
+                    }
+                },
+                Stopped: {
+                    entry: 'logStopped',
+                    on: {
+                        REMOVE: 'NoState',
+                        RESTART: 'Queued'
+                    }
+                },
+                Aborted: {
+                    entry: 'logAborted',
+                    on: {
+                        REMOVE: 'NoState'
+                    }
+                }
+            }
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -433,106 +437,106 @@ public class ProcessJobMachine
     }
 
     // Public API methods
-    public async Task<bool> CreateAsync()
+    public async Task<EventResult> CreateAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CREATE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SetupAsync()
+    public async Task<EventResult> SetupAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SETUP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SetupCompleteAsync()
+    public async Task<EventResult> SetupCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SETUP_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SetupFailedAsync()
+    public async Task<EventResult> SetupFailedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SETUP_FAILED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartProcessingAsync()
+    public async Task<EventResult> StartProcessingAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ProcessingCompleteAsync()
+    public async Task<EventResult> ProcessingCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESSING_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PauseRequestAsync()
+    public async Task<EventResult> PauseRequestAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PAUSE_REQUEST", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PauseCompleteAsync()
+    public async Task<EventResult> PauseCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PAUSE_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PauseFailedAsync()
+    public async Task<EventResult> PauseFailedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PAUSE_FAILED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ResumeAsync()
+    public async Task<EventResult> ResumeAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESUME", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StopAsync()
+    public async Task<EventResult> StopAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "STOP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StopCompleteAsync()
+    public async Task<EventResult> StopCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "STOP_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortAsync()
+    public async Task<EventResult> AbortAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ABORT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortCompleteAsync()
+    public async Task<EventResult> AbortCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ABORT_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ErrorAsync(string errorCode)
+    public async Task<EventResult> ErrorAsync(string errorCode)
     {
         ErrorCode = errorCode; // Set error code before triggering ERROR event
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ERROR", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> RemoveAsync()
+    public async Task<EventResult> RemoveAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REMOVE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> RestartAsync()
+    public async Task<EventResult> RestartAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESTART", null);
-        return result.Success;
+        return result;
     }
 }

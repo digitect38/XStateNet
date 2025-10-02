@@ -4,6 +4,10 @@ using XStateNet;
 using XStateNet.UnitTest;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+
+// Suppress obsolete warning - standalone diagram framework test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace AdvancedFeatures;
 public class DiagrammingFrameworkTests : IDisposable
 {
@@ -31,14 +35,14 @@ public class DiagrammingFrameworkTests : IDisposable
         actionMap["endResizing"] = [new("endResizing", EndResizing)];
 
         // Add guards
-        guardMap["onShapeBody"] = new NamedGuard("onShapeBody", OnShapeBody);
-        guardMap["onCanvas"] = new NamedGuard("onCanvas", OnCanvas);
+        guardMap["onShapeBody"] = new NamedGuard(OnShapeBody, "onShapeBody");
+        guardMap["onCanvas"] = new NamedGuard(OnCanvas, "onCanvas");
 
-        guardMap["onResizePadWithoutButton"] = new NamedGuard("onResizePadWithoutButton", onResizePadWithoutButton);
-        guardMap["onConnectionPinWithoutButton"] = new NamedGuard("onConnectionPinWithoutButton", onConnectionPinWithoutButton);
-        guardMap["onShapeBodyWithoutButton"] = new NamedGuard("onShapeBodyWithoutButton", onShapeBodyWithoutButton);
+        guardMap["onResizePadWithoutButton"] = new NamedGuard(onResizePadWithoutButton, "onResizePadWithoutButton");
+        guardMap["onConnectionPinWithoutButton"] = new NamedGuard(onConnectionPinWithoutButton, "onConnectionPinWithoutButton");
+        guardMap["onShapeBodyWithoutButton"] = new NamedGuard(onShapeBodyWithoutButton, "onShapeBodyWithoutButton");
 
-        guardMap["noShapeSelected"] = new NamedGuard("noShapeSelected", NoShapeSelected);
+        guardMap["noShapeSelected"] = new NamedGuard(NoShapeSelected, "noShapeSelected");
 
         // default context values
         _context["onResizePad"] = false;

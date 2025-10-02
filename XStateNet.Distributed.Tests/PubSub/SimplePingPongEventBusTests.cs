@@ -8,6 +8,12 @@ using XStateNet;
 using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Distributed.Tests.TestInfrastructure;
 
+// Suppress obsolete warning - these tests are specifically testing the OptimizedInMemoryEventBus
+// infrastructure itself, not demonstrating application patterns. Machines communicate via
+// _eventBus.PublishEventAsync() and _eventBus.SubscribeToMachineAsync() for distributed scenarios.
+// For local inter-machine communication, use EventBusOrchestrator with ExtendedPureStateMachineFactory.
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Tests.PubSub
 {
     /// <summary>
@@ -189,8 +195,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                     }}
                 }}";
 
-                machines[i] = new StateMachine();
-                machines[i] = StateMachineFactory.CreateFromScript( json);
+                machines[i] = StateMachineFactory.CreateFromScript(json);
             }
 
             // Subscribe each machine

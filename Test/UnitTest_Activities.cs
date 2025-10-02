@@ -8,6 +8,10 @@ using System.Xml;
 using XStateNet;
 using Xunit;
 
+// Suppress obsolete warning - standalone activities test with no inter-machine communication
+// For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
+#pragma warning disable CS0618
+
 namespace XStateV5_Test.AdvancedFeatures;
 
 /// <summary>

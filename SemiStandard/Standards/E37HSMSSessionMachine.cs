@@ -108,6 +108,7 @@ public class HSMSSessionMachine : IDisposable
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
     private readonly HSMSMode _mode;
+    private readonly string _instanceId;
 
     // HSMS Timers
     private readonly Timer? _t5Timer; // Connect Separation Timeout
@@ -127,7 +128,7 @@ public class HSMSSessionMachine : IDisposable
     public DateTime? SelectedTime { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E37_HSMS_{SessionId}";
+    public string MachineId => $"E37_HSMS_{SessionId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public event EventHandler<HSMSMessageEventArgs>? OnMessageSend;
@@ -147,114 +148,117 @@ public class HSMSSessionMachine : IDisposable
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
         _errorCount = 0;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition with unique ID per session
-        var definition = $@"{{
-            ""id"": ""E37_HSMS_{sessionId}"",
-            ""initial"": ""NotConnected"",
-            ""context"": {{
-                ""sessionId"": ""{sessionId}"",
-                ""mode"": ""{mode}"",
-                ""selectedEntity"": null,
-                ""errorCount"": 0
-            }},
-            ""states"": {{
-                ""NotConnected"": {{
-                    ""entry"": ""logNotConnected"",
-                    ""on"": {{
-                        ""TCP_CONNECT"": [
-                            {{
-                                ""target"": ""Connected"",
-                                ""cond"": ""isPassiveMode"",
-                                ""actions"": ""startT7Timer""
-                            }},
-                            {{
-                                ""target"": ""NotSelected"",
-                                ""cond"": ""isActiveMode"",
-                                ""actions"": [""sendSelectReq"", ""startT6Timer""]
-                            }}
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NotConnected',
+            context: {
+                sessionId: '{{sessionId}}',
+                mode: '{{mode}}',
+                selectedEntity: null,
+                errorCount: 0
+            },
+            states: {
+                NotConnected: {
+                    entry: 'logNotConnected',
+                    on: {
+                        TCP_CONNECT: [
+                            {
+                                target: 'Connected',
+                                cond: 'isPassiveMode',
+                                actions: 'startT7Timer'
+                            },
+                            {
+                                target: 'NotSelected',
+                                cond: 'isActiveMode',
+                                actions: ['sendSelectReq', 'startT6Timer']
+                            }
                         ],
-                        ""ENABLE"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": ""attemptConnection""
-                        }}
-                    }}
-                }},
-                ""Connected"": {{
-                    ""entry"": ""logConnected"",
-                    ""on"": {{
-                        ""SELECT_REQ"": {{
-                            ""target"": ""Selected"",
-                            ""actions"": [""sendSelectRsp"", ""stopT7Timer"", ""recordSelectedEntity""]
-                        }},
-                        ""T7_TIMEOUT"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": ""disconnect""
-                        }},
-                        ""TCP_DISCONNECT"": ""NotConnected"",
-                        ""SEPARATE_REQ"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": ""sendSeparateRsp""
-                        }}
-                    }}
-                }},
-                ""NotSelected"": {{
-                    ""entry"": ""logNotSelected"",
-                    ""on"": {{
-                        ""SELECT_RSP"": [
-                            {{
-                                ""target"": ""Selected"",
-                                ""cond"": ""isSelectAccepted"",
-                                ""actions"": [""stopT6Timer"", ""recordSelectedEntity""]
-                            }},
-                            {{
-                                ""target"": ""NotConnected"",
-                                ""cond"": ""isSelectRejected"",
-                                ""actions"": [""stopT6Timer"", ""disconnect""]
-                            }}
+                        ENABLE: {
+                            target: 'NotConnected',
+                            actions: 'attemptConnection'
+                        }
+                    }
+                },
+                Connected: {
+                    entry: 'logConnected',
+                    on: {
+                        SELECT_REQ: {
+                            target: 'Selected',
+                            actions: ['sendSelectRsp', 'stopT7Timer', 'recordSelectedEntity']
+                        },
+                        T7_TIMEOUT: {
+                            target: 'NotConnected',
+                            actions: 'disconnect'
+                        },
+                        TCP_DISCONNECT: 'NotConnected',
+                        SEPARATE_REQ: {
+                            target: 'NotConnected',
+                            actions: 'sendSeparateRsp'
+                        }
+                    }
+                },
+                NotSelected: {
+                    entry: 'logNotSelected',
+                    on: {
+                        SELECT_RSP: [
+                            {
+                                target: 'Selected',
+                                cond: 'isSelectAccepted',
+                                actions: ['stopT6Timer', 'recordSelectedEntity']
+                            },
+                            {
+                                target: 'NotConnected',
+                                cond: 'isSelectRejected',
+                                actions: ['stopT6Timer', 'disconnect']
+                            }
                         ],
-                        ""T6_TIMEOUT"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": ""disconnect""
-                        }},
-                        ""TCP_DISCONNECT"": ""NotConnected""
-                    }}
-                }},
-                ""Selected"": {{
-                    ""entry"": [""startLinktest"", ""notifySelected""],
-                    ""on"": {{
-                        ""DESELECT"": {{
-                            ""target"": ""NotSelected"",
-                            ""actions"": [""sendDeselectRsp"", ""clearSelectedEntity""]
-                        }},
-                        ""SEPARATE_REQ"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": [""sendSeparateRsp"", ""clearSelectedEntity""]
-                        }},
-                        ""LINKTEST_REQ"": {{
-                            ""target"": ""Selected"",
-                            ""actions"": ""sendLinktestRsp""
-                        }},
-                        ""DATA_MESSAGE"": {{
-                            ""target"": ""Selected"",
-                            ""actions"": ""processDataMessage""
-                        }},
-                        ""TCP_DISCONNECT"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": ""clearSelectedEntity""
-                        }},
-                        ""COMMUNICATION_ERROR"": {{
-                            ""target"": ""Selected"",
-                            ""actions"": ""incrementErrorCount""
-                        }},
-                        ""MAX_ERRORS_REACHED"": {{
-                            ""target"": ""NotConnected"",
-                            ""actions"": [""disconnect"", ""clearSelectedEntity""]
-                        }}
-                    }}
-                }}
-            }}
-        }}";
+                        T6_TIMEOUT: {
+                            target: 'NotConnected',
+                            actions: 'disconnect'
+                        },
+                        TCP_DISCONNECT: 'NotConnected'
+                    }
+                },
+                Selected: {
+                    entry: ['startLinktest', 'notifySelected'],
+                    on: {
+                        DESELECT: {
+                            target: 'NotSelected',
+                            actions: ['sendDeselectRsp', 'clearSelectedEntity']
+                        },
+                        SEPARATE_REQ: {
+                            target: 'NotConnected',
+                            actions: ['sendSeparateRsp', 'clearSelectedEntity']
+                        },
+                        LINKTEST_REQ: {
+                            target: 'Selected',
+                            actions: 'sendLinktestRsp'
+                        },
+                        DATA_MESSAGE: {
+                            target: 'Selected',
+                            actions: 'processDataMessage'
+                        },
+                        TCP_DISCONNECT: {
+                            target: 'NotConnected',
+                            actions: 'clearSelectedEntity'
+                        },
+                        COMMUNICATION_ERROR: {
+                            target: 'Selected',
+                            actions: 'incrementErrorCount'
+                        },
+                        MAX_ERRORS_REACHED: {
+                            target: 'NotConnected',
+                            actions: ['disconnect', 'clearSelectedEntity']
+                        }
+                    }
+                }
+            }
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -498,65 +502,65 @@ public class HSMSSessionMachine : IDisposable
     }
 
     // Public API methods
-    public async Task<bool> ConnectAsync()
+    public async Task<EventResult> ConnectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "TCP_CONNECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> DisconnectAsync()
+    public async Task<EventResult> DisconnectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "TCP_DISCONNECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> EnableAsync()
+    public async Task<EventResult> EnableAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ENABLE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveSelectRequestAsync()
+    public async Task<EventResult> ReceiveSelectRequestAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT_REQ", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveSelectResponseAsync(int status)
+    public async Task<EventResult> ReceiveSelectResponseAsync(int status)
     {
         Properties["lastSelectStatus"] = status;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT_RSP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveDeselectAsync()
+    public async Task<EventResult> ReceiveDeselectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DESELECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveSeparateRequestAsync()
+    public async Task<EventResult> ReceiveSeparateRequestAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SEPARATE_REQ", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveLinktestRequestAsync()
+    public async Task<EventResult> ReceiveLinktestRequestAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "LINKTEST_REQ", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReceiveDataMessageAsync()
+    public async Task<EventResult> ReceiveDataMessageAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DATA_MESSAGE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReportCommunicationErrorAsync()
+    public async Task<EventResult> ReportCommunicationErrorAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "COMMUNICATION_ERROR", null);
-        return result.Success;
+        return result;
     }
 
     private async Task<bool> MaxErrorsReachedAsync()

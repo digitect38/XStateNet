@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using XStateNet;
 using Xunit;
 
+// Suppress obsolete warning - SendAsync completion tests with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateNet.Tests
 {
     public class SendAsyncCompletionTests

@@ -5,7 +5,7 @@ namespace XStateNet;
 public abstract class StateObject
 {
     public string? machineId;
-
+    
     public StateMachine? StateMachine {
         get {
             if(machineId == null) throw new Exception("StateMachineId is null");

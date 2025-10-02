@@ -98,6 +98,7 @@ public class ControlJobMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
 
     public string JobId { get; }
     public List<string> CarrierIds { get; }
@@ -108,7 +109,7 @@ public class ControlJobMachine
     public List<string> ProcessedSubstrates { get; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E94_CONTROLJOB_{JobId}";
+    public string MachineId => $"E94_CONTROLJOB_{JobId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public ControlJobMachine(string jobId, List<string> carrierIds, string? recipeId, string equipmentId, EventBusOrchestrator orchestrator)
@@ -120,161 +121,164 @@ public class ControlJobMachine
         ProcessedSubstrates = new List<string>();
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition with unique ID per control job
-        var definition = $@"{{
-            ""id"": ""E94_ControlJob_{jobId}"",
-            ""initial"": ""noJob"",
-            ""states"": {{
-                ""noJob"": {{
-                    ""entry"": ""logNoJob"",
-                    ""on"": {{
-                        ""CREATE"": ""queued""
-                    }}
-                }},
-                ""queued"": {{
-                    ""entry"": ""logQueued"",
-                    ""on"": {{
-                        ""SELECT"": ""selected"",
-                        ""DELETE"": ""noJob"",
-                        ""ABORT"": ""noJob""
-                    }}
-                }},
-                ""selected"": {{
-                    ""entry"": ""logSelected"",
-                    ""on"": {{
-                        ""START"": ""executing"",
-                        ""DESELECT"": ""queued"",
-                        ""DELETE"": ""noJob"",
-                        ""ABORT"": ""aborting""
-                    }}
-                }},
-                ""executing"": {{
-                    ""type"": ""parallel"",
-                    ""entry"": ""logExecuting"",
-                    ""states"": {{
-                        ""processing"": {{
-                            ""initial"": ""waitingForStart"",
-                            ""states"": {{
-                                ""waitingForStart"": {{
-                                    ""entry"": ""logWaitingForProcessStart"",
-                                    ""on"": {{
-                                        ""PROCESS_START"": ""active""
-                                    }}
-                                }},
-                                ""active"": {{
-                                    ""entry"": ""logProcessActive"",
-                                    ""on"": {{
-                                        ""PROCESS_COMPLETE"": ""completed"",
-                                        ""PAUSE"": ""paused"",
-                                        ""STOP"": ""stopping""
-                                    }}
-                                }},
-                                ""paused"": {{
-                                    ""entry"": ""logProcessPaused"",
-                                    ""on"": {{
-                                        ""RESUME"": ""active"",
-                                        ""STOP"": ""stopping"",
-                                        ""ABORT"": ""aborted""
-                                    }}
-                                }},
-                                ""stopping"": {{
-                                    ""entry"": ""logProcessStopping"",
-                                    ""on"": {{
-                                        ""STOPPED"": ""stopped""
-                                    }}
-                                }},
-                                ""stopped"": {{
-                                    ""entry"": ""logProcessStopped"",
-                                    ""type"": ""final""
-                                }},
-                                ""completed"": {{
-                                    ""entry"": ""logProcessCompleted"",
-                                    ""type"": ""final""
-                                }},
-                                ""aborted"": {{
-                                    ""entry"": ""logProcessAborted"",
-                                    ""type"": ""final""
-                                }}
-                            }}
-                        }},
-                        ""materialFlow"": {{
-                            ""initial"": ""waitingForMaterial"",
-                            ""states"": {{
-                                ""waitingForMaterial"": {{
-                                    ""entry"": ""logWaitingForMaterial"",
-                                    ""on"": {{
-                                        ""MATERIAL_IN"": ""materialAtSource""
-                                    }}
-                                }},
-                                ""materialAtSource"": {{
-                                    ""entry"": ""logMaterialAtSource"",
-                                    ""on"": {{
-                                        ""MATERIAL_OUT"": ""materialAtDestination""
-                                    }}
-                                }},
-                                ""materialAtDestination"": {{
-                                    ""entry"": ""logMaterialAtDestination"",
-                                    ""on"": {{
-                                        ""MATERIAL_PROCESSED"": ""materialComplete""
-                                    }}
-                                }},
-                                ""materialComplete"": {{
-                                    ""entry"": ""logMaterialComplete"",
-                                    ""type"": ""final""
-                                }}
-                            }}
-                        }}
-                    }},
-                    ""onDone"": {{
-                        ""target"": ""completed""
-                    }},
-                    ""on"": {{
-                        ""ABORT"": ""aborting"",
-                        ""PAUSE"": ""paused"",
-                        ""STOP"": ""stopping""
-                    }}
-                }},
-                ""paused"": {{
-                    ""entry"": ""logPaused"",
-                    ""on"": {{
-                        ""RESUME"": ""executing"",
-                        ""ABORT"": ""aborting"",
-                        ""STOP"": ""stopping""
-                    }}
-                }},
-                ""stopping"": {{
-                    ""entry"": ""logStopping"",
-                    ""on"": {{
-                        ""STOPPED"": ""stopped""
-                    }}
-                }},
-                ""stopped"": {{
-                    ""entry"": ""logStopped"",
-                    ""on"": {{
-                        ""DELETE"": ""noJob""
-                    }}
-                }},
-                ""aborting"": {{
-                    ""entry"": ""logAborting"",
-                    ""on"": {{
-                        ""ABORTED"": ""aborted""
-                    }}
-                }},
-                ""aborted"": {{
-                    ""entry"": ""logAborted"",
-                    ""on"": {{
-                        ""DELETE"": ""noJob""
-                    }}
-                }},
-                ""completed"": {{
-                    ""entry"": ""logCompleted"",
-                    ""on"": {{
-                        ""DELETE"": ""noJob""
-                    }}
-                }}
-            }}
-        }}";
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'noJob',
+            states: {
+                noJob: {
+                    entry: 'logNoJob',
+                    on: {
+                        CREATE: 'queued'
+                    }
+                },
+                queued: {
+                    entry: 'logQueued',
+                    on: {
+                        SELECT: 'selected',
+                        DELETE: 'noJob',
+                        ABORT: 'noJob'
+                    }
+                },
+                selected: {
+                    entry: 'logSelected',
+                    on: {
+                        START: 'executing',
+                        DESELECT: 'queued',
+                        DELETE: 'noJob',
+                        ABORT: 'aborting'
+                    }
+                },
+                executing: {
+                    type: 'parallel',
+                    entry: 'logExecuting',
+                    states: {
+                        processing: {
+                            initial: 'waitingForStart',
+                            states: {
+                                waitingForStart: {
+                                    entry: 'logWaitingForProcessStart',
+                                    on: {
+                                        PROCESS_START: 'active'
+                                    }
+                                },
+                                active: {
+                                    entry: 'logProcessActive',
+                                    on: {
+                                        PROCESS_COMPLETE: 'completed',
+                                        PAUSE: 'paused',
+                                        STOP: 'stopping'
+                                    }
+                                },
+                                paused: {
+                                    entry: 'logProcessPaused',
+                                    on: {
+                                        RESUME: 'active',
+                                        STOP: 'stopping',
+                                        ABORT: 'aborted'
+                                    }
+                                },
+                                stopping: {
+                                    entry: 'logProcessStopping',
+                                    on: {
+                                        STOPPED: 'stopped'
+                                    }
+                                },
+                                stopped: {
+                                    entry: 'logProcessStopped',
+                                    type: 'final'
+                                },
+                                completed: {
+                                    entry: 'logProcessCompleted',
+                                    type: 'final'
+                                },
+                                aborted: {
+                                    entry: 'logProcessAborted',
+                                    type: 'final'
+                                }
+                            }
+                        },
+                        materialFlow: {
+                            initial: 'waitingForMaterial',
+                            states: {
+                                waitingForMaterial: {
+                                    entry: 'logWaitingForMaterial',
+                                    on: {
+                                        MATERIAL_IN: 'materialAtSource'
+                                    }
+                                },
+                                materialAtSource: {
+                                    entry: 'logMaterialAtSource',
+                                    on: {
+                                        MATERIAL_OUT: 'materialAtDestination'
+                                    }
+                                },
+                                materialAtDestination: {
+                                    entry: 'logMaterialAtDestination',
+                                    on: {
+                                        MATERIAL_PROCESSED: 'materialComplete'
+                                    }
+                                },
+                                materialComplete: {
+                                    entry: 'logMaterialComplete',
+                                    type: 'final'
+                                }
+                            }
+                        }
+                    },
+                    onDone: {
+                        target: 'completed'
+                    },
+                    on: {
+                        ABORT: 'aborting',
+                        PAUSE: 'paused',
+                        STOP: 'stopping'
+                    }
+                },
+                paused: {
+                    entry: 'logPaused',
+                    on: {
+                        RESUME: 'executing',
+                        ABORT: 'aborting',
+                        STOP: 'stopping'
+                    }
+                },
+                stopping: {
+                    entry: 'logStopping',
+                    on: {
+                        STOPPED: 'stopped'
+                    }
+                },
+                stopped: {
+                    entry: 'logStopped',
+                    on: {
+                        DELETE: 'noJob'
+                    }
+                },
+                aborting: {
+                    entry: 'logAborting',
+                    on: {
+                        ABORTED: 'aborted'
+                    }
+                },
+                aborted: {
+                    entry: 'logAborted',
+                    on: {
+                        DELETE: 'noJob'
+                    }
+                },
+                completed: {
+                    entry: 'logCompleted',
+                    on: {
+                        DELETE: 'noJob'
+                    }
+                }
+            }
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -545,100 +549,100 @@ public class ControlJobMachine
     }
 
     // Public API methods
-    public async Task<bool> CreateAsync()
+    public async Task<EventResult> CreateAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CREATE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SelectAsync()
+    public async Task<EventResult> SelectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> DeselectAsync()
+    public async Task<EventResult> DeselectAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DESELECT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartExecutionAsync()
+    public async Task<EventResult> StartExecutionAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ProcessStartAsync()
+    public async Task<EventResult> ProcessStartAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_START", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ProcessCompleteAsync()
+    public async Task<EventResult> ProcessCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MaterialInAsync()
+    public async Task<EventResult> MaterialInAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MATERIAL_IN", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MaterialOutAsync()
+    public async Task<EventResult> MaterialOutAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MATERIAL_OUT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MaterialProcessedAsync()
+    public async Task<EventResult> MaterialProcessedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MATERIAL_PROCESSED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PauseAsync()
+    public async Task<EventResult> PauseAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PAUSE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ResumeAsync()
+    public async Task<EventResult> ResumeAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESUME", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StopAsync()
+    public async Task<EventResult> StopAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "STOP", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StoppedAsync()
+    public async Task<EventResult> StoppedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "STOPPED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortAsync()
+    public async Task<EventResult> AbortAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ABORT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortedAsync()
+    public async Task<EventResult> AbortedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ABORTED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> DeleteAsync()
+    public async Task<EventResult> DeleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DELETE", null);
-        return result.Success;
+        return result;
     }
 
     public void AddProcessedSubstrate(string substrateId)

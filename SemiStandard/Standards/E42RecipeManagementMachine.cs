@@ -90,6 +90,8 @@ public class RecipeMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly IStateMachine _underlyingMachine;
+    private readonly string _instanceId;
 
     public string RecipeId { get; }
     public string Version { get; set; }
@@ -100,8 +102,17 @@ public class RecipeMachine
     public bool IsVerified { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E42_RECIPE_{RecipeId}";
+    public string MachineId => $"E42_RECIPE_{RecipeId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
+
+    /// <summary>
+    /// Event raised when the recipe state changes
+    /// </summary>
+    public event Action<string>? StateChanged
+    {
+        add => _underlyingMachine.StateChanged += value;
+        remove => _underlyingMachine.StateChanged -= value;
+    }
 
     public RecipeMachine(string recipeId, string version, string equipmentId, EventBusOrchestrator orchestrator)
     {
@@ -110,72 +121,75 @@ public class RecipeMachine
         RecipeBody = new Dictionary<string, object>();
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8); // Short unique ID
 
-        // Inline XState JSON definition
-        var definition = $@"{{
-            ""id"": ""E42_Recipe_{recipeId}"",
-            ""initial"": ""NoRecipe"",
-            ""context"": {{
-                ""recipeId"": """",
-                ""version"": """",
-                ""downloadTime"": null,
-                ""verificationTime"": null
-            }},
-            ""states"": {{
-                ""NoRecipe"": {{
-                    ""entry"": ""logNoRecipe"",
-                    ""on"": {{
-                        ""DOWNLOAD_REQUEST"": ""Downloading""
-                    }}
-                }},
-                ""Downloading"": {{
-                    ""entry"": ""logDownloading"",
-                    ""on"": {{
-                        ""DOWNLOAD_SUCCESS"": ""Downloaded"",
-                        ""DOWNLOAD_FAILED"": ""NoRecipe""
-                    }}
-                }},
-                ""Downloaded"": {{
-                    ""entry"": ""logDownloaded"",
-                    ""on"": {{
-                        ""VERIFY"": ""Verifying"",
-                        ""DELETE"": ""NoRecipe"",
-                        ""DOWNLOAD_REQUEST"": ""Downloading""
-                    }}
-                }},
-                ""Verifying"": {{
-                    ""entry"": ""logVerifying"",
-                    ""on"": {{
-                        ""VERIFY_SUCCESS"": ""Verified"",
-                        ""VERIFY_FAILED"": ""Downloaded""
-                    }}
-                }},
-                ""Verified"": {{
-                    ""entry"": ""logVerified"",
-                    ""on"": {{
-                        ""SELECT"": ""Selected"",
-                        ""MODIFY"": ""Downloaded"",
-                        ""DELETE"": ""NoRecipe"",
-                        ""REVERIFY"": ""Verifying""
-                    }}
-                }},
-                ""Selected"": {{
-                    ""entry"": ""logSelected"",
-                    ""on"": {{
-                        ""DESELECT"": ""Verified"",
-                        ""PROCESS_START"": ""Processing"",
-                        ""DELETE"": ""NoRecipe""
-                    }}
-                }},
-                ""Processing"": {{
-                    ""entry"": ""logProcessing"",
-                    ""on"": {{
-                        ""PROCESS_COMPLETE"": ""Selected"",
-                        ""PROCESS_ABORT"": ""Selected""
-                    }}
-                }}
-            }}
-        }}";
+        // Inline XState JSON definition (use MachineId for unique identification)
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NoRecipe',
+            context: {
+                recipeId: '',
+                version: '',
+                downloadTime: null,
+                verificationTime: null
+            },
+            states: {
+                NoRecipe: {
+                    entry: 'logNoRecipe',
+                    on: {
+                        DOWNLOAD_REQUEST: 'Downloading'
+                    }
+                },
+                Downloading: {
+                    entry: 'logDownloading',
+                    on: {
+                        DOWNLOAD_SUCCESS: 'Downloaded',
+                        DOWNLOAD_FAILED: 'NoRecipe'
+                    }
+                },
+                Downloaded: {
+                    entry: 'logDownloaded',
+                    on: {
+                        VERIFY: 'Verifying',
+                        DELETE: 'NoRecipe',
+                        DOWNLOAD_REQUEST: 'Downloading'
+                    }
+                },
+                Verifying: {
+                    entry: 'logVerifying',
+                    on: {
+                        VERIFY_SUCCESS: 'Verified',
+                        VERIFY_FAILED: 'Downloaded'
+                    }
+                },
+                Verified: {
+                    entry: 'logVerified',
+                    on: {
+                        SELECT: 'Selected',
+                        MODIFY: 'Downloaded',
+                        DELETE: 'NoRecipe',
+                        REVERIFY: 'Verifying'
+                    }
+                },
+                Selected: {
+                    entry: 'logSelected',
+                    on: {
+                        DESELECT: 'Verified',
+                        PROCESS_START: 'Processing',
+                        DELETE: 'NoRecipe'
+                    }
+                },
+                Processing: {
+                    entry: 'logProcessing',
+                    on: {
+                        PROCESS_COMPLETE: 'Selected',
+                        PROCESS_ABORT: 'Selected'
+                    }
+                }
+            }
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -283,6 +297,9 @@ public class RecipeMachine
             orchestratedActions: actions,
             guards: guards
         );
+
+        // Get underlying machine for StateChanged event access
+        _underlyingMachine = ((PureStateMachineAdapter)_machine).GetUnderlying();
     }
 
     public async Task<string> StartAsync()
@@ -295,77 +312,65 @@ public class RecipeMachine
         return _machine.CurrentState;
     }
 
-    // Public API methods
-    public async Task<bool> DownloadAsync()
+    // Public API methods - return EventResult for deterministic testing
+    public async Task<EventResult> DownloadAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_REQUEST", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_REQUEST", null);
     }
 
-    public async Task<bool> DownloadSuccessAsync(Dictionary<string, object> recipeBody)
+    public async Task<EventResult> DownloadSuccessAsync(Dictionary<string, object> recipeBody)
     {
         RecipeBody = recipeBody;
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_SUCCESS", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_SUCCESS", null);
     }
 
-    public async Task<bool> DownloadFailedAsync()
+    public async Task<EventResult> DownloadFailedAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_FAILED", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DOWNLOAD_FAILED", null);
     }
 
-    public async Task<bool> VerifyAsync()
+    public async Task<EventResult> VerifyAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY", null);
     }
 
-    public async Task<bool> VerifySuccessAsync()
+    public async Task<EventResult> VerifySuccessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_SUCCESS", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_SUCCESS", null);
     }
 
-    public async Task<bool> VerifyFailedAsync()
+    public async Task<EventResult> VerifyFailedAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_FAILED", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_FAILED", null);
     }
 
-    public async Task<bool> SelectAsync()
+    public async Task<EventResult> SelectAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT", null);
     }
 
-    public async Task<bool> DeselectAsync()
+    public async Task<EventResult> DeselectAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DESELECT", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DESELECT", null);
     }
 
-    public async Task<bool> StartProcessingAsync()
+    public async Task<EventResult> StartProcessingAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_START", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_START", null);
     }
 
-    public async Task<bool> CompleteProcessingAsync()
+    public async Task<EventResult> CompleteProcessingAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
     }
 
-    public async Task<bool> AbortProcessingAsync()
+    public async Task<EventResult> AbortProcessingAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_ABORT", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_ABORT", null);
     }
 
-    public async Task<bool> DeleteAsync()
+    public async Task<EventResult> DeleteAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DELETE", null);
-        return result.Success;
+        return await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DELETE", null);
     }
 }

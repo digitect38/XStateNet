@@ -8,6 +8,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+// Suppress obsolete warning - standalone video player test with no inter-machine communication
+// For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
+#pragma warning disable CS0618
+
 namespace VideoPlayerStateMachineTests
 {
     public class VideoPlayerStateMachineTests : IDisposable
@@ -64,7 +68,7 @@ namespace VideoPlayerStateMachineTests
             var guards = new GuardMap();
 
             // Define services, in this case, 'startVideo' which sets _serviceInvoked to true
-            // ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
+            // ["incrementCount"] = [new("incrementCount", async (sm) => Increment(sm))],
             var services = new ServiceMap
             {
                 ["startVideo"] = new("startVideo", (sm, ct) =>

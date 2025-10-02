@@ -1,236 +1,271 @@
 using System;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
-using XStateNet.Semi;
-using XStateNet.Testing;
+using XStateNet.Orchestration;
+using XStateNet.Semi.Standards;
+using static SemiStandard.Tests.StateMachineTestHelpers;
 
 namespace SemiStandard.Tests;
 
-public class E84HandoffTests : StateMachineTestBase
+/// <summary>
+/// Unit tests for E84HandoffMachine (SEMI E84 standard)
+/// REFACTORED to use EventBusOrchestrator-based implementation
+/// </summary>
+public class E84HandoffTests : IDisposable
 {
-    private E84HandoffController _handoff;
-    
+    private readonly EventBusOrchestrator _orchestrator;
+    private readonly E84HandoffMachine _handoff;
+
     public E84HandoffTests()
     {
-        // The base class handles test isolation automatically
-        var testId = StateMachineTestUtils.CreateTestId("E84Test");
-        _handoff = new E84HandoffController($"LP1_{testId}");
+        var config = new OrchestratorConfig
+        {
+            EnableLogging = true,
+            PoolSize = 4,
+            EnableMetrics = false
+        };
+
+        _orchestrator = new EventBusOrchestrator(config);
+        _handoff = new E84HandoffMachine("LP1", _orchestrator);
     }
-    
-    public override void Dispose()
+
+    public void Dispose()
     {
-        _handoff?.Reset();
-        _handoff = null!;
-        base.Dispose();
+        _orchestrator?.Dispose();
     }
-    
+
     [Fact]
-    public void InitialState_Should_BeIdle()
-    {
-        // Assert
-        _handoff.GetCurrentState().Should().Contain("idle");
-        _handoff.LoadRequest.Should().BeFalse();
-        _handoff.UnloadRequest.Should().BeFalse();
-        _handoff.Ready.Should().BeFalse();
-    }
-    
-    [Fact]
-    public void CS0Signal_Should_TransitionToNotReady()
+    public async Task InitialState_Should_BeIdle()
     {
         // Act
-        _handoff.SetCS0(true);
-        
+        await _handoff.StartAsync();
+
         // Assert
-        _handoff.GetCurrentState().Should().Contain("notReady");
+        var currentState = _handoff.GetCurrentState();
+        Assert.Contains("idle", currentState);
+        Assert.False(_handoff.LoadRequest);
+        Assert.False(_handoff.UnloadRequest);
+        Assert.False(_handoff.Ready);
     }
-    
+
     [Fact]
-    public void ValidSignal_Should_TransitionToWaitingForTransfer()
-    {
-        // Act
-        _handoff.SetValid(true);
-        
-        // Assert
-        _handoff.GetCurrentState().Should().Contain("waitingForTransfer");
-    }
-    
-    [Fact]
-    public void LoadSequence_Should_SetSignalsCorrectly()
+    public async Task CS0Signal_Should_TransitionToNotReady()
     {
         // Arrange
-        _handoff.SetCS0(true);
-        
+        await _handoff.StartAsync();
+
+        // Act
+        var result = await _handoff.SetCS0Async(true);
+
+        // Assert
+        AssertState(result, "notReady");
+    }
+
+    [Fact]
+    public async Task ValidSignal_Should_TransitionToWaitingForTransfer()
+    {
+        // Arrange
+        await _handoff.StartAsync();
+
+        // Act
+        var result = await _handoff.SetValidAsync(true);
+
+        // Assert
+        AssertState(result, "waitingForTransfer");
+    }
+
+    [Fact]
+    public async Task LoadSequence_Should_SetSignalsCorrectly()
+    {
+        // Arrange
+        await _handoff.StartAsync();
+
         // Act - Simulate load sequence
-        _handoff.Reset(); // Go to idle
-        _handoff.SetCS0(true); // Carrier present
-        var state1 = _handoff.GetCurrentState();
-        
-        // Simulate ready state (would normally be set by internal state machine)
-        // In real scenario, this would happen through state transitions
-        
+        var result = await _handoff.SetCS0Async(true); // Carrier present
+
         // Assert
-        state1.Should().Contain("notReady");
+        AssertState(result, "notReady");
     }
-    
+
     [Fact]
-    public void UnloadSequence_Should_SetSignalsCorrectly()
-    {
-        // Act - Simulate unload sequence
-        _handoff.SetValid(true); // Carrier ready to unload
-        var state1 = _handoff.GetCurrentState();
-        
-        _handoff.SetTransferRequest(true); // AGV/OHT requests transfer
-        
-        // Assert
-        state1.Should().Contain("waitingForTransfer");
-        // After TR_REQ, should transition to readyToUnload
-    }
-    
-    [Fact]
-    public void TransferBlocked_Should_SetAlarm()
-    {
-        // This test would need to simulate timeout
-        // In real implementation, would test the timeout transition
-        
-        // Act
-        _handoff.SetCS0(true);
-        // Simulate timeout by not completing handshake
-        
-        // Would need to wait for timeout or directly send TIMEOUT event
-        // _handoff.StateMachine.Send("TIMEOUT");
-        
-        // Assert
-        // _handoff.EsInterlock.Should().BeTrue();
-    }
-    
-    [Fact]
-    public void Reset_Should_ClearAllSignals()
+    public async Task UnloadSequence_Should_SetSignalsCorrectly()
     {
         // Arrange
-        _handoff.SetCS0(true);
-        _handoff.SetValid(true);
-        
-        // Act
-        _handoff.Reset();
-        
+        await _handoff.StartAsync();
+
+        // Act - Simulate unload sequence
+        var result = await _handoff.SetValidAsync(true); // Carrier ready to unload
+        AssertState(result, "waitingForTransfer");
+
+        result = await _handoff.SetTransferRequestAsync(true); // AGV/OHT requests transfer
+
         // Assert
-        _handoff.GetCurrentState().Should().Contain("idle");
-        _handoff.LoadRequest.Should().BeFalse();
-        _handoff.UnloadRequest.Should().BeFalse();
-        _handoff.Ready.Should().BeFalse();
-        _handoff.EsInterlock.Should().BeFalse();
+        AssertState(result, "readyToUnload");
+        Assert.True(_handoff.UnloadRequest);
     }
-    
+
+    [Fact]
+    public async Task TransferBlocked_Should_SetAlarm()
+    {
+        // Arrange
+        await _handoff.StartAsync();
+
+        // Act
+        var result = await _handoff.SetCS0Async(true);
+        AssertState(result, "notReady");
+
+        result = await _handoff.SetReadyAsync();
+        AssertState(result, "readyToLoad");
+
+        // Manually trigger timeout event
+        result = await _orchestrator.SendEventAsync("SYSTEM", _handoff.MachineId, "TIMEOUT", null);
+
+        // Assert
+        AssertState(result, "transferBlocked");
+        Assert.True(_handoff.EsInterlock);
+    }
+
+    [Fact]
+    public async Task Reset_Should_ClearAllSignals()
+    {
+        // Arrange
+        await _handoff.StartAsync();
+        await _handoff.SetCS0Async(true);
+        await _handoff.SetValidAsync(true);
+
+        // Act
+        var result = await _handoff.ResetAsync();
+
+        // Assert
+        AssertState(result, "idle");
+        Assert.False(_handoff.LoadRequest);
+        Assert.False(_handoff.UnloadRequest);
+        Assert.False(_handoff.Ready);
+        Assert.False(_handoff.EsInterlock);
+    }
+
     [Theory]
     [InlineData(true, "CS_0_ON")]
     [InlineData(false, "CS_0_OFF")]
-    public void CS0Signal_Should_SendCorrectEvent(bool signalValue, string expectedEvent)
+    public async Task CS0Signal_Should_SendCorrectEvent(bool signalValue, string expectedEvent)
     {
+        // Arrange
+        await _handoff.StartAsync();
+
         // Act
-        _handoff.SetCS0(signalValue);
-        
+        var result = await _handoff.SetCS0Async(signalValue);
+
         // Assert
-        // State should change based on signal
         if (signalValue)
         {
-            _handoff.GetCurrentState().Should().NotContain("idle");
+            AssertState(result, "notReady");
+        }
+        else
+        {
+            AssertState(result, "idle");
         }
     }
-    
+
     [Theory]
     [InlineData(true, "VALID_ON")]
     [InlineData(false, "VALID_OFF")]
-    public void ValidSignal_Should_SendCorrectEvent(bool signalValue, string expectedEvent)
+    public async Task ValidSignal_Should_SendCorrectEvent(bool signalValue, string expectedEvent)
     {
+        // Arrange
+        await _handoff.StartAsync();
+
         // Act
-        _handoff.SetValid(signalValue);
-        
+        var result = await _handoff.SetValidAsync(signalValue);
+
         // Assert
-        // State should change based on signal
         if (signalValue)
         {
-            _handoff.GetCurrentState().Should().NotContain("idle");
+            AssertState(result, "waitingForTransfer");
+        }
+        else
+        {
+            AssertState(result, "idle");
         }
     }
-    
+
     [Fact]
-    public void CompleteHandshake_Should_TransitionThroughAllStates()
+    public async Task CompleteHandshake_Should_TransitionThroughAllStates()
     {
-        // Simulate complete load handshake
-        // Act
-        _handoff.SetCS0(true);          // Carrier detected
-        var state1 = _handoff.GetCurrentState();
-        
-        _handoff.SetTransferRequest(true);  // Request transfer
-        var state2 = _handoff.GetCurrentState();
-        
-        _handoff.SetBusy(true);         // Transfer in progress
-        var state3 = _handoff.GetCurrentState();
-        
-        _handoff.SetBusy(false);        // Transfer done
-        _handoff.SetComplete(true);     // Complete signal
-        var state4 = _handoff.GetCurrentState();
-        
-        _handoff.SetComplete(false);    // Clear complete
-        _handoff.SetCS0(false);         // Carrier removed
-        var finalState = _handoff.GetCurrentState();
-        
+        // Arrange
+        await _handoff.StartAsync();
+
+        // Act - Simulate complete load handshake
+        var result = await _handoff.SetCS0Async(true);          // Carrier detected
+        AssertState(result, "notReady");
+
+        result = await _handoff.SetReadyAsync();                // Ready to transfer
+        AssertState(result, "readyToLoad");
+
+        result = await _handoff.SetTransferRequestAsync(true);  // Request transfer
+        AssertState(result, "transferReady");
+
+        result = await _handoff.SetBusyAsync(true);             // Transfer in progress
+        AssertState(result, "transferring");
+
+        result = await _handoff.SetCompleteAsync(true);         // Complete signal
+        AssertState(result, "transferComplete");
+
+        result = await _handoff.SetTransferRequestAsync(false); // Clear request
+        AssertState(result, "idle");
+
         // Assert
-        state1.Should().NotContain("idle");
-        finalState.Should().Contain("idle");
+        var finalState = _handoff.GetCurrentState();
+        Assert.Contains("idle", finalState);
     }
-    
+
     [Fact]
     public async Task ParallelHandoffControllers_Should_OperateIndependently()
     {
         // Arrange
         var testId = Guid.NewGuid().ToString("N")[..8];
-        var handoff1 = new E84HandoffController($"LP1_Parallel_{testId}");
-        var handoff2 = new E84HandoffController($"LP2_Parallel_{testId}");
-        var handoff3 = new E84HandoffController($"LP3_Parallel_{testId}");
-        
+        var handoff1 = new E84HandoffMachine($"LP1_Parallel_{testId}", _orchestrator);
+        var handoff2 = new E84HandoffMachine($"LP2_Parallel_{testId}", _orchestrator);
+        var handoff3 = new E84HandoffMachine($"LP3_Parallel_{testId}", _orchestrator);
+
+        await handoff1.StartAsync();
+        await handoff2.StartAsync();
+        await handoff3.StartAsync();
+
         // Act - Run different sequences in parallel
-        var task1 = Task.Run(() =>
+        var task1 = Task.Run(async () =>
         {
-            handoff1.SetCS0(true);
-            handoff1.SetTransferRequest(true);
-            handoff1.SetBusy(true);
-            Task.Delay(10).Wait();
-            handoff1.SetBusy(false);
-            handoff1.SetComplete(true);
+            await handoff1.SetCS0Async(true);
+            await handoff1.SetReadyAsync();
+            await handoff1.SetTransferRequestAsync(true);
+            await handoff1.SetBusyAsync(true);
+            await Task.Delay(10);
+            await handoff1.SetCompleteAsync(true);
         });
-        
-        var task2 = Task.Run(() =>
+
+        var task2 = Task.Run(async () =>
         {
-            handoff2.SetValid(true);
-            handoff2.SetTransferRequest(true);
-            Task.Delay(10).Wait();
-            handoff2.SetBusy(true);
-            handoff2.SetBusy(false);
+            await handoff2.SetValidAsync(true);
+            await handoff2.SetTransferRequestAsync(true);
+            await Task.Delay(10);
+            await handoff2.SetBusyAsync(true);
         });
-        
-        var task3 = Task.Run(() =>
+
+        var task3 = Task.Run(async () =>
         {
-            handoff3.SetCS0(true);
-            Task.Delay(10).Wait();
-            handoff3.Reset();
+            await handoff3.SetCS0Async(true);
+            await Task.Delay(10);
+            await handoff3.ResetAsync();
         });
-        
+
         await Task.WhenAll(task1, task2, task3);
-        
+
         // Assert - Each controller should have different states
         var state1 = handoff1.GetCurrentState();
         var state2 = handoff2.GetCurrentState();
         var state3 = handoff3.GetCurrentState();
-        
-        state3.Should().Contain("idle");
+
+        Assert.Contains("idle", state3);
         // States should be independent
-        state1.Should().NotBe(state2);
-        
-        // Cleanup
-        handoff1.Reset();
-        handoff2.Reset();
-        handoff3.Reset();
+        Assert.NotEqual(state1, state2);
     }
 }

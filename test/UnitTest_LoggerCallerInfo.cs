@@ -16,7 +16,7 @@ namespace XStateNet.UnitTest
             try
             {
                 // Enable caller info
-                Logger.CurrentLevel = Logger.LogLevel.Info;
+                Logger.CurrentLevel = Logger.LogLevel.Warning;
                 Logger.IncludeCallerInfo = true;
                 
                 // Log with caller info

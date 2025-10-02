@@ -6,6 +6,9 @@ using XStateNet;
 using Newtonsoft.Json.Linq;
 using System.Threading;
 
+// Suppress obsolete warning - standalone invoke error test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateV5_Test.AdvancedFeatures;
 
 public class UnitTest_InvokeOnError

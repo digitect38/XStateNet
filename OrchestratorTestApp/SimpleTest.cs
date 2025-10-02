@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Orchestration;
 
+// Suppress obsolete warning - simple orchestrator demo app
+#pragma warning disable CS0618
+
 namespace OrchestratorTestApp
 {
     public static class SimpleTest

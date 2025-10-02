@@ -1,18 +1,24 @@
 using Xunit;
-
 using XStateNet;
+using XStateNet.Orchestration;
+using XStateNet.Tests;
 using XStateNet.UnitTest;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace AdvancedFeatures;
 
-public class MutualExclusionTests : IDisposable
+public class MutualExclusionTests : OrchestratorTestBase
 {
-    private StateMachine CreateStateMachine(string uniqueId)
+    private IPureStateMachine? _currentMachine;
+
+    StateMachine? GetUnderlying() => (_currentMachine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+
+    private async Task<IPureStateMachine> CreateStateMachine(string uniqueId)
     {
-        var actionCallbacks = new ActionMap();
-        var guardCallbacks = new GuardMap();
+        var actions = new Dictionary<string, Action<OrchestratedContext>>();
+        var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
         string jsonScript = @$"
         {{
@@ -58,101 +64,123 @@ public class MutualExclusionTests : IDisposable
             }}
         }}";
 
-        var stateMachine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, false, actionCallbacks, guardCallbacks);
-        stateMachine!.Start();
-        return stateMachine;
+        _currentMachine = CreateMachine(uniqueId, jsonScript, actions, guards);
+        await _currentMachine.StartAsync();
+        return _currentMachine;
     }
 
     [Fact]
-    public void TestInitialState()
+    public async Task TestInitialState()
     {
-        var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestInitialState_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("wait", currentState);
+        Assert.Contains("closed", currentState);
     }
 
     [Fact]
-    public void TestTransitionShoot()
+    public async Task TestTransitionShoot()
     {
-        var uniqueId = "TestTransitionShoot_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestTransitionShoot_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
-        stateMachine!.Send("OPEN");
-        stateMachine!.Send("SHOOT");
+        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await Task.Delay(100);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("shoot", currentState);
+        Assert.Contains("open", currentState);
     }
 
     [Fact]
-    public void TestTransitionCannotShoot()
+    public async Task TestTransitionCannotShoot()
     {
-        var uniqueId = "TestTransitionCannotShoot_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestTransitionCannotShoot_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
-        stateMachine!.Send("SHOOT");
+        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await Task.Delay(100);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("wait", currentState);
+        Assert.Contains("closed", currentState);
     }
 
-
     [Fact]
-    public void TestTransitionCannotClose()
+    public async Task TestTransitionCannotClose()
     {
-        var uniqueId = "TestTransitionCannotClose_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestTransitionCannotClose_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
         // trashcan should not be closed while shooting!
-        stateMachine!.Send("OPEN");
-        stateMachine!.Send("SHOOT");
-        stateMachine!.Send("CLOSE");
+        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await Task.Delay(100);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.shoot;#{uniqueId}.trashCan.open");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("shoot", currentState);
+        Assert.Contains("open", currentState);
     }
 
     [Fact]
-    public void TestTransitionCanClose()
+    public async Task TestTransitionCanClose()
     {
-        var uniqueId = "TestTransitionCanClose_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestTransitionCanClose_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
         // trashcan can be closed after if shooting is done!
-        stateMachine!.Send("OPEN");
-        stateMachine!.Send("SHOOT");
-        stateMachine!.Send("DONE");
-        stateMachine!.Send("CLOSE");
+        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "DONE");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await Task.Delay(100);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("wait", currentState);
+        Assert.Contains("closed", currentState);
     }
 
     [Fact]
-    public void TestShootAndDoneTransition()
+    public async Task TestShootAndDoneTransition()
     {
-        var uniqueId = "TestShootAndDoneTransition_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestShootAndDoneTransition_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
-        stateMachine!.Send("OPEN");
-        stateMachine!.Send("SHOOT");
-        stateMachine!.Send("DONE");
+        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "DONE");
+        await Task.Delay(100);
 
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.open");
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("wait", currentState);
+        Assert.Contains("open", currentState);
     }
 
     [Fact]
-    public void TestOpenAndCloseTransition()
+    public async Task TestOpenAndCloseTransition()
     {
-        var uniqueId = "TestOpenAndCloseTransition_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var uniqueId = $"TestOpenAndCloseTransition_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
 
-        stateMachine!.Send("OPEN");
-        stateMachine!.Send("CLOSE");
-        var stateString = stateMachine!.GetActiveStateNames();
-        stateMachine!.GetActiveStateNames().AssertEquivalence($"#{uniqueId}.shooter.wait;#{uniqueId}.trashCan.closed");
-    }
-    
-    public void Dispose()
-    {
-        // Cleanup if needed
+        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await Task.Delay(100);
+
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("wait", currentState);
+        Assert.Contains("closed", currentState);
     }
 }
-

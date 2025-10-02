@@ -6,6 +6,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+// Suppress obsolete warning - legacy inter-machine ping-pong test
+// For new inter-machine tests, use OrchestratorTestBase with EventBusOrchestrator
+// See Test/InterMachine/InterMachinePingPongTests.cs for the refactored version
+#pragma warning disable CS0618
+
 namespace AdvancedFeatures
 {
     public class InterMachinePingPongStateMachinesTests : XStateNet.Tests.TestBase, IDisposable
@@ -59,14 +64,14 @@ namespace AdvancedFeatures
             // Ping actions
             _pingActions = new ActionMap()
             {
-                ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", (sm) => _pongStateMachine.Send("to_b")) }
+                ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", async (sm) => _pongStateMachine.Send("to_b")) }
             };
             _pingGuards = new GuardMap();
 
             // Pong actions
             _pongActions = new ActionMap()
             {
-                ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", (sm) => _pingStateMachine.Send("to_a")) }
+                ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", async (sm) => _pingStateMachine.Send("to_a")) }
             };
             _pongGuards = new GuardMap();
 

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
+// Suppress obsolete warning - ordered event tests with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateNet.Tests
 {
     public class OrderedEventTests

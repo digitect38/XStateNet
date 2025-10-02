@@ -6,6 +6,9 @@ using Xunit;
 using XStateNet;
 using XStateNet.Actors;
 
+// Suppress obsolete warning - ActorSystem-based tests use a different communication pattern
+#pragma warning disable CS0618
+
 namespace XStateNet.Tests;
 
 public class UnitTest_ActorAdvanced : IDisposable

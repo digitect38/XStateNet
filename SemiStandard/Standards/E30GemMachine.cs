@@ -16,122 +16,126 @@ public class E30GemMachine
     private readonly string _equipmentId;
     private readonly EventBusOrchestrator _orchestrator;
     private readonly IPureStateMachine _machine;
+    private readonly string _instanceId;
 
-    public string MachineId => $"E30_GEM_{_equipmentId}";
+    public string MachineId => $"E30_GEM_{_equipmentId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public E30GemMachine(string equipmentId, EventBusOrchestrator orchestrator)
     {
         _equipmentId = equipmentId;
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition (from E30GemStates.json)
-        var definition = @"{
-            ""id"": ""E30GemStateMachine"",
-            ""initial"": ""disabled"",
-            ""context"": {
-                ""equipmentId"": """",
-                ""communicationMode"": ""disabled"",
-                ""controlState"": ""notSelected"",
-                ""onlineState"": ""hostOffline""
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'disabled',
+            context: {
+                equipmentId: '',
+                communicationMode: 'disabled',
+                controlState: 'notSelected',
+                onlineState: 'hostOffline'
             },
-            ""states"": {
-                ""disabled"": {
-                    ""entry"": ""logDisabled"",
-                    ""on"": {
-                        ""ENABLE"": ""waitDelay"",
-                        ""ENABLE_IMMEDIATE"": ""waitCRA""
+            states: {
+                disabled: {
+                    entry: 'logDisabled',
+                    on: {
+                        ENABLE: 'waitDelay',
+                        ENABLE_IMMEDIATE: 'waitCRA'
                     }
                 },
-                ""waitDelay"": {
-                    ""entry"": ""logWaitingDelay"",
-                    ""after"": {
-                        ""5000"": {
-                            ""target"": ""waitCRA""
+                waitDelay: {
+                    entry: 'logWaitingDelay',
+                    after: {
+                        '5000': {
+                            target: 'waitCRA'
                         }
                     }
                 },
-                ""waitCRA"": {
-                    ""entry"": ""logWaitingCRA"",
-                    ""on"": {
-                        ""RECEIVE_S1F13"": ""waitCRFromHost"",
-                        ""TIMEOUT"": ""commFail""
+                waitCRA: {
+                    entry: 'logWaitingCRA',
+                    on: {
+                        RECEIVE_S1F13: 'waitCRFromHost',
+                        TIMEOUT: 'commFail'
                     },
-                    ""after"": {
-                        ""10000"": {
-                            ""target"": ""commFail""
+                    after: {
+                        '10000': {
+                            target: 'commFail'
                         }
                     }
                 },
-                ""waitCRFromHost"": {
-                    ""entry"": ""logWaitingCRFromHost"",
-                    ""on"": {
-                        ""SEND_S1F14"": ""communicating""
+                waitCRFromHost: {
+                    entry: 'logWaitingCRFromHost',
+                    on: {
+                        SEND_S1F14: 'communicating'
                     }
                 },
-                ""communicating"": {
-                    ""entry"": ""logCommunicating"",
-                    ""initial"": ""notSelected"",
-                    ""on"": {
-                        ""DISABLE"": ""disabled"",
-                        ""COMM_FAIL"": ""commFail""
+                communicating: {
+                    entry: 'logCommunicating',
+                    initial: 'notSelected',
+                    on: {
+                        DISABLE: 'disabled',
+                        COMM_FAIL: 'commFail'
                     },
-                    ""states"": {
-                        ""notSelected"": {
-                            ""entry"": ""logNotSelected"",
-                            ""on"": {
-                                ""SELECT"": ""selected""
+                    states: {
+                        notSelected: {
+                            entry: 'logNotSelected',
+                            on: {
+                                SELECT: 'selected'
                             }
                         },
-                        ""selected"": {
-                            ""entry"": ""logSelected"",
-                            ""initial"": ""hostOffline"",
-                            ""on"": {
-                                ""DESELECT"": ""notSelected""
+                        selected: {
+                            entry: 'logSelected',
+                            initial: 'hostOffline',
+                            on: {
+                                DESELECT: 'notSelected'
                             },
-                            ""states"": {
-                                ""hostOffline"": {
-                                    ""entry"": ""logHostOffline"",
-                                    ""on"": {
-                                        ""OFFLINE_REQUEST"": ""equipmentOffline"",
-                                        ""ONLINE_LOCAL"": ""local"",
-                                        ""ONLINE_REMOTE"": ""remote""
+                            states: {
+                                hostOffline: {
+                                    entry: 'logHostOffline',
+                                    on: {
+                                        OFFLINE_REQUEST: 'equipmentOffline',
+                                        ONLINE_LOCAL: 'local',
+                                        ONLINE_REMOTE: 'remote'
                                     }
                                 },
-                                ""equipmentOffline"": {
-                                    ""entry"": ""logEquipmentOffline"",
-                                    ""on"": {
-                                        ""ONLINE_LOCAL"": ""local"",
-                                        ""ONLINE_REMOTE"": ""remote""
+                                equipmentOffline: {
+                                    entry: 'logEquipmentOffline',
+                                    on: {
+                                        ONLINE_LOCAL: 'local',
+                                        ONLINE_REMOTE: 'remote'
                                     }
                                 },
-                                ""local"": {
-                                    ""entry"": ""logLocal"",
-                                    ""on"": {
-                                        ""OFFLINE"": ""equipmentOffline"",
-                                        ""REMOTE"": ""remote""
+                                local: {
+                                    entry: 'logLocal',
+                                    on: {
+                                        OFFLINE: 'equipmentOffline',
+                                        REMOTE: 'remote'
                                     }
                                 },
-                                ""remote"": {
-                                    ""entry"": ""logRemote"",
-                                    ""on"": {
-                                        ""OFFLINE"": ""equipmentOffline"",
-                                        ""LOCAL"": ""local""
+                                remote: {
+                                    entry: 'logRemote',
+                                    on: {
+                                        OFFLINE: 'equipmentOffline',
+                                        LOCAL: 'local'
                                     }
                                 }
                             }
                         }
                     }
                 },
-                ""commFail"": {
-                    ""entry"": ""logCommFail"",
-                    ""on"": {
-                        ""ENABLE"": ""waitDelay"",
-                        ""DISABLE"": ""disabled""
+                commFail: {
+                    entry: 'logCommFail',
+                    on: {
+                        ENABLE: 'waitDelay',
+                        DISABLE: 'disabled'
                     }
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -331,7 +335,7 @@ public class E30GemMachine
     /// <summary>
     /// Enable communication (with T1 delay)
     /// </summary>
-    public async Task<bool> EnableAsync()
+    public async Task<EventResult> EnableAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -339,13 +343,13 @@ public class E30GemMachine
             "ENABLE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Enable communication immediately (no T1 delay)
     /// </summary>
-    public async Task<bool> EnableImmediateAsync()
+    public async Task<EventResult> EnableImmediateAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -353,13 +357,13 @@ public class E30GemMachine
             "ENABLE_IMMEDIATE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Disable communication
     /// </summary>
-    public async Task<bool> DisableAsync()
+    public async Task<EventResult> DisableAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -367,13 +371,13 @@ public class E30GemMachine
             "DISABLE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Handle S1F13 communication request from host
     /// </summary>
-    public async Task<bool> ReceiveS1F13Async()
+    public async Task<EventResult> ReceiveS1F13Async()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -381,13 +385,13 @@ public class E30GemMachine
             "RECEIVE_S1F13",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Send S1F14 communication acknowledge to host
     /// </summary>
-    public async Task<bool> SendS1F14Async()
+    public async Task<EventResult> SendS1F14Async()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -395,13 +399,13 @@ public class E30GemMachine
             "SEND_S1F14",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Select equipment for host control
     /// </summary>
-    public async Task<bool> SelectAsync()
+    public async Task<EventResult> SelectAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -409,13 +413,13 @@ public class E30GemMachine
             "SELECT",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Deselect equipment from host control
     /// </summary>
-    public async Task<bool> DeselectAsync()
+    public async Task<EventResult> DeselectAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -423,13 +427,13 @@ public class E30GemMachine
             "DESELECT",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Go online in local mode (operator control)
     /// </summary>
-    public async Task<bool> GoOnlineLocalAsync()
+    public async Task<EventResult> GoOnlineLocalAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -437,13 +441,13 @@ public class E30GemMachine
             "ONLINE_LOCAL",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Go online in remote mode (host control)
     /// </summary>
-    public async Task<bool> GoOnlineRemoteAsync()
+    public async Task<EventResult> GoOnlineRemoteAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -451,13 +455,13 @@ public class E30GemMachine
             "ONLINE_REMOTE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Go offline
     /// </summary>
-    public async Task<bool> GoOfflineAsync()
+    public async Task<EventResult> GoOfflineAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -465,13 +469,13 @@ public class E30GemMachine
             "OFFLINE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Switch from local to remote mode
     /// </summary>
-    public async Task<bool> SwitchToRemoteAsync()
+    public async Task<EventResult> SwitchToRemoteAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -479,13 +483,13 @@ public class E30GemMachine
             "REMOTE",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Switch from remote to local mode
     /// </summary>
-    public async Task<bool> SwitchToLocalAsync()
+    public async Task<EventResult> SwitchToLocalAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -493,13 +497,13 @@ public class E30GemMachine
             "LOCAL",
             null
         );
-        return result.Success;
+        return result;
     }
 
     /// <summary>
     /// Signal communication failure
     /// </summary>
-    public async Task<bool> SignalCommFailureAsync()
+    public async Task<EventResult> SignalCommFailureAsync()
     {
         var result = await _orchestrator.SendEventAsync(
             "SYSTEM",
@@ -507,6 +511,6 @@ public class E30GemMachine
             "COMM_FAIL",
             null
         );
-        return result.Success;
+        return result;
     }
 }

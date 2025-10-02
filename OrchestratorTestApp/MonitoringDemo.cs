@@ -130,7 +130,15 @@ namespace OrchestratorTestApp
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript($"processor{i}", json, orchestrator, actions);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: $"processor{i}",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: actions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync($"processor{i}");
             }
 

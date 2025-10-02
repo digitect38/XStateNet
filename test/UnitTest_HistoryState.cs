@@ -1,22 +1,23 @@
 using Xunit;
-
 using XStateNet;
+using XStateNet.Orchestration;
+using XStateNet.Tests;
 using XStateNet.UnitTest;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading;
-using System.Transactions;
+using System.Threading.Tasks;
 
 namespace AdvancedFeatures;
 
-public class HistoryState : IDisposable
+public class HistoryState : OrchestratorTestBase
 {
-    StateMachine? _stateMachine;
+    private IPureStateMachine? _currentMachine;
 
     [Fact]
     public async Task ShallowHistory()
     {
+        var uniqueId = $"testMachine_{Guid.NewGuid():N}";
+
         var stateMachineJson = @"{
             'id': 'testMachine',
             'initial': 'A',
@@ -41,38 +42,44 @@ public class HistoryState : IDisposable
                     'on': { 'TO_A': 'A.hist' }
                 }
             }
-        }"
-        ;
+        }";
 
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson,
-            threadSafe: false,
-            true,
-            new ActionMap(),
-            new GuardMap()).Start();
+        var actions = new Dictionary<string, Action<OrchestratedContext>>();
+        var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        await _stateMachine!.SendAsync("TO_A2");
-        var currentState = await _stateMachine!.SendAsync("TO_B");
-        Assert.Contains(".B", currentState);
+        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        await _currentMachine.StartAsync();
 
-        currentState = await _stateMachine!.SendAsync("TO_A");
+        await SendEventAsync("TEST", uniqueId, "TO_A2");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "TO_B");
+        await Task.Delay(100);
+        var currentState = _currentMachine.CurrentState;
+        Assert.Contains("B", currentState);
+
+        await SendEventAsync("TEST", uniqueId, "TO_A");
+        await Task.Delay(100);
+        currentState = _currentMachine.CurrentState;
         // When returning to A.hist, it should restore A.A2 for shallow history
-        Assert.Contains(".A.A2", currentState);
+        Assert.Contains("A2", currentState);
     }
 
     [Fact]
-    public async void DeepHistory()
+    public async Task DeepHistory()
     {
+        var uniqueId = $"testMachine_{Guid.NewGuid():N}";
+
         var stateMachineJson = @" {
             'id': 'testMachine',
             'initial': 'A',
-              states : {         
+              states : {
                   'A': {
-                      'initial': 'A1',              
+                      'initial': 'A1',
                       'states': {
                           'hist' : {
                             type : 'history',
                             'history':'deep'
-                          },   
+                          },
                           'A1': {
                               'initial': 'A1a',
                               'states': {
@@ -98,29 +105,25 @@ public class HistoryState : IDisposable
                         }
                   }
               }
-          }"
-        ;
+          }";
 
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson,
-            threadSafe: false,
-            true,
-            new ActionMap(),
-            new GuardMap());
-        var machineId = _stateMachine!.machineId;
-        await _stateMachine.StartAsync();
-        await _stateMachine!.WaitForStateAsync(".A1a");
-        await _stateMachine!.SendAsync("TO_A1b");
-        await _stateMachine!.WaitForStateAsync(".A1b");
-        string currentState = await _stateMachine!.SendAsync("TO_B");
-        Assert.Contains("B.B1", currentState);
+        var actions = new Dictionary<string, Action<OrchestratedContext>>();
+        var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        currentState = await _stateMachine!.SendAsync("TO_A");
-        Assert.Contains("A.A1.A1b", currentState);
-    }
-    
-    public void Dispose()
-    {
-        // Cleanup if needed
+        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        await _currentMachine.StartAsync();
+
+        await SendEventAsync("TEST", uniqueId, "TO_A1b");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "TO_B");
+        await Task.Delay(100);
+        var currentState = _currentMachine.CurrentState;
+        Assert.Contains("B", currentState);
+
+        await SendEventAsync("TEST", uniqueId, "TO_A");
+        await Task.Delay(100);
+        currentState = _currentMachine.CurrentState;
+        // When returning to A.hist (deep), it should restore A.A1.A1b
+        Assert.Contains("A1b", currentState);
     }
 }
-

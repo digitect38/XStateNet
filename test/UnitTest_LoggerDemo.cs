@@ -4,6 +4,9 @@ using XStateNet;
 using System.Collections.Generic;
 using System;
 
+// Suppress obsolete warning - standalone logger demo test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateNet.UnitTest
 {
     public class LoggerDemoTests
@@ -15,7 +18,7 @@ namespace XStateNet.UnitTest
 
             // Enable caller info for better debugging
             Logger.IncludeCallerInfo = true;
-            Logger.CurrentLevel = Logger.LogLevel.Info;
+            Logger.CurrentLevel = Logger.LogLevel.Warning;
 
             // Log from test method - will show this file and line number
             Logger.Info("Starting state machine test");
@@ -23,7 +26,7 @@ namespace XStateNet.UnitTest
             var actions = new ActionMap
             {
                 ["logAction"] = new List<NamedAction> {
-                    new NamedAction("logAction", (sm) => {
+                    new NamedAction("logAction", async (sm) => {
                         // This will show the line number in this test file
                         Logger.Info("Action executed in state machine");
                     })

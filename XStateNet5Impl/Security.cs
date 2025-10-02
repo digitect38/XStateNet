@@ -133,7 +133,7 @@ public static class Logger
         Trace = 6
     }
     
-    private static int _currentLevelInt = (int)LogLevel.Info;
+    private static int _currentLevelInt = (int)LogLevel.Warning;
     private static readonly object _lockObject = new object();
     private static int _includeCallerInfoInt = 0; // 0 = false, 1 = true
 

@@ -427,7 +427,15 @@ public partial class StateMachine : IStateMachine
             foreach (var stateName in list)
             {
                 var state = GetState(stateName) as CompoundState;
-                state?.EntryState();
+                if (state != null)
+                {
+                    var entryTaskTask = state.EntryState();
+                    var entryTask = entryTaskTask.GetAwaiter().GetResult();
+                    if (entryTask != null)
+                    {
+                        entryTask.GetAwaiter().GetResult();
+                    }
+                }
             }
 
             Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
@@ -533,7 +541,9 @@ public partial class StateMachine : IStateMachine
 
         // Use write lock to ensure atomic transitions
         // Only one thread can transition at a time
-        return await Task.Run(async () =>
+        // We must not use async inside Task.Run when using ReaderWriterLockSlim
+        // because the lock is thread-affine
+        return await Task.Run(() =>
         {
             _stateLock.EnterWriteLock();
             try
@@ -544,13 +554,22 @@ public partial class StateMachine : IStateMachine
                     return GetActiveStateNames();
                 }
 
-                // Use async version to properly await parallel state transitions
-                await TransitAsync(eventName, eventData);
+                // Use synchronous version to avoid thread-affinity issues with the lock
+                // The async operations inside TransitAsync will still run asynchronously
+                var transitTask = TransitAsync(eventName, eventData);
+                transitTask.Wait();
                 //PrintCurrentStateTree();
                 //PrintCurrentStatesString();
 
                 // Return the active state names after all parallel transitions complete
                 // This ensures we get the complete state after all parallel transitions
+                return GetActiveStateNames();
+            }
+            catch (AggregateException ex)
+            {
+                // Unwrap AggregateException from Wait()
+                var innerEx = ex.InnerException ?? ex;
+                HandleUnhandledException(innerEx, $"SendAsync({eventName})");
                 return GetActiveStateNames();
             }
             catch (Exception ex)
@@ -1561,6 +1580,22 @@ public partial class StateMachine : IStateMachine
             {
                 await topExitState.ExitState(postAction: true, recursive: true);
             }
+            catch (AggregateException aggEx)
+            {
+                // Unwrap AggregateException from async operations
+                var ex = aggEx.InnerException ?? aggEx;
+                // Store error context
+                if(ContextMap is not null)
+                {
+                    ContextMap["_error"] = ex;
+                    ContextMap["_lastError"] = ex;  // For backward compatibility
+                    ContextMap["_errorType"] = ex.GetType().Name;
+                    ContextMap["_errorMessage"] = ex.Message;
+                }
+
+                // Send onError event to trigger error transitions
+                SendInternal("onError");
+            }
             catch (Exception ex)
             {
                 // Store error context
@@ -1591,6 +1626,22 @@ public partial class StateMachine : IStateMachine
             try
             {
                 await topEntryState.EntryState(postAction: false, recursive: true, HistoryType.None, historyState);
+            }
+            catch (AggregateException aggEx)
+            {
+                // Unwrap AggregateException from async operations
+                var ex = aggEx.InnerException ?? aggEx;
+                // Store error context
+                if(ContextMap is not null)
+                {
+                    ContextMap["_error"] = ex;
+                    ContextMap["_lastError"] = ex;  // For backward compatibility
+                    ContextMap["_errorType"] = ex.GetType().Name;
+                    ContextMap["_errorMessage"] = ex.Message;
+                }
+
+                // Send onError event to trigger error transitions
+                SendInternal("onError");
             }
             catch (Exception ex)
             {
@@ -1725,7 +1776,7 @@ public partial class StateMachine : IStateMachine
                     {
                         try
                         {
-                            action.Action(this);
+                            await action.Action(this);
                         }
                         catch (Exception ex)
                         {
@@ -1746,7 +1797,7 @@ public partial class StateMachine : IStateMachine
                     {
                         try
                         {
-                            action.Action(this);
+                            await action.Action(this);
                         }
                         catch (Exception ex)
                         {

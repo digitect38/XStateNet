@@ -77,6 +77,7 @@ public class ModuleTracker
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
     private readonly List<ProcessStep> _processHistory = new();
 
     public string ModuleId { get; }
@@ -86,144 +87,147 @@ public class ModuleTracker
     public int StepCount { get; set; }
     public int ErrorCount { get; set; }
 
-    public string MachineId => $"E157_MODULE_{ModuleId}";
+    public string MachineId => $"E157_MODULE_{ModuleId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public ModuleTracker(string moduleId, string equipmentId, EventBusOrchestrator orchestrator)
     {
         ModuleId = moduleId;
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition with hierarchical states
-        var definition = @"{
-            ""id"": ""E157_ModuleProcessTracking"",
-            ""initial"": ""Idle"",
-            ""context"": {
-                ""moduleId"": """",
-                ""materialId"": null,
-                ""processStartTime"": null,
-                ""stepCount"": 0,
-                ""errorCount"": 0
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'Idle',
+            context: {
+                moduleId: '',
+                materialId: null,
+                processStartTime: null,
+                stepCount: 0,
+                errorCount: 0
             },
-            ""states"": {
-                ""Idle"": {
-                    ""entry"": ""logIdle"",
-                    ""on"": {
-                        ""MATERIAL_ARRIVE"": {
-                            ""target"": ""MaterialArrived"",
-                            ""actions"": ""recordMaterialArrival""
+            states: {
+                Idle: {
+                    entry: 'logIdle',
+                    on: {
+                        MATERIAL_ARRIVE: {
+                            target: 'MaterialArrived',
+                            actions: 'recordMaterialArrival'
                         }
                     }
                 },
-                ""MaterialArrived"": {
-                    ""entry"": ""logMaterialArrived"",
-                    ""on"": {
-                        ""START_PRE_PROCESS"": {
-                            ""target"": ""PreProcessing"",
-                            ""actions"": ""startPreProcess""
+                MaterialArrived: {
+                    entry: 'logMaterialArrived',
+                    on: {
+                        START_PRE_PROCESS: {
+                            target: 'PreProcessing',
+                            actions: 'startPreProcess'
                         },
-                        ""SKIP_PRE_PROCESS"": {
-                            ""target"": ""Processing"",
-                            ""actions"": ""startMainProcess""
+                        SKIP_PRE_PROCESS: {
+                            target: 'Processing',
+                            actions: 'startMainProcess'
                         },
-                        ""MATERIAL_REMOVE"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""clearMaterial""
+                        MATERIAL_REMOVE: {
+                            target: 'Idle',
+                            actions: 'clearMaterial'
                         }
                     }
                 },
-                ""PreProcessing"": {
-                    ""entry"": ""logPreProcessing"",
-                    ""on"": {
-                        ""PRE_PROCESS_COMPLETE"": {
-                            ""target"": ""Processing"",
-                            ""actions"": [""recordPreProcessResults"", ""startMainProcess""]
+                PreProcessing: {
+                    entry: 'logPreProcessing',
+                    on: {
+                        PRE_PROCESS_COMPLETE: {
+                            target: 'Processing',
+                            actions: ['recordPreProcessResults', 'startMainProcess']
                         },
-                        ""PRE_PROCESS_ERROR"": {
-                            ""target"": ""Error"",
-                            ""actions"": [""recordError"", ""notifyError""]
+                        PRE_PROCESS_ERROR: {
+                            target: 'Error',
+                            actions: ['recordError', 'notifyError']
                         },
-                        ""ABORT"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""abortAndClear""
+                        ABORT: {
+                            target: 'Idle',
+                            actions: 'abortAndClear'
                         }
                     }
                 },
-                ""Processing"": {
-                    ""entry"": ""logProcessing"",
-                    ""on"": {
-                        ""PROCESS_COMPLETE"": {
-                            ""target"": ""PostProcessing"",
-                            ""actions"": ""recordProcessResults""
+                Processing: {
+                    entry: 'logProcessing',
+                    on: {
+                        PROCESS_COMPLETE: {
+                            target: 'PostProcessing',
+                            actions: 'recordProcessResults'
                         },
-                        ""SKIP_POST_PROCESS"": {
-                            ""target"": ""MaterialComplete"",
-                            ""actions"": [""recordProcessResults"", ""finalizeMaterialProcessing""]
+                        SKIP_POST_PROCESS: {
+                            target: 'MaterialComplete',
+                            actions: ['recordProcessResults', 'finalizeMaterialProcessing']
                         },
-                        ""PROCESS_ERROR"": {
-                            ""target"": ""Error"",
-                            ""actions"": [""recordError"", ""notifyError""]
+                        PROCESS_ERROR: {
+                            target: 'Error',
+                            actions: ['recordError', 'notifyError']
                         },
-                        ""ABORT"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""abortAndClear""
+                        ABORT: {
+                            target: 'Idle',
+                            actions: 'abortAndClear'
                         }
                     }
                 },
-                ""PostProcessing"": {
-                    ""entry"": ""logPostProcessing"",
-                    ""on"": {
-                        ""POST_PROCESS_COMPLETE"": {
-                            ""target"": ""MaterialComplete"",
-                            ""actions"": [""recordPostProcessResults"", ""finalizeMaterialProcessing""]
+                PostProcessing: {
+                    entry: 'logPostProcessing',
+                    on: {
+                        POST_PROCESS_COMPLETE: {
+                            target: 'MaterialComplete',
+                            actions: ['recordPostProcessResults', 'finalizeMaterialProcessing']
                         },
-                        ""POST_PROCESS_ERROR"": {
-                            ""target"": ""Error"",
-                            ""actions"": [""recordError"", ""notifyError""]
+                        POST_PROCESS_ERROR: {
+                            target: 'Error',
+                            actions: ['recordError', 'notifyError']
                         },
-                        ""ABORT"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""abortAndClear""
+                        ABORT: {
+                            target: 'Idle',
+                            actions: 'abortAndClear'
                         }
                     }
                 },
-                ""MaterialComplete"": {
-                    ""entry"": ""logMaterialComplete"",
-                    ""on"": {
-                        ""MATERIAL_REMOVE"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""clearMaterial""
+                MaterialComplete: {
+                    entry: 'logMaterialComplete',
+                    on: {
+                        MATERIAL_REMOVE: {
+                            target: 'Idle',
+                            actions: 'clearMaterial'
                         },
-                        ""NEXT_MATERIAL"": {
-                            ""target"": ""MaterialArrived"",
-                            ""actions"": ""recordMaterialArrival""
+                        NEXT_MATERIAL: {
+                            target: 'MaterialArrived',
+                            actions: 'recordMaterialArrival'
                         }
                     }
                 },
-                ""Error"": {
-                    ""entry"": ""logError"",
-                    ""on"": {
-                        ""ERROR_CLEAR"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""clearMaterial""
+                Error: {
+                    entry: 'logError',
+                    on: {
+                        ERROR_CLEAR: {
+                            target: 'Idle',
+                            actions: 'clearMaterial'
                         },
-                        ""ABORT"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""abortAndClear""
+                        ABORT: {
+                            target: 'Idle',
+                            actions: 'abortAndClear'
                         }
                     }
                 },
-                ""Maintenance"": {
-                    ""entry"": ""startMaintenance"",
-                    ""on"": {
-                        ""MAINTENANCE_COMPLETE"": {
-                            ""target"": ""Idle"",
-                            ""actions"": ""endMaintenance""
+                Maintenance: {
+                    entry: 'startMaintenance',
+                    on: {
+                        MAINTENANCE_COMPLETE: {
+                            target: 'Idle',
+                            actions: 'endMaintenance'
                         }
                     }
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -440,93 +444,93 @@ public class ModuleTracker
     }
 
     // Public API methods
-    public async Task<bool> MaterialArriveAsync(string materialId, string recipeStep)
+    public async Task<EventResult> MaterialArriveAsync(string materialId, string recipeStep)
     {
         CurrentMaterialId = materialId;
         CurrentRecipeStep = recipeStep;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MATERIAL_ARRIVE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartPreProcessAsync()
+    public async Task<EventResult> StartPreProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_PRE_PROCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SkipPreProcessAsync()
+    public async Task<EventResult> SkipPreProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SKIP_PRE_PROCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PreProcessCompleteAsync()
+    public async Task<EventResult> PreProcessCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PRE_PROCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ProcessCompleteAsync()
+    public async Task<EventResult> ProcessCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> SkipPostProcessAsync()
+    public async Task<EventResult> SkipPostProcessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SKIP_POST_PROCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PostProcessCompleteAsync()
+    public async Task<EventResult> PostProcessCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "POST_PROCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MaterialRemoveAsync()
+    public async Task<EventResult> MaterialRemoveAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MATERIAL_REMOVE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> NextMaterialAsync(string materialId, string recipeStep)
+    public async Task<EventResult> NextMaterialAsync(string materialId, string recipeStep)
     {
         CurrentMaterialId = materialId;
         CurrentRecipeStep = recipeStep;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "NEXT_MATERIAL", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReportErrorAsync(string errorType)
+    public async Task<EventResult> ReportErrorAsync(string errorType)
     {
         ErrorCount++;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, errorType, null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ClearErrorAsync()
+    public async Task<EventResult> ClearErrorAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ERROR_CLEAR", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AbortAsync()
+    public async Task<EventResult> AbortAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ABORT", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartMaintenanceAsync()
+    public async Task<EventResult> StartMaintenanceAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAINTENANCE_START", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MaintenanceCompleteAsync()
+    public async Task<EventResult> MaintenanceCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAINTENANCE_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
     public ProcessReport GenerateProcessReport(string materialId)

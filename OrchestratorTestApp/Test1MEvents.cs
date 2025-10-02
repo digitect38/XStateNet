@@ -39,7 +39,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("counter", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "counter",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("counter");
 
             // Send 1 million events with improved batching

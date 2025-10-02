@@ -288,8 +288,12 @@ namespace XStateNet.Semi.Transport
                 var retryCount = (int)(sm.ContextMap["retryCount"] ?? 0);
                 return retryCount < 3; // Max 3 retries
             });
-            
+
+            // Suppress obsolete warning - this is a low-level transport connection handler
+            // It doesn't interact with other state machines, so orchestrator is not needed
+#pragma warning disable CS0618
             return StateMachineFactory.CreateFromScript(config, threadSafe: false, true, actionMap, guardMap);
+#pragma warning restore CS0618
         }
 
         private HsmsConnectionState GetCurrentState()

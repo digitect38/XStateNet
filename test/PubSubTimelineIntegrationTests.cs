@@ -13,6 +13,9 @@ using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using Microsoft.Extensions.Logging;
 
+// Suppress obsolete warning - PubSub timeline integration test
+#pragma warning disable CS0618
+
 namespace TimelineWPF.Tests
 {
     /// <summary>

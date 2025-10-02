@@ -2,7 +2,11 @@ using Xunit;
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using XStateNet;
+
+// Suppress obsolete warning - standalone error handling test with no inter-machine communication
+#pragma warning disable CS0618
 
 namespace XSateV5_Test.AdvancedFeatures;
 
@@ -25,35 +29,40 @@ public class UnitTest_ErrorHandling : IDisposable
         
         _actions = new ActionMap
         {
-            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", (sm) => {
+            ["throwError"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add("throwError");
+                await Task.CompletedTask;
                 throw new InvalidOperationException("Test error");
-            }) },
-            ["throwCustomError"] = new List<NamedAction> { new NamedAction("throwCustomError", (sm) => {
+            }, "throwError") },
+            ["throwCustomError"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add("throwCustomError");
+                await Task.CompletedTask;
                 throw new ArgumentException("Custom test error");
-            }) },
-            ["handleError"] = new List<NamedAction> { new NamedAction("handleError", (sm) => {
+            }, "throwCustomError") },
+            ["handleError"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add("handleError");
                 _errorHandled = true;
                 _errorMessage = sm.ContextMap?["_errorMessage"]?.ToString();
                 _errorType = sm.ContextMap?["_errorType"]?.ToString();
-            }) },
-            ["logAction"] = new List<NamedAction> { new NamedAction("logAction", (sm) => {
+                await Task.CompletedTask;
+            }, "handleError") },
+            ["logAction"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add("logAction");
-            }) },
-            ["recover"] = new List<NamedAction> { new NamedAction("recover", (sm) => {
+                await Task.CompletedTask;
+            }, "logAction") },
+            ["recover"] = new List<NamedAction> { new NamedAction(async (sm) => {
                 _actionLog.Add("recover");
                 sm.ContextMap!["recovered"] = true;
-            }) }
+                await Task.CompletedTask;
+            }, "recover") }
         };
         
         _guards = new GuardMap
         {
-            ["isRecoverable"] = new NamedGuard("isRecoverable", (sm) => {
+            ["isRecoverable"] = new NamedGuard((sm) => {
                 var errorType = sm.ContextMap?["_errorType"]?.ToString();
                 return errorType == "InvalidOperationException";
-            })
+            }, "isRecoverable")
         };
     }
     
@@ -91,7 +100,9 @@ public class UnitTest_ErrorHandling : IDisposable
         _stateMachine!.Send("START");
 
         // The error should be caught and handled
-        Assert.Contains($"{_stateMachine.machineId}.error", _stateMachine.GetActiveStateNames());
+        var activeStates = _stateMachine.GetActiveStateNames();
+        Console.WriteLine($"Active states after START: {activeStates}");
+        Assert.Contains($"{_stateMachine.machineId}.error", activeStates);
         Assert.True(_errorHandled);
         Assert.Equal("Test error", _errorMessage);
         Assert.Equal("InvalidOperationException", _errorType);

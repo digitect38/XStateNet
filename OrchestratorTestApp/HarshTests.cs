@@ -121,7 +121,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("counter", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "counter",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("counter");
 
             // Send 1 million events with improved batching
@@ -188,7 +196,15 @@ namespace OrchestratorTestApp
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript($"m{i}", json, orchestrator, null);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: $"m{i}",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: null,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 tasks.Add(orchestrator.StartMachineAsync($"m{i}"));
             }
 
@@ -224,7 +240,15 @@ namespace OrchestratorTestApp
                         ""states"": {{ ""active"": {{}} }}
                     }}";
 
-                    var machine = PureStateMachineFactory.CreateFromScript("temp", json, orchestrator, null);
+                    var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                        id: "temp",
+                        json: json,
+                        orchestrator: orchestrator,
+                        orchestratedActions: null,
+                        guards: null,
+                        services: null,
+                        delays: null,
+                        activities: null);
                     await orchestrator.StartMachineAsync("temp");
 
                     // Immediately try to send events
@@ -271,7 +295,15 @@ namespace OrchestratorTestApp
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript($"m{i}", json, orchestrator, actions);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: $"m{i}",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: actions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync($"m{i}");
             }
 
@@ -303,7 +335,15 @@ namespace OrchestratorTestApp
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript($"m{i}", json, orchestrator, null);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: $"m{i}",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: null,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync($"m{i}");
             }
 
@@ -363,8 +403,24 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var ping = PureStateMachineFactory.CreateFromScript("ping", pingJson, orchestrator, pingActions);
-            var pong = PureStateMachineFactory.CreateFromScript("pong", pongJson, orchestrator, pongActions);
+            var ping = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "ping",
+                json: pingJson,
+                orchestrator: orchestrator,
+                orchestratedActions: pingActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var pong = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "pong",
+                json: pongJson,
+                orchestrator: orchestrator,
+                orchestratedActions: pongActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
 
             await Task.WhenAll(
                 orchestrator.StartMachineAsync("ping"),
@@ -415,7 +471,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("racer", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "racer",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("racer");
 
             // Hammer with concurrent events
@@ -468,7 +532,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("parallel", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "parallel",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("parallel");
 
             // Send events rapidly
@@ -508,7 +580,15 @@ namespace OrchestratorTestApp
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript($"mem{i}", json, orchestrator, actions);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: $"mem{i}",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: actions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync($"mem{i}");
             }
 
@@ -545,7 +625,15 @@ namespace OrchestratorTestApp
                         ""states"": {{ ""active"": {{}} }}
                     }}";
 
-                    var machine = PureStateMachineFactory.CreateFromScript($"h{i}", json, orch, null);
+                    var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                        id: $"h{i}",
+                        json: json,
+                        orchestrator: orch,
+                        orchestratedActions: null,
+                        guards: null,
+                        services: null,
+                        delays: null,
+                        activities: null);
                     await orch.StartMachineAsync($"h{i}");
                 }
 
@@ -599,7 +687,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("counter", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "counter",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("counter");
 
             // Send 10000 events in controlled batches to avoid stack overflow
@@ -696,7 +792,15 @@ namespace OrchestratorTestApp
 
             try
             {
-                var machine = PureStateMachineFactory.CreateFromScript("poisoned", json, orchestrator, actions);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: "poisoned",
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: actions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync("poisoned");
 
                 // Send poison event to trigger the exception
@@ -743,7 +847,15 @@ namespace OrchestratorTestApp
             {
                 try
                 {
-                    var machine = PureStateMachineFactory.CreateFromScript("test", badJson, orchestrator, null);
+                    var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                        id: "test",
+                        json: badJson,
+                        orchestrator: orchestrator,
+                        orchestratedActions: null,
+                        guards: null,
+                        services: null,
+                        delays: null,
+                        activities: null);
                     await orchestrator.StartMachineAsync("test");
                 }
                 catch
@@ -797,7 +909,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("infinite", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "infinite",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("infinite");
 
             // Monitor for stabilization with deterministic timing
@@ -846,7 +966,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("timeout", json, orchestrator, null);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "timeout",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: null,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("timeout");
 
             var timeouts = 0;
@@ -888,7 +1016,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("precision", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "precision",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("precision");
 
             // Send rapid events
@@ -941,7 +1077,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("timetravel", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "timetravel",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             await orchestrator.StartMachineAsync("timetravel");
 
             // Deterministic wait for event processing

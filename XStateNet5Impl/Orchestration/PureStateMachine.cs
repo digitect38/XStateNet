@@ -20,7 +20,7 @@ namespace XStateNet.Orchestration
         /// Process an event and return the new state
         /// NO sending to other machines allowed here
         /// </summary>
-        Task<string> ProcessEventAsync(string eventName, object? eventData = null);
+        //Task<string> ProcessEventAsync(string eventName, object? eventData = null);
 
         /// <summary>
         /// Start the state machine
@@ -50,14 +50,14 @@ namespace XStateNet.Orchestration
             _id = id ?? throw new ArgumentNullException(nameof(id));
             _underlying = underlying ?? throw new ArgumentNullException(nameof(underlying));
         }
-
+        /*
         public async Task<string> ProcessEventAsync(string eventName, object? eventData = null)
         {
             // IMPORTANT: We use SendAsync here but the machine has NO way to send to others
             // It can only process the event and return the new state
             return await _underlying.SendAsync(eventName, eventData);
         }
-
+        */
         public async Task<string> StartAsync()
         {
             var result = await _underlying.StartAsync();
@@ -119,7 +119,7 @@ namespace XStateNet.Orchestration
         /// Execute all deferred sends
         /// Called by the orchestrator after the transition completes
         /// </summary>
-        internal async Task ExecuteDeferredSends()
+        public async Task ExecuteDeferredSends()
         {
             while (_deferredSends.Count > 0)
             {
@@ -180,7 +180,10 @@ namespace XStateNet.Orchestration
             }
 
             // Create the underlying state machine
+            // Suppress obsolete warning - this is internal factory usage, external callers should use orchestrated pattern
+#pragma warning disable CS0618
             var machine = StateMachineFactory.CreateFromScript(json, false, false, actionMap);
+#pragma warning restore CS0618
 
             // Register the machine WITH its context
             orchestrator.RegisterMachineWithContext(id, machine, machineContext);
@@ -229,7 +232,9 @@ namespace XStateNet.Orchestration
                 }}
             }}";
 
+#pragma warning disable CS0618
             var machine = StateMachineFactory.CreateFromScript(json, false, false);
+#pragma warning restore CS0618
             return new PureStateMachineAdapter(id, machine);
         }
     }

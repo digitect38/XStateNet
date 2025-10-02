@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Xunit;
 using XStateNet;
 
+// Suppress obsolete warning - standalone invoke debug test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateV5_Test.AdvancedFeatures
 {
     public class UnitTest_InvokeDebug : IDisposable

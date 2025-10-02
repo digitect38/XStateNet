@@ -18,6 +18,9 @@ using XStateNet.Distributed.Tests.Helpers;
 using XStateNet.Distributed.Testing;
 using RabbitMQ.Client;
 
+// Suppress obsolete warning - comprehensive PubSub tests use event bus patterns
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Tests.PubSub
 {
     /// <summary>

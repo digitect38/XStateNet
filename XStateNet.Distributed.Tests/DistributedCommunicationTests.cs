@@ -9,7 +9,11 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using XStateNet;
 using XStateNet.Distributed;
+using XStateNet.Orchestration;
 using System.Collections.Concurrent;
+
+// Suppress obsolete warning - distributed tests use DistributedStateMachine wrapper with orchestrator
+#pragma warning disable CS0618
 
 namespace XStateNet.Distributed.Tests
 {
@@ -20,6 +24,7 @@ namespace XStateNet.Distributed.Tests
     {
         private readonly List<DistributedStateMachine> _machines = new();
         private readonly ILoggerFactory _loggerFactory;
+        private readonly EventBusOrchestrator _orchestrator;
 
         public DistributedCommunicationTests()
         {
@@ -28,6 +33,14 @@ namespace XStateNet.Distributed.Tests
                 builder.SetMinimumLevel(LogLevel.Debug);
                 builder.AddConsole();
             });
+
+            var config = new OrchestratorConfig
+            {
+                EnableLogging = false,
+                PoolSize = 4,
+                EnableMetrics = false
+            };
+            _orchestrator = new EventBusOrchestrator(config);
         }
 
         [Fact]
@@ -174,8 +187,14 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             var parentEvents = new List<string>();
             var childCompleted = new TaskCompletionSource<bool>();
+            var childrenStatus = new ConcurrentDictionary<string, bool>();
 
-            // Parent machine
+            // Register machines with orchestrator
+            var parentContext = _orchestrator.GetOrCreateContext("parent");
+            var child1Context = _orchestrator.GetOrCreateContext("child1");
+            var child2Context = _orchestrator.GetOrCreateContext("child2");
+
+            // Parent machine with orchestrated actions
             var parentJson = @"
             {
                 id: 'parent',
@@ -212,20 +231,20 @@ namespace XStateNet.Distributed.Tests
                 }
             }";
 
-            var childrenStatus = new ConcurrentDictionary<string, bool>();
-            var childMachines = new List<DistributedStateMachine>();
             var parentActions = new ActionMap();
             parentActions["startChildren"] = new List<NamedAction>
             {
-                new NamedAction("startChildren", async (sm) =>
+                new NamedAction("startChildren", (sm) =>
                 {
                     parentEvents.Add("STARTING_CHILDREN");
-                    childrenStatus["child1"] = false;
-                    childrenStatus["child2"] = false;
-                    // Start the child machines
-                    foreach (var child in childMachines)
+                    // Only initialize on first entry
+                    if (!childrenStatus.ContainsKey("child1"))
                     {
-                        await child.SendAsync("START_WORK");
+                        childrenStatus["child1"] = false;
+                        childrenStatus["child2"] = false;
+                        // Use orchestrator to send to children (deferred)
+                        parentContext.RequestSend("child1", "START_WORK");
+                        parentContext.RequestSend("child2", "START_WORK");
                     }
                 })
             };
@@ -242,10 +261,11 @@ namespace XStateNet.Distributed.Tests
             };
 
             var parentGuards = new GuardMap();
-            parentGuards["allChildrenComplete"] = new NamedGuard("allChildrenComplete", 
+            parentGuards["allChildrenComplete"] = new NamedGuard("allChildrenComplete",
                 (sm) => childrenStatus.Values.All(v => v));
 
             var parentBase = StateMachineFactory.CreateFromScript(parentJson, threadSafe: false, guidIsolate: true, parentActions, parentGuards);
+            _orchestrator.RegisterMachineWithContext("parent", parentBase, parentContext);
             var parentMachine = new DistributedStateMachine(
                 parentBase,
                 "parent",
@@ -253,10 +273,12 @@ namespace XStateNet.Distributed.Tests
                 _loggerFactory.CreateLogger<DistributedStateMachine>());
             _machines.Add(parentMachine);
 
-            // Child machines
+            // Child machines with orchestrated actions
+            var childMachines = new List<DistributedStateMachine>();
             for (int i = 1; i <= 2; i++)
             {
                 var childId = $"child{i}";
+                var childContext = _orchestrator.GetOrCreateContext(childId);
                 var childJson = $@"
                 {{
                     id: '{childId}',
@@ -268,8 +290,8 @@ namespace XStateNet.Distributed.Tests
                             }}
                         }},
                         'working': {{
-                            after: {{
-                                '{100 * i}': 'done'
+                            on: {{
+                                'FINISH': 'done'
                             }}
                         }},
                         'done': {{
@@ -282,15 +304,16 @@ namespace XStateNet.Distributed.Tests
                 var childActions = new ActionMap();
                 childActions["notifyParent"] = new List<NamedAction>
                 {
-                    new NamedAction("notifyParent", async (sm) =>
+                    new NamedAction("notifyParent", (sm) =>
                     {
                         childrenStatus[childId] = true;
-                        // Send directly to the parent machine
-                        await parentMachine.SendAsync("CHILD_COMPLETE");
+                        // Use orchestrator to send to parent (deferred)
+                        childContext.RequestSend("parent", "CHILD_COMPLETE");
                     })
                 };
 
                 var childBase = StateMachineFactory.CreateFromScript(childJson, threadSafe: false, guidIsolate: true, childActions);
+                _orchestrator.RegisterMachineWithContext(childId, childBase, childContext);
                 var childMachine = new DistributedStateMachine(
                     childBase,
                     childId,
@@ -303,15 +326,21 @@ namespace XStateNet.Distributed.Tests
 
             // Act
             parentMachine.Start();
-            await parentMachine.SendAsync("START");
+            await _orchestrator.SendEventAsync("test", "parent", "START");
+
+            // Simulate child work completion (replaced 'after' with manual trigger)
+            await Task.Delay(200);
+            await _orchestrator.SendEventAsync("test", "child1", "FINISH");
+            await Task.Delay(200);
+            await _orchestrator.SendEventAsync("test", "child2", "FINISH");
 
             // Wait for coordination with timeout
             var sw = Stopwatch.StartNew();
-            var timeout = TimeSpan.FromSeconds(15);
+            var timeout = TimeSpan.FromSeconds(5);
 
             while (!childCompleted.Task.IsCompleted && sw.Elapsed < timeout)
             {
-                await Task.Yield();
+                await Task.Delay(10);
             }
 
             // Assert
@@ -623,6 +652,7 @@ namespace XStateNet.Distributed.Tests
                 }
                 catch { }
             }
+            _orchestrator?.Dispose();
             _loggerFactory?.Dispose();
         }
 

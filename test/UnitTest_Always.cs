@@ -1,23 +1,23 @@
 using Xunit;
-
 using XStateNet;
-using XStateNet.UnitTest;
+using XStateNet.Orchestration;
+using XStateNet.Tests;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace AdvancedFeatures;
 
-public class StateMachine_AlwaysTests
+public class StateMachine_AlwaysTests : OrchestratorTestBase
 {
-    private StateMachine? _stateMachine;
+    private IPureStateMachine? _currentMachine;
        
     [Fact]
-    public void TestAlwaysTransition()
+    public async Task TestAlwaysTransition()
     {
+        var uniqueId = $"counter_{Guid.NewGuid():N}";
         var stateMachineJson = @"{
-            'id': 'counter',
+            'id': '" + uniqueId + @"',
             'initial': 'smallNumber',
             'context': { 'count': 0 },
             'states': {
@@ -35,35 +35,24 @@ public class StateMachine_AlwaysTests
             }
         }";
 
-        var actions = new ActionMap
-        {
-            ["incrementCount"] = [new("incrementCount", (sm) => Increment(sm))],
-            ["decrementCount"] = [new("decrementCount", (sm) => Decrement(sm))],
-            ["resetCount"] = [new("resetCount", (sm) => ResetCount(sm))],
-            ["checkCount"] = [new("checkCount", (sm) => { })],
-        };
+        StateMachine? GetUnderlying() => (_currentMachine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
 
         void ResetCount(StateMachine sm)
         {
             sm.ContextMap!["count"] = 0;
         }
 
-
         bool IsSmallNumber(StateMachine sm)
         {
-            StateMachine.Log("in IsSmallNumber()...");
             var countValue = sm.ContextMap!["count"];
             var count = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
-            StateMachine.Log(">>>>> count = " + count);
             return count <= 3;
         }
 
         bool IsBigNumber(StateMachine sm)
         {
-            StateMachine.Log("in IsBigNumber()...");
             var countValue = sm.ContextMap!["count"];
             var count = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
-            StateMachine.Log(">>>>> count = " + count);
             return count > 3;
         }
 
@@ -72,11 +61,7 @@ public class StateMachine_AlwaysTests
             var countValue = sm.ContextMap!["count"];
             var currentCount = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
             sm.ContextMap!["count"] = currentCount + 1;
-
-            StateMachine.Log("in Increment()... after increment,");
-            StateMachine.Log(">>>>> count = " + (currentCount + 1));
-
-        };
+        }
 
         void Decrement(StateMachine sm)
         {
@@ -84,39 +69,51 @@ public class StateMachine_AlwaysTests
             var currentCount = countValue is Newtonsoft.Json.Linq.JValue jv ? jv.ToObject<int>() : (int)(countValue ?? 0);
             sm.ContextMap!["count"] = currentCount - 1;
         }
-        var guards = new GuardMap
+
+        var actions = new Dictionary<string, Action<OrchestratedContext>>
         {
-            ["isBigNumber"] = new("isBigNumber", (sm) => IsBigNumber(sm)),
-            ["isSmallNumber"] = new("isSmallNumber", (sm) => IsSmallNumber(sm))
+            ["incrementCount"] = (ctx) => Increment(GetUnderlying()!),
+            ["decrementCount"] = (ctx) => Decrement(GetUnderlying()!),
+            ["resetCount"] = (ctx) => ResetCount(GetUnderlying()!),
+            ["checkCount"] = (ctx) => { }
         };
 
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, actions, guards).Start();
+        var guards = new Dictionary<string, Func<StateMachine, bool>>
+        {
+            ["isBigNumber"] = (sm) => IsBigNumber(sm),
+            ["isSmallNumber"] = (sm) => IsSmallNumber(sm)
+        };
 
-        _stateMachine!.RootState!.PrintActiveStateTree(0);
+        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        await _currentMachine.StartAsync();
 
-        _stateMachine!.ContextMap!["count"] = 0;
+        var underlying = GetUnderlying();
+        underlying!.ContextMap!["count"] = 0;
 
-        var currentState = _stateMachine!.GetActiveStateNames();
-        Assert.Equal("#counter.smallNumber", currentState);
+        var currentState = _currentMachine.CurrentState;
+        Assert.Contains("smallNumber", currentState);
 
         // Test incrementing to trigger always transition
-        _stateMachine!.Send("INCREMENT");
-        _stateMachine!.Send("INCREMENT");
-        _stateMachine!.Send("INCREMENT");
-        _stateMachine!.Send("INCREMENT");
-        //_stateMachine.Send("INCREMENT");
+        await SendEventAsync("TEST", uniqueId, "INCREMENT");
+        await SendEventAsync("TEST", uniqueId, "INCREMENT");
+        await SendEventAsync("TEST", uniqueId, "INCREMENT");
+        await SendEventAsync("TEST", uniqueId, "INCREMENT");
 
-        currentState = _stateMachine!.GetActiveStateNames();
+        // Wait deterministically for state transition
+        await WaitForStateAsync(_currentMachine, "bigNumber");
 
-        StateMachine.Log(">>>>> _stateMachine!.ContextMap![\"count\"] = " + _stateMachine!.ContextMap!["count"]);
-        Assert.Equal("#counter.bigNumber", currentState);
+        currentState = _currentMachine.CurrentState;
+        Assert.Contains("bigNumber", currentState);
 
-        _stateMachine!.Send("DECREMENT");
-        _stateMachine!.Send("DECREMENT");
-        _stateMachine!.Send("DECREMENT");
-        _stateMachine!.Send("DECREMENT");
+        await SendEventAsync("TEST", uniqueId, "DECREMENT");
+        await SendEventAsync("TEST", uniqueId, "DECREMENT");
+        await SendEventAsync("TEST", uniqueId, "DECREMENT");
+        await SendEventAsync("TEST", uniqueId, "DECREMENT");
 
-        currentState = _stateMachine!.GetActiveStateNames();
-        currentState.AssertEquivalence("#counter.smallNumber");
+        // Wait deterministically for state transition
+        await WaitForStateAsync(_currentMachine, "smallNumber");
+
+        currentState = _currentMachine.CurrentState;
+        Assert.Contains("smallNumber", currentState);
     }
 }

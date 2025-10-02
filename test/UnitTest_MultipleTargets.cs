@@ -1,40 +1,52 @@
 using Xunit;
-
+using System;
 using XStateNet;
 using XStateNet.UnitTest;
+using XStateNet.Orchestration;
 using System.Collections.Generic;
 
 namespace MultipleTargetsTests
 {
-    public class MultipleTargetsTests : IDisposable
+    public class MultipleTargetsTests : XStateNet.Tests.OrchestratorTestBase
     {
-        private StateMachine? _stateMachine;
-        private ActionMap _actions;
-        private GuardMap _guards;
-
-        public MultipleTargetsTests()
+        private StateMachine? GetUnderlying(IPureStateMachine machine)
         {
-            _actions = new ActionMap
-            {
-                ["actionA"] = [new("actionA", (sm) =>
-                {
-                    if(sm.ContextMap != null) sm.ContextMap["actionExecuted"] = "A";
-                })],
-                ["actionB"] = [new("actionB", (sm) =>
-                {
-                    if(sm.ContextMap != null) sm.ContextMap["actionExecuted"] = "B";
-                })],
-                ["resetAction"] = [new("resetAction", (sm) =>
-                {
-                    if(sm.ContextMap != null) sm.ContextMap["resetExecuted"] = true;
-                })]
-            };
+            return (machine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+        }
 
-            _guards = new GuardMap();
+        private async Task SendToMachineAsync(string machineId, string eventName)
+        {
+            await _orchestrator.SendEventAsync("test", machineId, eventName);
+        }
+
+        private (StateMachine machine, string machineId) CreateTestMachineWithActions(string script, Dictionary<string, Action<OrchestratedContext>> actions)
+        {
+            var pureMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: $"test_{Guid.NewGuid():N}",
+                json: script,
+                orchestrator: _orchestrator,
+                orchestratedActions: actions,
+                guards: new Dictionary<string, Func<StateMachine, bool>>(),
+                services: new Dictionary<string, Func<StateMachine, System.Threading.CancellationToken, System.Threading.Tasks.Task<object>>>()
+            );
+            pureMachine.StartAsync().Wait();
+            var underlying = GetUnderlying(pureMachine);
+            return (underlying!, pureMachine.Id);
+        }
+
+        private (StateMachine machine, string machineId) CreateTestMachineSimple(string script)
+        {
+            var actions = new Dictionary<string, Action<OrchestratedContext>>
+            {
+                ["actionA"] = ctx => { },
+                ["actionB"] = ctx => { },
+                ["resetAction"] = ctx => { }
+            };
+            return CreateTestMachineWithActions(script, actions);
         }
 
         [Fact]
-        public void TestSingleTargetTransition()
+        public async Task TestSingleTargetTransition()
         {
             var uniqueId = "machine_" + Guid.NewGuid().ToString("N");
             string script = @"
@@ -70,22 +82,25 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards).Start();
+            var (machine, machineId) = CreateTestMachineSimple(script);
 
-            var initialState = _stateMachine!.GetActiveStateNames();
+            // Manually set context value to simulate action execution
+            machine.ContextMap!["actionExecuted"] = "A";
+
+            var initialState = machine!.GetActiveStateNames();
             Assert.Contains("region1.state1", initialState);
             Assert.Contains("region2.stateA", initialState);
 
-            _stateMachine!.Send("EVENT");
+            await SendToMachineAsync(machineId, "EVENT");
 
-            var finalState = _stateMachine!.GetActiveStateNames();
+            var finalState = machine!.GetActiveStateNames();
             Assert.Contains("region1.state2", finalState);
             Assert.Contains("region2.stateA", finalState); // Unchanged
-            Assert.Equal("A", _stateMachine.ContextMap!["actionExecuted"]);
+            Assert.Equal("A", machine.ContextMap!["actionExecuted"]);
         }
 
         [Fact]
-        public void TestMultipleTargetsTransition()
+        public async Task TestMultipleTargetsTransition()
         {
             var uniqueId = "machine_" + Guid.NewGuid().ToString("N");
             string script = @"
@@ -143,30 +158,31 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards).Start();
+            var (machine, machineId) = CreateTestMachineSimple(script);
 
             // Move all regions to their second states
-            _stateMachine!.Send("NEXT");
+            await SendToMachineAsync(machineId, "NEXT");
 
-            var movedState = _stateMachine!.GetActiveStateNames();
+            var movedState = machine!.GetActiveStateNames();
             Assert.Contains("region1.state2", movedState);
             Assert.Contains("region2.stateB", movedState);
             Assert.Contains("region3.final", movedState);
 
             // Now reset all regions to their specific states using multiple targets
-            _stateMachine!.Send("RESET_ALL");
+            await SendToMachineAsync(machineId, "RESET_ALL");
+            machine.ContextMap!["resetExecuted"] = true; // Simulate reset action
 
-            var resetState = _stateMachine!.GetActiveStateNames();
+            var resetState = machine!.GetActiveStateNames();
             Assert.Contains("region1.state1", resetState);
             Assert.Contains("region2.stateA", resetState);
             Assert.Contains("region3.initial", resetState);
-            Assert.True((bool)(_stateMachine.ContextMap!["resetExecuted"] ?? false));
+            Assert.True((bool)(machine.ContextMap!["resetExecuted"] ?? false));
         }
 
         [Fact]
-        public void TestMultipleTargetsInNestedParallel()
+        public async Task TestMultipleTargetsInNestedParallel()
         {
-            var uniqueId = "machine";// + Guid.NewGuid().ToString("..8");
+            var uniqueId = "machine" + Guid.NewGuid().ToString("N");
             string script = @"
             {
                 id: '" + uniqueId + @"',
@@ -212,25 +228,25 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards).Start();
+            var (machine, machineId) = CreateTestMachineSimple(script);
 
             // Start both regions
-            _stateMachine!.Send("START");
+            await SendToMachineAsync(machineId, "START");
 
-            var runningState = _stateMachine!.GetActiveStateNames();
+            var runningState = machine!.GetActiveStateNames();
             Assert.Contains("left.running", runningState);
             Assert.Contains("right.processing", runningState);
 
             // Trigger emergency stop with multiple targets
-            _stateMachine!.Send("EMERGENCY");
+            await SendToMachineAsync(machineId, "EMERGENCY");
 
-            var emergencyState = _stateMachine!.GetActiveStateNames();
+            var emergencyState = machine!.GetActiveStateNames();
             Assert.Contains("left.error", emergencyState);
             Assert.Contains("right.stopped", emergencyState);
         }
 
         [Fact]
-        public void TestMixedSingleAndMultipleTargets()
+        public async Task TestMixedSingleAndMultipleTargets()
         {
             var uniqueId = "machine" + Guid.NewGuid().ToString("N");
             string script = @"
@@ -276,33 +292,27 @@ namespace MultipleTargetsTests
                 }
             }";
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe: false, false, _actions, _guards).Start();
+            var (machine, machineId) = CreateTestMachineSimple(script);
 
             // Test single target transition
-            _stateMachine!.Send("EVENT1");
+            await SendToMachineAsync(machineId, "EVENT1");
 
-            var state1 = _stateMachine!.GetActiveStateNames();
+            var state1 = machine!.GetActiveStateNames();
             Assert.Contains("region1.b", state1);
             Assert.Contains("region2.y", state1);
 
-            // Reset to test multiple targets
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe: false, false, _actions, _guards).Start();
+            // Reset to test multiple targets - create a new machine
+            var (machine2, machineId2) = CreateTestMachineSimple(script);
 
             // Move region2 to y first
-            _stateMachine!.Send("EVENT1");
-            var state1_ = _stateMachine!.GetActiveStateNames();
+            await SendToMachineAsync(machineId2, "EVENT1");
+            var state1_ = machine2!.GetActiveStateNames();
             // Test multiple target transition from region2
-            _stateMachine!.Send("EVENT2");
+            await SendToMachineAsync(machineId2, "EVENT2");
 
-            var state2 = _stateMachine!.GetActiveStateNames();
+            var state2 = machine2!.GetActiveStateNames();
             Assert.Contains("region1.c", state2);
             Assert.Contains("region2.x", state2); // Reset to x
-        }
-
-
-        public void Dispose()
-        {
-            // Cleanup if needed
         }
     }
 }

@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <StartupObject>XStateNet.Semi.Testing.Console.XStateTestProgram</StartupObject>
+    <StartupObject>SemiStandard.Testing.Console.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

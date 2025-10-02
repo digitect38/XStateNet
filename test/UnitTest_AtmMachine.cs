@@ -1,224 +1,316 @@
 using Xunit;
-
 using XStateNet;
-using XStateNet.UnitTest;
+using XStateNet.Orchestration;
+using XStateNet.Tests;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace ComplexMachine;
 
-public class AtmStateMachineTests : IDisposable
+public class AtmStateMachineTests : OrchestratorTestBase
 {
-    private StateMachine CreateStateMachine(string uniqueId)
+    private IPureStateMachine? _currentMachine;
+
+    StateMachine? GetUnderlying() => (_currentMachine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+
+    private async Task<IPureStateMachine> CreateStateMachine(string uniqueId)
     {
         // Define actions
-        var actions = new ActionMap()
+        var actions = new Dictionary<string, Action<OrchestratedContext>>
         {
-            ["logEntry"] = [new NamedAction("logEntry", (sm) => StateMachine.Log("Entering state"))],
-            ["logExit"] = [new NamedAction("logExit", (sm) => StateMachine.Log("Exiting state"))]
+            ["logEntry"] = (ctx) => {
+                var underlying = GetUnderlying();
+                // Log entry
+            },
+            ["logExit"] = (ctx) => {
+                var underlying = GetUnderlying();
+                // Log exit
+            }
         };
-
-        // Define guards
-        var guards = new GuardMap();
 
         var jsonScript = GetJson(uniqueId);
 
-        // Load state machine from JSON
-        var stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, false, false, actions, guards).Start();
-        return stateMachine;
-    }
-
-    public void Dispose()
-    {
-        // Cleanup resources if needed
+        // Create and start machine using orchestrator
+        _currentMachine = CreateMachine(uniqueId, jsonScript, actions);
+        await _currentMachine.StartAsync();
+        return _currentMachine;
     }
 
     [Fact]
     public async Task TestInitialState()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        var initialState = stateMachine.GetActiveStateNames();
-        initialState.AssertEquivalence($"{stateMachine.machineId}.idle");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("idle", currentState);
     }
 
     [Fact]
     public async Task TestCardInserted()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        var currentState = await stateMachine.SendAsync("CARD_INSERTED");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("enteringPin", currentState);
     }
 
     [Fact]
     public async Task TestPinEnteredCorrectly()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        await stateMachine.SendAsync("PIN_ENTERED");
-        var currentState = await stateMachine.SendAsync("PIN_CORRECT");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestPinEnteredIncorrectly()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        await stateMachine.SendAsync("PIN_ENTERED");
-        var currentState = await stateMachine.SendAsync("PIN_INCORRECT");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_INCORRECT");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("enteringPin", currentState);
     }
 
     [Fact]
     public async Task TestWithdrawTransactionSuccess()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("WITHDRAW");
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsync("SUCCESS");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "WITHDRAW");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SUCCESS");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("idle", currentState);
     }
 
     [Fact]
     public async Task TestDepositTransactionFailure()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("DEPOSIT");
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsync("FAILURE");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.depositing;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "DEPOSIT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "FAILURE");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("depositing", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestCancelDuringTransaction()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        await stateMachine.SendAsync("WITHDRAW");
-        var currentState = await stateMachine.SendAsync("CANCEL");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "WITHDRAW");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CANCEL");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestRequestReceipt()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        await stateMachine.SendAsync("PIN_CORRECT");
-        var currentState = await stateMachine.SendAsync("REQUEST_RECEIPT");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.printingReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "REQUEST_RECEIPT");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("printingReceipt", currentState);
     }
 
     [Fact]
     public async Task TestReceiptPrinted()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        await stateMachine.SendAsync("REQUEST_RECEIPT");
-        var currentState = await stateMachine.SendAsync("RECEIPT_PRINTED");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "REQUEST_RECEIPT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "RECEIPT_PRINTED");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestBalanceCheck()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        await stateMachine.SendAsync("BALANCE");
-        var currentState = await stateMachine.SendAsync("BALANCE_SHOWN");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "BALANCE");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "BALANCE_SHOWN");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestNestedCancelDuringTransaction()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        await stateMachine.SendAsync("WITHDRAW");
-        var currentState = await stateMachine.SendAsync("CANCEL");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.selectingTransaction;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "WITHDRAW");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CANCEL");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("selectingTransaction", currentState);
+        Assert.Contains("noReceipt", currentState);
     }
 
     [Fact]
     public async Task TestInvalidTransition()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        await stateMachine.SendAsync("CARD_INSERTED");
-        var currentState = await stateMachine.SendAsync("INVALID_EVENT");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.authenticating.enteringPin"); // Should remain in the same state
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "INVALID_EVENT");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("enteringPin", currentState); // Should remain in the same state
     }
 
     [Fact]
     public async Task TestCancelAfterCardInserted()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        await stateMachine.SendAsync("CARD_INSERTED");
-        var currentState = await stateMachine.SendAsync("CANCEL");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "CANCEL");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("idle", currentState);
     }
 
     [Fact]
     public async Task TestWithdrawFailureAndRetry()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("WITHDRAW");
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsync("FAILURE");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.withdrawing;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "WITHDRAW");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "FAILURE");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("withdrawing", currentState);
+        Assert.Contains("noReceipt", currentState);
 
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        currentState = await stateMachine.SendAsync("SUCCESS");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SUCCESS");
+        await Task.Delay(100);
+        currentState = _currentMachine!.CurrentState;
+        Assert.Contains("idle", currentState);
     }
 
     [Fact]
     public async Task TestDepositFailureAndRetry()
     {
-        var uniqueId = "atm";
-        var stateMachine = CreateStateMachine(uniqueId);
-        stateMachine.Send("CARD_INSERTED");
-        stateMachine.Send("PIN_ENTERED");
-        stateMachine.Send("PIN_CORRECT");
-        stateMachine.Send("DEPOSIT");
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        var currentState = await stateMachine.SendAsync("FAILURE");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.operational.transaction.depositing;{stateMachine.machineId}.operational.receipt.noReceipt");
+        var uniqueId = $"atm_{Guid.NewGuid():N}";
+        var stateMachine = await CreateStateMachine(uniqueId);
+        await SendEventAsync("TEST", uniqueId, "CARD_INSERTED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "PIN_CORRECT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "DEPOSIT");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "FAILURE");
+        await Task.Delay(100);
+        var currentState = _currentMachine!.CurrentState;
+        Assert.Contains("depositing", currentState);
+        Assert.Contains("noReceipt", currentState);
 
-        await stateMachine.SendAsync("AMOUNT_ENTERED");
-        currentState = await stateMachine.SendAsync("SUCCESS");
-        currentState.AssertEquivalence($"{stateMachine.machineId}.idle");
+        await SendEventAsync("TEST", uniqueId, "AMOUNT_ENTERED");
+        await Task.Delay(100);
+        await SendEventAsync("TEST", uniqueId, "SUCCESS");
+        await Task.Delay(100);
+        currentState = _currentMachine!.CurrentState;
+        Assert.Contains("idle", currentState);
     }
 
     private string GetJson(string uniqueId) => @"{

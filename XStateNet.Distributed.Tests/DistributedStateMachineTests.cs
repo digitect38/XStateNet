@@ -5,6 +5,9 @@ using XStateNet;
 using XStateNet.Distributed;
 using Xunit;
 
+// Suppress obsolete warning - distributed state machine tests use DistributedStateMachine wrapper
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Tests
 {
     public class DistributedStateMachineTests : IDisposable

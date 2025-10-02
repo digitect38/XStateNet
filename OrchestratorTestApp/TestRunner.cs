@@ -191,7 +191,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("counter", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "counter",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await orchestrator.StartMachineAsync("counter");
 
@@ -247,7 +255,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("data", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "data",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await machine.StartAsync();
 
@@ -317,8 +333,24 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var m1 = PureStateMachineFactory.CreateFromScript("m1", machineJson, orchestrator, m1Actions);
-            var m2 = PureStateMachineFactory.CreateFromScript("m2", machineJson, orchestrator, m2Actions);
+            var m1 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "m1",
+                json: machineJson,
+                orchestrator: orchestrator,
+                orchestratedActions: m1Actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var m2 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "m2",
+                json: machineJson,
+                orchestrator: orchestrator,
+                orchestratedActions: m2Actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await m1.StartAsync();
@@ -360,9 +392,33 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machineA = PureStateMachineFactory.CreateFromScript("A", chainJson, orchestrator, createChainActions("B"));
-            var machineB = PureStateMachineFactory.CreateFromScript("B", chainJson, orchestrator, createChainActions("C"));
-            var machineC = PureStateMachineFactory.CreateFromScript("C", chainJson, orchestrator, createChainActions("A"));
+            var machineA = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "A",
+                json: chainJson,
+                orchestrator: orchestrator,
+                orchestratedActions: createChainActions("B"),
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var machineB = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "B",
+                json: chainJson,
+                orchestrator: orchestrator,
+                orchestratedActions: createChainActions("C"),
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var machineC = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "C",
+                json: chainJson,
+                orchestrator: orchestrator,
+                orchestratedActions: createChainActions("A"),
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await Task.WhenAll(machineA.StartAsync(), machineB.StartAsync(), machineC.StartAsync());
@@ -449,7 +505,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("looper", json, orchestrator, actions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "looper",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await orchestrator.StartMachineAsync("looper");
 
@@ -510,8 +574,24 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var parent = PureStateMachineFactory.CreateFromScript("parent", parentJson, orchestrator, actions);
-            var child = PureStateMachineFactory.CreateFromScript("child", childJson, orchestrator, actions);
+            var parent = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "parent",
+                json: parentJson,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var child = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "child",
+                json: childJson,
+                orchestrator: orchestrator,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await parent.StartAsync();
@@ -723,7 +803,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("slow", json, orchestrator, slowActions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "slow",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: slowActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await orchestrator.StartMachineAsync("slow");
 
@@ -771,7 +859,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("error", json, orchestrator, errorActions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "error",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: errorActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await machine.StartAsync();
 
@@ -943,9 +1039,33 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var orderMachine = PureStateMachineFactory.CreateFromScript("order", orderJson, orchestrator, orderActions);
-            var paymentMachine = PureStateMachineFactory.CreateFromScript("payment", paymentJson, orchestrator, paymentActions);
-            var shippingMachine = PureStateMachineFactory.CreateFromScript("shipping", shippingJson, orchestrator, shippingActions);
+            var orderMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "order",
+                json: orderJson,
+                orchestrator: orchestrator,
+                orchestratedActions: orderActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var paymentMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "payment",
+                json: paymentJson,
+                orchestrator: orchestrator,
+                orchestratedActions: paymentActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var shippingMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "shipping",
+                json: shippingJson,
+                orchestrator: orchestrator,
+                orchestratedActions: shippingActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await Task.WhenAll(
@@ -1022,9 +1142,33 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var saga = PureStateMachineFactory.CreateFromScript("saga", sagaJson, orchestrator, sagaActions);
-            var service1 = PureStateMachineFactory.CreateFromScript("service1", serviceJson, orchestrator, null);
-            var service2 = PureStateMachineFactory.CreateFromScript("service2", serviceJson, orchestrator, null);
+            var saga = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "saga",
+                json: sagaJson,
+                orchestrator: orchestrator,
+                orchestratedActions: sagaActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var service1 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "service1",
+                json: serviceJson,
+                orchestrator: orchestrator,
+                orchestratedActions: null,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var service2 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "service2",
+                json: serviceJson,
+                orchestrator: orchestrator,
+                orchestratedActions: null,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await Task.WhenAll(saga.StartAsync(), service1.StartAsync(), service2.StartAsync());
@@ -1102,9 +1246,33 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var sync1 = PureStateMachineFactory.CreateFromScript("sync1", sync1Json, orchestrator, syncActions);
-            var sync2 = PureStateMachineFactory.CreateFromScript("sync2", sync2Json, orchestrator, null);
-            var sync3 = PureStateMachineFactory.CreateFromScript("sync3", sync3Json, orchestrator, null);
+            var sync1 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "sync1",
+                json: sync1Json,
+                orchestrator: orchestrator,
+                orchestratedActions: syncActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var sync2 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "sync2",
+                json: sync2Json,
+                orchestrator: orchestrator,
+                orchestratedActions: null,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var sync3 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "sync3",
+                json: sync3Json,
+                orchestrator: orchestrator,
+                orchestratedActions: null,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await Task.WhenAll(
@@ -1164,7 +1332,15 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var machine = PureStateMachineFactory.CreateFromScript("eventsource", json, orchestrator, eventSourcingActions);
+            var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "eventsource",
+                json: json,
+                orchestrator: orchestrator,
+                orchestratedActions: eventSourcingActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machine is already registered by PureStateMachineFactory.CreateFromScript
             await machine.StartAsync();
 
@@ -1232,8 +1408,24 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var commandMachine = PureStateMachineFactory.CreateFromScript("command", commandJson, orchestrator, commandActions);
-            var queryMachine = PureStateMachineFactory.CreateFromScript("query", queryJson, orchestrator, queryActions);
+            var commandMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "command",
+                json: commandJson,
+                orchestrator: orchestrator,
+                orchestratedActions: commandActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var queryMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "query",
+                json: queryJson,
+                orchestrator: orchestrator,
+                orchestratedActions: queryActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
             // Machines are already registered by PureStateMachineFactory.CreateFromScript
 
             await commandMachine.StartAsync();

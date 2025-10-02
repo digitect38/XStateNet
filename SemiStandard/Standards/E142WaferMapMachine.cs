@@ -91,6 +91,7 @@ public class WaferMapInstance
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
     private readonly ConcurrentDictionary<(int x, int y), DieData> _dieMap = new();
     private readonly List<BinDefinition> _binDefinitions = new();
 
@@ -105,7 +106,7 @@ public class WaferMapInstance
     public int ColumnCount { get; set; }
     public bool IsApplied => ApplyTime != null && GetCurrentState().Contains("Applied");
 
-    public string MachineId => $"E142_WAFERMAP_{MapId}";
+    public string MachineId => $"E142_WAFERMAP_{MapId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public WaferMapInstance(string mapId, string waferId, string lotId, string equipmentId, EventBusOrchestrator orchestrator)
@@ -114,88 +115,91 @@ public class WaferMapInstance
         WaferId = waferId;
         LotId = lotId;
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition
-        var definition = @"{
-            ""id"": ""E142_WaferMap"",
-            ""initial"": ""NoMap"",
-            ""context"": {
-                ""mapId"": """",
-                ""mapVersion"": null,
-                ""loadTime"": null,
-                ""applyTime"": null,
-                ""updateCount"": 0
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NoMap',
+            context: {
+                mapId: '',
+                mapVersion: null,
+                loadTime: null,
+                applyTime: null,
+                updateCount: 0
             },
-            ""states"": {
-                ""NoMap"": {
-                    ""entry"": ""logNoMap"",
-                    ""on"": {
-                        ""LOAD"": {
-                            ""target"": ""Loaded"",
-                            ""actions"": [""validateMapData"", ""storeMapData"", ""recordLoadTime""]
+            states: {
+                NoMap: {
+                    entry: 'logNoMap',
+                    on: {
+                        LOAD: {
+                            target: 'Loaded',
+                            actions: ['validateMapData', 'storeMapData', 'recordLoadTime']
                         }
                     }
                 },
-                ""Loaded"": {
-                    ""entry"": ""logLoaded"",
-                    ""on"": {
-                        ""APPLY"": {
-                            ""target"": ""Applied"",
-                            ""actions"": [""applyMapToProcess"", ""recordApplyTime""]
+                Loaded: {
+                    entry: 'logLoaded',
+                    on: {
+                        APPLY: {
+                            target: 'Applied',
+                            actions: ['applyMapToProcess', 'recordApplyTime']
                         },
-                        ""UNLOAD"": {
-                            ""target"": ""Unloading""
+                        UNLOAD: {
+                            target: 'Unloading'
                         },
-                        ""UPDATE"": {
-                            ""target"": ""Updating"",
-                            ""actions"": ""prepareUpdate""
+                        UPDATE: {
+                            target: 'Updating',
+                            actions: 'prepareUpdate'
                         }
                     }
                 },
-                ""Applied"": {
-                    ""entry"": ""logApplied"",
-                    ""on"": {
-                        ""UPDATE"": {
-                            ""target"": ""Updating"",
-                            ""actions"": ""prepareUpdate""
+                Applied: {
+                    entry: 'logApplied',
+                    on: {
+                        UPDATE: {
+                            target: 'Updating',
+                            actions: 'prepareUpdate'
                         },
-                        ""RELEASE"": {
-                            ""target"": ""Loaded"",
-                            ""actions"": ""releaseFromProcess""
+                        RELEASE: {
+                            target: 'Loaded',
+                            actions: 'releaseFromProcess'
                         },
-                        ""UNLOAD"": {
-                            ""target"": ""Unloading"",
-                            ""actions"": ""releaseFromProcess""
+                        UNLOAD: {
+                            target: 'Unloading',
+                            actions: 'releaseFromProcess'
                         },
-                        ""DIE_TESTED"": {
-                            ""target"": ""Applied"",
-                            ""actions"": ""updateDieResult""
+                        DIE_TESTED: {
+                            target: 'Applied',
+                            actions: 'updateDieResult'
                         }
                     }
                 },
-                ""Updating"": {
-                    ""entry"": ""logUpdating"",
-                    ""on"": {
-                        ""UPDATE_COMPLETE"": {
-                            ""target"": ""Applied"",
-                            ""actions"": [""applyUpdate"", ""incrementUpdateCount""]
+                Updating: {
+                    entry: 'logUpdating',
+                    on: {
+                        UPDATE_COMPLETE: {
+                            target: 'Applied',
+                            actions: ['applyUpdate', 'incrementUpdateCount']
                         },
-                        ""UPDATE_FAILED"": {
-                            ""target"": ""Applied""
+                        UPDATE_FAILED: {
+                            target: 'Applied'
                         }
                     }
                 },
-                ""Unloading"": {
-                    ""entry"": ""cleanupResources"",
-                    ""on"": {
-                        ""UNLOAD_COMPLETE"": {
-                            ""target"": ""NoMap"",
-                            ""actions"": ""clearMapData""
+                Unloading: {
+                    entry: 'cleanupResources',
+                    on: {
+                        UNLOAD_COMPLETE: {
+                            target: 'NoMap',
+                            actions: 'clearMapData'
                         }
                     }
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -365,7 +369,7 @@ public class WaferMapInstance
     }
 
     // Public API methods
-    public async Task<bool> LoadAsync(WaferMapData mapData)
+    public async Task<EventResult> LoadAsync(WaferMapData mapData)
     {
         // Store map data
         Version = mapData.Version;
@@ -382,52 +386,52 @@ public class WaferMapInstance
         _binDefinitions.AddRange(mapData.BinDefinitions);
 
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "LOAD", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ApplyAsync()
+    public async Task<EventResult> ApplyAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "APPLY", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReleaseAsync()
+    public async Task<EventResult> ReleaseAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RELEASE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UpdateAsync(MapUpdateData updateData)
+    public async Task<EventResult> UpdateAsync(MapUpdateData updateData)
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UPDATE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UpdateCompleteAsync()
+    public async Task<EventResult> UpdateCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UPDATE_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UpdateFailedAsync()
+    public async Task<EventResult> UpdateFailedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UPDATE_FAILED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UnloadAsync()
+    public async Task<EventResult> UnloadAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UNLOAD", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UnloadCompleteAsync()
+    public async Task<EventResult> UnloadCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UNLOAD_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UpdateDieTestResultAsync(int x, int y, int binCode, string testResult)
+    public async Task<EventResult> UpdateDieTestResultAsync(int x, int y, int binCode, string testResult)
     {
         if (_dieMap.TryGetValue((x, y), out var die))
         {
@@ -435,7 +439,7 @@ public class WaferMapInstance
             die.TestResult = testResult;
         }
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "DIE_TESTED", null);
-        return result.Success;
+        return result;
     }
 
     public DieData? GetDieInfo(int x, int y)

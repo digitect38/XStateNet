@@ -108,6 +108,9 @@ namespace SemiStandard
             {
                 // Convert single quotes to double quotes for JSON parsing
                 var jsonConfig = _jsonConfig.Replace("'", "\"");
+                // Suppress obsolete warning - this is a legacy adapter class
+                // For new code, use ExtendedPureStateMachineFactory with EventBusOrchestrator
+#pragma warning disable CS0618
                 _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(
                     jsonConfig,
                     threadSafe: false,
@@ -117,6 +120,7 @@ namespace SemiStandard
                     new ServiceMap(),
                     new DelayMap()
                 );
+#pragma warning restore CS0618
                 await _stateMachine.StartAsync();
                 await UpdateCurrentStateAsync();
             }

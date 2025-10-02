@@ -5,6 +5,10 @@ using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Orchestration;
 
+// Suppress obsolete warning - Interactive menu tool for testing and debugging
+// Menu provides backward compatibility testing with StateMachineFactory.CreateFromScript
+#pragma warning disable CS0618
+
 namespace OrchestratorTestApp
 {
     public static class InteractiveMenu
@@ -39,6 +43,8 @@ namespace OrchestratorTestApp
                 Console.WriteLine("12. ⚡ Quick Benchmark - Fast performance check");
                 Console.WriteLine("13. 🎯 Latency Benchmark - Low-latency focused");
                 Console.WriteLine("14. 🚀 Throughput Benchmark - High-throughput focused");
+                Console.WriteLine("15. 🌟 Advanced Features Demo - Debugging, Visualization, Profiling");
+                Console.WriteLine("16. 📊 Bar Chart Demo - Visual performance comparison");
                 Console.WriteLine("0. Exit");
                 Console.Write("\nSelect option: ");
 
@@ -89,6 +95,14 @@ namespace OrchestratorTestApp
                             break;
                         case "14":
                             await BenchmarkRunner.RunThroughputFocusedBenchmark();
+                            break;
+                        case "15":
+                            await AdvancedFeaturesDemo.RunAsync();
+                            break;
+                        case "16":
+                            BarChartDemo.ShowPerformanceBarChart();
+                            Console.WriteLine("\nPress any key to continue...");
+                            Console.ReadKey();
                             break;
                         case "0":
                             Console.WriteLine("Exiting...");
@@ -282,8 +296,24 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var m1 = PureStateMachineFactory.CreateFromScript("demo_m1", pingPongJson, _orchestrator!, m1Actions);
-            var m2 = PureStateMachineFactory.CreateFromScript("demo_m2", pingPongJson, _orchestrator!, m2Actions);
+            var m1 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "demo_m1",
+                json: pingPongJson,
+                orchestrator: _orchestrator!,
+                orchestratedActions: m1Actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var m2 = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "demo_m2",
+                json: pingPongJson,
+                orchestrator: _orchestrator!,
+                orchestratedActions: m2Actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
 
             _orchestrator!.RegisterMachine("demo_m1", (m1 as PureStateMachineAdapter)?.GetUnderlying());
             _orchestrator!.RegisterMachine("demo_m2", (m2 as PureStateMachineAdapter)?.GetUnderlying());
@@ -450,9 +480,33 @@ namespace OrchestratorTestApp
                 }
             }";
 
-            var orderMachine = PureStateMachineFactory.CreateFromScript("order", orderJson, _orchestrator!, orderActions);
-            var paymentMachine = PureStateMachineFactory.CreateFromScript("payment", paymentJson, _orchestrator!, paymentActions);
-            var shippingMachine = PureStateMachineFactory.CreateFromScript("shipping", shippingJson, _orchestrator!, shippingActions);
+            var orderMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "order",
+                json: orderJson,
+                orchestrator: _orchestrator!,
+                orchestratedActions: orderActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var paymentMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "payment",
+                json: paymentJson,
+                orchestrator: _orchestrator!,
+                orchestratedActions: paymentActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
+            var shippingMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: "shipping",
+                json: shippingJson,
+                orchestrator: _orchestrator!,
+                orchestratedActions: shippingActions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
 
             _orchestrator!.RegisterMachine("order", (orderMachine as PureStateMachineAdapter)?.GetUnderlying());
             _orchestrator!.RegisterMachine("payment", (paymentMachine as PureStateMachineAdapter)?.GetUnderlying());
@@ -550,7 +604,15 @@ namespace OrchestratorTestApp
                 }}
             }}";
 
-            return PureStateMachineFactory.CreateFromScript(id, json, _orchestrator!, actions);
+            return ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                id: id,
+                json: json,
+                orchestrator: _orchestrator!,
+                orchestratedActions: actions,
+                guards: null,
+                services: null,
+                delays: null,
+                activities: null);
         }
 
         private static string GetDefaultJson(string id)

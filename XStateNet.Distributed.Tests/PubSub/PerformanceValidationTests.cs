@@ -13,6 +13,9 @@ using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Distributed.PubSub;
+
+// Suppress obsolete warning - performance validation tests
+#pragma warning disable CS0618
 using XStateNet.Distributed.PubSub.Optimized;
 using XStateNet.Distributed.Tests.TestInfrastructure;
 

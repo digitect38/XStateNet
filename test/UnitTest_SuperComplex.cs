@@ -5,6 +5,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System;
 
+// Suppress obsolete warning - standalone super complex test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace SuperComplexStateMachineTests
 {
     public class SuperComplexStateMachineTests : IDisposable

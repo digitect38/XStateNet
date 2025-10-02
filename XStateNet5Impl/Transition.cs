@@ -9,9 +9,9 @@ public class TransitionExecutor : StateObject
 {
     public TransitionExecutor(string? machineId) : base(machineId) { }
 
-    public void Execute(Transition? transition, string eventName)
+    public async Task Execute(Transition? transition, string eventName)
     {
-        ExecuteCore(transition, eventName);
+        await ExecuteCore(transition, eventName);
     }
 
     public virtual async Task ExecuteAsync(Transition? transition, string eventName)
@@ -19,7 +19,7 @@ public class TransitionExecutor : StateObject
         await ExecuteCoreAsync(transition, eventName);
     }
     
-    private void ExecuteMultipleTargets(Transition transition, string eventName)
+    private async void ExecuteMultipleTargets(Transition transition, string eventName)
     {
         if (transition.TargetNames == null || StateMachine == null) return;
         
@@ -34,7 +34,7 @@ public class TransitionExecutor : StateObject
                 {
                     // Notify action execution
                     StateMachine.RaiseActionExecuted(action.Name, transition.SourceName);
-                    action.Action(StateMachine);
+                    await action.Action(StateMachine);
                 }
                 catch (Exception ex)
                 {
@@ -142,7 +142,7 @@ public class TransitionExecutor : StateObject
         return false;
     }
     
-    protected virtual void ExecuteCore(Transition? transition, string eventName)
+    protected virtual async Task ExecuteCore(Transition? transition, string eventName)
     {
         if (transition == null) return;
         if (StateMachine == null) 
@@ -182,7 +182,7 @@ public class TransitionExecutor : StateObject
                             Logger.Debug($"Executing action: {action.Name}");
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -241,7 +241,7 @@ public class TransitionExecutor : StateObject
                         {
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -271,7 +271,7 @@ public class TransitionExecutor : StateObject
                         {
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -326,7 +326,7 @@ public class TransitionExecutor : StateObject
                             Logger.Debug($"Executing action: {action.Name}");
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -385,7 +385,7 @@ public class TransitionExecutor : StateObject
                         {
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -414,7 +414,7 @@ public class TransitionExecutor : StateObject
                         {
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, sourceName);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                         catch (Exception ex)
                         {
@@ -445,7 +445,7 @@ public class TransitionExecutor : StateObject
                 {
                     // Notify action execution
                     StateMachine.RaiseActionExecuted(action.Name, transition.SourceName);
-                    action.Action(StateMachine);
+                    await action.Action(StateMachine);
                 }
                 catch (Exception ex)
                 {

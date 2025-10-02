@@ -7,6 +7,10 @@ using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using XStateNet.Distributed.PubSub.Optimized;
 
+// Suppress obsolete warning - Example/demo code demonstrating distributed pub/sub patterns
+// Examples show StateMachineFactory.CreateFromScript usage for educational purposes
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Examples
 {
     /// <summary>

@@ -18,6 +18,14 @@ namespace SemiStandard.Testing.Console
                     case "real":
                         await RealisticScenarioProgram.Run(args);
                         break;
+                    case "test":
+                    case "simple":
+                        await SimpleOrchestratorTest.RunAsync();
+                        break;
+                    case "scheduler":
+                    case "sched":
+                        await CMPSchedulerDemo.RunAsync();
+                        break;
                     default:
                         ShowHelp();
                         break;
@@ -38,6 +46,10 @@ namespace SemiStandard.Testing.Console
             System.Console.WriteLine("  xstate           - Run XState-based equipment controller test");
             System.Console.WriteLine("  realistic        - Run realistic equipment simulator with full production scenario");
             System.Console.WriteLine("  real             - Shorthand for realistic");
+            System.Console.WriteLine("  test             - Simple orchestrator test with single machine");
+            System.Console.WriteLine("  simple           - Alias for test");
+            System.Console.WriteLine("  scheduler        - Run CMP scheduler system (master + tool schedulers)");
+            System.Console.WriteLine("  sched            - Alias for scheduler");
         }
     }
 }

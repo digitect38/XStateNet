@@ -165,7 +165,7 @@ public abstract class RealState : StateNode
     /// <param name="postAction">action while return the method</param>
     /// <param name="recursive">recursion to sub states</param>
 
-    public virtual Task ExitState(bool postAction = true, bool recursive = false)
+    public virtual async Task<Task> ExitState(bool postAction = true, bool recursive = false)
     {
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
 
@@ -199,7 +199,7 @@ public abstract class RealState : StateNode
                     StateMachine?.RaiseActionExecuted(action.Name, Name);
                     if (StateMachine != null)
                     {
-                        action.Action?.Invoke(StateMachine);
+                        await action.Action?.Invoke(StateMachine);
                     }
                 }
                 catch (Exception ex)
@@ -217,7 +217,7 @@ public abstract class RealState : StateNode
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(Task.CompletedTask);
     }
 
 
@@ -225,7 +225,7 @@ public abstract class RealState : StateNode
     /// 
     /// </summary>
     /// <param name="historyType"></param>
-    public virtual Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public virtual async Task<Task> EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
 
@@ -250,7 +250,7 @@ public abstract class RealState : StateNode
                         {
                             // Notify action execution
                             StateMachine.RaiseActionExecuted(action.Name, Name);
-                            action.Action(StateMachine);
+                            await action.Action(StateMachine);
                         }
                     }
                     catch (Exception ex)
@@ -278,7 +278,7 @@ public abstract class RealState : StateNode
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(Task.CompletedTask);
     }
 
 
@@ -328,9 +328,12 @@ public abstract class CompoundState : RealState
         OnDoneTransition = null;
     }
 
-    public virtual void Start()
+    public virtual async Task Start()
     {
-        EntryState();
+        var entryTaskTask = EntryState();
+        var entryTask = await entryTaskTask;
+        if (entryTask != null)
+            await entryTask;
     }
 
     public bool IsDone {set; get; }= false;             // If the state is done, it will not be active anymore.
@@ -363,20 +366,23 @@ public abstract class CompoundState : RealState
     /// <param name="postAction">action while return the method</param>
     /// <param name="recursive">recursion to sub states</param>
 
-    public override Task ExitState(bool postAction = true, bool recursive = false)
+    public override async Task<Task> ExitState(bool postAction = true, bool recursive = false)
     {
         //StateMachine.Log(">>>- State_Real.ExitState: " + Name);
         if (StateMachine == null)
         {
             System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} during ExitState");
-            return Task.CompletedTask;
+            return Task.FromResult(Task.CompletedTask);
         }
 
         IsDone = false; // for next time
 
-        base.ExitState(postAction, recursive);
+        var baseTask = await base.ExitState(postAction, recursive);
+        //var baseTask = await baseTaskTask;
+        if (baseTask != null)
+            await baseTask;
 
-        return Task.CompletedTask;
+        return Task.FromResult(Task.CompletedTask);
     }
         
 
@@ -384,18 +390,21 @@ public abstract class CompoundState : RealState
     /// 
     /// </summary>
     /// <param name="historyType"></param>
-    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public override async Task<Task> EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Real.EntryState: " + Name);
         if (StateMachine == null)
         {
             System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} during EntryState");
-            return Task.CompletedTask;
+            return Task.FromResult(Task.CompletedTask);
         }
 
         IsDone = false;
 
-        base.EntryState(postAction, recursive, historyType, targetHistoryState);
+        var baseTaskTask = base.EntryState(postAction, recursive, historyType, targetHistoryState);
+        var baseTask = await baseTaskTask;
+        if (baseTask != null)
+            await baseTask;
 
         ScheduleAfterTransitionTimer();
 
@@ -406,7 +415,7 @@ public abstract class CompoundState : RealState
             CheckAndExecuteAlwaysTransition();
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(Task.CompletedTask);
     }
 
 

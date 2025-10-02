@@ -8,6 +8,10 @@ using XStateNet.GPU.Core;
 using Newtonsoft.Json.Linq;
 using Serilog;
 
+// Suppress obsolete warning - GPU infrastructure code interfaces with legacy StateMachine
+// GPU acceleration layer requires StateMachineFactory.CreateFromScript for GPU kernel management
+#pragma warning disable CS0618
+
 namespace XStateNet.GPU
 {
     /// <summary>

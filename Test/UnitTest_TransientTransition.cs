@@ -2,6 +2,9 @@ using Xunit;
 using XStateNet;
 using System.Threading.Tasks;
 
+// Suppress obsolete warning - standalone transient transition test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateNet.UnitTest
 {
     public class UnitTest_TransientTransition

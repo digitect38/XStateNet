@@ -8,16 +8,24 @@ namespace XStateNet;
 /// <summary>
 /// Named activity for the activity map
 /// Activities are long-running tasks that start when entering a state and stop when exiting
+/// Simplified: Function-first constructor, name optional
 /// </summary>
 public class NamedActivity
 {
-    public string Name { get; }
+    public string? Name { get; }
     public Func<StateMachine, CancellationToken, Action> Activity { get; }
 
+    public NamedActivity(Func<StateMachine, CancellationToken, Action> activity, string? name = null)
+    {
+        Activity = activity;
+        Name = name;
+    }
+
+    // Backward compatibility: name-first constructor
     public NamedActivity(string name, Func<StateMachine, CancellationToken, Action> activity)
     {
-        Name = name;
         Activity = activity;
+        Name = name;
     }
 }
 

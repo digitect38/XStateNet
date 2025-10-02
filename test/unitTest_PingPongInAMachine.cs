@@ -7,6 +7,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+// Suppress obsolete warning - intra-machine ping-pong test (single machine with internal states)
+#pragma warning disable CS0618
+
 namespace AdvancedFeatures;
 
 public class IntraMachinePingPongStateMachinesTests : IDisposable
@@ -20,8 +23,8 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
     {
         _actions = new ()
         {
-            ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", (sm) => send_to_b(sm)) },
-            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", (sm) => _pingPongStateMachine.Send("to_a")) }
+            ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", async (sm) => send_to_b(sm)) },
+            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", async (sm) => _pingPongStateMachine.Send("to_a")) }
         };
 
         _guards = new ();

@@ -7,6 +7,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.Concurrent;
 
+// Suppress obsolete warning - SemiIntegratedMachineTests is infrastructure code for testing legacy SEMI integration
+// Tests verify backward compatibility with StateMachineFactory.CreateFromScript
+#pragma warning disable CS0618
+
 namespace SemiStandard.Tests
 {
     public class SemiIntegratedMachineTests : IDisposable
@@ -61,19 +65,19 @@ namespace SemiStandard.Tests
             _actions = new ActionMap
             {
                 // Equipment Control Actions
-                ["setSystemStartTime"] = [new("setSystemStartTime", (sm) => 
+                ["setSystemStartTime"] = [new("setSystemStartTime", async (sm) => 
                 {
                     sm.ContextMap!["systemStartTime"] = DateTime.Now.ToString("o");
                 })],
                 
-                ["setEquipmentIdle"] = [new("setEquipmentIdle", (sm) => 
+                ["setEquipmentIdle"] = [new("setEquipmentIdle", async (sm) => 
                 {
                     sm.ContextMap!["equipmentState"] = "IDLE";
                     sm.ContextMap!["equipmentReady"] = true;
                     sm.ContextMap!["communicationState"] = "COMMUNICATING";
                 })],
                 
-                ["setEquipmentFault"] = [new("setEquipmentFault", (sm) => 
+                ["setEquipmentFault"] = [new("setEquipmentFault", async (sm) => 
                 {
                     // Only set to FAULT if not already EMERGENCY_STOP
                                         if ((string?)sm.ContextMap!["equipmentState"] != "EMERGENCY_STOP")
@@ -84,29 +88,29 @@ namespace SemiStandard.Tests
                     sm.ContextMap!["totalErrors"] = (int)(sm.ContextMap!["totalErrors"] ?? 0) + 1;
                 })],
                 
-                ["setEquipmentProductive"] = [new("setEquipmentProductive", (sm) => 
+                ["setEquipmentProductive"] = [new("setEquipmentProductive", async (sm) => 
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE";
                 })],
                 
-                ["setProductiveStandby"] = [new("setProductiveStandby", (sm) => 
+                ["setProductiveStandby"] = [new("setProductiveStandby", async (sm) => 
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE_STANDBY";
                 })],
                 
-                ["setProductiveRun"] = [new("setProductiveRun", (sm) => 
+                ["setProductiveRun"] = [new("setProductiveRun", async (sm) => 
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE_RUN";
                     sm.ContextMap!["processActive"] = true;
                 })],
                 
-                ["incrementProcessed"] = [new("incrementProcessed", (sm) => 
+                ["incrementProcessed"] = [new("incrementProcessed", async (sm) => 
                 {
                     sm.ContextMap!["totalProcessed"] = (int)(sm.ContextMap!["totalProcessed"] ?? 0) + 1;
                     sm.ContextMap!["processActive"] = false;
                 })],
                 
-                ["setEquipmentOff"] = [new("setEquipmentOff", (sm) => 
+                ["setEquipmentOff"] = [new("setEquipmentOff", async (sm) => 
                 {
                     sm.ContextMap!["communicationState"] = "NOT_COMMUNICATING";
                     sm.ContextMap!["equipmentState"] = "OFF";
@@ -114,12 +118,12 @@ namespace SemiStandard.Tests
                 })],
                 
                 // Carrier Management Actions
-                ["setCarrierUnavailable"] = [new("setCarrierUnavailable", (sm) => 
+                ["setCarrierUnavailable"] = [new("setCarrierUnavailable", async (sm) => 
                 {
                     sm.ContextMap!["carrierAvailable"] = false;
                 })],
                 
-                ["addCarrier"] = [new("addCarrier", (sm) => 
+                ["addCarrier"] = [new("addCarrier", async (sm) => 
                 {
                     var carriers = sm.ContextMap!["activeCarriers"] as List<object>;
                     carriers?.Add(new 
@@ -131,18 +135,18 @@ namespace SemiStandard.Tests
                     });
                 })],
                 
-                ["setCarrierAvailable"] = [new("setCarrierAvailable", (sm) => 
+                ["setCarrierAvailable"] = [new("setCarrierAvailable", async (sm) => 
                 {
                     sm.ContextMap!["carrierAvailable"] = true;
                 })],
                 
                 // Substrate Tracking Actions
-                ["setSubstrateUnavailable"] = [new("setSubstrateUnavailable", (sm) => 
+                ["setSubstrateUnavailable"] = [new("setSubstrateUnavailable", async (sm) => 
                 {
                     sm.ContextMap!["substrateReady"] = false;
                 })],
                 
-                ["addSubstrate"] = [new("addSubstrate", (sm) => 
+                ["addSubstrate"] = [new("addSubstrate", async (sm) => 
                 {
                     var substrates = sm.ContextMap!["activeSubstrates"] as List<object>;
                     substrates?.Add(new 
@@ -154,18 +158,18 @@ namespace SemiStandard.Tests
                     });
                 })],
                 
-                ["setSubstrateReady"] = [new("setSubstrateReady", (sm) => 
+                ["setSubstrateReady"] = [new("setSubstrateReady", async (sm) => 
                 {
                     sm.ContextMap!["substrateReady"] = true;
                 })],
                 
                 // Recipe Management Actions
-                ["setRecipeUnverified"] = [new("setRecipeUnverified", (sm) => 
+                ["setRecipeUnverified"] = [new("setRecipeUnverified", async (sm) => 
                 {
                     sm.ContextMap!["recipeVerified"] = false;
                 })],
                 
-                ["addRecipe"] = [new("addRecipe", (sm) => 
+                ["addRecipe"] = [new("addRecipe", async (sm) => 
                 {
                     var recipes = sm.ContextMap!["activeRecipes"] as List<object>;
                     recipes?.Add(new 
@@ -177,13 +181,13 @@ namespace SemiStandard.Tests
                     });
                 })],
                 
-                ["setRecipeVerified"] = [new("setRecipeVerified", (sm) => 
+                ["setRecipeVerified"] = [new("setRecipeVerified", async (sm) => 
                 {
                     sm.ContextMap!["recipeVerified"] = true;
                 })],
                 
                 // Control Job Actions
-                ["addJob"] = [new("addJob", (sm) => 
+                ["addJob"] = [new("addJob", async (sm) => 
                 {
                     var jobs = sm.ContextMap!["activeJobs"] as List<object>;
                     jobs?.Add(new 
@@ -198,7 +202,7 @@ namespace SemiStandard.Tests
                 })],
                 
                 // Process Job Actions
-                ["addProcess"] = [new("addProcess", (sm) => 
+                ["addProcess"] = [new("addProcess", async (sm) => 
                 {
                     var processes = sm.ContextMap!["activeProcesses"] as List<object>;
                     processes?.Add(new 
@@ -212,7 +216,7 @@ namespace SemiStandard.Tests
                 })],
                 
                 // Performance Monitoring Actions
-                ["updateMetrics"] = [new("updateMetrics", (sm) => 
+                ["updateMetrics"] = [new("updateMetrics", async (sm) => 
                 {
                     if (sm.ContextMap!["systemStartTime"] is string startTimeString)
                     {
@@ -223,7 +227,7 @@ namespace SemiStandard.Tests
                 })],
                 
                 // Emergency Stop Actions
-                ["emergencyStop"] = [new("emergencyStop", (sm) => 
+                ["emergencyStop"] = [new("emergencyStop", async (sm) => 
                 {
                     sm.ContextMap!["equipmentState"] = "EMERGENCY_STOP";
                     sm.ContextMap!["equipmentReady"] = false;
@@ -234,7 +238,7 @@ namespace SemiStandard.Tests
                 })],
                 
                 // System Reset Actions
-                ["systemReset"] = [new("systemReset", (sm) => 
+                ["systemReset"] = [new("systemReset", async (sm) => 
                 {
                     sm.ContextMap!["equipmentReady"] = false;
                     sm.ContextMap!["processActive"] = false;
@@ -256,24 +260,24 @@ namespace SemiStandard.Tests
         {
             _guards = new GuardMap
             {
-                ["isEquipmentReady"] = new("isEquipmentReady", (sm) => 
+                ["isEquipmentReady"] = new("isEquipmentReady", (sm) =>
                     (bool)(sm.ContextMap!["equipmentReady"] ?? false)),
-                
-                ["canStartProcess"] = new("canStartProcess", (sm) => 
-                    (bool)(sm.ContextMap!["carrierAvailable"] ?? false) && 
+
+                ["canStartProcess"] = new("canStartProcess", (sm) =>
+                    (bool)(sm.ContextMap!["carrierAvailable"] ?? false) &&
                     (bool)(sm.ContextMap!["recipeVerified"] ?? false)),
                 
-                ["isProcessActive"] = new("isProcessActive", (sm) => 
+                ["isProcessActive"] = new("isProcessActive", (sm) =>
                     (bool)(sm.ContextMap!["processActive"] ?? false)),
                 
-                ["isCarrierAvailable"] = new("isCarrierAvailable", (sm) => 
+                ["isCarrierAvailable"] = new("isCarrierAvailable", (sm) =>
                     (bool)(sm.ContextMap!["carrierAvailable"] ?? false)),
                 
-                ["canStartJob"] = new("canStartJob", (sm) => 
-                    (bool)(sm.ContextMap!["equipmentReady"] ?? false) && 
+                ["canStartJob"] = new("canStartJob", (sm) =>
+                    (bool)(sm.ContextMap!["equipmentReady"] ?? false) &&
                     (bool)(sm.ContextMap!["carrierAvailable"] ?? false)),
                 
-                ["canStartRecipeProcess"] = new("canStartRecipeProcess", (sm) => 
+                ["canStartRecipeProcess"] = new("canStartRecipeProcess", (sm) =>
                     (bool)(sm.ContextMap!["processActive"] ?? false)),
                 
                 ["isOeeAlert"] = new("isOeeAlert", (sm) => 

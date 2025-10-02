@@ -3,6 +3,10 @@ using Xunit;
 using XStateNet;
 using System.Threading.Tasks;
 
+// Suppress obsolete warning - standalone log action test with no inter-machine communication
+// For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
+#pragma warning disable CS0618
+
 namespace XStateNet.UnitTest
 {
     public class UnitTest_LogAction : IDisposable

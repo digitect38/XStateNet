@@ -10,6 +10,9 @@ using XStateNet.Distributed.PubSub;
 using System.Diagnostics;
 using XStateNet.Distributed.Tests.TestInfrastructure;
 
+// Suppress obsolete warning - event notification service tests
+#pragma warning disable CS0618
+
 namespace XStateNet.Distributed.Tests.PubSub
 {
     [TestCaseOrderer("XStateNet.Distributed.Tests.TestInfrastructure.PriorityOrderer", "XStateNet.Distributed.Tests")]

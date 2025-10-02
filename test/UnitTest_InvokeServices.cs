@@ -1,65 +1,79 @@
 using Xunit;
-
 using System;
 using System.Threading.Tasks;
 using System.Threading;
 using XStateNet;
+using XStateNet.Orchestration;
+using XStateNet.Tests;
+using System.Collections.Generic;
+
 namespace ActorModelTests;
-public class UnitTest_InvokeServices : IDisposable
+
+public class UnitTest_InvokeServices : OrchestratorTestBase
 {
-    private StateMachine? _stateMachine;
-    private ActionMap _actions;
-    private GuardMap _guards;
-    private ServiceMap _services;
+    private IPureStateMachine? _currentMachine;
     private int _serviceCallCount;
     private bool _serviceCompleted;
     private bool _errorOccurred;
     private string? _lastErrorMessage;
-    
+
     public UnitTest_InvokeServices()
     {
         _serviceCallCount = 0;
         _serviceCompleted = false;
         _errorOccurred = false;
         _lastErrorMessage = null;
-        
-        _actions = new ActionMap
+    }
+
+    private StateMachine? GetUnderlying() =>
+        (_currentMachine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+
+    private Dictionary<string, Action<OrchestratedContext>> CreateActions()
+    {
+        return new Dictionary<string, Action<OrchestratedContext>>
         {
-            ["logEntry"] = new List<NamedAction> { new NamedAction("logEntry", (sm) => Console.WriteLine("Entering state")) },
-            ["handleSuccess"] = new List<NamedAction> { new NamedAction("handleSuccess", (sm) => _serviceCompleted = true) },
-            ["handleError"] = new List<NamedAction> { new NamedAction("handleError", (sm) => {
+            ["logEntry"] = (ctx) => Console.WriteLine("Entering state"),
+            ["handleSuccess"] = (ctx) => _serviceCompleted = true,
+            ["handleError"] = (ctx) =>
+            {
                 _errorOccurred = true;
-                _lastErrorMessage = sm.ContextMap?["_errorMessage"]?.ToString();
-            }) }
+                var underlying = GetUnderlying();
+                _lastErrorMessage = underlying?.ContextMap?["_errorMessage"]?.ToString();
+            }
         };
-        
-        _guards = new GuardMap();
-        
-        _services = new ServiceMap
+    }
+
+    private Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>> CreateServices()
+    {
+        return new Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>
         {
-            ["fetchData"] = new NamedService("fetchData", async (sm, ct) => {
+            ["fetchData"] = async (sm, ct) =>
+            {
                 _serviceCallCount++;
                 await Task.Delay(100, ct);
                 sm.ContextMap!["data"] = "fetched data";
                 return "fetched data";
-            }),
-            ["failingService"] = new NamedService("failingService", (sm, ct) => {
-                return Task.FromException<object>(new InvalidOperationException("Service failed intentionally"));
-            }),
-            ["longRunningService"] = new NamedService("longRunningService", async (sm, ct) => {
+            },
+            ["failingService"] = async (sm, ct) =>
+            {
+                await Task.Delay(10, ct); // Small delay to ensure async execution
+                throw new InvalidOperationException("Service failed intentionally");
+            },
+            ["longRunningService"] = async (sm, ct) =>
+            {
                 await Task.Delay(500, ct);
                 sm.ContextMap!["result"] = "completed";
                 return "completed";
-            })
+            }
         };
     }
-    
+
     [Fact]
     public async Task TestBasicInvokeService()
     {
-        string script = @"
-        {
-            'id': 'machineId',
+        var uniqueId = $"machineId_{Guid.NewGuid():N}";
+        string script = @"{
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -88,35 +102,32 @@ public class UnitTest_InvokeServices : IDisposable
                 }
             }
         }";
-        
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true, _actions, _guards, _services);
-        var stateString = await _stateMachine!.StartAsync();
-        
-        Assert.Contains(".idle", stateString);
 
-        stateString = await _stateMachine!.SendAsync("START");
-        Assert.Contains(".fetching", stateString);
+        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        await _currentMachine.StartAsync();
 
-        // Wait for service to complete - NOW TRULY EVENT-DRIVEN!
-        stateString = await _stateMachine!.WaitForStateAsync("success", 1000);
+        var initialState = _currentMachine.CurrentState;
+        Assert.Contains("idle", initialState);
 
-        Assert.Contains(".success", stateString);
+        await SendEventAsync("TEST", uniqueId, "START");
 
-        // Give a tiny moment for actions to complete after state transition
-        // This is the minimal delay needed for action execution, not for state waiting
-        await Task.Delay(1);
+        // Wait deterministically for service to complete
+        await WaitForStateAsync(_currentMachine, "success", timeoutMs: 2000);
+
+        var finalState = _currentMachine.CurrentState;
+        Assert.Contains("success", finalState);
 
         Assert.True(_serviceCompleted);
         Assert.Equal(1, _serviceCallCount);
-        Assert.Equal("fetched data", _stateMachine.ContextMap!["data"]);
+        Assert.Equal("fetched data", GetUnderlying()?.ContextMap?["data"]);
     }
-    
+
     [Fact]
     public async Task TestInvokeServiceWithError()
     {
-        string script = @"
-        {
-            'id': 'machineId',
+        var uniqueId = $"machineId_{Guid.NewGuid():N}";
+        string script = @"{
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -144,31 +155,28 @@ public class UnitTest_InvokeServices : IDisposable
                 }
             }
         }";
-        
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, _services);
-        await _stateMachine!.StartAsync();
-        
-        var stateString = await _stateMachine!.SendAsync("START");
-        Assert.Contains(".processing", stateString);
 
-        // Wait for service to fail
-        // Wait for service to fail and transition to error state
-        stateString = await _stateMachine!.WaitForStateAsync("error", 1000);
-        Assert.Contains(".error", stateString);
+        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        await _currentMachine.StartAsync();
 
-        // Give a tiny moment for actions to complete after state transition
-        await Task.Delay(1);
+        await SendEventAsync("TEST", uniqueId, "START");
+
+        // Wait deterministically for error state
+        await WaitForStateAsync(_currentMachine, "error", timeoutMs: 2000);
+
+        var finalState = _currentMachine.CurrentState;
+        Assert.Contains("error", finalState);
 
         Assert.True(_errorOccurred);
         Assert.Equal("Service failed intentionally", _lastErrorMessage);
     }
-    
+
     [Fact]
     public async Task TestMultipleInvokedServices()
     {
-        string script = @"
-        {
-            'id': 'machineId',
+        var uniqueId = $"machineId_{Guid.NewGuid():N}";
+        string script = @"{
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'type': 'parallel',
             'states': {
@@ -212,39 +220,34 @@ public class UnitTest_InvokeServices : IDisposable
                 }
             }
         }";
-        
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, _services);
-        await _stateMachine!.StartAsync();
-        
-        var stateString = await _stateMachine!.SendAsync("START");
-        
-        // Both services should be running
-        var activeStates = _stateMachine!.GetActiveStateNames();
-        Assert.Contains(".serviceA.running", activeStates);
-        Assert.Contains(".serviceB.running", activeStates);
 
-        // Wait for shorter service
-        await Task.Delay(200);
+        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        await _currentMachine.StartAsync();
 
-        // Service A should be complete
-        activeStates = _stateMachine!.GetActiveStateNames();
-        Assert.Contains(".serviceA.complete", activeStates);
+        await SendEventAsync("TEST", uniqueId, "START");
 
-        // Wait for longer service
-        await Task.Delay(400);
+        // Wait deterministically for serviceA (shorter) to complete
+        await WaitForStateAsync(_currentMachine, "serviceA.complete", timeoutMs: 2000);
 
-        // Both services should be complete
-        activeStates = _stateMachine!.GetActiveStateNames();
-        Assert.Contains(".serviceA.complete", activeStates);
-        Assert.Contains(".serviceB.complete", activeStates);
+        var stateAfterA = _currentMachine.CurrentState;
+        Assert.Contains("serviceA.complete", stateAfterA);
+
+        // Wait deterministically for serviceB (longer) to complete
+        await WaitForStateAsync(_currentMachine, "serviceB.complete", timeoutMs: 2000);
+
+        var finalState = _currentMachine.CurrentState;
+        Assert.Contains("serviceA.complete", finalState);
+        Assert.Contains("serviceB.complete", finalState);
     }
-    
+
     [Fact]
     public async Task TestServiceCancellationOnStateExit()
     {
-        var cancellableService = new ServiceMap
+        var uniqueId = $"machineId_{Guid.NewGuid():N}";
+        var cancellableServices = new Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>
         {
-            ["cancellable"] = new NamedService("cancellable", async (sm, ct) => {
+            ["cancellable"] = async (sm, ct) =>
+            {
                 try
                 {
                     await Task.Delay(5000, ct); // Long delay
@@ -253,13 +256,12 @@ public class UnitTest_InvokeServices : IDisposable
                 {
                     // This is expected
                 }
-                return null;
-            })
+                return null!;
+            }
         };
-        
-        string script = @"
-        {
-            'id': 'machineId',
+
+        string script = @"{
+            'id': '" + uniqueId + @"',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -280,23 +282,21 @@ public class UnitTest_InvokeServices : IDisposable
                 }
             }
         }";
-        
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards, cancellableService);
-        _stateMachine!.Start();
-        
-        _stateMachine!.Send("START");
-        Assert.Contains(".processing", _stateMachine.GetActiveStateNames());
+
+        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, cancellableServices);
+        await _currentMachine.StartAsync();
+
+        await SendEventAsync("TEST", uniqueId, "START");
+
+        // Wait for processing state
+        await WaitForStateAsync(_currentMachine, "processing", timeoutMs: 1000);
+        Assert.Contains("processing", _currentMachine.CurrentState);
 
         // Cancel should exit the state and cancel the service
-        _stateMachine!.Send("CANCEL");
-        Assert.Contains(".cancelled", _stateMachine.GetActiveStateNames());
-        
-        // Note: In a real implementation, we'd need to verify the service was actually cancelled
-        // This would require more sophisticated service management in the StateMachines
-    }
-    
-    public void Dispose()
-    {
-        // Cleanup if needed
+        await SendEventAsync("TEST", uniqueId, "CANCEL");
+
+        // Wait for cancelled state
+        await WaitForStateAsync(_currentMachine, "cancelled", timeoutMs: 1000);
+        Assert.Contains("cancelled", _currentMachine.CurrentState);
     }
 }

@@ -97,7 +97,7 @@ public class E87CarrierManagementMachine
         {
             var result = await carrier.HostProceedAsync();
             AddCarrierHistory(carrierId, "Mapping", "Host authorized carrier processing");
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -156,7 +156,7 @@ public class E87CarrierManagementMachine
             var result = verified
                 ? await carrier.VerifyOkAsync()
                 : await carrier.VerifyFailAsync();
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -182,7 +182,7 @@ public class E87CarrierManagementMachine
                 }
             );
 
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -209,7 +209,7 @@ public class E87CarrierManagementMachine
                 }
             );
 
-            return result;
+            return result.Success;
         }
         return false;
     }
@@ -331,6 +331,7 @@ public class CarrierMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
 
     public string Id { get; }
     public string LoadPortId { get; }
@@ -343,7 +344,7 @@ public class CarrierMachine
     public DateTime? DepartedTime { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E87_CARRIER_{Id}";
+    public string MachineId => $"E87_CARRIER_{Id}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public CarrierMachine(string id, string loadPortId, int slotCount, string equipmentId, EventBusOrchestrator orchestrator)
@@ -356,6 +357,7 @@ public class CarrierMachine
         Properties = new ConcurrentDictionary<string, object>();
         ArrivedTime = DateTime.UtcNow;
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Initialize slot map
         for (int i = 1; i <= slotCount; i++)
@@ -364,80 +366,82 @@ public class CarrierMachine
         }
 
         // Inline XState JSON definition
-        var definition = @"{
-            ""id"": ""E87CarrierStateMachine"",
-            ""initial"": ""NotPresent"",
-            ""context"": {
-                ""carrierId"": """",
-                ""loadPortId"": """",
-                ""slotCount"": 0
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NotPresent',
+            context: {
+                carrierId: '',
+                loadPortId: '',
+                slotCount: 0
             },
-            ""states"": {
-                ""NotPresent"": {
-                    ""entry"": ""logNotPresent"",
-                    ""on"": {
-                        ""CARRIER_DETECTED"": ""WaitingForHost""
+            states: {
+                NotPresent: {
+                    entry: 'logNotPresent',
+                    on: {
+                        CARRIER_DETECTED: 'WaitingForHost'
                     }
                 },
-                ""WaitingForHost"": {
-                    ""entry"": ""logWaitingForHost"",
-                    ""on"": {
-                        ""HOST_PROCEED"": ""Mapping"",
-                        ""HOST_CANCEL"": ""CarrierOut""
+                WaitingForHost: {
+                    entry: 'logWaitingForHost',
+                    on: {
+                        HOST_PROCEED: 'Mapping',
+                        HOST_CANCEL: 'CarrierOut'
                     }
                 },
-                ""Mapping"": {
-                    ""entry"": ""startMapping"",
-                    ""on"": {
-                        ""MAPPING_COMPLETE"": ""MappingVerification"",
-                        ""MAPPING_ERROR"": ""WaitingForHost""
+                Mapping: {
+                    entry: 'startMapping',
+                    on: {
+                        MAPPING_COMPLETE: 'MappingVerification',
+                        MAPPING_ERROR: 'WaitingForHost'
                     }
                 },
-                ""MappingVerification"": {
-                    ""entry"": ""logMappingVerification"",
-                    ""on"": {
-                        ""VERIFY_OK"": ""ReadyToAccess"",
-                        ""VERIFY_FAIL"": ""Mapping""
+                MappingVerification: {
+                    entry: 'logMappingVerification',
+                    on: {
+                        VERIFY_OK: 'ReadyToAccess',
+                        VERIFY_FAIL: 'Mapping'
                     },
-                    ""after"": {
-                        ""500"": {
-                            ""target"": ""ReadyToAccess""
+                    after: {
+                        '500': {
+                            target: 'ReadyToAccess'
                         }
                     }
                 },
-                ""ReadyToAccess"": {
-                    ""entry"": ""logReadyToAccess"",
-                    ""on"": {
-                        ""START_ACCESS"": ""InAccess"",
-                        ""HOST_CANCEL"": ""Complete""
+                ReadyToAccess: {
+                    entry: 'logReadyToAccess',
+                    on: {
+                        START_ACCESS: 'InAccess',
+                        HOST_CANCEL: 'Complete'
                     }
                 },
-                ""InAccess"": {
-                    ""entry"": ""logInAccess"",
-                    ""on"": {
-                        ""ACCESS_COMPLETE"": ""Complete"",
-                        ""ACCESS_ERROR"": ""AccessPaused""
+                InAccess: {
+                    entry: 'logInAccess',
+                    on: {
+                        ACCESS_COMPLETE: 'Complete',
+                        ACCESS_ERROR: 'AccessPaused'
                     }
                 },
-                ""AccessPaused"": {
-                    ""entry"": ""logAccessPaused"",
-                    ""on"": {
-                        ""RESUME_ACCESS"": ""InAccess"",
-                        ""ABORT_ACCESS"": ""Complete""
+                AccessPaused: {
+                    entry: 'logAccessPaused',
+                    on: {
+                        RESUME_ACCESS: 'InAccess',
+                        ABORT_ACCESS: 'Complete'
                     }
                 },
-                ""Complete"": {
-                    ""entry"": ""logComplete"",
-                    ""on"": {
-                        ""CARRIER_REMOVED"": ""CarrierOut""
+                Complete: {
+                    entry: 'logComplete',
+                    on: {
+                        CARRIER_REMOVED: 'CarrierOut'
                     }
                 },
-                ""CarrierOut"": {
-                    ""entry"": ""logCarrierOut"",
-                    ""type"": ""final""
+                CarrierOut: {
+                    entry: 'logCarrierOut',
+                    type: 'final'
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -547,46 +551,46 @@ public class CarrierMachine
     }
 
     // Public API methods
-    public async Task<bool> HostProceedAsync()
+    public async Task<EventResult> HostProceedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "HOST_PROCEED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> MappingCompleteAsync()
+    public async Task<EventResult> MappingCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAPPING_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> VerifyOkAsync()
+    public async Task<EventResult> VerifyOkAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_OK", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> VerifyFailAsync()
+    public async Task<EventResult> VerifyFailAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_FAIL", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartAccessAsync()
+    public async Task<EventResult> StartAccessAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_ACCESS", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> AccessCompleteAsync()
+    public async Task<EventResult> AccessCompleteAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ACCESS_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> RemoveAsync()
+    public async Task<EventResult> RemoveAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_REMOVED", null);
-        return result.Success;
+        return result;
     }
 }
 
@@ -597,6 +601,7 @@ public class LoadPortMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly EventBusOrchestrator _orchestrator;
+    private readonly string _instanceId;
 
     public string Id { get; }
     public string Name { get; }
@@ -605,7 +610,7 @@ public class LoadPortMachine
     public bool IsReserved { get; set; }
     public ConcurrentDictionary<string, object> Properties { get; }
 
-    public string MachineId => $"E87_LOADPORT_{Id}";
+    public string MachineId => $"E87_LOADPORT_{Id}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
     public LoadPortMachine(string id, string name, int capacity, string equipmentId, EventBusOrchestrator orchestrator)
@@ -615,98 +620,101 @@ public class LoadPortMachine
         Capacity = capacity;
         Properties = new ConcurrentDictionary<string, object>();
         _orchestrator = orchestrator;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
         // Inline XState JSON definition
-        var definition = @"{
-            ""id"": ""E87LoadPortStateMachine"",
-            ""initial"": ""Empty"",
-            ""context"": {
-                ""portId"": """",
-                ""portName"": """",
-                ""capacity"": 0
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'Empty',
+            context: {
+                portId: '',
+                portName: '',
+                capacity: 0
             },
-            ""states"": {
-                ""Empty"": {
-                    ""entry"": ""logEmpty"",
-                    ""on"": {
-                        ""CARRIER_PLACED"": ""Loading"",
-                        ""RESERVE"": ""Reserved""
+            states: {
+                Empty: {
+                    entry: 'logEmpty',
+                    on: {
+                        CARRIER_PLACED: 'Loading',
+                        RESERVE: 'Reserved'
                     }
                 },
-                ""Reserved"": {
-                    ""entry"": ""logReserved"",
-                    ""on"": {
-                        ""CARRIER_PLACED"": ""Loading"",
-                        ""UNRESERVE"": ""Empty""
+                Reserved: {
+                    entry: 'logReserved',
+                    on: {
+                        CARRIER_PLACED: 'Loading',
+                        UNRESERVE: 'Empty'
                     }
                 },
-                ""Loading"": {
-                    ""entry"": ""logLoading"",
-                    ""on"": {
-                        ""LOAD_COMPLETE"": ""Loaded"",
-                        ""LOAD_ERROR"": ""Error""
+                Loading: {
+                    entry: 'logLoading',
+                    on: {
+                        LOAD_COMPLETE: 'Loaded',
+                        LOAD_ERROR: 'Error'
                     },
-                    ""after"": {
-                        ""1000"": {
-                            ""target"": ""Loaded""
+                    after: {
+                        '1000': {
+                            target: 'Loaded'
                         }
                     }
                 },
-                ""Loaded"": {
-                    ""entry"": ""logLoaded"",
-                    ""on"": {
-                        ""START_MAPPING"": ""Mapping"",
-                        ""CARRIER_REMOVED"": ""Unloading""
+                Loaded: {
+                    entry: 'logLoaded',
+                    on: {
+                        START_MAPPING: 'Mapping',
+                        CARRIER_REMOVED: 'Unloading'
                     }
                 },
-                ""Mapping"": {
-                    ""entry"": ""logMapping"",
-                    ""on"": {
-                        ""MAPPING_COMPLETE"": ""Ready"",
-                        ""MAPPING_ERROR"": ""Error""
+                Mapping: {
+                    entry: 'logMapping',
+                    on: {
+                        MAPPING_COMPLETE: 'Ready',
+                        MAPPING_ERROR: 'Error'
                     }
                 },
-                ""Ready"": {
-                    ""entry"": ""logReady"",
-                    ""on"": {
-                        ""START_ACCESS"": ""InAccess"",
-                        ""CARRIER_REMOVED"": ""Unloading""
+                Ready: {
+                    entry: 'logReady',
+                    on: {
+                        START_ACCESS: 'InAccess',
+                        CARRIER_REMOVED: 'Unloading'
                     }
                 },
-                ""InAccess"": {
-                    ""entry"": ""logInAccess"",
-                    ""on"": {
-                        ""ACCESS_COMPLETE"": ""ReadyToUnload"",
-                        ""ACCESS_ERROR"": ""Error""
+                InAccess: {
+                    entry: 'logInAccess',
+                    on: {
+                        ACCESS_COMPLETE: 'ReadyToUnload',
+                        ACCESS_ERROR: 'Error'
                     }
                 },
-                ""ReadyToUnload"": {
-                    ""entry"": ""logReadyToUnload"",
-                    ""on"": {
-                        ""CARRIER_REMOVED"": ""Unloading""
+                ReadyToUnload: {
+                    entry: 'logReadyToUnload',
+                    on: {
+                        CARRIER_REMOVED: 'Unloading'
                     }
                 },
-                ""Unloading"": {
-                    ""entry"": ""logUnloading"",
-                    ""on"": {
-                        ""UNLOAD_COMPLETE"": ""Empty"",
-                        ""UNLOAD_ERROR"": ""Error""
+                Unloading: {
+                    entry: 'logUnloading',
+                    on: {
+                        UNLOAD_COMPLETE: 'Empty',
+                        UNLOAD_ERROR: 'Error'
                     },
-                    ""after"": {
-                        ""500"": {
-                            ""target"": ""Empty""
+                    after: {
+                        '500': {
+                            target: 'Empty'
                         }
                     }
                 },
-                ""Error"": {
-                    ""entry"": ""logError"",
-                    ""on"": {
-                        ""CLEAR_ERROR"": ""Empty"",
-                        ""RECOVER"": ""Loaded""
+                Error: {
+                    entry: 'logError',
+                    on: {
+                        CLEAR_ERROR: 'Empty',
+                        RECOVER: 'Loaded'
                     }
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -798,30 +806,30 @@ public class LoadPortMachine
     }
 
     // Public API methods
-    public async Task<bool> CarrierPlacedAsync()
+    public async Task<EventResult> CarrierPlacedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_PLACED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CarrierRemovedAsync()
+    public async Task<EventResult> CarrierRemovedAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_REMOVED", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReserveAsync()
+    public async Task<EventResult> ReserveAsync()
     {
         IsReserved = true;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESERVE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UnreserveAsync()
+    public async Task<EventResult> UnreserveAsync()
     {
         IsReserved = false;
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UNRESERVE", null);
-        return result.Success;
+        return result;
     }
 }
 

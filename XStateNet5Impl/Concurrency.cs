@@ -224,9 +224,9 @@ public class SafeTransitionExecutor : TransitionExecutor
         _sync = sync ?? throw new ArgumentNullException(nameof(sync));
     }
     
-    protected override void ExecuteCore(Transition? transition, string eventName)
+    protected override async Task ExecuteCore(Transition? transition, string eventName)
     {
-        ExecuteAsync(transition, eventName).GetAwaiter().GetResult();
+        await ExecuteAsync(transition, eventName);//.GetAwaiter().GetResult();
     }
     
     /// <summary>
@@ -317,7 +317,7 @@ public class SafeTransitionExecutor : TransitionExecutor
                         {
                             // Notify action execution
                             StateMachine?.RaiseActionExecuted(action.Name, targetName);
-                            action.Action(StateMachine!);
+                            await action.Action(StateMachine!);
                         }
                         catch (Exception ex)
                         {
@@ -378,7 +378,7 @@ public class SafeTransitionExecutor : TransitionExecutor
                     {
                         try
                         {
-                            action.Action(StateMachine!);
+                            await action.Action(StateMachine!);
                         }
                         catch (Exception ex)
                         {

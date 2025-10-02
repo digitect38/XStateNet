@@ -8,6 +8,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Transactions;
 
+// Suppress obsolete warning - standalone traffic light test with no inter-machine communication
+// For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
+#pragma warning disable CS0618
+
 namespace BigStateMachine;
 
 public class TrafficMachine : IDisposable

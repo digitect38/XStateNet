@@ -152,6 +152,7 @@ namespace XStateNet
                 throw new InvalidOperationException("JSON script is required");
 
             var processedScript = ProcessJsonScript(instanceId);
+#pragma warning disable CS0618
             var stateMachine = StateMachineFactory.CreateFromScript(
                 processedScript,
                 threadSafe:false,
@@ -161,6 +162,7 @@ namespace XStateNet
                 serviceMap,
                 delayMap,
                 activityMap);
+#pragma warning restore CS0618
 
             // Apply context
             if (stateMachine.ContextMap != null)

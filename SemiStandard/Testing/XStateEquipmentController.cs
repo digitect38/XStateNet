@@ -100,10 +100,14 @@ namespace XStateNet.Semi.Testing
                 
                 // Add generic handlers for any actions not explicitly defined
                 AddGenericActionsFromJson(jsonScript, actions);
-                
+
+                // Suppress obsolete warning - this is a testing/simulation controller
+                // For production code, use ExtendedPureStateMachineFactory with EventBusOrchestrator
+#pragma warning disable CS0618
                 var machine = StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, true, actions, guards);
+#pragma warning restore CS0618
                 // Don't set machineId to the name - it will use the ID from the JSON
-                
+
                 // Subscribe to state changes
                 machine.OnTransition += (from, to, eventName) =>
                 {

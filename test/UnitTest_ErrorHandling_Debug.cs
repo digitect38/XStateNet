@@ -3,6 +3,10 @@ using Xunit;
 using System;
 using System.Collections.Generic;
 using XStateNet;
+
+// Suppress obsolete warning - standalone error handling debug test with no inter-machine communication
+#pragma warning disable CS0618
+
 namespace XStateV5Features;
 public class UnitTest_ErrorHandling_Debug : IDisposable
 {
@@ -23,12 +27,12 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         
         _actions = new ActionMap
         {
-            ["throwError"] = new () { new ("throwError", (sm) => {
+            ["throwError"] = new () { new ("throwError", async (sm) => {
                 _actionLog.Add("throwError");
                 Console.WriteLine("About to throw error");
                 throw new InvalidOperationException("Test error");
             }) },
-            ["handleError"] = new () { new ("handleError", (sm) => {
+            ["handleError"] = new () { new ("handleError", async (sm) => {
                 _actionLog.Add("handleError");
                 _errorHandled = true;
                 _errorMessage = sm.ContextMap?["_errorMessage"]?.ToString();

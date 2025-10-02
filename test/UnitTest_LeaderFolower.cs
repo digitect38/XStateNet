@@ -1,66 +1,79 @@
 using Xunit;
-
+using System;
+using System.Linq;
 using XStateNet;
-using System.Collections.Concurrent;
+using XStateNet.Orchestration;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AdvancedFeatures
 {
-    public class LeaderFollowerStateMachinesTests : IDisposable
+    public class LeaderFollowerStateMachinesTests : XStateNet.Tests.OrchestratorTestBase
     {
-        private StateMachine _followerStateMachine;
-        private StateMachine _leaderStateMachine;
+        private string _followerMachineId;
+        private string _leaderMachineId;
 
-        private ActionMap _followerActions;
-        private GuardMap _followerGuards;
+        private StateMachine? GetUnderlying(IPureStateMachine machine)
+        {
+            return (machine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
+        }
 
-        private ActionMap _leaderActions;
-        private GuardMap _leaderGuards;
+        private async Task SendToMachineAsync(string machineId, string eventName)
+        {
+            await _orchestrator.SendEventAsync("test", machineId, eventName);
+        }
 
         public LeaderFollowerStateMachinesTests()
         {
-            // Follower actions
-            _followerActions = new ();
-            _followerGuards = new ();
-
-            // Leader actions
-            _leaderActions = new ActionMap()
-            {
-                ["sendToFollowerToB"] = new List<NamedAction> { new NamedAction("sendToFollowerToB", (sm) => _followerStateMachine.Send("to_b")) },
-                ["sendToFollowerToA"] = new List<NamedAction> { new NamedAction("sendToFollowerToA", (sm) => _followerStateMachine.Send("to_a")) }
-            };
-            _leaderGuards = new ();
-
             // Load state machines from JSON
             var followerJson = LeaderFollowerStateMachine.FollowerStateMachineScript;
             var leaderJson = LeaderFollowerStateMachine.LeaderStateMachineScript;
 
-            _followerStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(followerJson, threadSafe: false, false, _followerActions, _followerGuards).Start();
-            _leaderStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(leaderJson, threadSafe: false, false, _leaderActions, _leaderGuards).Start();
+            // Create follower first
+            var followerActions = new Dictionary<string, Action<OrchestratedContext>>();
+            var followerMachine = CreateMachine("follower", followerJson, followerActions);
+            followerMachine.StartAsync().Wait();
+            _followerMachineId = followerMachine.Id;
+
+            // Now create leader actions with follower ID captured
+            var leaderActions = new Dictionary<string, Action<OrchestratedContext>>
+            {
+                ["sendToFollowerToB"] = ctx => ctx.RequestSend(_followerMachineId, "to_b"),
+                ["sendToFollowerToA"] = ctx => ctx.RequestSend(_followerMachineId, "to_a")
+            };
+
+            // Create leader
+            var leaderMachine = CreateMachine("leader", leaderJson, leaderActions);
+            leaderMachine.StartAsync().Wait();
+            _leaderMachineId = leaderMachine.Id;
         }
 
         [Fact]
         public async Task TestLeaderFollowerStateMachines()
         {
+            // Get pure machines
+            var followerMachine = _machines.First(m => m.Id == _followerMachineId);
+            var leaderMachine = _machines.First(m => m.Id == _leaderMachineId);
+
             // Initially, both state machines should be in state 'a'
-            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateNames());
-            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateNames());
+            Assert.Contains("#follower.a", followerMachine.CurrentState);
+            Assert.Contains("#leader.a", leaderMachine.CurrentState);
 
-            // Wait for the leader to send the 'to_b' event to the follower
-            await Task.Delay(1100);
-            Assert.Equal("#follower.b", _followerStateMachine.GetActiveStateNames());
-            Assert.Equal("#leader.b", _leaderStateMachine.GetActiveStateNames());
+            // Trigger leader to transition to 'b', which should send event to follower
+            await SendToMachineAsync(_leaderMachineId, "GO_TO_B");
+            await WaitForStateAsync(leaderMachine, "#leader.b", timeoutMs: 1000);
+            await WaitForStateAsync(followerMachine, "#follower.b", timeoutMs: 1000);
 
-            // Wait for the leader to send the 'to_a' event to the follower
-            await Task.Delay(1100);
-            Assert.Equal("#follower.a", _followerStateMachine.GetActiveStateNames());
-            Assert.Equal("#leader.a", _leaderStateMachine.GetActiveStateNames());
-        }
-        
-        public void Dispose()
-        {
-            // Cleanup if needed
+            Assert.Contains("#follower.b", followerMachine.CurrentState);
+            Assert.Contains("#leader.b", leaderMachine.CurrentState);
+
+            // Trigger leader to transition back to 'a', which should send event to follower
+            await SendToMachineAsync(_leaderMachineId, "GO_TO_A");
+            await WaitForStateAsync(leaderMachine, "#leader.a", timeoutMs: 1000);
+            await WaitForStateAsync(followerMachine, "#follower.a", timeoutMs: 1000);
+
+            Assert.Contains("#follower.a", followerMachine.CurrentState);
+            Assert.Contains("#leader.a", leaderMachine.CurrentState);
         }
         
         public static class LeaderFollowerStateMachine
@@ -93,16 +106,16 @@ namespace AdvancedFeatures
                 'initial': 'a',
                 'states': {
                     'a': {
-                        'after': {
-                            '1000': {
+                        'on': {
+                            'GO_TO_B': {
                                 'target': 'b',
                                 'actions': 'sendToFollowerToB'
                             }
                         }
                     },
                     'b': {
-                        'after': {
-                            '1000': {
+                        'on': {
+                            'GO_TO_A': {
                                 'target': 'a',
                                 'actions': 'sendToFollowerToA'
                             }

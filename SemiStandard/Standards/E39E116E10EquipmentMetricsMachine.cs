@@ -25,8 +25,9 @@ public class E39E116E10EquipmentMetricsMachine
     private readonly ConcurrentDictionary<E10State, TimeSpan> _stateDurations = new();
     private DateTime _currentStateStartTime;
     private E10State _previousState;
+    private readonly string _instanceId;
 
-    public string MachineId => $"E39_E116_E10_METRICS_{_equipmentId}";
+    public string MachineId => $"E39_E116_E10_METRICS_{_equipmentId}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
     public PerformanceMetrics Metrics => _metrics;
     public E10State CurrentMetricState { get; private set; }
@@ -87,95 +88,98 @@ public class E39E116E10EquipmentMetricsMachine
         _metrics = new PerformanceMetrics();
         CurrentMetricState = E10State.NonScheduled;
         _currentStateStartTime = DateTime.UtcNow;
+        _instanceId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
-        var definition = @"{
-            ""id"": ""E10_EquipmentMetrics"",
-            ""initial"": ""NonScheduled"",
-            ""states"": {
-                ""NonScheduled"": {
-                    ""entry"": ""logNonScheduled"",
-                    ""on"": {
-                        ""SCHEDULE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""startTracking""]
+        var definition = $$"""
+        {
+            id: '{{MachineId}}',
+            initial: 'NonScheduled',
+            states: {
+                NonScheduled: {
+                    entry: 'logNonScheduled',
+                    on: {
+                        SCHEDULE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry', 'startTracking']
                         }
                     }
                 },
-                ""StandBy"": {
-                    ""entry"": ""logStandBy"",
-                    ""on"": {
-                        ""START_PROCESSING"": {
-                            ""target"": ""Productive"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""startProcessing""]
+                StandBy: {
+                    entry: 'logStandBy',
+                    on: {
+                        START_PROCESSING: {
+                            target: 'Productive',
+                            actions: ['recordStateExit', 'recordStateEntry', 'startProcessing']
                         },
-                        ""START_ENGINEERING"": {
-                            ""target"": ""Engineering"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry""]
+                        START_ENGINEERING: {
+                            target: 'Engineering',
+                            actions: ['recordStateExit', 'recordStateEntry']
                         },
-                        ""MAINTENANCE_SCHEDULED"": {
-                            ""target"": ""ScheduledDowntime"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""notifyMaintenance""]
+                        MAINTENANCE_SCHEDULED: {
+                            target: 'ScheduledDowntime',
+                            actions: ['recordStateExit', 'recordStateEntry', 'notifyMaintenance']
                         },
-                        ""FAULT"": {
-                            ""target"": ""UnscheduledDowntime"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""recordFault"", ""raiseAlarm""]
+                        FAULT: {
+                            target: 'UnscheduledDowntime',
+                            actions: ['recordStateExit', 'recordStateEntry', 'recordFault', 'raiseAlarm']
                         },
-                        ""UNSCHEDULE"": {
-                            ""target"": ""NonScheduled"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""stopTracking""]
+                        UNSCHEDULE: {
+                            target: 'NonScheduled',
+                            actions: ['recordStateExit', 'recordStateEntry', 'stopTracking']
                         }
                     }
                 },
-                ""Productive"": {
-                    ""entry"": ""logProductive"",
-                    ""on"": {
-                        ""PROCESSING_COMPLETE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""completeProcessing"", ""updateMetrics""]
+                Productive: {
+                    entry: 'logProductive',
+                    on: {
+                        PROCESSING_COMPLETE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry', 'completeProcessing', 'updateMetrics']
                         },
-                        ""FAULT"": {
-                            ""target"": ""UnscheduledDowntime"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""recordFault"", ""raiseAlarm"", ""abortProcessing""]
+                        FAULT: {
+                            target: 'UnscheduledDowntime',
+                            actions: ['recordStateExit', 'recordStateEntry', 'recordFault', 'raiseAlarm', 'abortProcessing']
                         },
-                        ""PAUSE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry""]
+                        PAUSE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry']
                         }
                     }
                 },
-                ""Engineering"": {
-                    ""entry"": ""logEngineering"",
-                    ""on"": {
-                        ""ENGINEERING_COMPLETE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry""]
+                Engineering: {
+                    entry: 'logEngineering',
+                    on: {
+                        ENGINEERING_COMPLETE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry']
                         },
-                        ""FAULT"": {
-                            ""target"": ""UnscheduledDowntime"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""recordFault"", ""raiseAlarm""]
+                        FAULT: {
+                            target: 'UnscheduledDowntime',
+                            actions: ['recordStateExit', 'recordStateEntry', 'recordFault', 'raiseAlarm']
                         }
                     }
                 },
-                ""ScheduledDowntime"": {
-                    ""entry"": ""logScheduledDowntime"",
-                    ""on"": {
-                        ""MAINTENANCE_COMPLETE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""updateAvailability""]
+                ScheduledDowntime: {
+                    entry: 'logScheduledDowntime',
+                    on: {
+                        MAINTENANCE_COMPLETE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry', 'updateAvailability']
                         }
                     }
                 },
-                ""UnscheduledDowntime"": {
-                    ""entry"": ""logUnscheduledDowntime"",
-                    ""on"": {
-                        ""REPAIR_COMPLETE"": {
-                            ""target"": ""StandBy"",
-                            ""actions"": [""recordStateExit"", ""recordStateEntry"", ""updateMTTR""]
+                UnscheduledDowntime: {
+                    entry: 'logUnscheduledDowntime',
+                    on: {
+                        REPAIR_COMPLETE: {
+                            target: 'StandBy',
+                            actions: ['recordStateExit', 'recordStateEntry', 'updateMTTR']
                         }
                     }
                 }
             }
-        }";
+        }
+        """;
 
         var actions = new Dictionary<string, Action<OrchestratedContext>>
         {
@@ -356,19 +360,19 @@ public class E39E116E10EquipmentMetricsMachine
     }
 
     // Public API methods
-    public async Task<bool> ScheduleAsync()
+    public async Task<EventResult> ScheduleAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SCHEDULE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> UnscheduleAsync()
+    public async Task<EventResult> UnscheduleAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UNSCHEDULE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartProcessingAsync(string lotId, string recipeId)
+    public async Task<EventResult> StartProcessingAsync(string lotId, string recipeId)
     {
         _metrics.CurrentLotId = lotId;
         _metrics.CurrentRecipeId = recipeId;
@@ -377,10 +381,10 @@ public class E39E116E10EquipmentMetricsMachine
             ["lotId"] = lotId,
             ["recipeId"] = recipeId
         });
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CompleteProcessingAsync(int waferCount, int goodWafers)
+    public async Task<EventResult> CompleteProcessingAsync(int waferCount, int goodWafers)
     {
         _metrics.AddWafersProcessed(waferCount);
         _metrics.AddGoodWafers(goodWafers);
@@ -389,59 +393,59 @@ public class E39E116E10EquipmentMetricsMachine
             ["waferCount"] = waferCount,
             ["goodWafers"] = goodWafers
         });
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> PauseProcessingAsync()
+    public async Task<EventResult> PauseProcessingAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PAUSE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartEngineeringAsync(E116ReasonCode reasonCode)
+    public async Task<EventResult> StartEngineeringAsync(E116ReasonCode reasonCode)
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_ENGINEERING", new JObject
         {
             ["reasonCode"] = (int)reasonCode
         });
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CompleteEngineeringAsync()
+    public async Task<EventResult> CompleteEngineeringAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ENGINEERING_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> StartMaintenanceAsync(E116ReasonCode reasonCode)
+    public async Task<EventResult> StartMaintenanceAsync(E116ReasonCode reasonCode)
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAINTENANCE_SCHEDULED", new JObject
         {
             ["reasonCode"] = (int)reasonCode
         });
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CompleteMaintenanceAsync()
+    public async Task<EventResult> CompleteMaintenanceAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAINTENANCE_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> ReportFaultAsync(string faultCode, string description)
+    public async Task<EventResult> ReportFaultAsync(string faultCode, string description)
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "FAULT", new JObject
         {
             ["faultCode"] = faultCode,
             ["description"] = description
         });
-        return result.Success;
+        return result;
     }
 
-    public async Task<bool> CompleteRepairAsync()
+    public async Task<EventResult> CompleteRepairAsync()
     {
         var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REPAIR_COMPLETE", null);
-        return result.Success;
+        return result;
     }
 
     private void CalculateMetrics()

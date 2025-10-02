@@ -524,7 +524,15 @@ namespace XStateNet.Benchmarking
                     }}
                 }}";
 
-                var machine = PureStateMachineFactory.CreateFromScript(machineId, json, orchestrator, actions);
+                var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+                    id: machineId,
+                    json: json,
+                    orchestrator: orchestrator,
+                    orchestratedActions: actions,
+                    guards: null,
+                    services: null,
+                    delays: null,
+                    activities: null);
                 await orchestrator.StartMachineAsync(machineId);
             }
 

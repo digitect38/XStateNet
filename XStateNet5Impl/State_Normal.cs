@@ -39,13 +39,17 @@ public class NormalState : CompoundState
     /// <summary>
     /// 
     /// </summary>
-    public override void Start()
+    public override async Task Start()
     {
-        base.Start();
+        await base.Start();
 
         if (InitialStateName != null)
         {
-            GetState(InitialStateName)?.Start();
+            var initialState = GetState(InitialStateName);
+            if (initialState != null)
+            {
+                await initialState.Start();
+            }
         }
     }
 
@@ -113,7 +117,7 @@ public class NormalState : CompoundState
     /// <param name="recursive"></param>
     /// <param name="historyType"></param>
     /// <returns></returns>
-    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public override async Task<Task> EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
 
         string? nextActiveStateName = InitialStateName;
@@ -143,29 +147,47 @@ public class NormalState : CompoundState
         }
 
         childHistoryType = targetHistoryState?.HistoryType == HistoryType.Deep ? HistoryType.Deep : HistoryType.None;
-        
+
 
         if (postAction)
         {
             if (recursive && nextActiveStateName != null)
             {
-
-                GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
+                var childTaskTask = GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
+                if (childTaskTask != null)
+                {
+                    var childTask = await childTaskTask;
+                    if (childTask != null)
+                        await childTask;
+                }
             }
 
-            base.EntryState(postAction, recursive, historyType, targetHistoryState);
+            var baseTaskTask = base.EntryState(postAction, recursive, historyType, targetHistoryState);
+            var baseTask = await baseTaskTask;
+            if (baseTask != null)
+                await baseTask;
+            return Task.FromResult(Task.CompletedTask);
         }
         else // pre action
         {
-            base.EntryState(postAction, recursive, historyType, targetHistoryState);
+            var baseTaskTask = base.EntryState(postAction, recursive, historyType, targetHistoryState);
+            var baseTask = await baseTaskTask;
+            if (baseTask != null)
+                await baseTask;
 
             if (recursive && nextActiveStateName != null)
             {
-                GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
+                var childTaskTask = GetState(nextActiveStateName)?.EntryState(postAction, recursive, childHistoryType, targetHistoryState);
+                if (childTaskTask != null)
+                {
+                    var childTask = await childTaskTask;
+                    if (childTask != null)
+                        await childTask;
+                }
             }
-        }
 
-        return Task.CompletedTask;
+            return Task.FromResult(Task.CompletedTask);
+        }
     }
 
     /// <summary>
@@ -174,7 +196,7 @@ public class NormalState : CompoundState
     /// <param name="postAction">action while return the method</param>
     /// <param name="recursive">recursion to sub states</param>
 
-    public override Task ExitState(bool postAction = true, bool recursive = false)
+    public override async Task<Task> ExitState(bool postAction = true, bool recursive = false)
     {
         //StateMachine.Log($">>>- {Name}.OnExit()");
 
@@ -187,21 +209,39 @@ public class NormalState : CompoundState
         {
             if (recursive && ActiveStateName != null)
             {
-                GetState(ActiveStateName)?.ExitState(postAction, recursive);
+                var childTaskTask = GetState(ActiveStateName)?.ExitState(postAction, recursive);
+                if (childTaskTask != null)
+                {
+                    var childTask = await childTaskTask;
+                    if (childTask != null)
+                        await childTask;
+                }
             }
-            base.ExitState(postAction, recursive);
+            var baseTaskTask = base.ExitState(postAction, recursive);
+            var baseTask = await baseTaskTask;
+            if (baseTask != null)
+                await baseTask;
         }
         else // pre action
         {
-            base.ExitState(postAction, recursive);
+            var baseTaskTask = base.ExitState(postAction, recursive);
+            var baseTask = await baseTaskTask;
+            if (baseTask != null)
+                await baseTask;
 
             if (recursive && ActiveStateName != null)
             {
-                GetState(ActiveStateName)?.ExitState(postAction, recursive);
+                var childTaskTask = GetState(ActiveStateName)?.ExitState(postAction, recursive);
+                if (childTaskTask != null)
+                {
+                    var childTask = await childTaskTask;
+                    if (childTask != null)
+                        await childTask;
+                }
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(Task.CompletedTask);
     }
 
     /// <summary>

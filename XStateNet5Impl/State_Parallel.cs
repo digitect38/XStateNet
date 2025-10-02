@@ -14,9 +14,9 @@ public class ParallelState : CompoundState
     {
     }
 
-    public override void Start()
+    public override async Task Start()
     {
-        base.Start();
+        await base.Start();
 
         // Start all parallel regions synchronously to ensure they're initialized
         // before returning from Start()
@@ -33,12 +33,15 @@ public class ParallelState : CompoundState
                 if (subState is CompoundState compoundState && compoundState.InitialStateName != null)
                 {
                     var initialState = GetState(compoundState.InitialStateName);
-                    initialState?.Start();
+                    if (initialState != null)
+                    {
+                        await initialState.Start();
+                    }
                 }
                 else
                 {
                     // Otherwise just start the substate directly
-                    subState.Start();
+                    await subState.Start();
                 }
             }
         }
@@ -97,7 +100,7 @@ public class ParallelState : CompoundState
     /// <param name="targetHistoryState"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public override async Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public override async Task<Task> EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
         //StateMachine.Log(">>>- State_Parallel.EntryState: " + Name);
         if (StateMachine == null) throw new Exception("StateMachine is null");
@@ -112,15 +115,16 @@ public class ParallelState : CompoundState
                     // Use ConcurrentBag for thread-safe collection
                     var taskBag = new ConcurrentBag<Task>();
 
-                    Parallel.ForEach(SubStateNames, subStateName =>
+                    await Parallel.ForEachAsync(SubStateNames, async (subStateName, ct) =>
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
-                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        var task = await subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
                             taskBag.Add(task);
                         }
                     });
+
 
                     // Wait for all collected tasks
                     if (!taskBag.IsEmpty)
@@ -133,7 +137,7 @@ public class ParallelState : CompoundState
                     foreach (var subStateName in SubStateNames)
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
-                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        var task = await subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
                             tasks.Add(task);
@@ -144,24 +148,24 @@ public class ParallelState : CompoundState
                 }
             }
 
-            await base.EntryState(postAction, recursive, historyType);
+            return await base.EntryState(postAction, recursive, historyType);
         }
         else
         {
-            await base.EntryState(postAction, recursive, historyType);
+            var baseTask = await base.EntryState(postAction, recursive, historyType);
 
             if (recursive && SubStateNames != null)
             {
                 // Only use parallel if we have enough items to benefit
-                if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
+                //if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
                     // Use ConcurrentBag for thread-safe collection
                     var taskBag = new ConcurrentBag<Task>();
 
-                    Parallel.ForEach(SubStateNames, subStateName =>
+                    await Parallel.ForEachAsync(SubStateNames, async (subStateName, ct) =>
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
-                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        var task = await subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
                             taskBag.Add(task);
@@ -172,6 +176,7 @@ public class ParallelState : CompoundState
                     if (!taskBag.IsEmpty)
                         await Task.WhenAll(taskBag);
                 }
+                /*
                 else
                 {
                     // Serial execution for small collections
@@ -179,7 +184,7 @@ public class ParallelState : CompoundState
                     foreach (var subStateName in SubStateNames)
                     {
                         var subState = StateMachine.GetState(subStateName) as CompoundState;
-                        var task = subState?.EntryState(postAction, recursive, historyType);
+                        var task = await subState?.EntryState(postAction, recursive, historyType);
                         if (task != null)
                         {
                             tasks.Add(task);
@@ -187,8 +192,10 @@ public class ParallelState : CompoundState
                     }
                     if (tasks.Count > 0)
                         await Task.WhenAll(tasks);
-                }
+                }*/
             }
+
+            return baseTask;
         }
     }
 
@@ -198,7 +205,7 @@ public class ParallelState : CompoundState
     /// <param name="postAction">action while return the method</param>
     /// <param name="recursive">recursion to sub states</param>
 
-    public override async Task ExitState(bool postAction = true, bool recursive = false)
+    public override async Task<Task> ExitState(bool postAction = true, bool recursive = false)
     {
         if (postAction)
         {
@@ -208,11 +215,11 @@ public class ParallelState : CompoundState
                 if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
                     // Pre-allocate array for better performance
-                var tasks = new Task?[SubStateNames.Count];
-                var index = 0;
-                    Parallel.ForEach(SubStateNames, subStateName =>
+                    var tasks = new Task?[SubStateNames.Count];
+                    var index = 0;
+                    await Parallel.ForEachAsync(SubStateNames, async (subStateName, ct) =>
                     {
-                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        var task = await GetState(subStateName)?.ExitState(postAction, recursive);
                         if (task != null)
                         {
                             tasks[Interlocked.Increment(ref index) - 1] = task;
@@ -229,7 +236,7 @@ public class ParallelState : CompoundState
                     var tasks = new List<Task>(SubStateNames.Count);
                     foreach (var subStateName in SubStateNames)
                     {
-                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        var task = await GetState(subStateName)?.ExitState(postAction, recursive);
                         if (task != null)
                         {
                             tasks.Add(task);
@@ -240,11 +247,11 @@ public class ParallelState : CompoundState
                 }
             }
 
-            await base.ExitState(postAction, recursive);
+            return await base.ExitState(postAction, recursive);
         }
         else // pre action
         {
-            await base.ExitState(postAction, recursive);
+            var baseTask = await base.ExitState(postAction, recursive);
 
             if (recursive && SubStateNames != null)
             {
@@ -252,11 +259,11 @@ public class ParallelState : CompoundState
                 if (PerformanceOptimizations.ShouldUseParallel(SubStateNames))
                 {
                     // Pre-allocate array for better performance
-                var tasks = new Task?[SubStateNames.Count];
-                var index = 0;
-                    Parallel.ForEach(SubStateNames, subStateName =>
+                    var tasks = new Task?[SubStateNames.Count];
+                    var index = 0;
+                    await Parallel.ForEachAsync(SubStateNames, async (subStateName, ct) =>
                     {
-                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        var task = await GetState(subStateName)?.ExitState(postAction, recursive);
                         if (task != null)
                         {
                             tasks[Interlocked.Increment(ref index) - 1] = task;
@@ -273,7 +280,7 @@ public class ParallelState : CompoundState
                     var tasks = new List<Task>(SubStateNames.Count);
                     foreach (var subStateName in SubStateNames)
                     {
-                        var task = GetState(subStateName)?.ExitState(postAction, recursive);
+                        var task = await GetState(subStateName)?.ExitState(postAction, recursive);
                         if (task != null)
                         {
                             tasks.Add(task);
@@ -283,6 +290,7 @@ public class ParallelState : CompoundState
                         await Task.WhenAll(tasks);
                 }
             }
+            return baseTask;
         }
     }
 

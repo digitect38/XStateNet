@@ -3,6 +3,9 @@ using Xunit;
 using Xunit.Abstractions;
 using XStateNet;
 
+// Suppress obsolete warning - factory tests specifically testing the CreateFromScript method
+#pragma warning disable CS0618
+
 namespace Test
 {
     /// <summary>

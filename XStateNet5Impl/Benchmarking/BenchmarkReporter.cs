@@ -149,35 +149,67 @@ namespace XStateNet.Benchmarking
 
             var successful = _results.SuccessfulResults;
 
-            // Throughput Analysis
-            var throughputResults = successful.Where(r => r.BenchmarkName.Contains("Throughput")).ToList();
+            // Throughput Analysis with Bar Chart
+            var throughputResults = successful.Where(r => r.BenchmarkName.Contains("Throughput") || r.BenchmarkName.Contains("Concurrency")).ToList();
             if (throughputResults.Any())
             {
-                Console.WriteLine("🚀 Throughput Analysis:");
+                Console.WriteLine("🚀 Throughput Comparison (events/sec):");
+                Console.WriteLine();
+
+                var maxThroughput = throughputResults.Max(r => r.EventsPerSecond);
+                var barWidth = 50;
+
+                foreach (var result in throughputResults.OrderBy(r => r.EventsPerSecond))
+                {
+                    var name = result.BenchmarkName.Replace("Throughput - ", "").Replace("Stress - ", "");
+                    var ratio = result.EventsPerSecond / maxThroughput;
+                    var barLength = (int)(ratio * barWidth);
+                    var bar = new string('█', barLength);
+                    var spaces = new string(' ', barWidth - barLength);
+
+                    Console.WriteLine($"   {name,-25} {bar}{spaces} {result.EventsPerSecond,12:N0} evt/s");
+                }
+
+                Console.WriteLine();
+
                 var sequential = throughputResults.FirstOrDefault(r => r.BenchmarkName.Contains("Sequential"));
                 var parallel = throughputResults.FirstOrDefault(r => r.BenchmarkName.Contains("Parallel"));
 
                 if (sequential != null && parallel != null)
                 {
                     var improvement = (parallel.EventsPerSecond / sequential.EventsPerSecond - 1) * 100;
-                    Console.WriteLine($"   • Sequential: {sequential.EventsPerSecond:F0} events/sec");
-                    Console.WriteLine($"   • Parallel: {parallel.EventsPerSecond:F0} events/sec");
-                    Console.WriteLine($"   • Parallel Improvement: {improvement:F1}%");
+                    Console.WriteLine($"   📊 Parallel vs Sequential: {improvement:F1}% {(improvement >= 0 ? "improvement" : "degradation")}");
                 }
                 Console.WriteLine();
             }
 
-            // Latency Analysis
+            // Latency Analysis with Bar Chart
             var latencyResults = successful.Where(r => r.BenchmarkName.Contains("Latency") && r.AverageLatency > 0).ToList();
             if (latencyResults.Any())
             {
-                Console.WriteLine("⚡ Latency Analysis:");
-                foreach (var result in latencyResults)
+                Console.WriteLine("⚡ Latency Comparison (lower is better):");
+                Console.WriteLine();
+
+                var maxLatency = latencyResults.Max(r => r.AverageLatency);
+                var barWidth = 50;
+
+                foreach (var result in latencyResults.OrderByDescending(r => r.AverageLatency))
                 {
-                    Console.WriteLine($"   • {result.BenchmarkName}: {result.AverageLatency:F2} ms average");
+                    var name = result.BenchmarkName.Replace("Latency - ", "");
+                    var ratio = result.AverageLatency / maxLatency;
+                    var barLength = (int)(ratio * barWidth);
+                    var bar = new string('█', barLength);
+                    var spaces = new string(' ', barWidth - barLength);
+
+                    Console.WriteLine($"   {name,-25} {bar}{spaces} {result.AverageLatency,8:F2} ms");
+
                     if (result.LatencyPercentiles.ContainsKey("P99"))
                     {
-                        Console.WriteLine($"     P99: {result.LatencyPercentiles["P99"]:F2} ms");
+                        var p99Ratio = result.LatencyPercentiles["P99"] / maxLatency;
+                        var p99BarLength = (int)(p99Ratio * barWidth);
+                        var p99Bar = new string('░', p99BarLength);
+                        var p99Spaces = new string(' ', barWidth - p99BarLength);
+                        Console.WriteLine($"   {"  └─ P99",-25} {p99Bar}{p99Spaces} {result.LatencyPercentiles["P99"],8:F2} ms");
                     }
                 }
                 Console.WriteLine();

@@ -34,136 +34,137 @@ public class SemiEquipmentMachine
 
         // Equipment state machine definition
         // Based on SEMI E30 Equipment States Model
-        var definition = @"
+        var definition = """
         {
-            ""id"": ""semiEquipment"",
-            ""initial"": ""offline"",
-            ""context"": {
-                ""equipmentId"": """",
-                ""controlState"": ""offline"",
-                ""processingState"": ""idle"",
-                ""alarmState"": ""none"",
-                ""spooling"": false
+            id: 'semiEquipment',
+            initial: 'offline',
+            context: {
+                equipmentId: '',
+                controlState: 'offline',
+                processingState: 'idle',
+                alarmState: 'none',
+                spooling: false
             },
-            ""states"": {
-                ""offline"": {
-                    ""entry"": [""onOfflineEntry""],
-                    ""on"": {
-                        ""ATTEMPT_ONLINE"": ""local""
+            states: {
+                offline: {
+                    entry: ['onOfflineEntry'],
+                    on: {
+                        ATTEMPT_ONLINE: 'local'
                     }
                 },
-                ""local"": {
-                    ""entry"": [""onLocalEntry""],
-                    ""on"": {
-                        ""GO_REMOTE"": ""remote"",
-                        ""GO_OFFLINE"": ""offline""
+                local: {
+                    entry: ['onLocalEntry'],
+                    on: {
+                        GO_REMOTE: 'remote',
+                        GO_OFFLINE: 'offline'
                     },
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""entry"": [""onIdleEntry""],
-                            ""on"": {
-                                ""SETUP"": ""setup"",
-                                ""EXECUTE"": {
-                                    ""target"": ""executing"",
-                                    ""cond"": ""isReady""
+                    initial: 'idle',
+                    states: {
+                        idle: {
+                            entry: ['onIdleEntry'],
+                            on: {
+                                SETUP: 'setup',
+                                EXECUTE: {
+                                    target: 'executing',
+                                    cond: 'isReady'
                                 }
                             }
                         },
-                        ""setup"": {
-                            ""entry"": [""onSetupEntry""],
-                            ""on"": {
-                                ""SETUP_COMPLETE"": ""ready"",
-                                ""ABORT"": ""idle""
+                        setup: {
+                            entry: ['onSetupEntry'],
+                            on: {
+                                SETUP_COMPLETE: 'ready',
+                                ABORT: 'idle'
                             }
                         },
-                        ""ready"": {
-                            ""entry"": [""onReadyEntry""],
-                            ""on"": {
-                                ""EXECUTE"": ""executing"",
-                                ""SETUP"": ""setup""
+                        ready: {
+                            entry: ['onReadyEntry'],
+                            on: {
+                                EXECUTE: 'executing',
+                                SETUP: 'setup'
                             }
                         },
-                        ""executing"": {
-                            ""entry"": [""onExecutingEntry""],
-                            ""on"": {
-                                ""PAUSE"": ""paused"",
-                                ""COMPLETE"": ""completing"",
-                                ""ABORT"": ""idle""
+                        executing: {
+                            entry: ['onExecutingEntry'],
+                            on: {
+                                PAUSE: 'paused',
+                                COMPLETE: 'completing',
+                                ABORT: 'idle'
                             }
                         },
-                        ""paused"": {
-                            ""entry"": [""onPausedEntry""],
-                            ""on"": {
-                                ""RESUME"": ""executing"",
-                                ""ABORT"": ""idle""
+                        paused: {
+                            entry: ['onPausedEntry'],
+                            on: {
+                                RESUME: 'executing',
+                                ABORT: 'idle'
                             }
                         },
-                        ""completing"": {
-                            ""entry"": [""onCompletingEntry""],
-                            ""on"": {
-                                ""COMPLETE_DONE"": ""idle""
+                        completing: {
+                            entry: ['onCompletingEntry'],
+                            on: {
+                                COMPLETE_DONE: 'idle'
                             }
                         }
                     }
                 },
-                ""remote"": {
-                    ""entry"": [""onRemoteEntry""],
-                    ""on"": {
-                        ""GO_LOCAL"": ""local"",
-                        ""GO_OFFLINE"": ""offline""
+                remote: {
+                    entry: ['onRemoteEntry'],
+                    on: {
+                        GO_LOCAL: 'local',
+                        GO_OFFLINE: 'offline'
                     },
-                    ""initial"": ""idle"",
-                    ""states"": {
-                        ""idle"": {
-                            ""entry"": [""onIdleEntry""],
-                            ""on"": {
-                                ""HOST_SETUP"": ""setup"",
-                                ""HOST_START"": {
-                                    ""target"": ""executing"",
-                                    ""cond"": ""isReady""
+                    initial: 'idle',
+                    states: {
+                        idle: {
+                            entry: ['onIdleEntry'],
+                            on: {
+                                HOST_SETUP: 'setup',
+                                HOST_START: {
+                                    target: 'executing',
+                                    cond: 'isReady'
                                 }
                             }
                         },
-                        ""setup"": {
-                            ""entry"": [""onSetupEntry""],
-                            ""on"": {
-                                ""SETUP_COMPLETE"": ""ready"",
-                                ""HOST_ABORT"": ""idle""
+                        setup: {
+                            entry: ['onSetupEntry'],
+                            on: {
+                                SETUP_COMPLETE: 'ready',
+                                HOST_ABORT: 'idle'
                             }
                         },
-                        ""ready"": {
-                            ""entry"": [""onReadyEntry""],
-                            ""on"": {
-                                ""HOST_START"": ""executing"",
-                                ""HOST_SETUP"": ""setup""
+                        ready: {
+                            entry: ['onReadyEntry'],
+                            on: {
+                                HOST_START: 'executing',
+                                HOST_SETUP: 'setup'
                             }
                         },
-                        ""executing"": {
-                            ""entry"": [""onExecutingEntry""],
-                            ""on"": {
-                                ""HOST_PAUSE"": ""paused"",
-                                ""COMPLETE"": ""completing"",
-                                ""HOST_ABORT"": ""idle""
+                        executing: {
+                            entry: ['onExecutingEntry'],
+                            on: {
+                                HOST_PAUSE: 'paused',
+                                COMPLETE: 'completing',
+                                HOST_ABORT: 'idle'
                             }
                         },
-                        ""paused"": {
-                            ""entry"": [""onPausedEntry""],
-                            ""on"": {
-                                ""HOST_RESUME"": ""executing"",
-                                ""HOST_ABORT"": ""idle""
+                        paused: {
+                            entry: ['onPausedEntry'],
+                            on: {
+                                HOST_RESUME: 'executing',
+                                HOST_ABORT: 'idle'
                             }
                         },
-                        ""completing"": {
-                            ""entry"": [""onCompletingEntry""],
-                            ""on"": {
-                                ""COMPLETE_DONE"": ""idle""
+                        completing: {
+                            entry: ['onCompletingEntry'],
+                            on: {
+                                COMPLETE_DONE: 'idle'
                             }
                         }
                     }
                 }
             }
-        }";
+        }
+        """;
 
         // Orchestrated actions for equipment state machine
         var actions = new Dictionary<string, Action<OrchestratedContext>>

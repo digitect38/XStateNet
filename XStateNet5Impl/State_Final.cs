@@ -8,9 +8,9 @@ public class FinalState : NormalState
     {
     }
 
-    public override void Start()
+    public override async Task Start()
     {
-        base.Start();
+        await base.Start();
     }
 
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
@@ -19,20 +19,25 @@ public class FinalState : NormalState
         base.BuildTransitionList(eventName, transitionList);
     }
 
-    public override Task EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
+    public override async Task<Task> EntryState(bool postAction = false, bool recursive = false, HistoryType historyType = HistoryType.None, HistoryState? targetHistoryState = null)
     {
-        base.EntryState(postAction, recursive, historyType, targetHistoryState);
+        var baseTaskTask = base.EntryState(postAction, recursive, historyType, targetHistoryState);
+        var baseTask = await baseTaskTask;
+        if (baseTask != null)
+            await baseTask;
         IsDone = true;
         Parent?.OnDone();
-        
-        return Task.CompletedTask;
+
+        return Task.FromResult(Task.CompletedTask);
     }
 
-    public override Task ExitState(bool postAction = true, bool recursive = false)
+    public override async Task<Task> ExitState(bool postAction = true, bool recursive = false)
     {
-        base.ExitState(postAction, recursive);
-
-        return Task.CompletedTask;
+        var baseTaskTask = base.ExitState(postAction, recursive);
+        var baseTask = await baseTaskTask;
+        if (baseTask != null)
+            await baseTask;
+        return Task.FromResult(Task.CompletedTask);
     }    
     
     public override void PrintActiveStateTree(int depth)

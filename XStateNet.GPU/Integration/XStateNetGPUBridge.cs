@@ -7,6 +7,10 @@ using XStateNet;
 using XStateNet.GPU.Core;
 using Newtonsoft.Json;
 
+// Suppress obsolete warning - GPU bridge infrastructure interfaces with legacy StateMachine
+// GPU acceleration requires StateMachineFactory.CreateFromScript for parallel instance management
+#pragma warning disable CS0618
+
 namespace XStateNet.GPU.Integration
 {
     /// <summary>

@@ -1,0 +1,141 @@
+C:\Develop25\XStateNet\SemiStandard.Testing.Console\XStateTestProgram.cs(85,75): warning CS1998: 이 비동기 메서드에는 'await' 연산자가 없으며 메서드가 동시에 실행됩니다. 'await' 연산자를 사용하여 비블로킹 API 호출을 대기하거나, 'await Task.Run(...)'을 사용하여 백그라운드 스레드에서 CPU 바인딩된 작업을 수행하세요. [C:\Develop25\XStateNet\SemiStandard.Testing.Console\SemiStandard.Testing.Console.csproj]
+C:\Develop25\XStateNet\SemiStandard\Testing\SimulatorTestProgram.cs(29,53): warning CS0436: 'C:\Develop25\XStateNet\SemiStandard.Testing.Console\..\SemiStandard\Testing\SimulatorTestProgram.cs'의 'SimulatorTestProgram' 형식이 'SemiStandard, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'에서 가져온 형식 'SimulatorTestProgram'과(와) 충돌합니다. 'C:\Develop25\XStateNet\SemiStandard.Testing.Console\..\SemiStandard\Testing\SimulatorTestProgram.cs'에 정의된 형식을 사용합니다. [C:\Develop25\XStateNet\SemiStandard.Testing.Console\SemiStandard.Testing.Console.csproj]
+C:\Develop25\XStateNet\SemiStandard.Testing.Console\RealisticScenarioProgram.cs(353,20): warning CS8603: 가능한 null 참조 반환입니다. [C:\Develop25\XStateNet\SemiStandard.Testing.Console\SemiStandard.Testing.Console.csproj]
+
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║  XStateNet Production-Ready Multi-Machine Orchestration      ║
+║                                                              ║
+║  Demonstrating:                                              ║
+║  • 9 interconnected state machines                           ║
+║  • EventBusOrchestrator coordination                         ║
+║  • SEMI E84, E87, E90 standards                              ║
+║  • Complete wafer fab journey                                ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════╗
+║  XStateNet Production-Ready Orchestrated Fab Controller      ║
+║  Multi-Machine State-Machine Coordination System             ║
+╚══════════════════════════════════════════════════════════════╝
+
+🔧 Initializing state machines...
+[2025-09-30 16:19:06.307] [INFO] MACHINE_REGISTERED machine_id=LOADPORT_001 machine_type=StateMachine
+[Orchestrator] Registered machine: LOADPORT_001 on bus 1
+[2025-09-30 16:19:06.318] [INFO] MACHINE_REGISTERED machine_id=WTR_001 machine_type=StateMachine
+[Orchestrator] Registered machine: WTR_001 on bus 3
+[2025-09-30 16:19:06.321] [INFO] MACHINE_REGISTERED machine_id=PREALIGNER_001 machine_type=StateMachine
+[Orchestrator] Registered machine: PREALIGNER_001 on bus 1
+[2025-09-30 16:19:06.324] [INFO] MACHINE_REGISTERED machine_id=BUFFER_001 machine_type=StateMachine
+[Orchestrator] Registered machine: BUFFER_001 on bus 2
+[2025-09-30 16:19:06.328] [INFO] MACHINE_REGISTERED machine_id=CMP_001 machine_type=StateMachine
+[Orchestrator] Registered machine: CMP_001 on bus 0
+[2025-09-30 16:19:06.331] [INFO] MACHINE_REGISTERED machine_id=CLEAN_001 machine_type=StateMachine
+[Orchestrator] Registered machine: CLEAN_001 on bus 3
+[2025-09-30 16:19:06.333] [INFO] MACHINE_REGISTERED machine_id=DRYER_001 machine_type=StateMachine
+[Orchestrator] Registered machine: DRYER_001 on bus 1
+[2025-09-30 16:19:06.335] [INFO] MACHINE_REGISTERED machine_id=INSPECTION_001 machine_type=StateMachine
+[Orchestrator] Registered machine: INSPECTION_001 on bus 0
+[2025-09-30 16:19:06.338] [INFO] MACHINE_REGISTERED machine_id=UNLOADPORT_001 machine_type=StateMachine
+[Orchestrator] Registered machine: UNLOADPORT_001 on bus 3
+✅ Registered 9 state machines with orchestrator
+
+🚀 Starting all state machines...
+[WTR_001] 🤖 Robot ready for next transfer
+[PREALIGNER_001] ⚪ Pre-aligner ready
+[BUFFER_001] 📦 Buffer ready for wafer
+[CMP_001] 💎 CMP machine ready
+[CLEAN_001] 💧 Cleaning station ready
+[DRYER_001] 🌀 Spin dryer ready
+[INSPECTION_001] 🔍 Inspection station ready
+[UNLOADPORT_001] 📤 Unload port ready
+✅ All 9 state machines initialized and ready
+
+╔══════════════════════════════════════════════════════════════╗
+║  System Status                                                ║
+╠══════════════════════════════════════════════════════════════╣
+║  Load Port:    #loadPort.idle                                 ║
+║  Robot:        #waferTransferRobot.idle                       ║
+║  Pre-Aligner:  #preAligner.ready                              ║
+║  Buffer:       #buffer.empty                                  ║
+║  CMP:          #cmp.idle                                      ║
+║  Cleaning:     #cleaning.ready                                ║
+║  Dryer:        #dryer.ready                                   ║
+║  Inspection:   #inspection.ready                              ║
+║  Unload Port:  #unloadPort.idle                               ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+🚀 Starting wafer processing...
+
+╔══════════════════════════════════════════════════════════════╗
+║  Starting Wafer Journey: W011906                                ║
+╚══════════════════════════════════════════════════════════════╝
+
+[LOADPORT_001] 📥 Storing carrier information
+[LOADPORT_001] 📍 E84 Step 1: VALID - Carrier is valid
+[LOADPORT_001] 🔧 E84 Signal: VALID=1
+[Orchestrator] Processed LOAD_CARRIER for LOADPORT_001, new state: #loadPort.validating
+[2025-09-30 16:19:06.378] [INFO] EVENT_PROCESSED machine_id=LOADPORT_001 event_name=LOAD_CARRIER duration_ms=22.72 status=SUCCESS
+[LOADPORT_001] 📍 E84 Step 2: Waiting for CS_0 (carrier seated)
+[LOADPORT_001] 🔧 E84 Signal: CS_0=1
+[LOADPORT_001] 📍 E84 Step 3: TR_REQ (transfer request)
+[LOADPORT_001] 🔧 E84 Signal: TR_REQ=1
+[LOADPORT_001] 📍 E84 Step 4: Waiting for READY
+[LOADPORT_001] 🔧 E84 Signal: READY=1
+[LOADPORT_001] 📍 E84 Step 5: BUSY (transfer in progress)
+[LOADPORT_001] 🔧 E84 Signal: BUSY=1
+[LOADPORT_001] 📍 E84 Step 6: COMPT (transfer complete)
+[LOADPORT_001] 🔧 E84 Signal: COMPT=1
+[LOADPORT_001] ✅ E84 Load complete - Notified robot
+
+╔══════════════════════════════════════════════════════════════╗
+║  Wafer Journey Complete!                                     ║
+║  Wafer ID: W011906                                            ║
+║  Total Time: 25.0s                                             ║
+╚══════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════╗
+║  System Status                                                ║
+╠══════════════════════════════════════════════════════════════╣
+║  Load Port:    #loadPort.transferComplete                     ║
+║  Robot:        #waferTransferRobot.idle                       ║
+║  Pre-Aligner:  #preAligner.ready                              ║
+║  Buffer:       #buffer.empty                                  ║
+║  CMP:          #cmp.idle                                      ║
+║  Cleaning:     #cleaning.ready                                ║
+║  Dryer:        #dryer.ready                                   ║
+║  Inspection:   #inspection.ready                              ║
+║  Unload Port:  #unloadPort.idle                               ║
+╚══════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════╗
+║  Orchestrator Performance Metrics                            ║
+╠══════════════════════════════════════════════════════════════╣
+║  Metrics available through orchestrator API                  ║
+╚══════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════╗
+║  Demo Complete!                                              ║
+║                                                              ║
+║  This demonstrates XStateNet's production-ready capability   ║
+║  for complex multi-machine coordination in semiconductor     ║
+║  manufacturing environments.                                 ║
+║                                                              ║
+║  Key Features Demonstrated:                                  ║
+║  ✅ State machine isolation & encapsulation                  ║
+║  ✅ Event-driven inter-machine communication                 ║
+║  ✅ Load-balanced event processing (4-bus pool)              ║
+║  ✅ SEMI standards implementation (E84/E87/E90)              ║
+║  ✅ Real-time metrics & monitoring                           ║
+║  ✅ Production-ready architecture                            ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+Press any key to exit...
+[Orchestrator] Disposed
+Unhandled exception. System.InvalidOperationException: Cannot read keys when either application does not have a console or when console input has been redirected. Try Console.Read.
+   at System.ConsolePal.ReadKey(Boolean intercept)
+   at SemiStandard.Testing.Console.OrchestratedFabDemo.RunAsync() in C:\Develop25\XStateNet\SemiStandard.Testing.Console\OrchestratedFabDemo.cs:line 68
+   at SemiStandard.Testing.Console.Program.Main(String[] args) in C:\Develop25\XStateNet\SemiStandard.Testing.Console\Program.cs:line 30
+   at SemiStandard.Testing.Console.Program.<Main>(String[] args)
