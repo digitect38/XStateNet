@@ -111,12 +111,12 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""counter"",
-                ""initial"": ""active"",
-                ""states"": {
-                    ""active"": {
-                        ""entry"": [""count""],
-                        ""on"": { ""TICK"": ""active"" }
+                id: 'counter',
+                initial: 'active',
+                states: {
+                    active: {
+                        entry: ['count'],
+                        on: { TICK: 'active' }
                     }
                 }
             }";
@@ -188,11 +188,11 @@ namespace OrchestratorTestApp
             for (int i = 0; i < 10000; i++)
             {
                 var json = $@"{{
-                    ""id"": ""m{i}"",
-                    ""initial"": ""idle"",
-                    ""states"": {{
-                        ""idle"": {{ ""on"": {{ ""START"": ""active"" }} }},
-                        ""active"": {{ ""on"": {{ ""STOP"": ""idle"" }} }}
+                    id: 'm{i}',
+                    initial: 'idle',
+                    states: {{
+                        idle: {{ on: {{ START: 'active' }} }},
+                        active: {{ on: {{ STOP: 'idle' }} }}
                     }}
                 }}";
 
@@ -235,9 +235,9 @@ namespace OrchestratorTestApp
                 try
                 {
                     var json = $@"{{
-                        ""id"": ""temp"",
-                        ""initial"": ""active"",
-                        ""states"": {{ ""active"": {{}} }}
+                        id: 'temp',
+                        initial: 'active',
+                        states: {{ active: {{}} }}
                     }}";
 
                     var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
@@ -282,15 +282,15 @@ namespace OrchestratorTestApp
                 };
 
                 var json = $@"{{
-                    ""id"": ""m{i}"",
-                    ""initial"": ""idle"",
-                    ""states"": {{
-                        ""idle"": {{
-                            ""on"": {{ ""TRIGGER"": ""forwarding"" }}
+                    id: 'm{i}',
+                    initial: 'idle',
+                    states: {{
+                        idle: {{
+                            on: {{ TRIGGER: 'forwarding' }}
                         }},
-                        ""forwarding"": {{
-                            ""entry"": [""forward""],
-                            ""on"": {{ ""DONE"": ""idle"" }}
+                        forwarding: {{
+                            entry: ['forward'],
+                            on: {{ DONE: 'idle' }}
                         }}
                     }}
                 }}";
@@ -326,12 +326,12 @@ namespace OrchestratorTestApp
             for (int i = 0; i < machineCount; i++)
             {
                 var json = $@"{{
-                    ""id"": ""m{i}"",
-                    ""initial"": ""s1"",
-                    ""states"": {{
-                        ""s1"": {{ ""on"": {{ ""E1"": ""s2"", ""E2"": ""s3"" }} }},
-                        ""s2"": {{ ""on"": {{ ""E1"": ""s3"", ""E2"": ""s1"" }} }},
-                        ""s3"": {{ ""on"": {{ ""E1"": ""s1"", ""E2"": ""s2"" }} }}
+                    id: 'm{i}',
+                    initial: 's1',
+                    states: {{
+                        s1: {{ on: {{ E1: 's2', E2: 's3' }} }},
+                        s2: {{ on: {{ E1: 's3', E2: 's1' }} }},
+                        s3: {{ on: {{ E1: 's1', E2: 's2' }} }}
                     }}
                 }}";
 
@@ -386,20 +386,20 @@ namespace OrchestratorTestApp
             };
 
             var pingJson = @"{
-                ""id"": ""ping"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": { ""on"": { ""PING"": ""sending"" } },
-                    ""sending"": { ""entry"": [""sendPong""], ""on"": { ""PONG"": ""idle"" } }
+                id: 'ping',
+                initial: 'idle',
+                states: {
+                    idle: { on: { PING: 'sending' } },
+                    sending: { entry: ['sendPong'], on: { PONG: 'idle' } }
                 }
             }";
 
             var pongJson = @"{
-                ""id"": ""pong"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": { ""on"": { ""PONG"": ""sending"" } },
-                    ""sending"": { ""entry"": [""sendPing""], ""on"": { ""PING"": ""idle"" } }
+                id: 'pong',
+                initial: 'idle',
+                states: {
+                    idle: { on: { PONG: 'sending' } },
+                    sending: { entry: ['sendPing'], on: { PING: 'idle' } }
                 }
             }";
 
@@ -461,12 +461,12 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""racer"",
-                ""initial"": ""racing"",
-                ""states"": {
-                    ""racing"": {
-                        ""entry"": [""increment""],
-                        ""on"": { ""RACE"": ""racing"" }
+                id: 'racer',
+                initial: 'racing',
+                states: {
+                    racing: {
+                        entry: ['increment'],
+                        on: { RACE: 'racing' }
                     }
                 }
             }";
@@ -512,21 +512,21 @@ namespace OrchestratorTestApp
 
             // Create parallel regions
             var json = @"{
-                ""id"": ""parallel"",
-                ""type"": ""parallel"",
-                ""states"": {
-                    ""region1"": {
-                        ""initial"": ""a1"",
-                        ""states"": {
-                            ""a1"": { ""entry"": [""recordState""], ""on"": { ""NEXT"": ""a2"" } },
-                            ""a2"": { ""entry"": [""recordState""], ""on"": { ""NEXT"": ""a1"" } }
+                id: 'parallel',
+                type: 'parallel',
+                states: {
+                    region1: {
+                        initial: 'a1',
+                        states: {
+                            a1: { entry: ['recordState'], on: { NEXT: 'a2' } },
+                            a2: { entry: ['recordState'], on: { NEXT: 'a1' } }
                         }
                     },
-                    ""region2"": {
-                        ""initial"": ""b1"",
-                        ""states"": {
-                            ""b1"": { ""entry"": [""recordState""], ""on"": { ""NEXT"": ""b2"" } },
-                            ""b2"": { ""entry"": [""recordState""], ""on"": { ""NEXT"": ""b1"" } }
+                    region2: {
+                        initial: 'b1',
+                        states: {
+                            b1: { entry: ['recordState'], on: { NEXT: 'b2' } },
+                            b2: { entry: ['recordState'], on: { NEXT: 'b1' } }
                         }
                     }
                 }
@@ -573,10 +573,10 @@ namespace OrchestratorTestApp
                 };
 
                 var json = $@"{{
-                    ""id"": ""mem{i}"",
-                    ""initial"": ""storing"",
-                    ""states"": {{
-                        ""storing"": {{ ""entry"": [""store""] }}
+                    id: 'mem{i}',
+                    initial: 'storing',
+                    states: {{
+                        storing: {{ entry: ['store'] }}
                     }}
                 }}";
 
@@ -620,9 +620,9 @@ namespace OrchestratorTestApp
                     orchestrators.Add(orch);
 
                     var json = $@"{{
-                        ""id"": ""h{i}"",
-                        ""initial"": ""active"",
-                        ""states"": {{ ""active"": {{}} }}
+                        id: 'h{i}',
+                        initial: 'active',
+                        states: {{ active: {{}} }}
                     }}";
 
                     var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
@@ -677,12 +677,12 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""counter"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""entry"": [""increment""],
-                        ""on"": { ""NEXT"": ""ready"" }
+                id: 'counter',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        entry: ['increment'],
+                        on: { NEXT: 'ready' }
                     }
                 }
             }";
@@ -771,21 +771,21 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""poisoned"",
-                ""initial"": ""safe"",
-                ""states"": {
-                    ""safe"": {
-                        ""on"": {
-                            ""POISON"": ""vulnerable"",
-                            ""RECOVER"": ""recovered""
+                id: 'poisoned',
+                initial: 'safe',
+                states: {
+                    safe: {
+                        on: {
+                            POISON: 'vulnerable',
+                            RECOVER: 'recovered'
                         }
                     },
-                    ""vulnerable"": {
-                        ""entry"": [""poison""],
-                        ""on"": { ""RECOVER"": ""recovered"" }
+                    vulnerable: {
+                        entry: ['poison'],
+                        on: { RECOVER: 'recovered' }
                     },
-                    ""recovered"": {
-                        ""entry"": [""recover""]
+                    recovered: {
+                        entry: ['recover']
                     }
                 }
             }";
@@ -832,14 +832,14 @@ namespace OrchestratorTestApp
 
             var malformedJsons = new[]
             {
-                @"{ ""id"": ""bad"", ""initial"": ""missing_states"" }",
-                @"{ ""id"": ""bad"", ""states"": {} }",  // Missing initial
-                @"{ ""id"": ""bad"", ""initial"": ""nonexistent"", ""states"": { ""other"": {} } }",
+                @"{ id: 'bad', initial: 'missing_states' }",
+                @"{ id: 'bad', states: {} }",  // Missing initial
+                @"{ id: 'bad', initial: 'nonexistent', states: { other: {} } }",
                 @"{ broken json",
-                @"{ ""id"": null, ""initial"": ""state"", ""states"": {} }",
+                @"{ id: null, initial: 'state', states: {} }",
                 "null",
                 "",
-                @"{ ""id"": """", ""initial"": """", ""states"": { """": {} } }"
+                @"{ id: '', initial: '', states: { '': {} } }"
             };
 
             var errors = 0;
@@ -898,14 +898,14 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""infinite"",
-                ""initial"": ""looping"",
-                ""states"": {
-                    ""looping"": {
-                        ""entry"": [""loop""],
-                        ""on"": { ""LOOP"": ""looping"", ""BREAK"": ""done"" }
+                id: 'infinite',
+                initial: 'looping',
+                states: {
+                    looping: {
+                        entry: ['loop'],
+                        on: { LOOP: 'looping', BREAK: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -959,10 +959,10 @@ namespace OrchestratorTestApp
             using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
 
             var json = @"{
-                ""id"": ""timeout"",
-                ""initial"": ""active"",
-                ""states"": {
-                    ""active"": { ""on"": { ""TEST"": ""active"" } }
+                id: 'timeout',
+                initial: 'active',
+                states: {
+                    active: { on: { TEST: 'active' } }
                 }
             }";
 
@@ -1006,12 +1006,12 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""precision"",
-                ""initial"": ""timing"",
-                ""states"": {
-                    ""timing"": {
-                        ""entry"": [""timestamp""],
-                        ""on"": { ""TICK"": ""timing"" }
+                id: 'precision',
+                initial: 'timing',
+                states: {
+                    timing: {
+                        entry: ['timestamp'],
+                        on: { TICK: 'timing' }
                     }
                 }
             }";
@@ -1064,15 +1064,15 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""timetravel"",
-                ""initial"": ""past"",
-                ""states"": {
-                    ""past"": {
-                        ""entry"": [""logPast""],
-                        ""on"": { ""FUTURE"": ""future"" }
+                id: 'timetravel',
+                initial: 'past',
+                states: {
+                    past: {
+                        entry: ['logPast'],
+                        on: { FUTURE: 'future' }
                     },
-                    ""future"": {
-                        ""entry"": [""logFuture""]
+                    future: {
+                        entry: ['logFuture']
                     }
                 }
             }";

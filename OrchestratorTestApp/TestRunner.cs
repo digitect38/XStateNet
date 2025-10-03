@@ -180,14 +180,14 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""counter"",
-                ""initial"": ""counting"",
-                ""states"": {
-                    ""counting"": {
-                        ""entry"": [""increment""],
-                        ""on"": { ""INCREMENT"": ""counting"", ""STOP"": ""done"" }
+                id: 'counter',
+                initial: 'counting',
+                states: {
+                    counting: {
+                        entry: ['increment'],
+                        on: { INCREMENT: 'counting', STOP: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -242,15 +242,15 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""data"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""DATA"": ""processing"" }
+                id: 'data',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { DATA: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""captureData""],
-                        ""on"": { ""DONE"": ""idle"" }
+                    processing: {
+                        entry: ['captureData'],
+                        on: { DONE: 'idle' }
                     }
                 }
             }";
@@ -319,17 +319,17 @@ namespace OrchestratorTestApp
             };
 
             var machineJson = @"{
-                ""id"": ""machine"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""PING"": ""pinged"" }
+                id: 'machine',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { PING: 'pinged' }
                     },
-                    ""pinged"": {
-                        ""entry"": [""pingBack""],
-                        ""on"": { ""PING_BACK"": ""done"" }
+                    pinged: {
+                        entry: ['pingBack'],
+                        on: { PING_BACK: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -378,17 +378,17 @@ namespace OrchestratorTestApp
             };
 
             var chainJson = @"{
-                ""id"": ""chain"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""START"": ""forwarding"" }
+                id: 'chain',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { START: 'forwarding' }
                     },
-                    ""forwarding"": {
-                        ""entry"": [""forward""],
-                        ""on"": { ""CONTINUE"": ""done"" }
+                    forwarding: {
+                        entry: ['forward'],
+                        on: { CONTINUE: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -494,14 +494,14 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""looper"",
-                ""initial"": ""looping"",
-                ""states"": {
-                    ""looping"": {
-                        ""entry"": [""loop""],
-                        ""on"": { ""LOOP"": ""looping"", ""STOP"": ""done"" }
+                id: 'looper',
+                initial: 'looping',
+                states: {
+                    looping: {
+                        entry: ['loop'],
+                        on: { LOOP: 'looping', STOP: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -546,30 +546,30 @@ namespace OrchestratorTestApp
             };
 
             var parentJson = @"{
-                ""id"": ""parent"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""START"": ""recursing"" }
+                id: 'parent',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { START: 'recursing' }
                     },
-                    ""recursing"": {
-                        ""entry"": [""recurse""],
-                        ""on"": { ""DONE"": ""done"" }
+                    recursing: {
+                        entry: ['recurse'],
+                        on: { DONE: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
             var childJson = @"{
-                ""id"": ""child"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""RECURSE"": ""processing"" }
+                id: 'child',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { RECURSE: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""recurse""],
-                        ""on"": { ""DONE"": ""idle"" }
+                    processing: {
+                        entry: ['recurse'],
+                        on: { DONE: 'idle' }
                     }
                 }
             }";
@@ -790,15 +790,15 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""slow"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""SLOW"": ""processing"" }
+                id: 'slow',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { SLOW: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""slowAction""],
-                        ""on"": { ""DONE"": ""idle"" }
+                    processing: {
+                        entry: ['slowAction'],
+                        on: { DONE: 'idle' }
                     }
                 }
             }";
@@ -846,15 +846,15 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""error"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""ERROR"": ""error"" }
+                id: 'error',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { ERROR: 'error' }
                     },
-                    ""error"": {
-                        ""entry"": [""throwError""],
-                        ""on"": { ""RESET"": ""idle"" }
+                    error: {
+                        entry: ['throwError'],
+                        on: { RESET: 'idle' }
                     }
                 }
             }";
@@ -991,51 +991,51 @@ namespace OrchestratorTestApp
             };
 
             var orderJson = @"{
-                ""id"": ""order"",
-                ""initial"": ""pending"",
-                ""states"": {
-                    ""pending"": {
-                        ""on"": { ""PROCESS"": ""processing"" }
+                id: 'order',
+                initial: 'pending',
+                states: {
+                    pending: {
+                        on: { PROCESS: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""processOrder""],
-                        ""on"": { ""PAYMENT_COMPLETE"": ""paid"" }
+                    processing: {
+                        entry: ['processOrder'],
+                        on: { PAYMENT_COMPLETE: 'paid' }
                     },
-                    ""paid"": {
-                        ""entry"": [""shipOrder""],
-                        ""on"": { ""SHIPPED"": ""complete"" }
+                    paid: {
+                        entry: ['shipOrder'],
+                        on: { SHIPPED: 'complete' }
                     },
-                    ""complete"": {}
+                    complete: {}
                 }
             }";
 
             var paymentJson = @"{
-                ""id"": ""payment"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""CHARGE"": ""charging"" }
+                id: 'payment',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { CHARGE: 'charging' }
                     },
-                    ""charging"": {
-                        ""entry"": [""charge""],
-                        ""on"": { ""DONE"": ""charged"" }
+                    charging: {
+                        entry: ['charge'],
+                        on: { DONE: 'charged' }
                     },
-                    ""charged"": {}
+                    charged: {}
                 }
             }";
 
             var shippingJson = @"{
-                ""id"": ""shipping"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""SHIP"": ""shipping"" }
+                id: 'shipping',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { SHIP: 'shipping' }
                     },
-                    ""shipping"": {
-                        ""entry"": [""ship""],
-                        ""on"": { ""DONE"": ""shipped"" }
+                    shipping: {
+                        entry: ['ship'],
+                        on: { DONE: 'shipped' }
                     },
-                    ""shipped"": {}
+                    shipped: {}
                 }
             }";
 
@@ -1102,43 +1102,43 @@ namespace OrchestratorTestApp
             };
 
             var sagaJson = @"{
-                ""id"": ""saga"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""START"": ""executing"" }
+                id: 'saga',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { START: 'executing' }
                     },
-                    ""executing"": {
-                        ""entry"": [""startSaga""],
-                        ""on"": {
-                            ""SUCCESS"": ""complete"",
-                            ""FAILURE"": ""compensating""
+                    executing: {
+                        entry: ['startSaga'],
+                        on: {
+                            SUCCESS: 'complete',
+                            FAILURE: 'compensating'
                         }
                     },
-                    ""compensating"": {
-                        ""entry"": [""compensate""],
-                        ""on"": { ""ROLLBACK_COMPLETE"": ""failed"" }
+                    compensating: {
+                        entry: ['compensate'],
+                        on: { ROLLBACK_COMPLETE: 'failed' }
                     },
-                    ""complete"": {},
-                    ""failed"": {}
+                    complete: {},
+                    failed: {}
                 }
             }";
 
             var serviceJson = @"{
-                ""id"": ""service"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""EXECUTE"": ""executing"" }
+                id: 'service',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { EXECUTE: 'executing' }
                     },
-                    ""executing"": {
-                        ""on"": {
-                            ""DONE"": ""complete"",
-                            ""ROLLBACK"": ""rolledback""
+                    executing: {
+                        on: {
+                            DONE: 'complete',
+                            ROLLBACK: 'rolledback'
                         }
                     },
-                    ""complete"": {},
-                    ""rolledback"": {}
+                    complete: {},
+                    rolledback: {}
                 }
             }";
 
@@ -1198,50 +1198,50 @@ namespace OrchestratorTestApp
 
             // Create JSON for each machine with unique id
             var sync1Json = @"{
-                ""id"": ""sync1"",
-                ""initial"": ""state1"",
-                ""states"": {
-                    ""state1"": {
-                        ""on"": { ""CHANGE"": ""state2"" }
+                id: 'sync1',
+                initial: 'state1',
+                states: {
+                    state1: {
+                        on: { CHANGE: 'state2' }
                     },
-                    ""state2"": {
-                        ""entry"": [""broadcast""],
-                        ""on"": { ""SYNC"": ""state2"", ""CHANGE"": ""state3"" }
+                    state2: {
+                        entry: ['broadcast'],
+                        on: { SYNC: 'state2', CHANGE: 'state3' }
                     },
-                    ""state3"": {
-                        ""on"": { ""SYNC"": ""state3"" }
+                    state3: {
+                        on: { SYNC: 'state3' }
                     }
                 }
             }";
 
             var sync2Json = @"{
-                ""id"": ""sync2"",
-                ""initial"": ""state1"",
-                ""states"": {
-                    ""state1"": {
-                        ""on"": { ""CHANGE"": ""state2"" }
+                id: 'sync2',
+                initial: 'state1',
+                states: {
+                    state1: {
+                        on: { CHANGE: 'state2' }
                     },
-                    ""state2"": {
-                        ""on"": { ""SYNC"": ""state2"", ""CHANGE"": ""state3"" }
+                    state2: {
+                        on: { SYNC: 'state2', CHANGE: 'state3' }
                     },
-                    ""state3"": {
-                        ""on"": { ""SYNC"": ""state3"" }
+                    state3: {
+                        on: { SYNC: 'state3' }
                     }
                 }
             }";
 
             var sync3Json = @"{
-                ""id"": ""sync3"",
-                ""initial"": ""state1"",
-                ""states"": {
-                    ""state1"": {
-                        ""on"": { ""CHANGE"": ""state2"" }
+                id: 'sync3',
+                initial: 'state1',
+                states: {
+                    state1: {
+                        on: { CHANGE: 'state2' }
                     },
-                    ""state2"": {
-                        ""on"": { ""SYNC"": ""state2"", ""CHANGE"": ""state3"" }
+                    state2: {
+                        on: { SYNC: 'state2', CHANGE: 'state3' }
                     },
-                    ""state3"": {
-                        ""on"": { ""SYNC"": ""state3"" }
+                    state3: {
+                        on: { SYNC: 'state3' }
                     }
                 }
             }";
@@ -1305,29 +1305,29 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""eventsource"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": {
-                            ""CREATE"": ""created"",
-                            ""UPDATE"": ""updated"",
-                            ""DELETE"": ""deleted""
+                id: 'eventsource',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: {
+                            CREATE: 'created',
+                            UPDATE: 'updated',
+                            DELETE: 'deleted'
                         }
                     },
-                    ""created"": {
-                        ""entry"": [""recordEvent""],
-                        ""on"": { ""UPDATE"": ""updated"" }
+                    created: {
+                        entry: ['recordEvent'],
+                        on: { UPDATE: 'updated' }
                     },
-                    ""updated"": {
-                        ""entry"": [""recordEvent""],
-                        ""on"": {
-                            ""UPDATE"": ""updated"",
-                            ""DELETE"": ""deleted""
+                    updated: {
+                        entry: ['recordEvent'],
+                        on: {
+                            UPDATE: 'updated',
+                            DELETE: 'deleted'
                         }
                     },
-                    ""deleted"": {
-                        ""entry"": [""recordEvent""]
+                    deleted: {
+                        entry: ['recordEvent']
                     }
                 }
             }";
@@ -1381,29 +1381,29 @@ namespace OrchestratorTestApp
             };
 
             var commandJson = @"{
-                ""id"": ""command"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""COMMAND"": ""processing"" }
+                id: 'command',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { COMMAND: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""handleCommand""],
-                        ""on"": { ""DONE"": ""ready"" }
+                    processing: {
+                        entry: ['handleCommand'],
+                        on: { DONE: 'ready' }
                     }
                 }
             }";
 
             var queryJson = @"{
-                ""id"": ""query"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""UPDATE_PROJECTION"": ""updating"" }
+                id: 'query',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { UPDATE_PROJECTION: 'updating' }
                     },
-                    ""updating"": {
-                        ""entry"": [""updateProjection""],
-                        ""on"": { ""DONE"": ""ready"" }
+                    updating: {
+                        entry: ['updateProjection'],
+                        on: { DONE: 'ready' }
                     }
                 }
             }";

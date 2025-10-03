@@ -917,14 +917,14 @@ namespace XStateNet.Distributed.Tests.PubSub
                 states: {
                     idle: {
                         on: {
-                            'GO': 'running'
+                            GO: 'running'
                         }
                     },
                     running: {
                         entry: ['doWork'],
                         exit: ['cleanup'],
                         on: {
-                            'STOP': 'idle'
+                            STOP: 'idle'
                         }
                     }
                 }
@@ -1020,23 +1020,23 @@ namespace XStateNet.Distributed.Tests.PubSub
             {
                 var processor = DeterministicTestMode.Processor;
                 var json = @"{
-                    'id': 'test-machine',
-                    'initial': 'idle',
-                    'states': {
-                        'idle': {
-                            'on': {
-                                'START': 'running'
+                    id: 'test-machine',
+                    initial: 'idle',
+                    states: {
+                        idle: {
+                            on: {
+                                START: 'running'
                             }
                         },
-                        'running': {
-                            'on': {
-                                'PAUSE': 'paused',
-                                'STOP': 'idle'
+                        running: {
+                            on: {
+                                PAUSE: 'paused',
+                                STOP: 'idle'
                             }
                         },
-                        'paused': {
-                            'on': {
-                                'RESUME': 'running'
+                        paused: {
+                            on: {
+                                RESUME: 'running'
                             }
                         }
                     }

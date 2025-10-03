@@ -107,46 +107,46 @@ namespace OrchestratorTestApp
 
             // Create a sample state machine JSON
             var stateMachineJson = @"{
-                ""id"": ""advancedOrderProcessor"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""START_ORDER"": ""validating"" }
+                id: 'advancedOrderProcessor',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { START_ORDER: 'validating' }
                     },
-                    ""validating"": {
-                        ""entry"": [""validateOrder""],
-                        ""on"": {
-                            ""VALIDATION_SUCCESS"": ""processing"",
-                            ""VALIDATION_FAILED"": ""rejected""
+                    validating: {
+                        entry: ['validateOrder'],
+                        on: {
+                            VALIDATION_SUCCESS: 'processing',
+                            VALIDATION_FAILED: 'rejected'
                         }
                     },
-                    ""processing"": {
-                        ""type"": ""compound"",
-                        ""initial"": ""checkingInventory"",
-                        ""states"": {
-                            ""checkingInventory"": {
-                                ""entry"": [""checkInventory""],
-                                ""on"": {
-                                    ""INVENTORY_AVAILABLE"": ""processPayment"",
-                                    ""INVENTORY_UNAVAILABLE"": ""#rejected""
+                    processing: {
+                        type: 'compound',
+                        initial: 'checkingInventory',
+                        states: {
+                            checkingInventory: {
+                                entry: ['checkInventory'],
+                                on: {
+                                    INVENTORY_AVAILABLE: 'processPayment',
+                                    INVENTORY_UNAVAILABLE: '#rejected'
                                 }
                             },
-                            ""processPayment"": {
-                                ""entry"": [""processPayment""],
-                                ""on"": {
-                                    ""PAYMENT_SUCCESS"": ""#completed"",
-                                    ""PAYMENT_FAILED"": ""#rejected""
+                            processPayment: {
+                                entry: ['processPayment'],
+                                on: {
+                                    PAYMENT_SUCCESS: '#completed',
+                                    PAYMENT_FAILED: '#rejected'
                                 }
                             }
                         }
                     },
-                    ""completed"": {
-                        ""type"": ""final"",
-                        ""entry"": [""completeOrder""]
+                    completed: {
+                        type: 'final',
+                        entry: ['completeOrder']
                     },
-                    ""rejected"": {
-                        ""type"": ""final"",
-                        ""entry"": [""rejectOrder""]
+                    rejected: {
+                        type: 'final',
+                        entry: ['rejectOrder']
                     }
                 }
             }";
@@ -489,33 +489,33 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""testMachine"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""START"": ""starting"" }
+                id: 'testMachine',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { START: 'starting' }
                     },
-                    ""starting"": {
-                        ""entry"": [""startProcess""],
-                        ""on"": { ""PROCESS"": ""validating"" }
+                    starting: {
+                        entry: ['startProcess'],
+                        on: { PROCESS: 'validating' }
                     },
-                    ""validating"": {
-                        ""entry"": [""validateInput""],
-                        ""on"": {
-                            ""VALIDATION_SUCCESS"": ""processing"",
-                            ""VALIDATION_FAILED"": ""failed""
+                    validating: {
+                        entry: ['validateInput'],
+                        on: {
+                            VALIDATION_SUCCESS: 'processing',
+                            VALIDATION_FAILED: 'failed'
                         }
                     },
-                    ""processing"": {
-                        ""entry"": [""processData""],
-                        ""on"": { ""COMPLETE"": ""finishing"" }
+                    processing: {
+                        entry: ['processData'],
+                        on: { COMPLETE: 'finishing' }
                     },
-                    ""finishing"": {
-                        ""entry"": [""finishProcess""],
-                        ""on"": { ""DONE"": ""idle"" }
+                    finishing: {
+                        entry: ['finishProcess'],
+                        on: { DONE: 'idle' }
                     },
-                    ""failed"": {
-                        ""on"": { ""RETRY"": ""starting"" }
+                    failed: {
+                        on: { RETRY: 'starting' }
                     }
                 }
             }";
@@ -555,19 +555,19 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""advancedTestMachine"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""PROCESS"": ""processing"" }
+                id: 'advancedTestMachine',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { PROCESS: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""profiledProcess""],
-                        ""on"": { ""VALIDATE"": ""validating"" }
+                    processing: {
+                        entry: ['profiledProcess'],
+                        on: { VALIDATE: 'validating' }
                     },
-                    ""validating"": {
-                        ""entry"": [""profiledValidation""],
-                        ""after"": { ""50"": ""ready"" }
+                    validating: {
+                        entry: ['profiledValidation'],
+                        after: { '50': 'ready' }
                     }
                 }
             }";

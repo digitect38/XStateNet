@@ -1,107 +1,107 @@
 {
-    "id": "E40_ProcessJob",
-    "initial": "NoState",
-    "context": {
-        "processJobId": "",
-        "recipeId": null,
-        "materialIds": [],
-        "startTime": null,
-        "endTime": null,
-        "errorCode": null
+    id: 'E40_ProcessJob',
+    initial: 'NoState',
+    context: {
+        processJobId: '',
+        recipeId: null,
+        materialIds: [],
+        startTime: null,
+        endTime: null,
+        errorCode: null
     },
-    "states": {
-        "NoState": {
-            "on": {
-                "CREATE": {
-                    "target": "Queued",
-                    "actions": "assignProcessJobData"
+    states: {
+        NoState: {
+            on: {
+                CREATE: {
+                    target: 'Queued',
+                    actions: 'assignProcessJobData'
                 }
             }
         },
-        "Queued": {
-            "on": {
-                "SETUP": "SettingUp",
-                "ABORT": "Aborting",
-                "REMOVE": "NoState"
+        Queued: {
+            on: {
+                SETUP: 'SettingUp',
+                ABORT: 'Aborting',
+                REMOVE: 'NoState'
             }
         },
-        "SettingUp": {
-            "on": {
-                "SETUP_COMPLETE": "WaitingForStart",
-                "SETUP_FAILED": "Queued",
-                "ABORT": "Aborting"
+        SettingUp: {
+            on: {
+                SETUP_COMPLETE: 'WaitingForStart',
+                SETUP_FAILED: 'Queued',
+                ABORT: 'Aborting'
             }
         },
-        "WaitingForStart": {
-            "on": {
-                "START": {
-                    "target": "Processing",
-                    "actions": "recordStartTime"
+        WaitingForStart: {
+            on: {
+                START: {
+                    target: 'Processing',
+                    actions: 'recordStartTime'
                 },
-                "PAUSE_REQUEST": "Pausing",
-                "STOP": "Stopping",
-                "ABORT": "Aborting"
+                PAUSE_REQUEST: 'Pausing',
+                STOP: 'Stopping',
+                ABORT: 'Aborting'
             }
         },
-        "Processing": {
-            "on": {
-                "PROCESSING_COMPLETE": {
-                    "target": "ProcessingComplete",
-                    "actions": "recordEndTime"
+        Processing: {
+            on: {
+                PROCESSING_COMPLETE: {
+                    target: 'ProcessingComplete',
+                    actions: 'recordEndTime'
                 },
-                "PAUSE_REQUEST": "Pausing",
-                "STOP": "Stopping",
-                "ABORT": "Aborting",
-                "ERROR": {
-                    "target": "Aborting",
-                    "actions": "recordError"
+                PAUSE_REQUEST: 'Pausing',
+                STOP: 'Stopping',
+                ABORT: 'Aborting',
+                ERROR: {
+                    target: 'Aborting',
+                    actions: 'recordError'
                 }
             }
         },
-        "ProcessingComplete": {
-            "on": {
-                "REMOVE": "NoState",
-                "RESTART": "Queued"
+        ProcessingComplete: {
+            on: {
+                REMOVE: 'NoState',
+                RESTART: 'Queued'
             }
         },
-        "Pausing": {
-            "on": {
-                "PAUSE_COMPLETE": "Paused",
-                "PAUSE_FAILED": "Processing"
+        Pausing: {
+            on: {
+                PAUSE_COMPLETE: 'Paused',
+                PAUSE_FAILED: 'Processing'
             }
         },
-        "Paused": {
-            "on": {
-                "RESUME": "Processing",
-                "STOP": "Stopping",
-                "ABORT": "Aborting"
+        Paused: {
+            on: {
+                RESUME: 'Processing',
+                STOP: 'Stopping',
+                ABORT: 'Aborting'
             }
         },
-        "Stopping": {
-            "on": {
-                "STOP_COMPLETE": {
-                    "target": "Stopped",
-                    "actions": "recordEndTime"
+        Stopping: {
+            on: {
+                STOP_COMPLETE: {
+                    target: 'Stopped',
+                    actions: 'recordEndTime'
                 }
             }
         },
-        "Aborting": {
-            "on": {
-                "ABORT_COMPLETE": {
-                    "target": "Aborted",
-                    "actions": "recordEndTime"
+        Aborting: {
+            on: {
+                ABORT_COMPLETE: {
+                    target: 'Aborted',
+                    actions: 'recordEndTime'
                 }
             }
         },
-        "Stopped": {
-            "on": {
-                "REMOVE": "NoState",
-                "RESTART": "Queued"
+        Stopped: {
+            on: {
+                REMOVE: 'NoState',
+                RESTART: 'Queued'
             }
         },
-        "Aborted": {
-            "on": {
-                "REMOVE": "NoState"
+        Aborted: {
+            on: {
+                REMOVE: 'NoState'
             }
         }
     }

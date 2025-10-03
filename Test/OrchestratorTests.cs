@@ -72,17 +72,17 @@ namespace Test
             };
 
             var json = @"{
-                ""id"": ""self"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""START"": ""processing"" }
+                id: 'self',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { START: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""processSelfSend""],
-                        ""on"": { ""SELF_COMPLETE"": ""done"" }
+                    processing: {
+                        entry: ['processSelfSend'],
+                        on: { SELF_COMPLETE: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -140,17 +140,17 @@ namespace Test
             };
 
             var machineJson = @"{
-                ""id"": ""machine"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""PING"": ""responding"" }
+                id: 'machine',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { PING: 'responding' }
                     },
-                    ""responding"": {
-                        ""entry"": [""sendPong""],
-                        ""on"": { ""PONG"": ""done"" }
+                    responding: {
+                        entry: ['sendPong'],
+                        on: { PONG: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -204,17 +204,17 @@ namespace Test
             };
 
             var chainJson = @"{
-                ""id"": ""chain"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""START"": ""forwarding"" }
+                id: 'chain',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { START: 'forwarding' }
                     },
-                    ""forwarding"": {
-                        ""entry"": [""forward""],
-                        ""on"": { ""CONTINUE"": ""done"" }
+                    forwarding: {
+                        entry: ['forward'],
+                        on: { CONTINUE: 'done' }
                     },
-                    ""done"": {}
+                    done: {}
                 }
             }";
 
@@ -373,47 +373,47 @@ namespace Test
             };
 
             var orderJson = @"{
-                ""id"": ""order"",
-                ""initial"": ""pending"",
-                ""states"": {
-                    ""pending"": {
-                        ""on"": { ""PROCESS"": ""processing"" }
+                id: 'order',
+                initial: 'pending',
+                states: {
+                    pending: {
+                        on: { PROCESS: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""processOrder""],
-                        ""on"": { ""COMPLETE"": ""completed"" }
+                    processing: {
+                        entry: ['processOrder'],
+                        on: { COMPLETE: 'completed' }
                     },
-                    ""completed"": {}
+                    completed: {}
                 }
             }";
 
             var paymentJson = @"{
-                ""id"": ""payment"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""CHARGE"": ""charging"" }
+                id: 'payment',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { CHARGE: 'charging' }
                     },
-                    ""charging"": {
-                        ""entry"": [""processPayment""],
-                        ""on"": { ""DONE"": ""charged"" }
+                    charging: {
+                        entry: ['processPayment'],
+                        on: { DONE: 'charged' }
                     },
-                    ""charged"": {}
+                    charged: {}
                 }
             }";
 
             var shippingJson = @"{
-                ""id"": ""shipping"",
-                ""initial"": ""ready"",
-                ""states"": {
-                    ""ready"": {
-                        ""on"": { ""SHIP"": ""shipping"" }
+                id: 'shipping',
+                initial: 'ready',
+                states: {
+                    ready: {
+                        on: { SHIP: 'shipping' }
                     },
-                    ""shipping"": {
-                        ""entry"": [""processShipping""],
-                        ""on"": { ""DONE"": ""shipped"" }
+                    shipping: {
+                        entry: ['processShipping'],
+                        on: { DONE: 'shipped' }
                     },
-                    ""shipped"": {}
+                    shipped: {}
                 }
             }";
 
@@ -486,12 +486,12 @@ namespace Test
             };
 
             var json = @"{
-                ""id"": ""counter"",
-                ""initial"": ""counting"",
-                ""states"": {
-                    ""counting"": {
-                        ""entry"": [""increment""],
-                        ""on"": { ""INCREMENT"": ""counting"" }
+                id: 'counter',
+                initial: 'counting',
+                states: {
+                    counting: {
+                        entry: ['increment'],
+                        on: { INCREMENT: 'counting' }
                     }
                 }
             }";
@@ -538,15 +538,15 @@ namespace Test
             };
 
             var json = @"{
-                ""id"": ""slow"",
-                ""initial"": ""idle"",
-                ""states"": {
-                    ""idle"": {
-                        ""on"": { ""SLOW"": ""processing"" }
+                id: 'slow',
+                initial: 'idle',
+                states: {
+                    idle: {
+                        on: { SLOW: 'processing' }
                     },
-                    ""processing"": {
-                        ""entry"": [""slowAction""],
-                        ""on"": { ""DONE"": ""idle"" }
+                    processing: {
+                        entry: ['slowAction'],
+                        on: { DONE: 'idle' }
                     }
                 }
             }";

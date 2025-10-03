@@ -1,74 +1,74 @@
 {
-  "id": "E87LoadPortStateMachine",
-  "initial": "Empty",
-  "states": {
-    "Empty": {
-      "on": {
-        "CARRIER_PLACED": "Loading",
-        "RESERVE": "Reserved"
+  id: 'E87LoadPortStateMachine',
+  initial: 'Empty',
+  states: {
+    Empty: {
+      on: {
+        CARRIER_PLACED: 'Loading',
+        RESERVE: 'Reserved'
       }
     },
-    "Reserved": {
-      "on": {
-        "CARRIER_PLACED": "Loading",
-        "UNRESERVE": "Empty"
+    Reserved: {
+      on: {
+        CARRIER_PLACED: 'Loading',
+        UNRESERVE: 'Empty'
       }
     },
-    "Loading": {
-      "on": {
-        "LOAD_COMPLETE": "Loaded",
-        "LOAD_ERROR": "Error"
+    Loading: {
+      on: {
+        LOAD_COMPLETE: 'Loaded',
+        LOAD_ERROR: 'Error'
       },
-      "after": {
-        "1000": {
-          "target": "Loaded"
+      after: {
+        '1000': {
+          target: 'Loaded'
         }
       }
     },
-    "Loaded": {
-      "on": {
-        "START_MAPPING": "Mapping",
-        "CARRIER_REMOVED": "Unloading"
+    Loaded: {
+      on: {
+        START_MAPPING: 'Mapping',
+        CARRIER_REMOVED: 'Unloading'
       }
     },
-    "Mapping": {
-      "on": {
-        "MAPPING_COMPLETE": "Ready",
-        "MAPPING_ERROR": "Error"
+    Mapping: {
+      on: {
+        MAPPING_COMPLETE: 'Ready',
+        MAPPING_ERROR: 'Error'
       }
     },
-    "Ready": {
-      "on": {
-        "START_ACCESS": "InAccess",
-        "CARRIER_REMOVED": "Unloading"
+    Ready: {
+      on: {
+        START_ACCESS: 'InAccess',
+        CARRIER_REMOVED: 'Unloading'
       }
     },
-    "InAccess": {
-      "on": {
-        "ACCESS_COMPLETE": "ReadyToUnload",
-        "ACCESS_ERROR": "Error"
+    InAccess: {
+      on: {
+        ACCESS_COMPLETE: 'ReadyToUnload',
+        ACCESS_ERROR: 'Error'
       }
     },
-    "ReadyToUnload": {
-      "on": {
-        "CARRIER_REMOVED": "Unloading"
+    ReadyToUnload: {
+      on: {
+        CARRIER_REMOVED: 'Unloading'
       }
     },
-    "Unloading": {
-      "on": {
-        "UNLOAD_COMPLETE": "Empty",
-        "UNLOAD_ERROR": "Error"
+    Unloading: {
+      on: {
+        UNLOAD_COMPLETE: 'Empty',
+        UNLOAD_ERROR: 'Error'
       },
-      "after": {
-        "500": {
-          "target": "Empty"
+      after: {
+        '500': {
+          target: 'Empty'
         }
       }
     },
-    "Error": {
-      "on": {
-        "CLEAR_ERROR": "Empty",
-        "RECOVER": "Loaded"
+    Error: {
+      on: {
+        CLEAR_ERROR: 'Empty',
+        RECOVER: 'Loaded'
       }
     }
   }

@@ -1,131 +1,131 @@
 {
-  "id": "E94ControlJobStateMachine",
-  "initial": "noJob",
-  "states": {
-    "noJob": {
-      "on": {
-        "CREATE": "queued"
+  id: 'E94ControlJobStateMachine',
+  initial: 'noJob',
+  states: {
+    noJob: {
+      on: {
+        CREATE: 'queued'
       }
     },
-    "queued": {
-      "on": {
-        "SELECT": "selected",
-        "DELETE": "noJob",
-        "ABORT": "noJob"
+    queued: {
+      on: {
+        SELECT: 'selected',
+        DELETE: 'noJob',
+        ABORT: 'noJob'
       }
     },
-    "selected": {
-      "on": {
-        "START": "executing",
-        "DESELECT": "queued",
-        "DELETE": "noJob",
-        "ABORT": "aborting"
+    selected: {
+      on: {
+        START: 'executing',
+        DESELECT: 'queued',
+        DELETE: 'noJob',
+        ABORT: 'aborting'
       }
     },
-    "executing": {
-      "type": "parallel",
-      "states": {
-        "processing": {
-          "initial": "waitingForStart",
-          "states": {
-            "waitingForStart": {
-              "on": {
-                "PROCESS_START": "active"
+    executing: {
+      type: 'parallel',
+      states: {
+        processing: {
+          initial: 'waitingForStart',
+          states: {
+            waitingForStart: {
+              on: {
+                PROCESS_START: 'active'
               }
             },
-            "active": {
-              "on": {
-                "PROCESS_COMPLETE": "completed",
-                "PAUSE": "paused",
-                "STOP": "stopping"
+            active: {
+              on: {
+                PROCESS_COMPLETE: 'completed',
+                PAUSE: 'paused',
+                STOP: 'stopping'
               }
             },
-            "paused": {
-              "on": {
-                "RESUME": "active",
-                "STOP": "stopping",
-                "ABORT": "aborted"
+            paused: {
+              on: {
+                RESUME: 'active',
+                STOP: 'stopping',
+                ABORT: 'aborted'
               }
             },
-            "stopping": {
-              "on": {
-                "STOPPED": "stopped"
+            stopping: {
+              on: {
+                STOPPED: 'stopped'
               }
             },
-            "stopped": {
-              "type": "final"
+            stopped: {
+              type: 'final'
             },
-            "completed": {
-              "type": "final"
+            completed: {
+              type: 'final'
             },
-            "aborted": {
-              "type": "final"
+            aborted: {
+              type: 'final'
             }
           }
         },
-        "materialFlow": {
-          "initial": "waitingForMaterial",
-          "states": {
-            "waitingForMaterial": {
-              "on": {
-                "MATERIAL_IN": "materialAtSource"
+        materialFlow: {
+          initial: 'waitingForMaterial',
+          states: {
+            waitingForMaterial: {
+              on: {
+                MATERIAL_IN: 'materialAtSource'
               }
             },
-            "materialAtSource": {
-              "on": {
-                "MATERIAL_OUT": "materialAtDestination"
+            materialAtSource: {
+              on: {
+                MATERIAL_OUT: 'materialAtDestination'
               }
             },
-            "materialAtDestination": {
-              "on": {
-                "MATERIAL_PROCESSED": "materialComplete"
+            materialAtDestination: {
+              on: {
+                MATERIAL_PROCESSED: 'materialComplete'
               }
             },
-            "materialComplete": {
-              "type": "final"
+            materialComplete: {
+              type: 'final'
             }
           }
         }
       },
-      "onDone": {
-        "target": "completed"
+      onDone: {
+        target: 'completed'
       },
-      "on": {
-        "ABORT": "aborting",
-        "PAUSE": "paused",
-        "STOP": "stopping"
+      on: {
+        ABORT: 'aborting',
+        PAUSE: 'paused',
+        STOP: 'stopping'
       }
     },
-    "paused": {
-      "on": {
-        "RESUME": "executing",
-        "ABORT": "aborting",
-        "STOP": "stopping"
+    paused: {
+      on: {
+        RESUME: 'executing',
+        ABORT: 'aborting',
+        STOP: 'stopping'
       }
     },
-    "stopping": {
-      "on": {
-        "STOPPED": "stopped"
+    stopping: {
+      on: {
+        STOPPED: 'stopped'
       }
     },
-    "stopped": {
-      "on": {
-        "DELETE": "noJob"
+    stopped: {
+      on: {
+        DELETE: 'noJob'
       }
     },
-    "aborting": {
-      "on": {
-        "ABORTED": "aborted"
+    aborting: {
+      on: {
+        ABORTED: 'aborted'
       }
     },
-    "aborted": {
-      "on": {
-        "DELETE": "noJob"
+    aborted: {
+      on: {
+        DELETE: 'noJob'
       }
     },
-    "completed": {
-      "on": {
-        "DELETE": "noJob"
+    completed: {
+      on: {
+        DELETE: 'noJob'
       }
     }
   }

@@ -29,12 +29,12 @@ namespace OrchestratorTestApp
             };
 
             var json = @"{
-                ""id"": ""counter"",
-                ""initial"": ""active"",
-                ""states"": {
-                    ""active"": {
-                        ""entry"": [""count""],
-                        ""on"": { ""TICK"": ""active"" }
+                id: 'counter',
+                initial: 'active',
+                states: {
+                    active: {
+                        entry: ['count'],
+                        on: { TICK: 'active' }
                     }
                 }
             }";

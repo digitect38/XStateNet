@@ -1,120 +1,120 @@
 {
-    "id": "E157_ModuleProcessTracking",
-    "initial": "ModuleIdle",
-    "context": {
-        "moduleId": "",
-        "materialId": null,
-        "processStartTime": null,
-        "processEndTime": null,
-        "stepCount": 0,
-        "currentStep": null,
-        "errorCount": 0
+    id: 'E157_ModuleProcessTracking',
+    initial: 'ModuleIdle',
+    context: {
+        moduleId: '',
+        materialId: null,
+        processStartTime: null,
+        processEndTime: null,
+        stepCount: 0,
+        currentStep: null,
+        errorCount: 0
     },
-    "states": {
-        "ModuleIdle": {
-            "on": {
-                "MATERIAL_ARRIVE": {
-                    "target": "MaterialArrived",
-                    "actions": ["assignMaterial", "notifyMaterialArrive"]
+    states: {
+        ModuleIdle: {
+            on: {
+                MATERIAL_ARRIVE: {
+                    target: 'MaterialArrived',
+                    actions: ['assignMaterial', 'notifyMaterialArrive']
                 }
             }
         },
-        "MaterialArrived": {
-            "on": {
-                "START_PROCESS": {
-                    "target": "ProcessExecuting",
-                    "actions": ["recordProcessStart", "initializeSteps"]
+        MaterialArrived: {
+            on: {
+                START_PROCESS: {
+                    target: 'ProcessExecuting',
+                    actions: ['recordProcessStart', 'initializeSteps']
                 },
-                "MATERIAL_REMOVE": {
-                    "target": "ModuleIdle",
-                    "actions": "clearMaterial"
+                MATERIAL_REMOVE: {
+                    target: 'ModuleIdle',
+                    actions: 'clearMaterial'
                 }
             }
         },
-        "ProcessExecuting": {
-            "initial": "StepReady",
-            "states": {
-                "StepReady": {
-                    "on": {
-                        "EXECUTE_STEP": {
-                            "target": "StepExecuting",
-                            "actions": "startStep"
+        ProcessExecuting: {
+            initial: 'StepReady',
+            states: {
+                StepReady: {
+                    on: {
+                        EXECUTE_STEP: {
+                            target: 'StepExecuting',
+                            actions: 'startStep'
                         }
                     }
                 },
-                "StepExecuting": {
-                    "on": {
-                        "STEP_COMPLETE": [
+                StepExecuting: {
+                    on: {
+                        STEP_COMPLETE: [
                             {
-                                "target": "StepReady",
-                                "cond": "hasMoreSteps",
-                                "actions": ["completeStep", "incrementStepCount"]
+                                target: 'StepReady',
+                                cond: 'hasMoreSteps',
+                                actions: ['completeStep', 'incrementStepCount']
                             },
                             {
-                                "target": "AllStepsComplete",
-                                "actions": ["completeStep", "incrementStepCount"]
+                                target: 'AllStepsComplete',
+                                actions: ['completeStep', 'incrementStepCount']
                             }
                         ],
-                        "STEP_ERROR": {
-                            "target": "StepError",
-                            "actions": ["logError", "incrementErrorCount"]
+                        STEP_ERROR: {
+                            target: 'StepError',
+                            actions: ['logError', 'incrementErrorCount']
                         }
                     }
                 },
-                "StepError": {
-                    "on": {
-                        "RETRY_STEP": "StepExecuting",
-                        "SKIP_STEP": [
+                StepError: {
+                    on: {
+                        RETRY_STEP: 'StepExecuting',
+                        SKIP_STEP: [
                             {
-                                "target": "StepReady",
-                                "cond": "hasMoreSteps",
-                                "actions": "incrementStepCount"
+                                target: 'StepReady',
+                                cond: 'hasMoreSteps',
+                                actions: 'incrementStepCount'
                             },
                             {
-                                "target": "AllStepsComplete"
+                                target: 'AllStepsComplete'
                             }
                         ],
-                        "ABORT_PROCESS": {
-                            "target": "ProcessAborted"
+                        ABORT_PROCESS: {
+                            target: 'ProcessAborted'
                         }
                     }
                 },
-                "AllStepsComplete": {
-                    "type": "final"
+                AllStepsComplete: {
+                    type: 'final'
                 },
-                "ProcessAborted": {
-                    "type": "final"
+                ProcessAborted: {
+                    type: 'final'
                 }
             },
-            "onDone": [
+            onDone: [
                 {
-                    "target": "ProcessComplete",
-                    "cond": "isProcessSuccess"
+                    target: 'ProcessComplete',
+                    cond: 'isProcessSuccess'
                 },
                 {
-                    "target": "ProcessFailed"
+                    target: 'ProcessFailed'
                 }
             ]
         },
-        "ProcessComplete": {
-            "entry": "recordProcessEnd",
-            "on": {
-                "MATERIAL_REMOVE": {
-                    "target": "ModuleIdle",
-                    "actions": ["notifyProcessComplete", "clearMaterial"]
+        ProcessComplete: {
+            entry: 'recordProcessEnd',
+            on: {
+                MATERIAL_REMOVE: {
+                    target: 'ModuleIdle',
+                    actions: ['notifyProcessComplete', 'clearMaterial']
                 }
             }
         },
-        "ProcessFailed": {
-            "entry": ["recordProcessEnd", "notifyError"],
-            "on": {
-                "MATERIAL_REMOVE": {
-                    "target": "ModuleIdle",
-                    "actions": "clearMaterial"
+        ProcessFailed: {
+            entry: ['recordProcessEnd', 'notifyError'],
+            on: {
+                MATERIAL_REMOVE: {
+                    target: 'ModuleIdle',
+                    actions: 'clearMaterial'
                 },
-                "RETRY_PROCESS": {
-                    "target": "ProcessExecuting",
-                    "actions": ["resetProcess", "recordProcessStart"]
+                RETRY_PROCESS: {
+                    target: 'ProcessExecuting',
+                    actions: ['resetProcess', 'recordProcessStart']
                 }
             }
         }

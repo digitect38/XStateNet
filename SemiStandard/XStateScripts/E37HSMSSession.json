@@ -1,105 +1,105 @@
 {
-    "id": "E37_HSMS_Session",
-    "initial": "NotConnected",
-    "context": {
-        "sessionId": "",
-        "mode": "Passive",
-        "selectedEntity": null,
-        "errorCount": 0
+    id: 'E37_HSMS_Session',
+    initial: 'NotConnected',
+    context: {
+        sessionId: '',
+        mode: 'Passive',
+        selectedEntity: null,
+        errorCount: 0
     },
-    "states": {
-        "NotConnected": {
-            "on": {
-                "TCP_CONNECT": [
+    states: {
+        NotConnected: {
+            on: {
+                TCP_CONNECT: [
                     {
-                        "target": "Connected",
-                        "cond": "isPassiveMode",
-                        "actions": "startT7Timer"
+                        target: 'Connected',
+                        cond: 'isPassiveMode',
+                        actions: 'startT7Timer'
                     },
                     {
-                        "target": "NotSelected",
-                        "cond": "isActiveMode",
-                        "actions": ["sendSelectReq", "startT6Timer"]
+                        target: 'NotSelected',
+                        cond: 'isActiveMode',
+                        actions: ['sendSelectReq', 'startT6Timer']
                     }
                 ],
-                "ENABLE": {
-                    "target": "NotConnected",
-                    "actions": "attemptConnection"
+                ENABLE: {
+                    target: 'NotConnected',
+                    actions: 'attemptConnection'
                 }
             }
         },
-        "Connected": {
-            "on": {
-                "SELECT_REQ": {
-                    "target": "Selected",
-                    "actions": ["sendSelectRsp", "stopT7Timer", "recordSelectedEntity"]
+        Connected: {
+            on: {
+                SELECT_REQ: {
+                    target: 'Selected',
+                    actions: ['sendSelectRsp', 'stopT7Timer', 'recordSelectedEntity']
                 },
-                "T7_TIMEOUT": {
-                    "target": "NotConnected",
-                    "actions": "disconnect"
+                T7_TIMEOUT: {
+                    target: 'NotConnected',
+                    actions: 'disconnect'
                 },
-                "TCP_DISCONNECT": "NotConnected",
-                "SEPARATE_REQ": {
-                    "target": "NotConnected",
-                    "actions": "sendSeparateRsp"
+                TCP_DISCONNECT: 'NotConnected',
+                SEPARATE_REQ: {
+                    target: 'NotConnected',
+                    actions: 'sendSeparateRsp'
                 }
             }
         },
-        "NotSelected": {
-            "on": {
-                "SELECT_RSP": [
+        NotSelected: {
+            on: {
+                SELECT_RSP: [
                     {
-                        "target": "Selected",
-                        "cond": "isSelectAccepted",
-                        "actions": ["stopT6Timer", "recordSelectedEntity"]
+                        target: 'Selected',
+                        cond: 'isSelectAccepted',
+                        actions: ['stopT6Timer', 'recordSelectedEntity']
                     },
                     {
-                        "target": "NotConnected",
-                        "cond": "isSelectRejected",
-                        "actions": ["stopT6Timer", "disconnect"]
+                        target: 'NotConnected',
+                        cond: 'isSelectRejected',
+                        actions: ['stopT6Timer', 'disconnect']
                     }
                 ],
-                "T6_TIMEOUT": {
-                    "target": "NotConnected",
-                    "actions": "disconnect"
+                T6_TIMEOUT: {
+                    target: 'NotConnected',
+                    actions: 'disconnect'
                 },
-                "TCP_DISCONNECT": "NotConnected"
+                TCP_DISCONNECT: 'NotConnected'
             }
         },
-        "Selected": {
-            "entry": ["startLinktest", "notifySelected"],
-            "on": {
-                "DESELECT": {
-                    "target": "NotSelected",
-                    "actions": ["sendDeselectRsp", "clearSelectedEntity"]
+        Selected: {
+            entry: ['startLinktest', 'notifySelected'],
+            on: {
+                DESELECT: {
+                    target: 'NotSelected',
+                    actions: ['sendDeselectRsp', 'clearSelectedEntity']
                 },
-                "SEPARATE_REQ": {
-                    "target": "NotConnected",
-                    "actions": ["sendSeparateRsp", "clearSelectedEntity"]
+                SEPARATE_REQ: {
+                    target: 'NotConnected',
+                    actions: ['sendSeparateRsp', 'clearSelectedEntity']
                 },
-                "LINKTEST_REQ": {
-                    "target": "Selected",
-                    "actions": "sendLinktestRsp"
+                LINKTEST_REQ: {
+                    target: 'Selected',
+                    actions: 'sendLinktestRsp'
                 },
-                "DATA_MESSAGE": {
-                    "target": "Selected",
-                    "actions": "processDataMessage"
+                DATA_MESSAGE: {
+                    target: 'Selected',
+                    actions: 'processDataMessage'
                 },
-                "T6_TIMEOUT": {
-                    "target": "Selected",
-                    "actions": "handleT6Timeout"
+                T6_TIMEOUT: {
+                    target: 'Selected',
+                    actions: 'handleT6Timeout'
                 },
-                "TCP_DISCONNECT": {
-                    "target": "NotConnected",
-                    "actions": "clearSelectedEntity"
+                TCP_DISCONNECT: {
+                    target: 'NotConnected',
+                    actions: 'clearSelectedEntity'
                 },
-                "COMMUNICATION_ERROR": {
-                    "target": "Selected",
-                    "actions": "incrementErrorCount"
+                COMMUNICATION_ERROR: {
+                    target: 'Selected',
+                    actions: 'incrementErrorCount'
                 },
-                "MAX_ERRORS_REACHED": {
-                    "target": "NotConnected",
-                    "actions": ["disconnect", "clearSelectedEntity"]
+                MAX_ERRORS_REACHED: {
+                    target: 'NotConnected',
+                    actions: ['disconnect', 'clearSelectedEntity']
                 }
             }
         }

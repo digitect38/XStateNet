@@ -152,23 +152,21 @@ namespace XStateNet.Tests
         public async Task StateMachine_OrderedStateChanges()
         {
             // Arrange
-            var config = """
-            {
-                "id": "testMachine",
-                "initial": "idle",
-                "states": {
-                    "idle": {
-                        "on": { "START": "working" }
-                    },
-                    "working": {
-                        "on": { "COMPLETE": "done" }
-                    },
-                    "done": {
-                        "type": "final"
-                    }
-                }
-            }
-            """;
+            var config = @"{
+  id: 'testMachine',
+  initial: 'idle',
+  states: {
+    idle: {
+      on: { START: 'working' }
+    },
+    working: {
+      on: { COMPLETE: 'done' }
+    },
+    done: {
+      type: 'final'
+    }
+  }
+}";
 
             var machine = StateMachineFactory.CreateFromScript(config, true);
             var stateChanges = new List<string>();

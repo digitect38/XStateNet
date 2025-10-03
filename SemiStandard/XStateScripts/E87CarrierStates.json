@@ -1,61 +1,61 @@
 {
-  "id": "E87CarrierStateMachine",
-  "initial": "NotPresent",
-  "states": {
-    "NotPresent": {
-      "on": {
-        "CARRIER_DETECTED": "WaitingForHost"
+  id: 'E87CarrierStateMachine',
+  initial: 'NotPresent',
+  states: {
+    NotPresent: {
+      on: {
+        CARRIER_DETECTED: 'WaitingForHost'
       }
     },
-    "WaitingForHost": {
-      "on": {
-        "HOST_PROCEED": "Mapping",
-        "HOST_CANCEL": "CarrierOut"
+    WaitingForHost: {
+      on: {
+        HOST_PROCEED: 'Mapping',
+        HOST_CANCEL: 'CarrierOut'
       }
     },
-    "Mapping": {
-      "entry": "startMapping",
-      "on": {
-        "MAPPING_COMPLETE": "MappingVerification",
-        "MAPPING_ERROR": "WaitingForHost"
+    Mapping: {
+      entry: 'startMapping',
+      on: {
+        MAPPING_COMPLETE: 'MappingVerification',
+        MAPPING_ERROR: 'WaitingForHost'
       }
     },
-    "MappingVerification": {
-      "on": {
-        "VERIFY_OK": "ReadyToAccess",
-        "VERIFY_FAIL": "Mapping"
+    MappingVerification: {
+      on: {
+        VERIFY_OK: 'ReadyToAccess',
+        VERIFY_FAIL: 'Mapping'
       },
-      "after": {
-        "500": {
-          "target": "ReadyToAccess"
+      after: {
+        '500': {
+          target: 'ReadyToAccess'
         }
       }
     },
-    "ReadyToAccess": {
-      "on": {
-        "START_ACCESS": "InAccess",
-        "HOST_CANCEL": "Complete"
+    ReadyToAccess: {
+      on: {
+        START_ACCESS: 'InAccess',
+        HOST_CANCEL: 'Complete'
       }
     },
-    "InAccess": {
-      "on": {
-        "ACCESS_COMPLETE": "Complete",
-        "ACCESS_ERROR": "AccessPaused"
+    InAccess: {
+      on: {
+        ACCESS_COMPLETE: 'Complete',
+        ACCESS_ERROR: 'AccessPaused'
       }
     },
-    "AccessPaused": {
-      "on": {
-        "RESUME_ACCESS": "InAccess",
-        "ABORT_ACCESS": "Complete"
+    AccessPaused: {
+      on: {
+        RESUME_ACCESS: 'InAccess',
+        ABORT_ACCESS: 'Complete'
       }
     },
-    "Complete": {
-      "on": {
-        "CARRIER_REMOVED": "CarrierOut"
+    Complete: {
+      on: {
+        CARRIER_REMOVED: 'CarrierOut'
       }
     },
-    "CarrierOut": {
-      "type": "final"
+    CarrierOut: {
+      type: 'final'
     }
   }
 }

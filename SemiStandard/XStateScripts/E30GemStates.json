@@ -1,87 +1,87 @@
 {
-  "id": "E30GemStateMachine",
-  "initial": "disabled",
-  "states": {
-    "disabled": {
-      "on": {
-        "ENABLE": "waitDelay",
-        "ENABLE_IMMEDIATE": "waitCRA"
+  id: 'E30GemStateMachine',
+  initial: 'disabled',
+  states: {
+    disabled: {
+      on: {
+        ENABLE: 'waitDelay',
+        ENABLE_IMMEDIATE: 'waitCRA'
       }
     },
-    "waitDelay": {
-      "after": {
-        "5000": {
-          "target": "waitCRA"
+    waitDelay: {
+      after: {
+        '5000': {
+          target: 'waitCRA'
         }
       }
     },
-    "waitCRA": {
-      "on": {
-        "RECEIVE_S1F13": "waitCRFromHost",
-        "TIMEOUT": "commFail"
+    waitCRA: {
+      on: {
+        RECEIVE_S1F13: 'waitCRFromHost',
+        TIMEOUT: 'commFail'
       },
-      "after": {
-        "10000": {
-          "target": "commFail"
+      after: {
+        '10000': {
+          target: 'commFail'
         }
       }
     },
-    "waitCRFromHost": {
-      "on": {
-        "SEND_S1F14": "communicating"
+    waitCRFromHost: {
+      on: {
+        SEND_S1F14: 'communicating'
       }
     },
-    "communicating": {
-      "initial": "notSelected",
-      "on": {
-        "DISABLE": "disabled",
-        "COMM_FAIL": "commFail"
+    communicating: {
+      initial: 'notSelected',
+      on: {
+        DISABLE: 'disabled',
+        COMM_FAIL: 'commFail'
       },
-      "states": {
-        "notSelected": {
-          "on": {
-            "SELECT": "selected"
+      states: {
+        notSelected: {
+          on: {
+            SELECT: 'selected'
           }
         },
-        "selected": {
-          "initial": "hostOffline",
-          "on": {
-            "DESELECT": "notSelected"
+        selected: {
+          initial: 'hostOffline',
+          on: {
+            DESELECT: 'notSelected'
           },
-          "states": {
-            "hostOffline": {
-              "on": {
-                "OFFLINE_REQUEST": "equipmentOffline",
-                "ONLINE_LOCAL": "local",
-                "ONLINE_REMOTE": "remote"
+          states: {
+            hostOffline: {
+              on: {
+                OFFLINE_REQUEST: 'equipmentOffline',
+                ONLINE_LOCAL: 'local',
+                ONLINE_REMOTE: 'remote'
               }
             },
-            "equipmentOffline": {
-              "on": {
-                "ONLINE_LOCAL": "local",
-                "ONLINE_REMOTE": "remote"
+            equipmentOffline: {
+              on: {
+                ONLINE_LOCAL: 'local',
+                ONLINE_REMOTE: 'remote'
               }
             },
-            "local": {
-              "on": {
-                "OFFLINE": "equipmentOffline",
-                "REMOTE": "remote"
+            local: {
+              on: {
+                OFFLINE: 'equipmentOffline',
+                REMOTE: 'remote'
               }
             },
-            "remote": {
-              "on": {
-                "OFFLINE": "equipmentOffline",
-                "LOCAL": "local"
+            remote: {
+              on: {
+                OFFLINE: 'equipmentOffline',
+                LOCAL: 'local'
               }
             }
           }
         }
       }
     },
-    "commFail": {
-      "on": {
-        "ENABLE": "waitDelay",
-        "DISABLE": "disabled"
+    commFail: {
+      on: {
+        ENABLE: 'waitDelay',
+        DISABLE: 'disabled'
       }
     }
   }

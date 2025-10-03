@@ -1,98 +1,98 @@
 {
-  "id": "E84HandoffStateMachine",
-  "initial": "idle",
-  "states": {
-    "idle": {
-      "on": {
-        "CS_0_ON": "notReady",
-        "VALID_ON": "waitingForTransfer"
+  id: 'E84HandoffStateMachine',
+  initial: 'idle',
+  states: {
+    idle: {
+      on: {
+        CS_0_ON: 'notReady',
+        VALID_ON: 'waitingForTransfer'
       }
     },
-    "notReady": {
-      "on": {
-        "CS_0_OFF": "idle",
-        "READY": "readyToLoad"
+    notReady: {
+      on: {
+        CS_0_OFF: 'idle',
+        READY: 'readyToLoad'
       }
     },
-    "readyToLoad": {
-      "entry": "setLoadRequest",
-      "on": {
-        "CS_0_OFF": "idle",
-        "TR_REQ_ON": "transferReady",
-        "TIMEOUT": "transferBlocked"
+    readyToLoad: {
+      entry: 'setLoadRequest',
+      on: {
+        CS_0_OFF: 'idle',
+        TR_REQ_ON: 'transferReady',
+        TIMEOUT: 'transferBlocked'
       },
-      "after": {
-        "30000": {
-          "target": "transferBlocked"
+      after: {
+        '30000': {
+          target: 'transferBlocked'
         }
       }
     },
-    "transferReady": {
-      "entry": "setReady",
-      "on": {
-        "BUSY_ON": "transferring",
-        "TR_REQ_OFF": "readyToLoad",
-        "TIMEOUT": "transferBlocked"
+    transferReady: {
+      entry: 'setReady',
+      on: {
+        BUSY_ON: 'transferring',
+        TR_REQ_OFF: 'readyToLoad',
+        TIMEOUT: 'transferBlocked'
       },
-      "after": {
-        "30000": {
-          "target": "transferBlocked"
+      after: {
+        '30000': {
+          target: 'transferBlocked'
         }
       }
     },
-    "transferring": {
-      "on": {
-        "BUSY_OFF": "transferComplete",
-        "COMPT_ON": "transferComplete"
+    transferring: {
+      on: {
+        BUSY_OFF: 'transferComplete',
+        COMPT_ON: 'transferComplete'
       }
     },
-    "transferComplete": {
-      "entry": "clearLoadRequest",
-      "exit": "clearReady",
-      "on": {
-        "COMPT_OFF": "idle",
-        "TR_REQ_OFF": "idle"
+    transferComplete: {
+      entry: 'clearLoadRequest',
+      exit: 'clearReady',
+      on: {
+        COMPT_OFF: 'idle',
+        TR_REQ_OFF: 'idle'
       }
     },
-    "waitingForTransfer": {
-      "on": {
-        "VALID_OFF": "idle",
-        "TR_REQ_ON": "readyToUnload"
+    waitingForTransfer: {
+      on: {
+        VALID_OFF: 'idle',
+        TR_REQ_ON: 'readyToUnload'
       }
     },
-    "readyToUnload": {
-      "entry": "setUnloadRequest",
-      "on": {
-        "VALID_OFF": "idle",
-        "BUSY_ON": "unloading",
-        "TIMEOUT": "transferBlocked"
+    readyToUnload: {
+      entry: 'setUnloadRequest',
+      on: {
+        VALID_OFF: 'idle',
+        BUSY_ON: 'unloading',
+        TIMEOUT: 'transferBlocked'
       },
-      "after": {
-        "30000": {
-          "target": "transferBlocked"
+      after: {
+        '30000': {
+          target: 'transferBlocked'
         }
       }
     },
-    "unloading": {
-      "on": {
-        "BUSY_OFF": "unloadComplete",
-        "COMPT_ON": "unloadComplete"
+    unloading: {
+      on: {
+        BUSY_OFF: 'unloadComplete',
+        COMPT_ON: 'unloadComplete'
       }
     },
-    "unloadComplete": {
-      "entry": "clearUnloadRequest",
-      "on": {
-        "COMPT_OFF": "idle",
-        "TR_REQ_OFF": "idle",
-        "VALID_OFF": "idle"
+    unloadComplete: {
+      entry: 'clearUnloadRequest',
+      on: {
+        COMPT_OFF: 'idle',
+        TR_REQ_OFF: 'idle',
+        VALID_OFF: 'idle'
       }
     },
-    "transferBlocked": {
-      "entry": "setAlarm",
-      "exit": "clearAlarm",
-      "on": {
-        "RESET": "idle",
-        "CS_0_OFF": "idle"
+    transferBlocked: {
+      entry: 'setAlarm',
+      exit: 'clearAlarm',
+      on: {
+        RESET: 'idle',
+        CS_0_OFF: 'idle'
       }
     }
   }
