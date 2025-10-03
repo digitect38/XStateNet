@@ -1,5 +1,7 @@
 ﻿using XStateNet.InterProcess.TestClient;
 
+static string Timestamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+
 Console.WriteLine("╔═══════════════════════════════════════════════════════╗");
 Console.WriteLine("║  XStateNet InterProcess Service - Test Client        ║");
 Console.WriteLine("╚═══════════════════════════════════════════════════════╝");
@@ -114,12 +116,12 @@ static async Task RunPingPongTest(string[] args)
         client1.OnEvent("PONG", evt =>
         {
             receivedCount++;
-            Console.WriteLine($"[ping-client] Received PONG #{receivedCount}");
+            Console.WriteLine($"[{Timestamp()}] [ping-client] Received PONG #{receivedCount}");
         });
 
         client2.OnEvent("PING", async evt =>
         {
-            Console.WriteLine($"[pong-client] Received PING, sending PONG back...");
+            Console.WriteLine($"[{Timestamp()}] [pong-client] Received PING, sending PONG back...");
             await client2.SendEventAsync("ping-client", "PONG", new { Message = "Pong!" });
         });
 
@@ -127,7 +129,7 @@ static async Task RunPingPongTest(string[] args)
         Console.WriteLine("Starting ping-pong...");
         for (int i = 0; i < 5; i++)
         {
-            Console.WriteLine($"[ping-client] Sending PING #{i + 1}");
+            Console.WriteLine($"[{Timestamp()}] [ping-client] Sending PING #{i + 1}");
             await client1.SendEventAsync("pong-client", "PING", new { Message = $"Ping {i + 1}" });
             await Task.Delay(500);
         }
@@ -136,7 +138,7 @@ static async Task RunPingPongTest(string[] args)
         await Task.Delay(2000);
 
         Console.WriteLine();
-        Console.WriteLine($"✓ Test Complete! Received {receivedCount}/5 PONGs");
+        Console.WriteLine($"[{Timestamp()}] ✓ Test Complete! Received {receivedCount}/5 PONGs");
     }
     finally
     {
@@ -175,17 +177,17 @@ static async Task RunMultiClientTest(string[] args)
             client.OnEvent("BROADCAST", evt =>
             {
                 receivedCounts[machineId]++;
-                Console.WriteLine($"[{machineId}] Received broadcast from {evt.SourceMachineId}: {evt.Payload}");
+                Console.WriteLine($"[{Timestamp()}] [{machineId}] Received broadcast from {evt.SourceMachineId}: {evt.Payload}");
             });
         }
 
-        Console.WriteLine($"✓ All {clients.Count} clients connected");
+        Console.WriteLine($"[{Timestamp()}] ✓ All {clients.Count} clients connected");
         Console.WriteLine();
 
         // Each client broadcasts to all others
         foreach (var sender in clients)
         {
-            Console.WriteLine($"[{sender.MachineId}] Broadcasting message...");
+            Console.WriteLine($"[{Timestamp()}] [{sender.MachineId}] Broadcasting message...");
 
             foreach (var receiver in clients)
             {
@@ -213,7 +215,7 @@ static async Task RunMultiClientTest(string[] args)
 
         var totalExpected = 5 * 4; // 5 clients, each receives 4 messages
         var totalReceived = receivedCounts.Values.Sum();
-        Console.WriteLine($"✓ Total: {totalReceived}/{totalExpected} messages delivered");
+        Console.WriteLine($"[{Timestamp()}] ✓ Total: {totalReceived}/{totalExpected} messages delivered");
     }
     finally
     {
@@ -252,7 +254,7 @@ static async Task RunStressTest(string[] args)
             Interlocked.Increment(ref receivedCount);
         });
 
-        Console.WriteLine($"Sending {messageCount} messages...");
+        Console.WriteLine($"[{Timestamp()}] Sending {messageCount} messages...");
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         for (int i = 0; i < messageCount; i++)
@@ -274,11 +276,11 @@ static async Task RunStressTest(string[] args)
         var throughput = messageCount / sw.Elapsed.TotalSeconds;
 
         Console.WriteLine();
-        Console.WriteLine($"✓ Sent: {messageCount} messages");
-        Console.WriteLine($"✓ Received: {receivedCount} messages");
-        Console.WriteLine($"✓ Time: {sw.ElapsedMilliseconds}ms");
-        Console.WriteLine($"✓ Throughput: {throughput:F0} msg/sec");
-        Console.WriteLine($"✓ Avg Latency: {(double)sw.ElapsedMilliseconds / messageCount:F2}ms per message");
+        Console.WriteLine($"[{Timestamp()}] ✓ Sent: {messageCount} messages");
+        Console.WriteLine($"[{Timestamp()}] ✓ Received: {receivedCount} messages");
+        Console.WriteLine($"[{Timestamp()}] ✓ Time: {sw.ElapsedMilliseconds}ms");
+        Console.WriteLine($"[{Timestamp()}] ✓ Throughput: {throughput:F0} msg/sec");
+        Console.WriteLine($"[{Timestamp()}] ✓ Avg Latency: {(double)sw.ElapsedMilliseconds / messageCount:F2}ms per message");
     }
     finally
     {
@@ -310,7 +312,7 @@ static async Task RunCustomTest()
 
         client.OnEvent("*", evt =>
         {
-            Console.WriteLine($"✓ Received: {evt.EventName} from {evt.SourceMachineId}");
+            Console.WriteLine($"[{Timestamp()}] ✓ Received: {evt.EventName} from {evt.SourceMachineId}");
         });
 
         Console.WriteLine();
@@ -342,7 +344,7 @@ static async Task RunCustomTest()
                     var message = parts.Length > 3 ? string.Join(" ", parts.Skip(3)) : "";
 
                     await client.SendEventAsync(target, eventName, new { Message = message });
-                    Console.WriteLine($"✓ Sent {eventName} to {target}");
+                    Console.WriteLine($"[{Timestamp()}] ✓ Sent {eventName} to {target}");
                     break;
 
                 case "quit":

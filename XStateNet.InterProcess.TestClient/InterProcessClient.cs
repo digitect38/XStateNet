@@ -20,6 +20,8 @@ public class InterProcessClient : IDisposable
     private readonly ConcurrentQueue<MachineEvent> _receivedEvents = new();
     private readonly ConcurrentDictionary<string, List<Action<MachineEvent>>> _eventHandlers = new();
 
+    private static string Timestamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+
     public string MachineId => _machineId;
     public bool IsConnected => _client?.IsConnected ?? false;
 
@@ -53,7 +55,7 @@ public class InterProcessClient : IDisposable
             _writer = new StreamWriter(_client, Encoding.UTF8);
             _reader = new StreamReader(_client, Encoding.UTF8);
 
-            Console.WriteLine($"[{_machineId}] ✓ Connected to InterProcess Service");
+            Console.WriteLine($"[{Timestamp()}] [{_machineId}] ✓ Connected to InterProcess Service");
 
             // Register this machine BEFORE starting receive loop
             await RegisterAsync();
@@ -64,7 +66,7 @@ public class InterProcessClient : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[{_machineId}] Failed to connect: {ex.Message}");
+            Console.WriteLine($"[{Timestamp()}] [{_machineId}] Failed to connect: {ex.Message}");
             throw;
         }
     }
@@ -181,11 +183,11 @@ public class InterProcessClient : IDisposable
                 }
                 catch (JsonException ex)
                 {
-                    Console.WriteLine($"[{_machineId}] Failed to parse message: {ex.Message}");
+                    Console.WriteLine($"[{Timestamp()}] [{_machineId}] Failed to parse message: {ex.Message}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[{_machineId}] Error processing message: {ex.Message}");
+                    Console.WriteLine($"[{Timestamp()}] [{_machineId}] Error processing message: {ex.Message}");
                 }
             }
         }
@@ -195,13 +197,13 @@ public class InterProcessClient : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[{_machineId}] Error in receive loop: {ex.Message}");
+            Console.WriteLine($"[{Timestamp()}] [{_machineId}] Error in receive loop: {ex.Message}");
         }
     }
 
     private void HandleReceivedEvent(MachineEvent evt)
     {
-        Console.WriteLine($"[{_machineId}] ✓ Received: {evt.EventName} from {evt.SourceMachineId}");
+        Console.WriteLine($"[{Timestamp()}] [{_machineId}] ✓ Received: {evt.EventName} from {evt.SourceMachineId}");
 
         _receivedEvents.Enqueue(evt);
 
@@ -216,7 +218,7 @@ public class InterProcessClient : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[{_machineId}] Error in event handler: {ex.Message}");
+                    Console.WriteLine($"[{Timestamp()}] [{_machineId}] Error in event handler: {ex.Message}");
                 }
             }
         }
@@ -261,7 +263,7 @@ public class InterProcessClient : IDisposable
         }
         catch { }
 
-        Console.WriteLine($"[{_machineId}] Disconnected");
+        Console.WriteLine($"[{Timestamp()}] [{_machineId}] Disconnected");
     }
 }
 
