@@ -50,55 +50,57 @@ namespace XStateNet.Orchestration
 
         private IPureStateMachine CreateCircuitBreakerMachine()
         {
-            var definition = $@"{{
-                'id': '{MachineId}',
+            var definition = $$"""
+            {
+                'id': '{{MachineId}}',
                 'initial': 'closed',
-                'context': {{
+                'context': {
                     'failureCount': 0,
                     'successCount': 0,
-                    'failureThreshold': {_failureThreshold},
+                    'failureThreshold': {{_failureThreshold}},
                     'lastOpenTime': null
-                }},
-                'states': {{
-                    'closed': {{
-                        'on': {{
-                            'RECORD_SUCCESS': {{
+                },
+                'states': {
+                    'closed': {
+                        'on': {
+                            'RECORD_SUCCESS': {
                                 'actions': ['incrementSuccess']
-                            }},
+                            },
                             'RECORD_FAILURE': [
-                                {{
+                                {
                                     'target': 'open',
                                     'cond': 'failureThresholdReached',
                                     'actions': ['incrementFailure', 'notifyOpened', 'recordOpenTime']
-                                }},
-                                {{
+                                },
+                                {
                                     'actions': ['incrementFailure']
-                                }}
+                                }
                             ]
-                        }}
-                    }},
-                    'open': {{
-                        'on': {{
-                            'TIMEOUT_EXPIRED': {{
+                        }
+                    },
+                    'open': {
+                        'on': {
+                            'TIMEOUT_EXPIRED': {
                                 'target': 'halfOpen',
                                 'actions': ['notifyHalfOpen']
-                            }}
-                        }}
-                    }},
-                    'halfOpen': {{
-                        'on': {{
-                            'TEST_SUCCESS': {{
+                            }
+                        }
+                    },
+                    'halfOpen': {
+                        'on': {
+                            'TEST_SUCCESS': {
                                 'target': 'closed',
                                 'actions': ['resetCounters', 'notifyClosed']
-                            }},
-                            'TEST_FAILURE': {{
+                            },
+                            'TEST_FAILURE': {
                                 'target': 'open',
                                 'actions': ['incrementFailure', 'notifyReOpened', 'recordOpenTime']
-                            }}
-                        }}
-                    }}
-                }}
-            }}";
+                            }
+                        }
+                    }
+                }
+            }
+            """;
 
             var actions = new Dictionary<string, Action<OrchestratedContext>>
             {

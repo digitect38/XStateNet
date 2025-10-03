@@ -105,7 +105,7 @@ public static class ExtendedPureStateMachineFactory
         var machine = StateMachineFactory.CreateFromScript(
             jsonScript: json,
             threadSafe: false,
-            guidIsolate: false,
+            guidIsolate: true,  // ESSENTIAL: Ensures each machine instance has isolated state
             actionCallbacks: actionMap,
             guardCallbacks: guardMap,
             serviceCallbacks: serviceMap,
