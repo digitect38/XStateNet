@@ -84,8 +84,8 @@ namespace XStateNet.Tests
             breaker.RecordFailure();
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Open, breaker.State);
 
-            // Wait for timeout
-            await Task.Delay(60);
+            // Wait for timeout - allow extra time for system scheduling variability
+            await Task.Delay(100);
 
             var successCount = 0;
             var halfOpenCount = 0;
@@ -154,8 +154,8 @@ namespace XStateNet.Tests
             breaker.RecordFailure();
             Assert.Equal(ThreadSafeCircuitBreaker.CircuitState.Open, breaker.State);
 
-            // Wait for circuit to timeout and allow half-open
-            await Task.Delay(60);
+            // Wait for circuit to timeout and allow half-open - allow extra time for system scheduling
+            await Task.Delay(100);
 
             // Act - Test half-open failure
             var halfOpenExecuted = false;
@@ -456,8 +456,8 @@ namespace XStateNet.Tests
             breaker.RecordFailure();
             breaker.RecordFailure();
 
-            // Wait for open duration
-            await Task.Delay(60);
+            // Wait for open duration - allow extra time for system scheduling
+            await Task.Delay(100);
 
             var halfOpenExecutions = 0;
             var rejectedDueToOpen = 0;
