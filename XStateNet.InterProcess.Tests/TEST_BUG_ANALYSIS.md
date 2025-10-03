@@ -209,6 +209,57 @@ public async Task Benchmark_Throughput_...
 5. **Thread-safety issues** - Some flags not properly synchronized
 6. **Performance overhead** - Console logging in hot path slows tests
 7. **Test organization** - Benchmarks mixed with unit tests
+8. **StreamWriter concurrent access** - No synchronization for concurrent sends
+
+---
+
+### 8. **StreamWriter Not Thread-Safe for Concurrent Sends** ⚠️ CRITICAL
+
+**Root Cause**: `InterProcessClient.SendEventAsync()` allows concurrent calls but `StreamWriter` is not thread-safe.
+
+**Problem**:
+```csharp
+private async Task SendMessageAsync(PipeMessage message)
+{
+    var json = JsonSerializer.Serialize(message);
+    await _writer.WriteLineAsync(json);  // NOT THREAD-SAFE!
+    await _writer.FlushAsync();
+}
+```
+
+**Error**:
+```
+System.InvalidOperationException: The stream is currently in use by a previous operation on the stream.
+  at StreamWriter.WriteLineAsync(String value)
+```
+
+**Why It Fails**:
+- Multiple threads/tasks call `SendEventAsync()` simultaneously
+- `StreamWriter.WriteLineAsync()` is NOT thread-safe for concurrent access
+- Second call throws exception if first is still writing
+- Happens in concurrent client test and multi-client broadcast scenarios
+
+**Fix Applied**:
+```csharp
+private readonly SemaphoreSlim _writeLock = new(1, 1);
+
+private async Task SendMessageAsync(PipeMessage message)
+{
+    await _writeLock.WaitAsync();
+    try
+    {
+        var json = JsonSerializer.Serialize(message);
+        await _writer.WriteLineAsync(json);
+        await _writer.FlushAsync();
+    }
+    finally
+    {
+        _writeLock.Release();
+    }
+}
+```
+
+**Impact**: This was a production bug, not just a test bug. Any code using `InterProcessClient` with concurrent sends would fail.
 
 ## Recommendations
 

@@ -19,6 +19,7 @@ public class InterProcessClient : IDisposable
     private CancellationTokenSource? _cts;
     private readonly ConcurrentQueue<MachineEvent> _receivedEvents = new();
     private readonly ConcurrentDictionary<string, List<Action<MachineEvent>>> _eventHandlers = new();
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     private static string Timestamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
@@ -229,9 +230,17 @@ public class InterProcessClient : IDisposable
         if (_writer == null)
             throw new InvalidOperationException("Writer not initialized");
 
-        var json = JsonSerializer.Serialize(message);
-        await _writer.WriteLineAsync(json);
-        await _writer.FlushAsync();
+        await _writeLock.WaitAsync();
+        try
+        {
+            var json = JsonSerializer.Serialize(message);
+            await _writer.WriteLineAsync(json);
+            await _writer.FlushAsync();
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     private async Task<PipeResponse?> ReadResponseAsync(CancellationToken cancellationToken = default)
@@ -260,6 +269,7 @@ public class InterProcessClient : IDisposable
             _writer?.Dispose();
             _client?.Dispose();
             _cts?.Dispose();
+            _writeLock?.Dispose();
         }
         catch { }
 
