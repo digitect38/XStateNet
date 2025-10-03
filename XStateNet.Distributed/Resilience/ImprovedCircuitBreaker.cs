@@ -10,6 +10,7 @@ namespace XStateNet.Distributed.Resilience
     /// Improved circuit breaker with memory-efficient bucketed statistics,
     /// persistent state, jitter, and proper cancellation token propagation
     /// </summary>
+    [Obsolete("Use XStateNet.Orchestration.OrchestratedCircuitBreaker instead. This implementation uses manual locking which can lead to race conditions. The new OrchestratedCircuitBreaker uses EventBusOrchestrator for thread-safe operation without manual locking.")]
     public sealed class ImprovedCircuitBreaker : ICircuitBreaker
     {
         private readonly string _name;

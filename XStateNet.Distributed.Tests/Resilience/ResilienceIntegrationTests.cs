@@ -6,10 +6,13 @@ using System.Threading.Tasks;
 using Xunit;
 using Microsoft.Extensions.Logging;
 using MessagePack;
+using XStateNet.Orchestration;
 using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Channels;
 using XStateNet.Distributed.StateMachines;
 using System.Threading.Channels;
+
+using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
@@ -18,7 +21,8 @@ namespace XStateNet.Distributed.Tests.Resilience
     /// </summary>
     public class ResilienceIntegrationTests : IDisposable
     {
-        private readonly CircuitBreaker _circuitBreaker;
+        private readonly EventBusOrchestrator _orchestrator;
+        private readonly OrchestratedCircuitBreaker _circuitBreaker;
         private readonly XStateNetRetryPolicy _retryPolicy;
         private readonly TimeoutProtection _timeoutProtection;
         private readonly DeadLetterQueue _dlq;
@@ -35,12 +39,13 @@ namespace XStateNet.Distributed.Tests.Resilience
             _logger = loggerFactory.CreateLogger<ResilienceIntegrationTests>();
 
             // Setup components
-            _circuitBreaker = new CircuitBreaker("test-cb", new CircuitBreakerOptions
-            {
-                FailureThreshold = 3,
-                BreakDuration = TimeSpan.FromMilliseconds(500),
-                SuccessCountInHalfOpen = 2
-            });
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            _circuitBreaker = new OrchestratedCircuitBreaker(
+                "test-cb",
+                _orchestrator,
+                failureThreshold: 3,
+                openDuration: TimeSpan.FromMilliseconds(500));
+            _ = _circuitBreaker.StartAsync(); // Start asynchronously
 
             _retryPolicy = new XStateNetRetryPolicy("test-retry", new RetryOptions
             {
@@ -73,9 +78,9 @@ namespace XStateNet.Distributed.Tests.Resilience
             {
                 try
                 {
-                    await _circuitBreaker.ExecuteAsync(async () =>
+                    await _circuitBreaker.ExecuteAsync(async ct =>
                     {
-                        return await _retryPolicy.ExecuteAsync(async (ct) =>
+                        return await _retryPolicy.ExecuteAsync(async (retryToken) =>
                         {
                             // Fail first 3 attempts
                             if (failureCount < 3)
@@ -86,7 +91,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                             successCount++;
                             return $"Success {successCount}";
                         });
-                    });
+                    }, CancellationToken.None);
                 }
                 catch (CircuitBreakerOpenException)
                 {
@@ -174,9 +179,9 @@ namespace XStateNet.Distributed.Tests.Resilience
                         if (!success) continue;
 
                         // Process with resilience pipeline
-                        await _circuitBreaker.ExecuteAsync(async () =>
+                        await _circuitBreaker.ExecuteAsync(async ct =>
                         {
-                            await _retryPolicy.ExecuteAsync(async (ct) =>
+                            await _retryPolicy.ExecuteAsync(async (retryToken) =>
                             {
                                 await _timeoutProtection.ExecuteAsync(
                                     async (timeoutToken) =>
@@ -189,7 +194,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                                 return item;
                             });
                             return item;
-                        });
+                        }, CancellationToken.None);
                     }
                     catch (AggregateException ex) when (ex.InnerExceptions.Any(e => e is TimeoutException))
                     {
@@ -251,26 +256,24 @@ namespace XStateNet.Distributed.Tests.Resilience
             var successCount = 0;
             var rejectedCount = 0;
 
-            // Simple operation that fails first 3 times
-            Func<Task<string>> failingOperation = async () =>
-            {
-                var currentRequest = Interlocked.Increment(ref requestCount);
-                await Task.Yield(); // Allow async execution
-
-                if (currentRequest <= 3)
-                {
-                    throw new InvalidOperationException($"Request {currentRequest} failed");
-                }
-
-                return $"Success {currentRequest}";
-            };
-
             // Act - Execute 10 requests sequentially
             for (int i = 0; i < 10; i++)
             {
                 try
                 {
-                    var result = await _circuitBreaker.ExecuteAsync(failingOperation);
+                    var result = await _circuitBreaker.ExecuteAsync(async ct =>
+                    {
+                        var currentRequest = Interlocked.Increment(ref requestCount);
+                        await Task.Yield(); // Allow async execution
+
+                        if (currentRequest <= 3)
+                        {
+                            throw new InvalidOperationException($"Request {currentRequest} failed");
+                        }
+
+                        return $"Success {currentRequest}";
+                    }, CancellationToken.None);
+
                     successCount++;
                     _logger.LogInformation($"Request {i} succeeded: {result}");
                 }
@@ -295,6 +298,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
         public void Dispose()
         {
+            _orchestrator?.Dispose();
         }
 
         private async Task ProcessWorkItemAsync(WorkItem item, List<string> processedItems, CancellationToken cancellationToken)

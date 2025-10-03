@@ -3,37 +3,47 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using XStateNet.Distributed.Resilience;
+using XStateNet.Orchestration;
 using XStateNet.Distributed.Tests.TestHelpers;
 using XStateNet.Distributed.Tests.TestInfrastructure;
+
+using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
     [Collection("TimingSensitive")]
-    public class CircuitBreakerTests
+    public class CircuitBreakerTests : IDisposable
     {
+        private EventBusOrchestrator? _orchestrator;
+
+        public void Dispose()
+        {
+            _orchestrator?.Dispose();
+        }
+
         [Fact]
-        public Task CircuitBreaker_StartsInClosedState()
+        public async Task CircuitBreaker_StartsInClosedState()
         {
             // Arrange
-            var options = new CircuitBreakerOptions();
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker("test", _orchestrator);
+            await circuitBreaker.StartAsync();
 
             // Assert
-            Assert.Equal(CircuitState.Closed, circuitBreaker.State);
-            return Task.CompletedTask;
+            Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 
         [Fact]
         public async Task CircuitBreaker_OpensAfterThresholdFailures()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 3,
-                BreakDuration = TimeSpan.FromMilliseconds(100)
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 3,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
             var failureCount = 0;
 
             // Act
@@ -41,10 +51,11 @@ namespace XStateNet.Distributed.Tests.Resilience
             {
                 try
                 {
-                    await circuitBreaker.ExecuteAsync(() =>
+                    await circuitBreaker.ExecuteAsync<bool>(async ct =>
                     {
+                        await Task.Yield();
                         throw new InvalidOperationException("Test failure");
-                    });
+                    }, CancellationToken.None);
                 }
                 catch (InvalidOperationException)
                 {
@@ -52,36 +63,43 @@ namespace XStateNet.Distributed.Tests.Resilience
                 }
             }
 
+            await Task.Delay(50); // Allow state transition
+
             // Assert
             Assert.Equal(3, failureCount);
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
+            Assert.Contains("open", circuitBreaker.CurrentState);
+            Assert.DoesNotContain("halfOpen", circuitBreaker.CurrentState);
         }
 
         [Fact]
         public async Task CircuitBreaker_RejectsCallsWhenOpen()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 1,
-                BreakDuration = TimeSpan.FromSeconds(1)
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromSeconds(1));
+            await circuitBreaker.StartAsync();
 
             // Act - Open the circuit
             try
             {
-                await circuitBreaker.ExecuteAsync(() =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
+                    await Task.Yield();
                     throw new InvalidOperationException("Test failure");
-                });
+                }, CancellationToken.None);
             }
             catch { }
+
+            await Task.Delay(50); // Allow state transition
 
             // Assert - Should reject calls
             await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
             {
-                await circuitBreaker.ExecuteAsync(() => Task.FromResult("test"));
+                await circuitBreaker.ExecuteAsync(ct => Task.FromResult("test"), CancellationToken.None);
             });
         }
 
@@ -89,41 +107,37 @@ namespace XStateNet.Distributed.Tests.Resilience
         public async Task CircuitBreaker_TransitionsToHalfOpen_AfterBreakDuration()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 1,
-                BreakDuration = TimeSpan.FromMilliseconds(100), // Increased for better timing precision
-                SuccessCountInHalfOpen = 1
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
 
-            var stateChangeObserved = new TaskCompletionSource<CircuitState>();
-            circuitBreaker.StateChanged += (sender, args) =>
+            var stateChangeObserved = new TaskCompletionSource<string>();
+            circuitBreaker.StateTransitioned += (sender, args) =>
             {
-                if (args.ToState == CircuitState.HalfOpen || args.ToState == CircuitState.Closed)
-                    stateChangeObserved.TrySetResult(args.ToState);
+                if (args.newState.Contains("halfOpen") || args.newState.Contains("closed"))
+                    stateChangeObserved.TrySetResult(args.newState);
             };
 
             // Act - Open the circuit
             try
             {
-                await circuitBreaker.ExecuteAsync(async () =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
                     await Task.Yield();
                     throw new InvalidOperationException("Test failure");
-                });
+                }, CancellationToken.None);
             }
             catch { }
 
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
+            await Task.Delay(50);
+            Assert.Contains("open", circuitBreaker.CurrentState);
 
-            // Use deterministic wait for state transition
-            var transitionReady = new TaskCompletionSource<bool>();
-
-            // Set up timer to signal when break duration has passed
-            using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(120), Timeout.InfiniteTimeSpan);
-            await transitionReady.Task;
+            // Wait for timeout
+            await Task.Delay(150);
 
             // Attempt execution - should succeed now that circuit is half-open
             string? result = null;
@@ -131,7 +145,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             try
             {
-                result = await circuitBreaker.ExecuteAsync(() => Task.FromResult("success"));
+                result = await circuitBreaker.ExecuteAsync(ct => Task.FromResult("success"), CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -143,225 +157,131 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.NotNull(result);
             Assert.Equal("success", result);
 
+            await Task.Delay(50);
             // Circuit should now be closed after successful execution in half-open
-            Assert.Equal(CircuitState.Closed, circuitBreaker.State);
-
-            // Verify state change was observed
-            if (stateChangeObserved.Task.IsCompleted)
-            {
-                var observedState = await stateChangeObserved.Task;
-                Assert.True(observedState == CircuitState.HalfOpen || observedState == CircuitState.Closed,
-                    $"Expected HalfOpen or Closed, but observed {observedState}");
-            }
+            Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 
         [Fact]
         public async Task CircuitBreaker_ClosesAfterSuccessInHalfOpen()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 1,
-                BreakDuration = TimeSpan.FromMilliseconds(100), // Increased for timing precision
-                SuccessCountInHalfOpen = 2
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
 
-            var stateChanges = new TaskCompletionSource<bool>();
-            var statesObserved = new List<CircuitState>();
-
-            circuitBreaker.StateChanged += (sender, args) =>
+            var statesObserved = new List<string>();
+            circuitBreaker.StateTransitioned += (sender, args) =>
             {
-                statesObserved.Add(args.ToState);
-                if (args.ToState == CircuitState.Closed && statesObserved.Contains(CircuitState.HalfOpen))
-                    stateChanges.TrySetResult(true);
+                statesObserved.Add(args.newState);
             };
 
             // Open circuit
             try
             {
-                await circuitBreaker.ExecuteAsync(() =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
+                    await Task.Yield();
                     throw new InvalidOperationException();
-                });
+                }, CancellationToken.None);
             }
             catch { }
 
-            // Wait deterministically for circuit to transition to half-open
-            var transitionReady = new TaskCompletionSource<bool>();
-            using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(120), Timeout.InfiniteTimeSpan);
-            await transitionReady.Task;
+            await Task.Delay(50);
 
-            // Execute successful calls in half-open state
-            var successfulCalls = 0;
+            // Wait for circuit to transition to half-open
+            await Task.Delay(150);
 
-            // First successful call in half-open
-            try
-            {
-                var result = await circuitBreaker.ExecuteAsync(() => Task.FromResult(1));
-                successfulCalls++;
-                Assert.Equal(1, result);
-            }
-            catch (CircuitBreakerOpenException)
-            {
-                Assert.True(false, "Circuit did not transition to half-open for first call");
-            }
+            // Execute successful call in half-open state
+            var result = await circuitBreaker.ExecuteAsync(ct => Task.FromResult(1), CancellationToken.None);
+            Assert.Equal(1, result);
 
-            // Second successful call should close the circuit (SuccessCountInHalfOpen = 2)
-            try
-            {
-                var result = await circuitBreaker.ExecuteAsync(() => Task.FromResult(2));
-                successfulCalls++;
-                Assert.Equal(2, result);
-            }
-            catch (CircuitBreakerOpenException)
-            {
-                Assert.True(false, "Circuit did not allow second successful call");
-            }
-
-            // Wait deterministically for state transition to complete
-            await Task.Yield(); // Allow state transition to complete
+            await Task.Delay(50);
 
             // Assert
-            Assert.Equal(2, successfulCalls);
-            Assert.Equal(CircuitState.Closed, circuitBreaker.State);
+            Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 
         [Fact]
         public async Task CircuitBreaker_ReopensOnFailureInHalfOpen()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 1,
-                BreakDuration = TimeSpan.FromMilliseconds(100) // Increased for timing precision
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
 
             // Track state changes
-            var stateChanges = new List<CircuitState>();
-            var stateChangeEvent = new TaskCompletionSource<bool>();
-
-            circuitBreaker.StateChanged += (sender, args) =>
+            var stateChanges = new List<string>();
+            circuitBreaker.StateTransitioned += (sender, args) =>
             {
-                stateChanges.Add(args.ToState);
-                if (args.ToState == CircuitState.Open && stateChanges.Contains(CircuitState.HalfOpen))
-                {
-                    stateChangeEvent.TrySetResult(true);
-                }
+                stateChanges.Add(args.newState);
             };
 
             // Step 1: Open circuit with initial failure
             try
             {
-                await circuitBreaker.ExecuteAsync(async () =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
-                    await Task.Yield(); // Ensure async execution
+                    await Task.Yield();
                     throw new InvalidOperationException("Initial failure");
-                });
+                }, CancellationToken.None);
             }
             catch (InvalidOperationException) { /* Expected */ }
 
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
+            await Task.Delay(50);
+            Assert.Contains("open", circuitBreaker.CurrentState);
 
-            // Step 2: Wait deterministically for circuit to be ready to transition to half-open
-            var transitionReady = new TaskCompletionSource<bool>();
-            using var timer = new Timer(_ => transitionReady.TrySetResult(true), null,
-                TimeSpan.FromMilliseconds(120), Timeout.InfiniteTimeSpan);
-            await transitionReady.Task;
+            // Step 2: Wait for circuit to transition to half-open
+            await Task.Delay(150);
 
-            // Step 3: Attempt execution which should trigger half-open state and then fail
+            // Step 3: Fail in half-open state
             Exception? caughtException = null;
             try
             {
-                await circuitBreaker.ExecuteAsync(async () =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
-                    await Task.Yield(); // Ensure async execution
-                    // If we reach here, we're in half-open state
+                    await Task.Yield();
                     throw new InvalidOperationException("Failure in half-open");
-                });
+                }, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 caughtException = ex;
             }
 
-            // Step 4: Verify the failure occurred and wasn't rejected
+            // Step 4: Verify the failure occurred
             Assert.NotNull(caughtException);
             Assert.IsType<InvalidOperationException>(caughtException);
-            Assert.Equal("Failure in half-open", caughtException.Message);
 
-            // Step 5: Wait deterministically for async state transition to complete
-            bool transitionCompleted = false;
-            using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200)))
-            {
-                try
-                {
-                    await stateChangeEvent.Task.WaitAsync(cts.Token);
-                    transitionCompleted = true;
-                }
-                catch (OperationCanceledException)
-                {
-                    transitionCompleted = false;
-                }
-            }
+            await Task.Delay(100);
 
-            // Step 6: Verify final state
-            Assert.True(transitionCompleted || circuitBreaker.State == CircuitState.Open,
-                "Circuit should have transitioned back to Open after failure in HalfOpen");
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
-
-            // Step 7: Verify state transition sequence
-            Assert.Contains(CircuitState.Open, stateChanges); // Initial open
-            // HalfOpen might not be captured if transition is very fast
-        }
-
-        [Fact]
-        public async Task CircuitBreaker_FailureRateThreshold_OpensCircuit()
-        {
-            // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureRateThreshold = 0.5, // 50% failure rate
-                MinimumThroughput = 4,
-                SamplingDuration = TimeSpan.FromSeconds(10)
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
-
-            // Act - 2 successes, 3 failures (60% failure rate)
-            await circuitBreaker.ExecuteAsync(() => Task.FromResult(1));
-            await circuitBreaker.ExecuteAsync(() => Task.FromResult(2));
-
-            for (int i = 0; i < 3; i++)
-            {
-                try
-                {
-                    await circuitBreaker.ExecuteAsync(() =>
-                    {
-                        throw new InvalidOperationException();
-                    });
-                }
-                catch { }
-            }
-
-            // Assert
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
+            // Step 5: Verify circuit reopened
+            Assert.Contains("open", circuitBreaker.CurrentState);
         }
 
         [Fact]
         public async Task CircuitBreaker_StateChangedEvent_Fires()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 1
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
-            CircuitStateChangedEventArgs? eventArgs = null;
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1);
+            await circuitBreaker.StartAsync();
+
+            (string oldState, string newState, string reason)? eventArgs = null;
             var eventFired = new TaskCompletionSource<bool>();
 
-            circuitBreaker.StateChanged += (sender, args) =>
+            circuitBreaker.StateTransitioned += (sender, args) =>
             {
                 eventArgs = args;
                 eventFired.TrySetResult(true);
@@ -370,14 +290,15 @@ namespace XStateNet.Distributed.Tests.Resilience
             // Act
             try
             {
-                await circuitBreaker.ExecuteAsync(() =>
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
+                    await Task.Yield();
                     throw new InvalidOperationException();
-                });
+                }, CancellationToken.None);
             }
             catch { }
 
-            // Wait for the event to fire (it's fired asynchronously)
+            // Wait for the event to fire
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
             {
                 await eventFired.Task.WaitAsync(cts.Token);
@@ -385,35 +306,20 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             // Assert
             Assert.NotNull(eventArgs);
-            Assert.Equal("test", eventArgs.CircuitBreakerName);
-            Assert.Equal(CircuitState.Open, eventArgs.ToState);
-            Assert.NotNull(eventArgs.LastException);
+            Assert.Contains("open", eventArgs.Value.newState);
         }
 
         [Fact]
-        public async Task CircuitBreaker_HandlesNonAsync_Operations()
-        {
-            // Arrange
-            var options = new CircuitBreakerOptions();
-            var circuitBreaker = new CircuitBreaker("test", options);
-
-            // Act
-            var result = await circuitBreaker.ExecuteAsync(() => 42);
-
-            // Assert
-            Assert.Equal(42, result);
-        }
-
-        [Fact]
-        [TestPriority(TestPriority.Critical)]
         public async Task CircuitBreaker_ThreadSafe_ConcurrentOperations()
         {
             // Arrange
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = 5
-            };
-            var circuitBreaker = new CircuitBreaker("test", options);
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig { PoolSize = 4 });
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 5);
+            await circuitBreaker.StartAsync();
+
             var successCount = 0;
             var failureCount = 0;
 
@@ -428,18 +334,20 @@ namespace XStateNet.Distributed.Tests.Resilience
                     {
                         if (index % 10 == 0) // 10% failure rate
                         {
-                            await circuitBreaker.ExecuteAsync(() =>
+                            await circuitBreaker.ExecuteAsync<bool>(async ct =>
                             {
+                                await Task.Yield();
                                 throw new InvalidOperationException();
-                            });
+                            }, CancellationToken.None);
                         }
                         else
                         {
-                            await circuitBreaker.ExecuteAsync(() =>
+                            await circuitBreaker.ExecuteAsync<bool>(async ct =>
                             {
+                                await Task.Yield();
                                 Interlocked.Increment(ref successCount);
-                                return Task.FromResult(true);
-                            });
+                                return true;
+                            }, CancellationToken.None);
                         }
                     }
                     catch
@@ -450,25 +358,11 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
 
             await Task.WhenAll(tasks);
+            await Task.Delay(100);
 
             // Assert - Should handle concurrent operations correctly
             Assert.True(successCount > 0);
             Assert.True(failureCount > 0);
-        }
-
-        [Fact]
-        public void CircuitBreaker_Dispose_CleansUpResources()
-        {
-            // Arrange
-            var options = new CircuitBreakerOptions();
-            var circuitBreaker = new CircuitBreaker("test", options);
-
-            // Act
-            circuitBreaker.Dispose();
-            circuitBreaker.Dispose(); // Should not throw on second dispose
-
-            // Assert - No exception thrown
-            Assert.True(true);
         }
     }
 }

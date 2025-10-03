@@ -9,6 +9,7 @@ namespace XStateNet.Distributed.Resilience
     /// <summary>
     /// High-performance circuit breaker implementation for fault tolerance
     /// </summary>
+    [Obsolete("Use XStateNet.Orchestration.OrchestratedCircuitBreaker instead. This implementation uses manual locking which can lead to race conditions. The new OrchestratedCircuitBreaker uses EventBusOrchestrator for thread-safe operation without manual locking.")]
     public sealed class CircuitBreaker : ICircuitBreaker
     {
         private readonly string _name;

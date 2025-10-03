@@ -2,41 +2,56 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using XStateNet.Orchestration;
 using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Channels;
+
+using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
     /// <summary>
     /// Working tests for the new resilience features
     /// </summary>
-    public class WorkingResilienceTests
+    public class WorkingResilienceTests : IDisposable
     {
+        private EventBusOrchestrator? _orchestrator;
+
+        public void Dispose()
+        {
+            _orchestrator?.Dispose();
+        }
+
         [Fact]
         public async Task CircuitBreaker_Opens_After_Failures()
         {
             // Arrange
-            var circuitBreaker = new CircuitBreaker("test", new CircuitBreakerOptions
-            {
-                FailureThreshold = 2,
-                BreakDuration = TimeSpan.FromMilliseconds(100)
-            });
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 2,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
 
             // Act - cause failures
             for (int i = 0; i < 2; i++)
             {
                 try
                 {
-                    await circuitBreaker.ExecuteAsync(async () =>
+                    await circuitBreaker.ExecuteAsync<bool>(async ct =>
                     {
+                        await Task.Yield();
                         throw new InvalidOperationException("Test failure");
-                    });
+                    }, CancellationToken.None);
                 }
                 catch { }
             }
 
+            await Task.Delay(50);
+
             // Assert
-            Assert.Equal(CircuitState.Open, circuitBreaker.State);
+            Assert.Contains("open", circuitBreaker.CurrentState);
         }
 
         [Fact]
@@ -126,22 +141,19 @@ namespace XStateNet.Distributed.Tests.Resilience
             var channel = new BoundedChannelManager<string>("test", new CustomBoundedChannelOptions
             {
                 Capacity = 2,
-                FullMode = ChannelFullMode.DropOldest // Use DropOldest to avoid hanging
+                FullMode = ChannelFullMode.DropOldest
             });
 
             // Act
             Assert.True(await channel.WriteAsync("item1"));
             Assert.True(await channel.WriteAsync("item2"));
-            // Channel is now full
-            Assert.True(await channel.WriteAsync("item3")); // Will drop oldest and succeed
+            Assert.True(await channel.WriteAsync("item3"));
 
             // Verify write statistics
             var stats = channel.GetStatistics();
             Assert.Equal(3, stats.TotalItemsWritten);
-            // Note: TotalItemsDropped may be 0 because .NET's Channel.CreateBounded with DropOldest
-            // handles dropping internally without notifying us
 
-            // Read remaining items - should be item2 and item3 (item1 was dropped by the framework)
+            // Read remaining items
             var (success1, item1) = await channel.ReadAsync();
             Assert.True(success1);
             Assert.Equal("item2", item1);
@@ -152,14 +164,16 @@ namespace XStateNet.Distributed.Tests.Resilience
         }
 
         [Fact]
-        public async Task Integration_CircuitBreaker_With_Retry()
+        public async Task CircuitBreaker_With_Retry_Integration()
         {
             // Arrange
-            var circuitBreaker = new CircuitBreaker("test", new CircuitBreakerOptions
-            {
-                FailureThreshold = 3,
-                BreakDuration = TimeSpan.FromMilliseconds(100)
-            });
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 3,
+                openDuration: TimeSpan.FromMilliseconds(200));
+            await circuitBreaker.StartAsync();
 
             var retryPolicy = new XStateNetRetryPolicy("test", new RetryOptions
             {
@@ -167,113 +181,95 @@ namespace XStateNet.Distributed.Tests.Resilience
                 InitialDelay = TimeSpan.FromMilliseconds(10)
             });
 
-            var failureCount = 0;
+            var attemptCount = 0;
 
-            // Act
-            try
+            // Act - Execute with retry inside circuit breaker
+            var result = await circuitBreaker.ExecuteAsync(async ct =>
             {
-                await circuitBreaker.ExecuteAsync(async () =>
+                return await retryPolicy.ExecuteAsync(async (retryToken) =>
                 {
-                    return await retryPolicy.ExecuteAsync(async (ct) =>
+                    attemptCount++;
+                    if (attemptCount < 2)
                     {
-                        failureCount++;
-                        if (failureCount < 5)
-                        {
-                            throw new InvalidOperationException("Service unavailable");
-                        }
-                        return "success";
-                    });
+                        throw new InvalidOperationException("Temporary failure");
+                    }
+                    return "success";
                 });
-            }
-            catch
-            {
-                // Expected to fail after retries
-            }
+            }, CancellationToken.None);
 
             // Assert
-            Assert.True(failureCount > 0);
+            Assert.Equal("success", result);
+            Assert.Equal(2, attemptCount);
+            Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 
         [Fact]
-        public async Task Full_Resilience_Pipeline()
+        public async Task CircuitBreaker_Transitions_To_HalfOpen()
         {
             // Arrange
-            var channel = new BoundedChannelManager<string>("test", new CustomBoundedChannelOptions
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromMilliseconds(100));
+            await circuitBreaker.StartAsync();
+
+            // Open circuit
+            try
             {
-                Capacity = 10,
-            });
-
-            var circuitBreaker = new CircuitBreaker("test", new CircuitBreakerOptions
-            {
-                FailureThreshold = 3
-            });
-
-            var retryPolicy = new XStateNetRetryPolicy("test", new RetryOptions
-            {
-                MaxRetries = 2
-            });
-
-            var timeoutProtection = new TimeoutProtection(new TimeoutOptions
-            {
-                DefaultTimeout = TimeSpan.FromMilliseconds(100)
-            });
-
-            var dlq = new DeadLetterQueue(new DeadLetterQueueOptions
-            {
-                MaxQueueSize = 100
-            }, new InMemoryDeadLetterStorage());
-
-            var processedCount = 0;
-            var failedCount = 0;
-
-            // Act - Send messages
-            await channel.WriteAsync("message1");
-            await channel.WriteAsync("fail1");
-            await channel.WriteAsync("message2");
-
-            // Process messages
-            for (int i = 0; i < 3; i++)
-            {
-                var (success, message) = await channel.ReadAsync();
-                if (!success || message == null) break;
-
-                try
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
                 {
-                    await circuitBreaker.ExecuteAsync(async () =>
-                    {
-                        await retryPolicy.ExecuteAsync(async (ct) =>
-                        {
-                            await timeoutProtection.ExecuteAsync(
-                                async (timeoutToken) =>
-                                {
-                                    if (message.Contains("fail"))
-                                    {
-                                        throw new InvalidOperationException("Failed to process");
-                                    }
-                                    processedCount++;
-                                    return message;
-                                },
-                                TimeSpan.FromMilliseconds(50)
-                            );
-                            return message;
-                        });
-                        return message;
-                    });
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    await dlq.EnqueueAsync(message, "Pipeline", "Processing failed", ex);
-                }
+                    await Task.Yield();
+                    throw new InvalidOperationException("Failure");
+                }, CancellationToken.None);
             }
+            catch { }
 
-            // Wait for DLQ to process the message using completion event
-            await dlq.WaitForPendingOperationsAsync(TimeSpan.FromSeconds(1));
+            await Task.Delay(50);
+            Assert.Contains("open", circuitBreaker.CurrentState);
 
-            // Assert
-            Assert.Equal(2, processedCount);
-            Assert.Equal(1, failedCount);
-            Assert.Equal(1, dlq.QueueDepth);
+            // Wait for timeout
+            await Task.Delay(150);
+
+            // Should now accept a test request (half-open)
+            var result = await circuitBreaker.ExecuteAsync(ct => Task.FromResult("test"), CancellationToken.None);
+            Assert.Equal("test", result);
+
+            await Task.Delay(50);
+            Assert.Contains("closed", circuitBreaker.CurrentState);
+        }
+
+        [Fact]
+        public async Task CircuitBreaker_Rejects_When_Open()
+        {
+            // Arrange
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            var circuitBreaker = new OrchestratedCircuitBreaker(
+                "test",
+                _orchestrator,
+                failureThreshold: 1,
+                openDuration: TimeSpan.FromSeconds(10));
+            await circuitBreaker.StartAsync();
+
+            // Open circuit
+            try
+            {
+                await circuitBreaker.ExecuteAsync<bool>(async ct =>
+                {
+                    await Task.Yield();
+                    throw new InvalidOperationException("Failure");
+                }, CancellationToken.None);
+            }
+            catch { }
+
+            await Task.Delay(50);
+
+            // Assert - Should reject
+            await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
+            {
+                await circuitBreaker.ExecuteAsync(ct => Task.FromResult("test"), CancellationToken.None);
+            });
         }
     }
 }

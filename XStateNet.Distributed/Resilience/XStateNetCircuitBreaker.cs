@@ -12,6 +12,7 @@ namespace XStateNet.Distributed.Resilience
     /// Circuit Breaker implementation using XStateNet state machine
     /// This demonstrates how Circuit Breaker pattern can be elegantly implemented using state machines
     /// </summary>
+    [Obsolete("Use XStateNet.Orchestration.OrchestratedCircuitBreaker instead. This implementation uses direct StateMachine which can lead to deadlocks. The new OrchestratedCircuitBreaker uses EventBusOrchestrator for thread-safe operation without manual locking.")]
     public class XStateNetCircuitBreaker : ICircuitBreaker, IDisposable
     {
         private readonly string _name;
