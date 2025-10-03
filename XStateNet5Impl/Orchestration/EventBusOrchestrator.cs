@@ -69,6 +69,22 @@ namespace XStateNet.Orchestration
         /// </summary>
         public void RegisterMachine(string machineId, IStateMachine machine)
         {
+            // Extract channel group from machine ID if present (format: name#groupId#guid)
+            int? channelGroupId = null;
+            var parts = machineId.Split('#');
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
+            {
+                channelGroupId = groupId;
+            }
+
+            RegisterMachine(machineId, machine, channelGroupId);
+        }
+
+        /// <summary>
+        /// Register a state machine with the orchestrator with explicit channel group
+        /// </summary>
+        public void RegisterMachine(string machineId, IStateMachine machine, int? channelGroupId)
+        {
             if (string.IsNullOrEmpty(machineId))
                 throw new ArgumentNullException(nameof(machineId));
             if (machine == null)
@@ -78,7 +94,8 @@ namespace XStateNet.Orchestration
             {
                 Id = machineId,
                 Machine = machine,
-                EventBusIndex = GetEventBusIndex(machineId)
+                EventBusIndex = GetEventBusIndex(machineId),
+                ChannelGroupId = channelGroupId
             };
 
             _machines[machineId] = managed;
@@ -92,7 +109,8 @@ namespace XStateNet.Orchestration
 
             if (_config.EnableLogging)
             {
-                Console.WriteLine($"[Orchestrator] Registered machine: {machineId} on bus {managed.EventBusIndex}");
+                Console.WriteLine($"[Orchestrator] Registered machine: {machineId} " +
+                    $"(Group: {channelGroupId?.ToString() ?? "none"}) on bus {managed.EventBusIndex}");
             }
         }
 
@@ -107,6 +125,45 @@ namespace XStateNet.Orchestration
             if (context != null)
             {
                 _machineContexts[machineId] = context;
+            }
+        }
+
+        /// <summary>
+        /// Unregister a state machine from the orchestrator
+        /// </summary>
+        public void UnregisterMachine(string machineId)
+        {
+            if (_machines.TryRemove(machineId, out var removed))
+            {
+                _machineContexts.TryRemove(machineId, out _);
+
+                if (_config.EnableLogging)
+                {
+                    Console.WriteLine($"[Orchestrator] Unregistered machine: {machineId} " +
+                        $"(Group: {removed.ChannelGroupId?.ToString() ?? "none"})");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Unregister all machines in a channel group
+        /// Used for cleanup when a channel group token is disposed
+        /// </summary>
+        public void UnregisterMachinesInGroup(int channelGroupId)
+        {
+            var machinesToRemove = _machines
+                .Where(kvp => kvp.Value.ChannelGroupId == channelGroupId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            if (_config.EnableLogging && machinesToRemove.Count > 0)
+            {
+                Console.WriteLine($"[Orchestrator] Unregistering {machinesToRemove.Count} machines from channel group {channelGroupId}");
+            }
+
+            foreach (var machineId in machinesToRemove)
+            {
+                UnregisterMachine(machineId);
             }
         }
 
@@ -450,6 +507,7 @@ namespace XStateNet.Orchestration
             public string Id { get; set; } = "";
             public IStateMachine Machine { get; set; } = null!;
             public int EventBusIndex { get; set; }
+            public int? ChannelGroupId { get; set; } // For isolation via channel groups
         }
 
         private class PendingRequest

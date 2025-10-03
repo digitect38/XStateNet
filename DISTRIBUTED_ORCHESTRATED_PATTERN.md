@@ -20,7 +20,7 @@ The distributed state machine pattern now follows the **same orchestrated style*
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  InProcess: EventBusOrchestrator (Orchestrated Pattern)     │
-│  - Uses OrchestratedContext                                  │
+│  - Uses InProcessOrchestratedContext                                  │
 │  - Actions: ctx.RequestSend()                                │
 │  - Deadlock-free                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -38,7 +38,7 @@ The distributed state machine pattern now follows the **same orchestrated style*
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  InProcess: EventBusOrchestrator                             │
-│  - Uses OrchestratedContext                                  │
+│  - Uses InProcessOrchestratedContext                                  │
 │  - Actions: ctx.RequestSend()                                │
 │  - Deadlock-free                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -59,7 +59,7 @@ The distributed state machine pattern now follows the **same orchestrated style*
 // Create with EventBusOrchestrator
 var orchestrator = new EventBusOrchestrator();
 
-var actions = new Dictionary<string, Action<OrchestratedContext>>
+var actions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["sendToPong"] = ctx => ctx.RequestSend("pong", "PING")
 };
@@ -224,10 +224,10 @@ public async Task DistributedPingPongExample()
 
 ## Context API Comparison
 
-### OrchestratedContext (InProcess)
+### InProcessOrchestratedContext (InProcess)
 
 ```csharp
-public class OrchestratedContext
+public class InProcessOrchestratedContext
 {
     void RequestSend(string targetMachineId, string eventName, object? payload = null)
     void RequestSelfSend(string eventName, object? payload = null)
@@ -290,7 +290,7 @@ var machine = StateMachineFactory.CreateFromScript(json, false, false, actions);
 
 **For InProcess deployment:**
 ```csharp
-var actions = new Dictionary<string, Action<OrchestratedContext>>
+var actions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["sendEvent"] = ctx => ctx.RequestSend("target", "EVENT")  // ✅ Orchestrated
 };

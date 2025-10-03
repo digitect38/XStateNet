@@ -23,14 +23,14 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {
+                    idle: {
                         on: {
-                            'START': 'running'
+                            START: 'running'
                         }
                     },
-                    'running': {
+                    running: {
                         on: {
-                            'STOP': 'idle'
+                            STOP: 'idle'
                         }
                     }
                 }
@@ -54,7 +54,7 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {}
+                    idle: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
@@ -81,12 +81,12 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {
+                    idle: {
                         on: {
-                            'START': 'running'
+                            START: 'running'
                         }
                     },
-                    'running': {}
+                    running: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
@@ -115,12 +115,12 @@ namespace XStateNet.Distributed.Tests
                 id: 'machine1',
                 initial: 'idle',
                 states: {
-                    'idle': {
+                    idle: {
                         on: {
-                            'REMOTE_EVENT': 'active'
+                            REMOTE_EVENT: 'active'
                         }
                     },
-                    'active': {}
+                    active: {}
                 }
             }";
             var baseMachine1 = StateMachineFactory.CreateFromScript(json1, guidIsolate: true);
@@ -137,12 +137,12 @@ namespace XStateNet.Distributed.Tests
                 id: '" + machine2Id + @"',
                 initial: 'idle',
                 states: {
-                    'idle': {
+                    idle: {
                         on: {
-                            'START': 'running'
+                            START: 'running'
                         }
                     },
-                    'running': {}
+                    running: {}
                 }
             }";
             var baseMachine2 = StateMachineFactory.CreateFromScript(json2, guidIsolate: true);
@@ -182,7 +182,7 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {}
+                    idle: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
@@ -208,7 +208,7 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {}
+                    idle: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
@@ -237,7 +237,7 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {}
+                    idle: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
@@ -266,7 +266,7 @@ namespace XStateNet.Distributed.Tests
                 id: 'simple',
                 initial: 'idle',
                 states: {
-                    'idle': {}
+                    idle: {}
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);

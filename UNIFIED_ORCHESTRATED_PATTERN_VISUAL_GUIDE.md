@@ -61,7 +61,7 @@ The **Unified Orchestrated Pattern** provides a **consistent, deadlock-free** wa
 
 ```csharp
 // 🏠 InProcess: Orchestrated ✅
-var localActions = new Dictionary<string, Action<OrchestratedContext>>
+var localActions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["send"] = ctx => ctx.RequestSend("target", "EVENT")  // ✅ Safe
 };
@@ -80,7 +80,7 @@ var distActions = new ActionMap
 
 ```csharp
 // 🏠 InProcess: Orchestrated ✅
-var localActions = new Dictionary<string, Action<OrchestratedContext>>
+var localActions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["send"] = ctx => ctx.RequestSend("target", "EVENT")  // ✅ Safe
 };
@@ -107,7 +107,7 @@ using XStateNet.Orchestration;
 var factory = new UnifiedStateMachineFactory(TransportType.InProcess);
 
 // 2️⃣ Define actions with orchestrated context
-var actions = new Dictionary<string, Action<OrchestratedContext>>
+var actions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["sendHello"] = ctx =>
     {
@@ -207,7 +207,7 @@ var machine = StateMachineFactory.CreateFromScript(json, false, false, actions);
 ```csharp
 ✅ SOLUTION: All sends go through orchestrator/message bus!
 
-var actions = new Dictionary<string, Action<OrchestratedContext>>
+var actions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["sendToPing"] = ctx =>
     {
@@ -236,10 +236,10 @@ var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServi
 
 ## 🔧 API Reference
 
-### 🎨 OrchestratedContext (InProcess)
+### 🎨 InProcessOrchestratedContext (InProcess)
 
 ```csharp
-public class OrchestratedContext
+public class InProcessOrchestratedContext
 {
     // 📤 Send to another machine
     void RequestSend(string targetMachineId, string eventName, object? payload = null);
@@ -337,7 +337,7 @@ public async Task PingPongInProcess()
     });
 
     // 2️⃣ Create Ping machine
-    var pingActions = new Dictionary<string, Action<OrchestratedContext>>
+    var pingActions = new Dictionary<string, Action<InProcessOrchestratedContext>>
     {
         ["onStart"] = ctx =>
         {
@@ -359,7 +359,7 @@ public async Task PingPongInProcess()
     );
 
     // 3️⃣ Create Pong machine
-    var pongActions = new Dictionary<string, Action<OrchestratedContext>>
+    var pongActions = new Dictionary<string, Action<InProcessOrchestratedContext>>
     {
         ["onPing"] = ctx =>
         {
@@ -636,7 +636,7 @@ var machine = StateMachineFactory.CreateFromScript(json, false, false, actions);
 
 **✅ For InProcess:**
 ```csharp
-var actions = new Dictionary<string, Action<OrchestratedContext>>
+var actions = new Dictionary<string, Action<InProcessOrchestratedContext>>
 {
     ["sendEvent"] = ctx => ctx.RequestSend("target", "EVENT")  // ✅ Safe
 };

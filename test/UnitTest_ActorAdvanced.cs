@@ -112,17 +112,17 @@ public class UnitTest_ActorAdvanced : IDisposable
         // Arrange
         var uniqueId = $"trafficLight-{Guid.NewGuid():N}";
         var json = @"{
-            'id': '" + uniqueId + @"',
-            'initial': 'red',
-            'states': {
-                'red': {
-                    'on': { 'TIMER': 'green' }
+            id: '" + uniqueId + @"',
+            initial: 'red',
+            states: {
+                red: {
+                    on: { TIMER: 'green' }
                 },
-                'green': {
-                    'on': { 'TIMER': 'yellow' }
+                green: {
+                    on: { TIMER: 'yellow' }
                 },
-                'yellow': {
-                    'on': { 'TIMER': 'red' }
+                yellow: {
+                    on: { TIMER: 'red' }
                 }
             }
         }";
@@ -151,27 +151,27 @@ public class UnitTest_ActorAdvanced : IDisposable
         var pongId = $"pong-{Guid.NewGuid():N}";
 
         var pingScript = @"{
-            'id': '" + pingId + @"',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': { 'START': 'pinging' }
+            id: '" + pingId + @"',
+            initial: 'idle',
+            states: {
+                idle: {
+                    on: { START: 'pinging' }
                 },
-                'pinging': {
-                    'on': { 'PONG': 'idle' }
+                pinging: {
+                    on: { PONG: 'idle' }
                 }
             }
         }";
 
         var pongScript = @"{
-            'id': '" + pongId + @"',
-            'initial': 'idle',
-            'states': {
-                'idle': {
-                    'on': { 'PING': 'ponging' }
+            id: '" + pongId + @"',
+            initial: 'idle',
+            states: {
+                idle: {
+                    on: { PING: 'ponging' }
                 },
-                'ponging': {
-                    'on': { 'SENT': 'idle' }
+                ponging: {
+                    on: { SENT: 'idle' }
                 }
             }
         }";

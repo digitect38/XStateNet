@@ -28,6 +28,46 @@ public static class ExtendedPureStateMachineFactory
         Dictionary<string, Func<StateMachine, int>>? delays = null,
         Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
     {
+        return CreateFromScriptWithGuardsAndServicesInternal(
+            id, json, orchestrator,
+            orchestratedActions, guards, services, delays, activities);
+    }
+
+    /// <summary>
+    /// Create a PureStateMachine with full XState feature support and channel group isolation
+    /// </summary>
+    public static IPureStateMachine CreateWithChannelGroup(
+        string id,
+        string json,
+        EventBusOrchestrator orchestrator,
+        ChannelGroupToken channelGroupToken,
+        Dictionary<string, Action<OrchestratedContext>>? orchestratedActions = null,
+        Dictionary<string, Func<StateMachine, bool>>? guards = null,
+        Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>? services = null,
+        Dictionary<string, Func<StateMachine, int>>? delays = null,
+        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
+    {
+        // Generate scoped machine ID with channel group
+        var machineId = GlobalOrchestratorManager.Instance.CreateScopedMachineId(channelGroupToken, id);
+
+        return CreateFromScriptWithGuardsAndServicesInternal(
+            machineId, json, orchestrator,
+            orchestratedActions, guards, services, delays, activities);
+    }
+
+    /// <summary>
+    /// Internal implementation for creating PureStateMachine
+    /// </summary>
+    private static IPureStateMachine CreateFromScriptWithGuardsAndServicesInternal(
+        string id,
+        string json,
+        EventBusOrchestrator orchestrator,
+        Dictionary<string, Action<OrchestratedContext>>? orchestratedActions = null,
+        Dictionary<string, Func<StateMachine, bool>>? guards = null,
+        Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>? services = null,
+        Dictionary<string, Func<StateMachine, int>>? delays = null,
+        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
+    {
         var machineContext = orchestrator.GetOrCreateContext(id);
 
         // Convert orchestrated actions to ActionMap

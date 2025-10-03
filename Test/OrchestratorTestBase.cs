@@ -7,28 +7,27 @@ using XStateNet.Orchestration;
 namespace XStateNet.Tests;
 
 /// <summary>
-/// Base class for orchestrator-based tests
-/// Provides common setup and helper methods
+/// Base class for orchestrator-based tests with channel group isolation
+/// Uses global singleton orchestrator with per-test channel groups
 /// </summary>
 public abstract class OrchestratorTestBase : IDisposable
 {
     protected readonly EventBusOrchestrator _orchestrator;
+    protected readonly ChannelGroupToken _channelGroup;
     protected readonly List<IPureStateMachine> _machines = new();
 
     protected OrchestratorTestBase()
     {
-        var config = new OrchestratorConfig
-        {
-            EnableLogging = false,
-            PoolSize = 4,
-            EnableMetrics = false
-        };
+        // Use global singleton orchestrator
+        _orchestrator = GlobalOrchestratorManager.Instance.Orchestrator;
 
-        _orchestrator = new EventBusOrchestrator(config);
+        // Create isolated channel group for this test
+        _channelGroup = GlobalOrchestratorManager.Instance.CreateChannelGroup(
+            $"Test_{GetType().Name}");
     }
 
     /// <summary>
-    /// Create a pure state machine from JSON with orchestrated actions
+    /// Create a pure state machine from JSON with orchestrated actions and channel group isolation
     /// </summary>
     protected IPureStateMachine CreateMachine(
         string id,
@@ -37,10 +36,12 @@ public abstract class OrchestratorTestBase : IDisposable
         Dictionary<string, Func<StateMachine, bool>>? guards = null,
         Dictionary<string, Func<StateMachine, System.Threading.CancellationToken, System.Threading.Tasks.Task<object>>>? services = null)
     {
-        var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
+        // Use CreateWithChannelGroup for isolation
+        var machine = ExtendedPureStateMachineFactory.CreateWithChannelGroup(
             id: id,
             json: json,
             orchestrator: _orchestrator,
+            channelGroupToken: _channelGroup,
             orchestratedActions: actions ?? new Dictionary<string, Action<OrchestratedContext>>(),
             guards: guards ?? new Dictionary<string, Func<StateMachine, bool>>(),
             services: services ?? new Dictionary<string, Func<StateMachine, System.Threading.CancellationToken, System.Threading.Tasks.Task<object>>>()
@@ -84,6 +85,7 @@ public abstract class OrchestratorTestBase : IDisposable
 
     public virtual void Dispose()
     {
-        _orchestrator?.Dispose();
+        // Release channel group (unregisters all machines in group)
+        _channelGroup?.Dispose();
     }
 }

@@ -183,17 +183,19 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Create machines
             for (int i = 0; i < machineCount; i++)
             {
-                var json = $@"{{
-                    ""id"": ""machine-{i}"",
-                    ""initial"": ""ready"",
-                    ""states"": {{
-                        ""ready"": {{
-                            ""on"": {{
-                                ""TOKEN"": ""ready""
-                            }}
-                        }}
-                    }}
-                }}";
+                var json = $$"""
+                {                    
+                    id: 'machine-{i}',
+                    initial: 'ready',
+                    states: {
+                        ready: {
+                            on: {
+                                TOKEN: 'ready'
+                            }
+                        }
+                    }                
+                }
+                """;
 
                 machines[i] = StateMachineFactory.CreateFromScript(json);
             }

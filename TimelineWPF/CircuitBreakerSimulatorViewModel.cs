@@ -8,15 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
-using XStateNet.Distributed.Resilience;
+using XStateNet.Orchestration;
 
 namespace TimelineWPF
 {
     public class CircuitBreakerSimulatorViewModel : INotifyPropertyChanged, IDisposable
     {
-        private readonly ICircuitBreaker _circuitBreaker;
+        private OrchestratedCircuitBreaker _circuitBreaker;
+        private EventBusOrchestrator _orchestrator;
         private readonly SimulatedService _simulatedService;
-        private readonly bool _useXStateNet = true; // Toggle to use XStateNet implementation
         private readonly ObservableCollection<LogEntry> _eventLog;
         private readonly Dispatcher _dispatcher;
         private readonly Stopwatch _stateTimer;
@@ -37,7 +37,7 @@ namespace TimelineWPF
         private int _rejectedRequests;
         private int _consecutiveFailures;
         private int _recoveryAttempts;
-        private CircuitState _currentState = CircuitState.Closed;
+        private string _currentState = "closed";
         private DateTime _lastStateChangeTime = DateTime.UtcNow;
 
         public CircuitBreakerSimulatorViewModel()
@@ -48,27 +48,20 @@ namespace TimelineWPF
             _stateTimer = new Stopwatch();
             _stateTimer.Start();
 
-            // Initialize Circuit Breaker
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = _failureThreshold,
-                BreakDuration = TimeSpan.FromSeconds(_breakDurationSeconds),
-                SuccessCountInHalfOpen = _successCountInHalfOpen
-            };
+            // Initialize Orchestrator and Circuit Breaker
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            _circuitBreaker = new OrchestratedCircuitBreaker(
+                "SimulatorCB_Orchestrated",
+                _orchestrator,
+                failureThreshold: _failureThreshold,
+                openDuration: TimeSpan.FromSeconds(_breakDurationSeconds));
 
-            // Choose implementation based on toggle
-            if (_useXStateNet)
-            {
-                _circuitBreaker = new XStateNetCircuitBreaker("SimulatorCB_XStateNet", options);
-                LogEvent("Using XStateNet-based Circuit Breaker implementation", LogSeverity.Info);
-            }
-            else
-            {
-                _circuitBreaker = new CircuitBreaker("SimulatorCB", options);
-                LogEvent("Using traditional Circuit Breaker implementation", LogSeverity.Info);
-            }
+            _circuitBreaker.StateTransitioned += OnCircuitBreakerStateChanged;
 
-            _circuitBreaker.StateChanged += OnCircuitBreakerStateChanged;
+            // Start the circuit breaker
+            _ = Task.Run(async () => await _circuitBreaker.StartAsync());
+
+            LogEvent("Using Orchestrated Circuit Breaker implementation", LogSeverity.Info);
 
             // Initialize commands
             SendRequestCommand = new RelayCommand(async () => await SendRequest());
@@ -194,7 +187,7 @@ namespace TimelineWPF
         public double TimeInCurrentState =>
             (DateTime.UtcNow - _lastStateChangeTime).TotalSeconds;
 
-        public CircuitState CurrentState
+        public string CurrentState
         {
             get => _currentState;
             private set
@@ -213,11 +206,11 @@ namespace TimelineWPF
             }
         }
 
-        public bool IsClosedState => CurrentState == CircuitState.Closed;
-        public bool IsOpenState => CurrentState == CircuitState.Open;
-        public bool IsHalfOpenState => CurrentState == CircuitState.HalfOpen;
+        public bool IsClosedState => CurrentState.Contains("closed");
+        public bool IsOpenState => CurrentState.Contains("open") && !CurrentState.Contains("halfOpen");
+        public bool IsHalfOpenState => CurrentState.Contains("halfOpen");
 
-        public string CurrentStateText => CurrentState.ToString().ToUpper();
+        public string CurrentStateText => CurrentState.ToUpper();
 
         public string StatusMessage { get; private set; } = "Ready";
 
@@ -244,11 +237,11 @@ namespace TimelineWPF
 
             try
             {
-                var result = await _circuitBreaker.ExecuteAsync(async () =>
+                var result = await _circuitBreaker.ExecuteAsync(async ct =>
                 {
                     // Simulate service call
                     return await _simulatedService.CallServiceAsync();
-                });
+                }, CancellationToken.None);
 
                 _successfulRequests++;
                 ConsecutiveFailures = 0;
@@ -292,7 +285,7 @@ namespace TimelineWPF
             LogEvent("Service recovery simulated - Failure rate set to 0%", LogSeverity.Success);
             UpdateStatus("Service recovered");
 
-            if (CurrentState == CircuitState.HalfOpen)
+            if (CurrentState.Contains("halfOpen"))
             {
                 RecoveryAttempts++;
             }
@@ -308,28 +301,23 @@ namespace TimelineWPF
 
         private void Reset()
         {
-            // Dispose and recreate circuit breaker
-            _circuitBreaker.StateChanged -= OnCircuitBreakerStateChanged;
+            // Dispose and recreate circuit breaker and orchestrator
+            _circuitBreaker.StateTransitioned -= OnCircuitBreakerStateChanged;
             _circuitBreaker.Dispose();
+            _orchestrator.Dispose();
 
-            var options = new CircuitBreakerOptions
-            {
-                FailureThreshold = _failureThreshold,
-                BreakDuration = TimeSpan.FromSeconds(_breakDurationSeconds),
-                SuccessCountInHalfOpen = _successCountInHalfOpen
-            };
+            // Create new orchestrator and circuit breaker
+            _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
+            _circuitBreaker = new OrchestratedCircuitBreaker(
+                "SimulatorCB_Orchestrated",
+                _orchestrator,
+                failureThreshold: _failureThreshold,
+                openDuration: TimeSpan.FromSeconds(_breakDurationSeconds));
 
-            // Recreate with same implementation type
-            ICircuitBreaker newCircuitBreaker;
-            if (_useXStateNet)
-            {
-                newCircuitBreaker = new XStateNetCircuitBreaker("SimulatorCB_XStateNet", options);
-            }
-            else
-            {
-                newCircuitBreaker = new CircuitBreaker("SimulatorCB", options);
-            }
-            newCircuitBreaker.StateChanged += OnCircuitBreakerStateChanged;
+            _circuitBreaker.StateTransitioned += OnCircuitBreakerStateChanged;
+
+            // Start the circuit breaker
+            _ = Task.Run(async () => await _circuitBreaker.StartAsync());
 
             // Reset metrics
             _totalRequests = 0;
@@ -338,7 +326,7 @@ namespace TimelineWPF
             _rejectedRequests = 0;
             _consecutiveFailures = 0;
             _recoveryAttempts = 0;
-            CurrentState = CircuitState.Closed;
+            CurrentState = "closed";
 
             // Clear log
             _dispatcher.Invoke(() => _eventLog.Clear());
@@ -370,34 +358,31 @@ namespace TimelineWPF
             }
         }
 
-        private void OnCircuitBreakerStateChanged(object? sender, CircuitStateChangedEventArgs e)
+        private void OnCircuitBreakerStateChanged(object? sender, (string oldState, string newState, string reason) e)
         {
-            CurrentState = e.ToState;
+            CurrentState = e.newState;
 
-            string message = $"Circuit Breaker state changed: {e.FromState} → {e.ToState}";
-            if (e.LastException != null)
+            string message = $"Circuit Breaker state changed: {e.oldState} → {e.newState}";
+            if (!string.IsNullOrEmpty(e.reason))
             {
-                message += $" (Last error: {e.LastException.Message})";
+                message += $" (Reason: {e.reason})";
             }
 
-            LogEvent(message, GetSeverityForState(e.ToState));
+            LogEvent(message, GetSeverityForState(e.newState));
 
-            if (e.ToState == CircuitState.HalfOpen)
+            if (e.newState.Contains("halfOpen"))
             {
                 RecoveryAttempts++;
                 LogEvent("Entering recovery testing phase", LogSeverity.Info);
             }
         }
 
-        private LogSeverity GetSeverityForState(CircuitState state)
+        private LogSeverity GetSeverityForState(string state)
         {
-            return state switch
-            {
-                CircuitState.Closed => LogSeverity.Success,
-                CircuitState.Open => LogSeverity.Error,
-                CircuitState.HalfOpen => LogSeverity.Warning,
-                _ => LogSeverity.Info
-            };
+            if (state.Contains("closed")) return LogSeverity.Success;
+            if (state.Contains("halfOpen")) return LogSeverity.Warning;
+            if (state.Contains("open")) return LogSeverity.Error;
+            return LogSeverity.Info;
         }
 
         private void LogEvent(string message, LogSeverity severity)
@@ -440,6 +425,7 @@ namespace TimelineWPF
         {
             _autoSendTimer?.Dispose();
             _circuitBreaker?.Dispose();
+            _orchestrator?.Dispose();
         }
 
         #endregion

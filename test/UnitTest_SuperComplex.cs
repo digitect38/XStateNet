@@ -434,101 +434,101 @@ namespace SuperComplexStateMachineTests
 
         // JSON Script for the super complex state machine
         private string GetJsonScript(string uniqueId) => $@"{{
-            ""id"": ""{uniqueId}"",
-            ""initial"": ""startup"",
-            ""states"": {{
-                ""startup"": {{
-                    ""on"": {{ ""INIT_COMPLETE"": ""initializing"" }}
+            id: '{uniqueId}',
+            initial: 'startup',
+            states: {{
+                startup: {{
+                    on: {{ INIT_COMPLETE: 'initializing' }}
                 }},
-                ""initializing"": {{
-                    ""type"": ""parallel"",
-                    ""states"": {{
-                        ""systemCheck"": {{
-                            ""initial"": ""checkingMemory"",
-                            ""states"": {{
-                                ""checkingMemory"": {{ ""on"": {{ ""MEMORY_OK"": ""checkingCPU"" }} }},
-                                ""checkingCPU"": {{ ""on"": {{ ""CPU_OK"": ""done"" }} }},
-                                ""done"": {{ ""type"": ""final"" }}
+                initializing: {{
+                    type: 'parallel',
+                    states: {{
+                        systemCheck: {{
+                            initial: 'checkingMemory',
+                            states: {{
+                                checkingMemory: {{ on: {{ MEMORY_OK: 'checkingCPU' }} }},
+                                checkingCPU: {{ on: {{ CPU_OK: 'done' }} }},
+                                done: {{ type: 'final' }}
                             }}
                         }},
-                        ""userAuth"": {{
-                            ""initial"": ""awaitingInput"",
-                            ""states"": {{
-                                ""awaitingInput"": {{ ""on"": {{ ""INPUT_RECEIVED"": ""validating"" }} }},
-                                ""validating"": {{
-                                    ""on"": {{
-                                        ""VALID"": ""authenticated"",
-                                        ""INVALID"": ""awaitingInput""
+                        userAuth: {{
+                            initial: 'awaitingInput',
+                            states: {{
+                                awaitingInput: {{ on: {{ INPUT_RECEIVED: 'validating' }} }},
+                                validating: {{
+                                    on: {{
+                                        VALID: 'authenticated',
+                                        INVALID: 'awaitingInput'
                                     }}
                                 }},
-                                ""authenticated"": {{ ""type"": ""final"" }}
+                                authenticated: {{ type: 'final' }}
                             }}
                         }}
                     }},
-                    ""onDone"": ""ready""
+                    onDone: 'ready'
                 }},
-                ""ready"": {{
-                    ""on"": {{ ""START_PROCESS"": ""processing"", ""SHUTDOWN"": ""shuttingDown"" }}
+                ready: {{
+                    on: {{ START_PROCESS: 'processing', SHUTDOWN: 'shuttingDown' }}
                 }},
-                ""processing"": {{
-                    ""initial"": ""taskSelection"",
-                    ""states"": {{
-                        ""taskSelection"": {{ ""on"": {{ ""TASK_A_SELECTED"": ""taskA"", ""TASK_B_SELECTED"": ""taskB"" }} }},
-                        ""taskA"": {{
-                            ""initial"": ""step1"",
-                            ""states"": {{
-                                ""step1"": {{ ""on"": {{ ""NEXT"": ""step2"" }} }},
-                                ""step2"": {{ ""on"": {{ ""NEXT"": ""completed"" }} }},
-                                ""completed"": {{
-                                    ""type"": ""final"",
-                                    ""on"": {{ ""COMPLETE"": ""#{uniqueId}.ready"" }}
+                processing: {{
+                    initial: 'taskSelection',
+                    states: {{
+                        taskSelection: {{ on: {{ TASK_A_SELECTED: 'taskA', TASK_B_SELECTED: 'taskB' }} }},
+                        taskA: {{
+                            initial: 'step1',
+                            states: {{
+                                step1: {{ on: {{ NEXT: 'step2' }} }},
+                                step2: {{ on: {{ NEXT: 'completed' }} }},
+                                completed: {{
+                                    type: 'final',
+                                    on: {{ COMPLETE: '#{uniqueId}.ready' }}
                                 }}
                             }}
                         }},
-                        ""taskB"": {{
-                            ""initial"": ""subtask1"",
-                            ""states"": {{
-                                ""subtask1"": {{ ""on"": {{ ""NEXT"": ""subtask2"" }} }},
-                                ""subtask2"": {{
-                                    ""type"": ""parallel"",
-                                    ""states"": {{
-                                        ""parallelSubtaskA"": {{
-                                            ""initial"": ""working"",
-                                            ""states"": {{
-                                                ""working"": {{ ""on"": {{ ""COMPLETE_A"": ""completed"" }} }},
-                                                ""completed"": {{ ""type"": ""final"" }}
+                        taskB: {{
+                            initial: 'subtask1',
+                            states: {{
+                                subtask1: {{ on: {{ NEXT: 'subtask2' }} }},
+                                subtask2: {{
+                                    type: 'parallel',
+                                    states: {{
+                                        parallelSubtaskA: {{
+                                            initial: 'working',
+                                            states: {{
+                                                working: {{ on: {{ COMPLETE_A: 'completed' }} }},
+                                                completed: {{ type: 'final' }}
                                             }}
                                         }},
-                                        ""parallelSubtaskB"": {{
-                                            ""initial"": ""working"",
-                                            ""states"": {{
-                                                ""working"": {{ ""on"": {{ ""COMPLETE_B"": ""completed"" }} }},
-                                                ""completed"": {{ ""type"": ""final"" }}
+                                        parallelSubtaskB: {{
+                                            initial: 'working',
+                                            states: {{
+                                                working: {{ on: {{ COMPLETE_B: 'completed' }} }},
+                                                completed: {{ type: 'final' }}
                                             }}
                                         }}
                                     }},
-                                    ""onDone"": ""completed""
+                                    onDone: 'completed'
                                 }},
-                                ""completed"": {{
-                                    ""type"": ""final"",
-                                    ""on"": {{ ""COMPLETE"": ""#{uniqueId}.ready"" }}
+                                completed: {{
+                                    type: 'final',
+                                    on: {{ COMPLETE: '#{uniqueId}.ready' }}
                                 }}
                             }}
                         }}
                     }}
                 }},
-                ""shuttingDown"": {{
-                    ""initial"": ""cleaningUp"",
-                    ""states"": {{
-                        ""cleaningUp"": {{ ""on"": {{ ""CLEANUP_DONE"": ""savingState"" }} }},
-                        ""savingState"": {{ ""on"": {{ ""SAVE_COMPLETE"": ""done"" }} }},
-                        ""done"": {{
-                            ""type"": ""final"",
-                            ""on"": {{ ""SHUTDOWN_CONFIRMED"": ""#{uniqueId}.shutdownComplete"" }}
+                shuttingDown: {{
+                    initial: 'cleaningUp',
+                    states: {{
+                        cleaningUp: {{ on: {{ CLEANUP_DONE: 'savingState' }} }},
+                        savingState: {{ on: {{ SAVE_COMPLETE: 'done' }} }},
+                        done: {{
+                            type: 'final',
+                            on: {{ SHUTDOWN_CONFIRMED: '#{uniqueId}.shutdownComplete' }}
                         }}
                     }}
                 }},
-                ""shutdownComplete"": {{ ""type"": ""final"" }}
+                shutdownComplete: {{ type: 'final' }}
             }}
         }}";
 

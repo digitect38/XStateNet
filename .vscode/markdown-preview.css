@@ -1,0 +1,22 @@
+/* Force monospace font for all code blocks in markdown preview */
+
+pre,
+pre code,
+code {
+    font-family: 'Consolas', 'Courier New', 'Monaco', 'Menlo', monospace !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+}
+
+/* Ensure code blocks don't wrap */
+pre {
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Fix for box-drawing characters */
+pre code {
+    font-variant-ligatures: none;
+    font-feature-settings: normal;
+}
