@@ -139,7 +139,6 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
     {
         // Arrange
         var clientCount = 10;
-        var messagesPerClient = 50;
         var clients = new List<InterProcessClient>();
         var receivedCounts = new Dictionary<string, int>();
         var tcs = new TaskCompletionSource<bool>();
@@ -161,7 +160,9 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
                     {
                         receivedCounts[machineId]++;
                         var total = receivedCounts.Values.Sum();
-                        if (total >= clientCount * messagesPerClient)
+                        // Each client sends to (clientCount - 1) others
+                        // Total expected = clientCount × (clientCount - 1)
+                        if (total >= clientCount * (clientCount - 1))
                         {
                             tcs.TrySetResult(true);
                         }
@@ -191,8 +192,8 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
 
             await Task.WhenAll(sendTasks);
 
-            // Wait for all messages to be received (or timeout after 20 seconds)
-            await Task.WhenAny(tcs.Task, Task.Delay(20000));
+            // Wait for all messages to be received (or timeout after 5 seconds)
+            await Task.WhenAny(tcs.Task, Task.Delay(5000));
             sw.Stop();
 
             var expectedTotal = clientCount * (clientCount - 1); // Each client sends to all others
@@ -201,7 +202,7 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
             // Assert
             Assert.Equal(expectedTotal, actualTotal);
             Assert.All(receivedCounts.Values, count => Assert.Equal(clientCount - 1, count));
-            Assert.True(sw.ElapsedMilliseconds < 25000, "Should complete within 25 seconds (with thread-safety overhead)");
+            Assert.True(sw.ElapsedMilliseconds < 10000, "Should complete within 10 seconds");
         }
         finally
         {
