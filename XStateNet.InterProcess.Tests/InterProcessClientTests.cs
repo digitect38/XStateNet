@@ -27,7 +27,6 @@ public class InterProcessClientTests : IAsyncLifetime
             _loggerFactory.CreateLogger<NamedPipeMessageBus>());
 
         await _messageBus.StartAsync();
-        await Task.Delay(200); // Let server start
     }
 
     public async Task DisposeAsync()
@@ -91,7 +90,6 @@ public class InterProcessClientTests : IAsyncLifetime
         {
             await client1.ConnectAsync();
             await client2.ConnectAsync();
-            await Task.Delay(100);
 
             var receivedEvent = false;
             var tcs = new TaskCompletionSource<bool>();
@@ -130,7 +128,6 @@ public class InterProcessClientTests : IAsyncLifetime
         {
             await client1.ConnectAsync();
             await client2.ConnectAsync();
-            await Task.Delay(100);
 
             var handler1Called = false;
             var handler2Called = false;

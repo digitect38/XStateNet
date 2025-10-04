@@ -24,7 +24,6 @@ public class MessageBusIntegrationTests : IAsyncLifetime
             _loggerFactory.CreateLogger<NamedPipeMessageBus>());
 
         await _messageBus.StartAsync();
-        await Task.Delay(200);
     }
 
     public async Task DisposeAsync()

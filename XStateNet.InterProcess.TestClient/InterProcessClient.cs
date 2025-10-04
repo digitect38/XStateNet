@@ -20,6 +20,8 @@ public class InterProcessClient : IDisposable
     private readonly ConcurrentQueue<MachineEvent> _receivedEvents = new();
     private readonly ConcurrentDictionary<string, List<Action<MachineEvent>>> _eventHandlers = new();
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private TaskCompletionSource<bool>? _registrationTcs;
+    private TaskCompletionSource<bool>? _subscriptionTcs;
 
     private static string Timestamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
@@ -74,6 +76,9 @@ public class InterProcessClient : IDisposable
 
     private async Task RegisterAsync()
     {
+        _registrationTcs = new TaskCompletionSource<bool>();
+        _subscriptionTcs = new TaskCompletionSource<bool>();
+
         var message = new PipeMessage
         {
             Type = MessageType.Register,
@@ -87,7 +92,9 @@ public class InterProcessClient : IDisposable
         };
 
         await SendMessageAsync(message);
-        await Task.Delay(100);
+
+        // Wait for registration response (with timeout)
+        await Task.WhenAny(_registrationTcs.Task, Task.Delay(5000));
 
         // Subscribe to events
         var subscribeMessage = new PipeMessage
@@ -97,7 +104,9 @@ public class InterProcessClient : IDisposable
         };
 
         await SendMessageAsync(subscribeMessage);
-        await Task.Delay(100);
+
+        // Wait for subscription response (with timeout)
+        await Task.WhenAny(_subscriptionTcs.Task, Task.Delay(5000));
     }
 
     public async Task SendEventAsync(string targetMachineId, string eventName, object? payload = null)
@@ -162,23 +171,40 @@ public class InterProcessClient : IDisposable
                 try
                 {
                     var response = JsonSerializer.Deserialize<PipeResponse>(line);
-                    if (response != null && response.Data != null)
+                    if (response != null)
                     {
-                        // Check if it's an event delivery
-                        var dataJson = JsonSerializer.Serialize(response.Data);
+                        // Check for registration/subscription responses
+                        if (response.Success && response.Data != null)
+                        {
+                            var dataJson = JsonSerializer.Serialize(response.Data);
 
-                        // Try to parse as MachineEvent
-                        try
-                        {
-                            var evt = JsonSerializer.Deserialize<MachineEvent>(dataJson);
-                            if (evt != null && !string.IsNullOrEmpty(evt.EventName))
+                            // Check if it's a registration response
+                            if (dataJson.Contains("RegisteredAt"))
                             {
-                                HandleReceivedEvent(evt);
+                                _registrationTcs?.TrySetResult(true);
+                                continue;
                             }
-                        }
-                        catch
-                        {
-                            // Not an event, ignore
+
+                            // Check if it's a subscription response
+                            if (dataJson.Contains("SubscribedAt"))
+                            {
+                                _subscriptionTcs?.TrySetResult(true);
+                                continue;
+                            }
+
+                            // Try to parse as MachineEvent
+                            try
+                            {
+                                var evt = JsonSerializer.Deserialize<MachineEvent>(dataJson);
+                                if (evt != null && !string.IsNullOrEmpty(evt.EventName))
+                                {
+                                    HandleReceivedEvent(evt);
+                                }
+                            }
+                            catch
+                            {
+                                // Not an event, ignore
+                            }
                         }
                     }
                 }

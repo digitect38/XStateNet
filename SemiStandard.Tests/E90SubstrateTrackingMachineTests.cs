@@ -260,14 +260,15 @@ public class E90SubstrateTrackingMachineTests : IDisposable
         Assert.True(substrate.ProcessingTime.Value.TotalMilliseconds >= 100);
     }
 
-    [Fact(Skip = "Timing issue with orchestrator event processing - substrates not transitioning consistently in test environment")]
+    //[Fact(Skip = "Timing issue with orchestrator event processing - substrates not transitioning consistently in test environment")]
+    [Fact]
     public async Task E90_Should_Get_Substrates_By_State()
     {
         // Arrange
         var substrate1 = await _trackingMachine.RegisterSubstrateAsync("W001", "LOT123", 1);
         var substrate2 = await _trackingMachine.RegisterSubstrateAsync("W002", "LOT123", 2);
         var substrate3 = await _trackingMachine.RegisterSubstrateAsync("W003", "LOT123", 3);
-        await Task.Delay(300);
+        //await Task.Delay(300);
 
         // Act - Move substrates through lifecycle
         var result1 = await substrate1.AcquireAsync();

@@ -26,7 +26,7 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
             _loggerFactory.CreateLogger<NamedPipeMessageBus>());
 
         await _messageBus.StartAsync();
-        await Task.Delay(200);
+        // No delay needed - clients will wait for server responses
     }
 
     public async Task DisposeAsync()
@@ -51,7 +51,6 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
         {
             await sender.ConnectAsync();
             await receiver.ConnectAsync();
-            await Task.Delay(300);
 
             var receivedCount = 0;
             var messageCount = 200; // Reduced for faster test
@@ -104,8 +103,6 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
             await client1.ConnectAsync();
             await client2.ConnectAsync();
             sw.Stop();
-
-            await Task.Delay(300);
 
             // Measure basic ping-pong
             var receivedResponse = false;
@@ -172,7 +169,7 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
                 });
             }
 
-            await Task.Delay(200);
+            // No delay needed - ConnectAsync() now waits for registration/subscription!
 
             // Act - Each client broadcasts to all others
             var sw = Stopwatch.StartNew();
@@ -227,7 +224,6 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
         {
             await sender.ConnectAsync();
             await receiver.ConnectAsync();
-            await Task.Delay(200);
 
             var receivedCount = 0;
             var messageCount = 50;
@@ -306,7 +302,6 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
         {
             await ping.ConnectAsync();
             await pong.ConnectAsync();
-            await Task.Delay(300);
 
             var roundTrips = 0;
             var targetRoundTrips = 50; // Reduced for faster test
