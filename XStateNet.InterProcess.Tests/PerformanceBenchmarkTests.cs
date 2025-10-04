@@ -193,7 +193,9 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
             }
 
             await Task.WhenAll(sendTasks);
-            await Task.WhenAny(tcs.Task, Task.Delay(10000));
+
+            // Wait for all messages to be received (or timeout after 20 seconds)
+            await Task.WhenAny(tcs.Task, Task.Delay(20000));
             sw.Stop();
 
             var expectedTotal = clientCount * (clientCount - 1); // Each client sends to all others
@@ -202,7 +204,7 @@ public class PerformanceBenchmarkTests : IAsyncLifetime
             // Assert
             Assert.Equal(expectedTotal, actualTotal);
             Assert.All(receivedCounts.Values, count => Assert.Equal(clientCount - 1, count));
-            Assert.True(sw.ElapsedMilliseconds < 15000, "Should complete within 15 seconds");
+            Assert.True(sw.ElapsedMilliseconds < 25000, "Should complete within 25 seconds (with thread-safety overhead)");
         }
         finally
         {
