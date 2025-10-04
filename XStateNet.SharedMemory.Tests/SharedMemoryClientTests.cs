@@ -174,27 +174,11 @@ namespace XStateNet.SharedMemory.Tests
                 orchestrator: orchestrator2.LocalOrchestrator
             );
 
-            await machine2.StartAsync();
-
-            // WORKAROUND: Manually trigger shared memory registration
-            // The InterceptingOrchestrator doesn't work due to method hiding
-            // TODO: Fix this properly by making EventBusOrchestrator methods virtual
-            var adapter2 = machine2 as PureStateMachineAdapter;
-            var underlyingMachine2 = adapter2?.GetUnderlying();
-            if (underlyingMachine2 != null)
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                orchestrator2.RegisterMachine(machine2.Id, underlyingMachine2);
-#pragma warning restore CS0618
-            }
-
-            // Wait for machine registration to propagate
-            await Task.Delay(300);
-
             // Get underlying machine to access OnTransition
             var adapter = machine2 as PureStateMachineAdapter;
             var underlyingMachine = adapter?.GetUnderlying() as StateMachine;
 
+            // Attach handler BEFORE starting machine to avoid race condition
             if (underlyingMachine != null)
             {
                 underlyingMachine.OnTransition += (fromState, toState, eventName) =>
@@ -208,16 +192,50 @@ namespace XStateNet.SharedMemory.Tests
                 };
             }
 
+            // Start machine AFTER attaching handler
+            await machine2.StartAsync();
+
+            // WORKAROUND: Manually trigger shared memory registration
+            // The InterceptingOrchestrator doesn't work due to method hiding
+            // TODO: Fix this properly by making EventBusOrchestrator methods virtual
+            if (underlyingMachine != null)
+            {
+#pragma warning disable CS0618 // Type or member is obsolete
+                orchestrator2.RegisterMachine(machine2.Id, underlyingMachine);
+#pragma warning restore CS0618
+            }
+
+            // Wait and verify machine registration propagated to registry
+            bool machineFoundInRegistry = false;
+            for (int i = 0; i < 20; i++) // Up to 2 seconds
+            {
+                await Task.Delay(100);
+
+                // Check if orchestrator1 can see machine2 in the registry
+                var processes = orchestrator1.GetRegisteredProcesses();
+                var process2 = Array.Find(processes, p => p.ProcessId == orchestrator2.ProcessId);
+                if (process2.ProcessId > 0 && process2.MachineCount > 0)
+                {
+                    machineFoundInRegistry = true;
+                    _output.WriteLine($"Machine registered in Process {process2.ProcessId} after {(i + 1) * 100}ms");
+                    break;
+                }
+            }
+
+            Assert.True(machineFoundInRegistry, "Machine should be visible in registry before sending cross-process event");
+
             _output.WriteLine($"Machine2 ID: {machine2.Id}, Process2 ID: {orchestrator2.ProcessId}");
 
             // Act - Send event from process 1 to machine in process 2
             _output.WriteLine($"Sending event from Process1 (ID={orchestrator1.ProcessId}) to machine {machine2.Id}");
-            await orchestrator1.SendEventAsync("sender", machine2.Id, "CROSS_PROCESS_EVENT");
+            var result = await orchestrator1.SendEventAsync("sender", machine2.Id, "CROSS_PROCESS_EVENT");
+            _output.WriteLine($"SendEventAsync result: Success={result.Success}, Error={result.ErrorMessage}");
 
             // Wait for event with timeout
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000));
 
             // Assert
+            Assert.True(result.Success, $"SendEventAsync should succeed: {result.ErrorMessage}");
             Assert.True(receivedEvent, "Receiver should have received the cross-process event");
             Assert.True(completed == tcs.Task, "Event should be received within timeout");
         }

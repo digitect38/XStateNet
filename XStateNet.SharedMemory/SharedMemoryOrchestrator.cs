@@ -197,6 +197,19 @@ namespace XStateNet.SharedMemory
 
                             Log($"Message delivered: {machineId} ({eventName}) [age={(DateTime.UtcNow.Ticks - timestamp) / 10000.0:F2}ms]");
                         }
+                        else
+                        {
+                            // TODO: ARCHITECTURAL ISSUE - All processes read from ONE shared ring buffer
+                            // The wrong process can consume a message first and must discard it
+                            // PROPER FIX: Each process needs its own dedicated inbox ring buffer
+                            // For now, this causes intermittent test failures (message lost ~40% of time)
+                            // Log as debug rather than warning since this is expected with current architecture
+                            if (_machineToProcessMap.ContainsKey(machineId))
+                            {
+                                Log($"Message consumed by wrong process: {machineId} ({eventName}) belongs to Process {processId}, not {_thisProcess.ProcessId}. Message lost.");
+                            }
+                            // If machine not in map at all, it might be from another test or stale
+                        }
                     }
                 }
                 catch (OperationCanceledException)

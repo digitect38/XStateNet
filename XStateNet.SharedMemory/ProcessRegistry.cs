@@ -243,10 +243,20 @@ namespace XStateNet.SharedMemory
 
                 WriteMachine(slotIndex, registration);
 
+                // Update global header
                 var header = ReadHeader();
                 header.MachineCount++;
                 header.LastUpdate = DateTime.UtcNow.Ticks;
                 WriteHeader(header);
+
+                // Update process-specific machine count
+                int processSlot = FindProcessSlot(processId);
+                if (processSlot >= 0)
+                {
+                    var processReg = ReadProcess(processSlot);
+                    processReg.MachineCount++;
+                    WriteProcess(processSlot, processReg);
+                }
             }
             finally
             {
@@ -269,10 +279,21 @@ namespace XStateNet.SharedMemory
                     registration.Status = 0; // Inactive
                     WriteMachine(slotIndex, registration);
 
+                    // Update global header
                     var header = ReadHeader();
                     header.MachineCount--;
                     header.LastUpdate = DateTime.UtcNow.Ticks;
                     WriteHeader(header);
+
+                    // Update process-specific machine count
+                    int processSlot = FindProcessSlot(processId);
+                    if (processSlot >= 0)
+                    {
+                        var processReg = ReadProcess(processSlot);
+                        if (processReg.MachineCount > 0)
+                            processReg.MachineCount--;
+                        WriteProcess(processSlot, processReg);
+                    }
                 }
             }
             finally

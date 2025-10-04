@@ -229,6 +229,12 @@ namespace XStateNet.SharedMemory.Core
 
             long bufferOffset = Marshal.SizeOf<SharedMemoryHeader>() + position;
             _accessor.WriteArray(bufferOffset, data, offset, count);
+
+            // CRITICAL: Memory barrier to ensure write visibility across processes
+            Thread.MemoryBarrier();
+
+            // Flush to ensure data is written to backing store and visible to other processes
+            _accessor.Flush();
         }
 
         /// <summary>
@@ -238,6 +244,9 @@ namespace XStateNet.SharedMemory.Core
         {
             if (_accessor == null)
                 throw new ObjectDisposedException(nameof(SharedMemorySegment));
+
+            // CRITICAL: Memory barrier to ensure we read fresh data, not stale cached data
+            Thread.MemoryBarrier();
 
             long bufferOffset = Marshal.SizeOf<SharedMemoryHeader>() + position;
             return _accessor.ReadArray(bufferOffset, buffer, offset, count);

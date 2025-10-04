@@ -88,7 +88,7 @@ namespace XStateNet.SharedMemory.Core
 
             // Calculate and update checksum
             uint checksum = CalculateChecksum(buffer, MessageEnvelope.HeaderSize, buffer.Length - MessageEnvelope.HeaderSize);
-            BitConverter.GetBytes(checksum).CopyTo(buffer, 20); // Offset of Checksum field
+            BitConverter.GetBytes(checksum).CopyTo(buffer, 24); // Offset of Checksum field (4+4+4+4+8=24)
 
             return buffer;
         }
