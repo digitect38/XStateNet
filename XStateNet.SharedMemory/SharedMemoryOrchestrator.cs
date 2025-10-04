@@ -16,13 +16,16 @@ namespace XStateNet.SharedMemory
     {
         private readonly EventBusOrchestrator _localOrchestrator;
         private readonly InterceptingOrchestrator _interceptingOrchestrator;
-        private readonly SharedMemorySegment _segment;
+        private readonly SharedMemorySegment _registrySegment;
+        private readonly SharedMemorySegment _inboxSegment;
         private readonly ProcessRegistry _processRegistry;
-        private readonly SharedMemoryRingBuffer _ringBuffer;
+        private readonly SharedMemoryRingBuffer _inboxBuffer;
         private readonly ProcessRegistration _thisProcess;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly Task _readerTask;
         private readonly ConcurrentDictionary<string, int> _machineToProcessMap;
+        private readonly ConcurrentDictionary<int, SharedMemoryRingBuffer> _processInboxCache;
+        private readonly string _segmentBaseName;
         private bool _disposed;
 
         public int ProcessId => _thisProcess.ProcessId;
@@ -40,28 +43,30 @@ namespace XStateNet.SharedMemory
             string? processName = null,
             long bufferSize = 1024 * 1024)
         {
+            _segmentBaseName = segmentName;
+            _processInboxCache = new ConcurrentDictionary<int, SharedMemoryRingBuffer>();
+
             // Create local orchestrator for in-process machines
             _localOrchestrator = new EventBusOrchestrator();
 
             // Create intercepting wrapper that hooks RegisterMachine calls
             _interceptingOrchestrator = new InterceptingOrchestrator(_localOrchestrator, OnMachineRegistered, OnMachineUnregistered);
 
-            // Determine if we're the first process (owner) or joining existing segment
+            // Determine if we're the first process (owner) or joining existing registry segment
             bool isOwner = false;
             try
             {
-                _segment = new SharedMemorySegment(segmentName, bufferSize, createNew: true);
+                _registrySegment = new SharedMemorySegment($"{segmentName}_Registry", bufferSize, createNew: true);
                 isOwner = true;
             }
             catch
             {
-                _segment = new SharedMemorySegment(segmentName, bufferSize, createNew: false);
+                _registrySegment = new SharedMemorySegment($"{segmentName}_Registry", bufferSize, createNew: false);
                 isOwner = false;
             }
 
             // Initialize components
-            _processRegistry = new ProcessRegistry(_segment);
-            _ringBuffer = new SharedMemoryRingBuffer(_segment);
+            _processRegistry = new ProcessRegistry(_registrySegment);
             _cancellationTokenSource = new CancellationTokenSource();
             _machineToProcessMap = new ConcurrentDictionary<string, int>();
 
@@ -70,10 +75,24 @@ namespace XStateNet.SharedMemory
                 processName ?? $"Process_{System.Diagnostics.Process.GetCurrentProcess().Id}"
             );
 
-            // Start background reader
+            // Create dedicated inbox segment for THIS process only
+            // Each process gets its own inbox that only it reads from
+            string inboxName = $"{segmentName}_Inbox_P{_thisProcess.ProcessId}";
+            try
+            {
+                _inboxSegment = new SharedMemorySegment(inboxName, bufferSize, createNew: true);
+            }
+            catch
+            {
+                // If inbox already exists (process restarted), open it
+                _inboxSegment = new SharedMemorySegment(inboxName, bufferSize, createNew: false);
+            }
+            _inboxBuffer = new SharedMemoryRingBuffer(_inboxSegment);
+
+            // Start background reader for OUR inbox only
             _readerTask = Task.Run(() => ReadMessagesAsync(_cancellationTokenSource.Token));
 
-            Log($"SharedMemoryOrchestrator initialized: ProcessId={_thisProcess.ProcessId}, IsOwner={isOwner}, Segment={segmentName}");
+            Log($"SharedMemoryOrchestrator initialized: ProcessId={_thisProcess.ProcessId}, IsOwner={isOwner}, Inbox={inboxName}");
         }
 
         /// <summary>
@@ -98,14 +117,26 @@ namespace XStateNet.SharedMemory
             }
             else
             {
-                // Different process - use shared memory
+                // Different process - write to target process's inbox
                 Log($"Shared memory delivery: {fromMachineId} -> {toMachineId} ({eventName}) [Process {_thisProcess.ProcessId} -> {targetProcessId}]");
+
+                // Get or create ring buffer for target process's inbox
+                var targetInbox = GetOrCreateProcessInbox(targetProcessId);
+                if (targetInbox == null)
+                {
+                    return new EventResult
+                    {
+                        Success = false,
+                        EventId = Guid.NewGuid(),
+                        ErrorMessage = $"Failed to access inbox for Process {targetProcessId}"
+                    };
+                }
 
                 // Build message envelope
                 var message = MessageEnvelopeHelper.BuildMessage(toMachineId, eventName, SerializeEventData(eventData));
 
-                // Write to ring buffer
-                bool written = await _ringBuffer.WriteAsync(message, timeoutMs: 1000, _cancellationTokenSource.Token);
+                // Write to target process's inbox
+                bool written = await targetInbox.WriteAsync(message, timeoutMs: 1000, _cancellationTokenSource.Token);
 
                 if (!written)
                 {
@@ -113,7 +144,7 @@ namespace XStateNet.SharedMemory
                     {
                         Success = false,
                         EventId = Guid.NewGuid(),
-                        ErrorMessage = "Failed to write message to shared memory within timeout. Buffer may be full."
+                        ErrorMessage = $"Failed to write message to Process {targetProcessId} inbox within timeout. Buffer may be full."
                     };
                 }
 
@@ -170,7 +201,28 @@ namespace XStateNet.SharedMemory
         }
 
         /// <summary>
-        /// Background task that reads messages from shared memory
+        /// Gets or creates a ring buffer for writing to the target process's inbox
+        /// </summary>
+        private SharedMemoryRingBuffer? GetOrCreateProcessInbox(int targetProcessId)
+        {
+            return _processInboxCache.GetOrAdd(targetProcessId, pid =>
+            {
+                try
+                {
+                    string inboxName = $"{_segmentBaseName}_Inbox_P{pid}";
+                    var segment = new SharedMemorySegment(inboxName, 1024 * 1024, createNew: false);
+                    return new SharedMemoryRingBuffer(segment);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Failed to open inbox for Process {pid}: {ex.Message}");
+                    return null!;
+                }
+            });
+        }
+
+        /// <summary>
+        /// Background task that reads messages from THIS process's dedicated inbox
         /// </summary>
         private async Task ReadMessagesAsync(CancellationToken cancellationToken)
         {
@@ -180,36 +232,19 @@ namespace XStateNet.SharedMemory
             {
                 try
                 {
-                    // Read message from ring buffer
-                    var message = await _ringBuffer.ReadAsync(timeoutMs: 100, cancellationToken);
+                    // Read message from OUR inbox (no competition from other processes!)
+                    var message = await _inboxBuffer.ReadAsync(timeoutMs: 100, cancellationToken);
 
                     if (message != null)
                     {
                         // Parse message
                         var (machineId, eventName, payload, timestamp) = MessageEnvelopeHelper.ParseMessage(message);
 
-                        // Check if target machine is in this process
-                        if (_machineToProcessMap.TryGetValue(machineId, out int processId) && processId == _thisProcess.ProcessId)
-                        {
-                            // Deliver locally via EventBusOrchestrator
-                            var eventData = DeserializeEventData(payload);
-                            await _localOrchestrator.SendEventAsync("SharedMemory", machineId, eventName, eventData);
+                        // Deliver locally via EventBusOrchestrator
+                        var eventData = DeserializeEventData(payload);
+                        await _localOrchestrator.SendEventAsync("SharedMemory", machineId, eventName, eventData);
 
-                            Log($"Message delivered: {machineId} ({eventName}) [age={(DateTime.UtcNow.Ticks - timestamp) / 10000.0:F2}ms]");
-                        }
-                        else
-                        {
-                            // TODO: ARCHITECTURAL ISSUE - All processes read from ONE shared ring buffer
-                            // The wrong process can consume a message first and must discard it
-                            // PROPER FIX: Each process needs its own dedicated inbox ring buffer
-                            // For now, this causes intermittent test failures (message lost ~40% of time)
-                            // Log as debug rather than warning since this is expected with current architecture
-                            if (_machineToProcessMap.ContainsKey(machineId))
-                            {
-                                Log($"Message consumed by wrong process: {machineId} ({eventName}) belongs to Process {processId}, not {_thisProcess.ProcessId}. Message lost.");
-                            }
-                            // If machine not in map at all, it might be from another test or stale
-                        }
+                        Log($"Message delivered: {machineId} ({eventName}) [age={(DateTime.UtcNow.Ticks - timestamp) / 10000.0:F2}ms]");
                     }
                 }
                 catch (OperationCanceledException)
@@ -279,11 +314,11 @@ namespace XStateNet.SharedMemory
         }
 
         /// <summary>
-        /// Gets statistics about shared memory usage
+        /// Gets statistics about THIS process's inbox buffer usage
         /// </summary>
         public SharedMemoryStats GetStats()
         {
-            return _segment.GetStats();
+            return _inboxSegment.GetStats();
         }
 
         /// <summary>
@@ -315,7 +350,17 @@ namespace XStateNet.SharedMemory
             // Dispose components
             _processRegistry?.Dispose();
             _localOrchestrator?.Dispose();
-            _segment.Dispose();
+            _registrySegment?.Dispose();
+            _inboxSegment?.Dispose();
+
+            // Dispose cached inbox buffers
+            foreach (var inbox in _processInboxCache.Values)
+            {
+                // Note: We don't dispose the segments here as they're owned by other processes
+                // Just clear the cache
+            }
+            _processInboxCache.Clear();
+
             _cancellationTokenSource.Dispose();
 
             _disposed = true;
