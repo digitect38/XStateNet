@@ -16,6 +16,7 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
     private readonly ConcurrentDictionary<string, MachineRegistration> _registeredMachines = new();
     private readonly ConcurrentDictionary<string, List<Func<MachineEvent, Task>>> _subscriptions = new();
     private readonly ConcurrentDictionary<string, StreamWriter> _clientWriters = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _writerLocks = new();
     private readonly ConcurrentBag<Task> _clientHandlers = new();
     private CancellationTokenSource? _serverCts;
     private Task? _serverTask;
@@ -103,6 +104,7 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
     {
         StreamReader? reader = null;
         StreamWriter? writer = null;
+        var writerLock = new SemaphoreSlim(1, 1); // Lock for this connection
 
         try
         {
@@ -121,7 +123,7 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                     var message = JsonSerializer.Deserialize<PipeMessage>(line);
                     if (message != null)
                     {
-                        await ProcessMessageAsync(message, writer, cancellationToken);
+                        await ProcessMessageAsync(message, writer, writerLock, cancellationToken);
                     }
                     else
                     {
@@ -131,20 +133,20 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                 catch (JsonException ex)
                 {
                     _logger.LogWarning(ex, "Invalid JSON received");
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                    await WriteResponseAsync(writer, writerLock, new PipeResponse
                     {
                         Success = false,
                         Error = "Invalid JSON format"
-                    }));
+                    });
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing message");
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                    await WriteResponseAsync(writer, writerLock, new PipeResponse
                     {
                         Success = false,
                         Error = ex.Message
-                    }));
+                    });
                 }
             }
         }
@@ -165,12 +167,19 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                 foreach (var machineId in disconnectedMachines)
                 {
                     _clientWriters.TryRemove(machineId, out _);
+
+                    // Remove the lock reference (but don't dispose - we'll dispose once below)
+                    _writerLocks.TryRemove(machineId, out _);
+
                     _logger.LogInformation("Removed writer for disconnected machine: {MachineId}", machineId);
                 }
 
                 // Dispose writer and reader
                 writer?.Dispose();
                 reader?.Dispose();
+
+                // Dispose the connection lock
+                writerLock?.Dispose();
             }
             catch (Exception ex)
             {
@@ -182,57 +191,71 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
         }
     }
 
-    private async Task ProcessMessageAsync(PipeMessage message, StreamWriter writer, CancellationToken cancellationToken)
+    private async Task WriteResponseAsync(StreamWriter writer, SemaphoreSlim writerLock, PipeResponse response)
+    {
+        await writerLock.WaitAsync();
+        try
+        {
+            await writer.WriteLineAsync(JsonSerializer.Serialize(response));
+            await writer.FlushAsync();
+        }
+        finally
+        {
+            writerLock.Release();
+        }
+    }
+
+    private async Task ProcessMessageAsync(PipeMessage message, StreamWriter writer, SemaphoreSlim writerLock, CancellationToken cancellationToken)
     {
         try
         {
             switch (message.Type)
             {
                 case MessageType.Register:
-                    await HandleRegisterAsync(message, writer);
+                    await HandleRegisterAsync(message, writer, writerLock);
                     break;
 
                 case MessageType.Unregister:
-                    await HandleUnregisterAsync(message, writer);
+                    await HandleUnregisterAsync(message, writer, writerLock);
                     break;
 
                 case MessageType.SendEvent:
-                    await HandleSendEventAsync(message, writer);
+                    await HandleSendEventAsync(message, writer, writerLock);
                     break;
 
                 case MessageType.Subscribe:
-                    await HandleSubscribeAsync(message, writer);
+                    await HandleSubscribeAsync(message, writer, writerLock);
                     break;
 
                 default:
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                    await WriteResponseAsync(writer, writerLock, new PipeResponse
                     {
                         Success = false,
                         Error = $"Unknown message type: {message.Type}"
-                    }));
+                    });
                     break;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing message: {Type}", message.Type);
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = false,
                 Error = ex.Message
-            }));
+            });
         }
     }
 
-    private async Task HandleRegisterAsync(PipeMessage message, StreamWriter writer)
+    private async Task HandleRegisterAsync(PipeMessage message, StreamWriter writer, SemaphoreSlim writerLock)
     {
         if (message.Payload == null)
         {
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = false,
                 Error = "Payload is null"
-            }));
+            });
             return;
         }
 
@@ -242,15 +265,15 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
             _registeredMachines[reg.MachineId] = reg;
             _logger.LogInformation("Machine registered: {MachineId} (PID: {ProcessId})", reg.MachineId, reg.ProcessId);
 
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = true,
                 Data = new { MachineId = reg.MachineId, RegisteredAt = reg.RegisteredAt }
-            }));
+            });
         }
     }
 
-    private async Task HandleUnregisterAsync(PipeMessage message, StreamWriter writer)
+    private async Task HandleUnregisterAsync(PipeMessage message, StreamWriter writer, SemaphoreSlim writerLock)
     {
         var machineId = message.Payload?.GetString();
         if (!string.IsNullOrEmpty(machineId))
@@ -259,22 +282,22 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
             _subscriptions.TryRemove(machineId, out _);
             _logger.LogInformation("Machine unregistered: {MachineId}", machineId);
 
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = true
-            }));
+            });
         }
     }
 
-    private async Task HandleSendEventAsync(PipeMessage message, StreamWriter writer)
+    private async Task HandleSendEventAsync(PipeMessage message, StreamWriter writer, SemaphoreSlim writerLock)
     {
         if (message.Payload == null)
         {
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = false,
                 Error = "Payload is null"
-            }));
+            });
             return;
         }
 
@@ -285,7 +308,8 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                 evt.SourceMachineId, evt.TargetMachineId, evt.EventName);
 
             // Send event to target machine via its pipe
-            if (_clientWriters.TryGetValue(evt.TargetMachineId, out var targetWriter))
+            if (_clientWriters.TryGetValue(evt.TargetMachineId, out var targetWriter) &&
+                _writerLocks.TryGetValue(evt.TargetMachineId, out var targetLock))
             {
                 try
                 {
@@ -296,8 +320,17 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                         Data = evt
                     };
 
-                    await targetWriter.WriteLineAsync(JsonSerializer.Serialize(eventResponse));
-                    await targetWriter.FlushAsync();
+                    // Lock to prevent concurrent writes to same StreamWriter
+                    await targetLock.WaitAsync();
+                    try
+                    {
+                        await targetWriter.WriteLineAsync(JsonSerializer.Serialize(eventResponse));
+                        await targetWriter.FlushAsync();
+                    }
+                    finally
+                    {
+                        targetLock.Release();
+                    }
 
                     // Also invoke local handlers if any
                     if (_subscriptions.TryGetValue(evt.TargetMachineId, out var handlers))
@@ -316,48 +349,52 @@ public class NamedPipeMessageBus : IInterProcessMessageBus
                     }
 
                     // Send success response back to sender
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                    await WriteResponseAsync(writer, writerLock, new PipeResponse
                     {
                         Success = true,
                         Data = new { Delivered = true, TargetMachineId = evt.TargetMachineId }
-                    }));
+                    });
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error delivering event to {Target}", evt.TargetMachineId);
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                    await WriteResponseAsync(writer, writerLock, new PipeResponse
                     {
                         Success = false,
                         Error = $"Failed to deliver event: {ex.Message}"
-                    }));
+                    });
                 }
             }
             else
             {
                 _logger.LogWarning("No pipe connection for target machine: {MachineId}", evt.TargetMachineId);
-                await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+                await WriteResponseAsync(writer, writerLock, new PipeResponse
                 {
                     Success = false,
                     Error = $"Target machine not connected: {evt.TargetMachineId}"
-                }));
+                });
             }
         }
     }
 
-    private async Task HandleSubscribeAsync(PipeMessage message, StreamWriter writer)
+    private async Task HandleSubscribeAsync(PipeMessage message, StreamWriter writer, SemaphoreSlim writerLock)
     {
         var machineId = message.Payload?.GetString();
         if (!string.IsNullOrEmpty(machineId))
         {
             // Store the writer for this machine so we can send events to it
             _clientWriters[machineId] = writer;
+
+            // Store the SAME lock from the connection (don't create new one!)
+            _writerLocks[machineId] = writerLock;
+
             _logger.LogInformation("Machine subscribed: {MachineId}", machineId);
 
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new PipeResponse
+            await WriteResponseAsync(writer, writerLock, new PipeResponse
             {
                 Success = true,
                 Data = new { MachineId = machineId, SubscribedAt = DateTime.UtcNow }
-            }));
+            });
         }
     }
 

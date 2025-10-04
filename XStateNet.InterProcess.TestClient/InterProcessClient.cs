@@ -58,12 +58,12 @@ public class InterProcessClient : IDisposable
 
             Console.WriteLine($"[{Timestamp()}] [{_machineId}] ✓ Connected to InterProcess Service");
 
-            // Register this machine BEFORE starting receive loop
-            await RegisterAsync();
-
-            // Start the background receive loop
+            // Start the background receive loop FIRST (before sending any messages)
             _cts = new CancellationTokenSource();
             _receiveTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
+
+            // THEN register this machine (now responses can be read immediately)
+            await RegisterAsync();
         }
         catch (Exception ex)
         {
