@@ -28,8 +28,7 @@ namespace AdvancedFeatures
         [Fact]
         public async Task GetCurrentSubStatesTest1()
         {
-            var uniqueId = $"GetCurrentSubStatesTest1_{Guid.NewGuid():N}";
-            var stateMachine = await CreateStateMachine(uniqueId);
+            var stateMachine = await CreateStateMachine("uniqueId");
 
             var underlying = GetUnderlying();
             if (underlying != null)
@@ -43,10 +42,9 @@ namespace AdvancedFeatures
         [Fact]
         public async Task GetCurrentSubStatesTest2()
         {
-            var uniqueId = $"GetCurrentSubStatesTest2_{Guid.NewGuid():N}";
-            var stateMachine = await CreateStateMachine(uniqueId);
+            var stateMachine = await CreateStateMachine("uniqueId");
 
-            await SendEventAsync("TEST", uniqueId, "TO_A1b");
+            await SendEventAsync("TEST", stateMachine.Id, "TO_A1b");
             await Task.Delay(100);
 
             var underlying = GetUnderlying();
@@ -61,10 +59,9 @@ namespace AdvancedFeatures
         [Fact]
         public async Task GetCurrentSubStatesTest3()
         {
-            var uniqueId = $"GetCurrentSubStatesTest3_{Guid.NewGuid():N}";
-            var stateMachine = await CreateStateMachine(uniqueId);
+            var stateMachine = await CreateStateMachine("uniqueId");
 
-            await SendEventAsync("TEST", uniqueId, "TO_B");
+            await SendEventAsync("TEST", stateMachine.Id, "TO_B");
             await Task.Delay(100);
 
             var underlying = GetUnderlying();

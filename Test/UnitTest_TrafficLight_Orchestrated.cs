@@ -140,7 +140,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
                 underlying.ContextMap["isReady"] = true;
         }
 
-        var result = await SendEventAsync("TEST", "trafficLight", "TIMER");
+        var result = await SendEventAsync("TEST", machine, "TIMER");
 
         Assert.True(result.Success);
         Assert.Contains("green.bright", result.NewState);
@@ -161,7 +161,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
                 underlying.ContextMap["isReady"] = false; // Guard will fail
         }
 
-        var result = await SendEventAsync("TEST", "trafficLight", "TIMER");
+        var result = await SendEventAsync("TEST", machine, "TIMER");
 
         // Should remain in red state as guard condition fails
         Assert.Contains("red.bright", result.NewState);
@@ -186,7 +186,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
                 underlying.ContextMap["isReady"] = true;
         }
 
-        await SendEventAsync("TEST", "trafficLight", "TIMER");
+        await SendEventAsync("TEST", machine, "TIMER");
 
         Assert.Contains("Exiting red.bright", _exitActions);
         Assert.Contains("Exiting red", _exitActions);
@@ -201,7 +201,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
         var machine = CreateMachine("trafficLight", TrafficLightJson, CreateActions1(), CreateGuards());
         await machine.StartAsync();
 
-        var result = await SendEventAsync("TEST", "trafficLight", "PUSH_BUTTON");
+        var result = await SendEventAsync("TEST", machine, "PUSH_BUTTON");
 
         Assert.Contains("canWalk", result.NewState);
         Assert.Contains("red", result.NewState);
@@ -213,7 +213,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
         var machine = CreateMachine("trafficLight", TrafficLightJson, CreateActions1(), CreateGuards());
         await machine.StartAsync();
 
-        var result = await SendEventAsync("TEST", "trafficLight", "INVALID_EVENT");
+        var result = await SendEventAsync("TEST", machine, "INVALID_EVENT");
 
         // Should remain in initial state
         Assert.Contains("red.bright", result.NewState);
@@ -236,7 +236,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
                 underlying.ContextMap["isReady"] = true;
         }
 
-        await SendEventAsync("TEST", "trafficLight", "NO_TARGET");
+        await SendEventAsync("TEST", machine, "NO_TARGET");
 
         Assert.Contains("No target action executed", _noTargetActions);
     }
@@ -255,7 +255,7 @@ public class TrafficMachineOrchestrated : OrchestratorTestBase
                 underlying.ContextMap["isReady"] = true;
         }
 
-        var result = await SendEventAsync("TEST", "trafficLight", "IMPLICIT_TARGET");
+        var result = await SendEventAsync("TEST", machine, "IMPLICIT_TARGET");
 
         Assert.Contains("yellow", result.NewState);
     }

@@ -506,11 +506,13 @@ namespace Test
                 delays: null,
                 activities: null);
             _machines.Add(machine);
-            _orchestrator.RegisterMachine("counter", (machine as PureStateMachineAdapter)?.GetUnderlying());
+
+            // Machine is already registered by factory, use actual machine ID
+            var machineId = machine.Id;
             await machine.StartAsync();
 
             // Act
-            var result = await _orchestrator.SendEventAsync("external", "counter", "INCREMENT");
+            var result = await _orchestrator.SendEventAsync("external", machineId, "INCREMENT");
             await Task.Delay(500); // Allow all self-sends to process
 
             // Assert

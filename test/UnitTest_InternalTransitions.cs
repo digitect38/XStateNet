@@ -1,22 +1,30 @@
-using Xunit;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Reflection.PortableExecutable;
+using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace ActorModelTests;
 
 public class UnitTest_InternalTransitions : OrchestratorTestBase
 {
+    private readonly ITestOutputHelper _output;
     private IPureStateMachine? _currentMachine;
     private int _entryCount;
     private int _exitCount;
     private int _actionCount;
     private ConcurrentBag<string> _actionLog;
     private ConcurrentDictionary<string, int> _contextValues;
+
+    public UnitTest_InternalTransitions(ITestOutputHelper output)
+    {
+        _output = output;
+    }
 
     StateMachine? GetUnderlying() => (_currentMachine as PureStateMachineAdapter)?.GetUnderlying() as StateMachine;
 
@@ -113,11 +121,10 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestBasicInternalTransition()
     {
         ResetCounters();
-        var uniqueId = $"TestBasicInternalTransition_{Guid.NewGuid():N}";
 
         string script = @$"
         {{
-            id: '{uniqueId}',
+            id: 'TEST',
             initial: 'active',
             context: {{
                 counter: 0
@@ -142,20 +149,28 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("basicInternalTrans", script, actions, guards);
         await _currentMachine.StartAsync();
 
         var currentState = _currentMachine.CurrentState;
         Assert.Contains("active", currentState);
         Assert.Equal(1, _entryCount); // Entry called once on start
 
+        var uniqueId = _currentMachine.Id;
         // Send internal transition event multiple times
+        _output.WriteLine($"Sending first INCREMENT. ActionCount before: {_actionCount}");
         await SendEventAsync("TEST", uniqueId, "INCREMENT");
         await Task.Delay(100);
+        _output.WriteLine($"After first INCREMENT. ActionCount: {_actionCount}, EntryCount: {_entryCount}, ExitCount: {_exitCount}");
+
         await SendEventAsync("TEST", uniqueId, "INCREMENT");
         await Task.Delay(100);
+        _output.WriteLine($"After second INCREMENT. ActionCount: {_actionCount}");
+
         await SendEventAsync("TEST", uniqueId, "INCREMENT");
         await Task.Delay(100);
+        _output.WriteLine($"After third INCREMENT. ActionCount: {_actionCount}");
+        _output.WriteLine($"Action log: {string.Join(", ", _actionLog)}");
 
         // State should not change, entry/exit should not be called again
         currentState = _currentMachine.CurrentState;
@@ -177,31 +192,31 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestInternalTransitionWithNullTarget()
     {
         ResetCounters();
-        var uniqueId = $"TestInternalTransitionWithNullTarget_{Guid.NewGuid():N}";
 
-        string script = @$"
-        {{
-            id: '{uniqueId}',
+        string script = $$"""
+        {
+            id: 'machineId',
             initial: 'counting',
-            states: {{
-                counting: {{
+            states: {
+                counting: {
                     entry: 'entryAction',
-                    on: {{
-                        UPDATE: {{
+                    on: {
+                        UPDATE: {
                             actions: 'incrementCounter'
-                        }},
+                        },
                         FINISH: 'complete'
-                    }}
-                }},
-                complete: {{
+                    }
+                },
+                complete: {
                     type: 'final'
-                }}
-            }}
-        }}";
+                }
+            }
+        }
+        """;
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("machineId", script, actions, guards);
 
         var underlying = GetUnderlying();
         if (underlying?.ContextMap != null)
@@ -214,9 +229,9 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
         Assert.Equal(1, _entryCount);
 
         // Null target with actions should be internal
-        await SendEventAsync("TEST", uniqueId, "UPDATE");
+        await SendEventAsync("TEST", _currentMachine.Id, "UPDATE");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "UPDATE");
+        await SendEventAsync("TEST", _currentMachine.Id, "UPDATE");
         await Task.Delay(100);
 
         var currentState = _currentMachine.CurrentState;
@@ -236,45 +251,45 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestInternalTransitionInNestedStates()
     {
         ResetCounters();
-        var uniqueId = $"TestInternalTransitionInNestedStates_{Guid.NewGuid():N}";
 
-        string script = @$"
-        {{
-            id: '{uniqueId}',
+        string script = $$"""
+        {
+            id: 'machineId',
             initial: 'parent',
-            states: {{
-                parent: {{
+            states: {
+                parent: {
                     initial: 'child',
                     entry: 'entryAction',
                     exit: 'exitAction',
-                    states: {{
-                        child: {{
+                    states: {
+                        child: {
                             entry: 'entryAction',
                             exit: 'exitAction',
-                            on: {{
-                                INTERNAL_UPDATE: {{
+                            on: {
+                                INTERNAL_UPDATE: {
                                     target: '.',
                                     actions: 'updateValue'
-                                }},
+                                },
                                 EXTERNAL_UPDATE: 'sibling'
-                            }}
-                        }},
-                        sibling: {{
+                            }
+                        },
+                        sibling: {
                             type: 'final'
-                        }}
-                    }}
-                }}
-            }}
-        }}";
+                        }
+                    }
+                }
+            }
+        }
+        """;
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("machineId", script, actions, guards);
         await _currentMachine.StartAsync();
 
         Assert.Equal(2, _entryCount); // Parent and child entry
 
-        await SendEventAsync("TEST", uniqueId, "INTERNAL_UPDATE");
+        await SendEventAsync("TEST", _currentMachine.Id, "INTERNAL_UPDATE");
         await Task.Delay(100);
 
         // Should update context without re-entering states
@@ -289,7 +304,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
         var currentState = _currentMachine.CurrentState;
         Assert.Contains("child", currentState);
 
-        await SendEventAsync("TEST", uniqueId, "EXTERNAL_UPDATE");
+        await SendEventAsync("TEST", _currentMachine.Id, "EXTERNAL_UPDATE");
         await Task.Delay(100);
 
         // External transition should trigger exit/entry
@@ -302,46 +317,46 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestInternalTransitionWithGuards()
     {
         ResetCounters();
-        var uniqueId = $"TestInternalTransitionWithGuards_{Guid.NewGuid():N}";
 
-        string script = @$"
-        {{
-            id: '{uniqueId}',
+        string script = $$"""
+        {
+            id: 'machineId',
             initial: 'counting',
-            context: {{
+            context: {
                 counter: 0
-            }},
-            states: {{
-                counting: {{
-                    on: {{
+            },
+            states: {
+                counting: {
+                    on: {
                         INCREMENT: [
-                            {{
+                            {
                                 target: '.',
                                 cond: 'lessThanFive',
                                 actions: 'incrementCounter'
-                            }},
-                            {{
+                            },
+                            {
                                 target: 'maxReached'
-                            }}
+                            }
                         ]
-                    }}
-                }},
-                maxReached: {{
+                    }
+                },
+                maxReached: {
                     entry: 'log',
                     type: 'final'
-                }}
-            }}
-        }}";
+                }
+            }
+        }
+        """;
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("machineId", script, actions, guards);
         await _currentMachine.StartAsync();
 
         // Increment while counter < 5 (internal transitions)
         for (int i = 0; i < 4; i++)
         {
-            await SendEventAsync("TEST", uniqueId, "INCREMENT");
+            await SendEventAsync("TEST", _currentMachine.Id, "INCREMENT");
             await Task.Delay(100);
             var currentState = _currentMachine.CurrentState;
             Assert.Contains("counting", currentState);
@@ -356,7 +371,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
             Assert.Equal(4, counter1 is Newtonsoft.Json.Linq.JValue jv1 ? jv1.ToObject<int>() : (int)(counter1 ?? 0));
 
             // One more increment should reach 5 and transition externally
-            await SendEventAsync("TEST", uniqueId, "INCREMENT");
+            await SendEventAsync("TEST", _currentMachine.Id, "INCREMENT");
             await Task.Delay(100);
             Assert.Equal(5, _actionCount);
             var counter2 = underlying.ContextMap["counter"];
@@ -364,7 +379,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
         }
 
         // Next increment should trigger external transition
-        await SendEventAsync("TEST", uniqueId, "INCREMENT");
+        await SendEventAsync("TEST", _currentMachine.Id, "INCREMENT");
         await Task.Delay(100);
         var finalState = _currentMachine.CurrentState;
         Assert.Contains("maxReached", finalState);
@@ -374,47 +389,47 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestInternalTransitionInParallelStates()
     {
         ResetCounters();
-        var uniqueId = $"TestInternalTransitionInParallelStates_{Guid.NewGuid():N}";
 
-        string script = @$"
-        {{
-            id: '{uniqueId}',
+        string script = $$"""
+        {
+            id: 'machineId',
             type: 'parallel',
-            states: {{
-                regionA: {{
+            states: {
+                regionA: {
                     initial: 'stateA',
-                    states: {{
-                        stateA: {{
+                    states: {
+                        stateA: {
                             entry: 'entryAction',
-                            on: {{
-                                UPDATE_A: {{
+                            on: {
+                                UPDATE_A: {
                                     target: '.',
                                     actions: 'incrementCounter'
-                                }}
-                            }}
-                        }}
-                    }}
-                }},
-                regionB: {{
+                                }
+                            }
+                        }
+                    }
+                },
+                regionB: {
                     initial: 'stateB',
-                    states: {{
-                        stateB: {{
+                    states: {
+                        stateB: {
                             entry: 'entryAction',
-                            on: {{
-                                UPDATE_B: {{
+                            on: {
+                                UPDATE_B: {
                                     target: '.',
                                     actions: 'updateValue'
-                                }}
-                            }}
-                        }}
-                    }}
-                }}
-            }}
-        }}";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """;
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("machineId", script, actions, guards);
 
         var underlying = GetUnderlying();
         if (underlying?.ContextMap != null)
@@ -427,7 +442,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
         var initialEntries = _entryCount;
 
         // Update region A internally
-        await SendEventAsync("TEST", uniqueId, "UPDATE_A");
+        await SendEventAsync("TEST", _currentMachine.Id, "UPDATE_A");
         await Task.Delay(100);
         Assert.Equal(initialEntries, _entryCount); // No re-entry
 
@@ -438,7 +453,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
             Assert.Equal(1, counterValue is Newtonsoft.Json.Linq.JValue jv3 ? jv3.ToObject<int>() : (int)(counterValue ?? 0));
 
             // Update region B internally
-            await SendEventAsync("TEST", uniqueId, "UPDATE_B");
+            await SendEventAsync("TEST", _currentMachine.Id, "UPDATE_B");
             await Task.Delay(100);
             Assert.Equal(initialEntries, _entryCount); // Still no re-entry
             Assert.Equal("updated", underlying.ContextMap["value"]);
@@ -454,57 +469,57 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     public async Task TestMixedInternalAndExternalTransitions()
     {
         ResetCounters();
-        var uniqueId = $"TestMixedInternalAndExternalTransitions_{Guid.NewGuid():N}";
 
-        string script = @$"
-        {{
-            id: '{uniqueId}',
+        string script = $$"""
+        {
+            id: 'machineId',
             initial: 'idle',
-            context: {{
+            context: {
                 internalCount: 0,
                 externalCount: 0
-            }},
-            states: {{
-                idle: {{
-                    on: {{
+            },
+            states: {
+                idle: {
+                    on: {
                         START: 'active'
-                    }}
-                }},
-                active: {{
+                    }
+                },
+                active: {
                     entry: 'entryAction',
                     exit: 'exitAction',
-                    on: {{
-                        INTERNAL: {{
+                    on: {
+                        INTERNAL: {
                             target: '.',
                             actions: 'incrementInternal'
-                        }},
-                        EXTERNAL: {{
+                        },
+                        EXTERNAL: {
                             target: 'active',
                             actions: 'incrementExternal'
-                        }},
+                        },
                         DONE: 'complete'
-                    }}
-                }},
-                complete: {{
+                    }
+                },
+                complete: {
                     type: 'final'
-                }}
-            }}
-        }}";
+                }
+            }
+        }
+        """;
 
         var actions = CreateActions();
         var guards = CreateGuards();
-        _currentMachine = CreateMachine(uniqueId, script, actions, guards);
+        _currentMachine = CreateMachine("machineId", script, actions, guards);
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "START");
+        await SendEventAsync("TEST", _currentMachine.Id, "START");
         await Task.Delay(100);
         var initialEntries = _entryCount;
         var initialExits = _exitCount;
 
         // Internal transitions
-        await SendEventAsync("TEST", uniqueId, "INTERNAL");
+        await SendEventAsync("TEST", _currentMachine.Id, "INTERNAL");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "INTERNAL");
+        await SendEventAsync("TEST", _currentMachine.Id, "INTERNAL");
         await Task.Delay(100);
 
         Assert.Equal(initialEntries, _entryCount);
@@ -519,10 +534,10 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
             Assert.Equal(0, externalCount1 is Newtonsoft.Json.Linq.JValue jve1 ? jve1.ToObject<int>() : (int)(externalCount1 ?? 0));
 
             // External self-transitions
-            await SendEventAsync("TEST", uniqueId, "EXTERNAL");
+            await SendEventAsync("TEST", _currentMachine.Id, "EXTERNAL");
             await Task.Delay(100);
-            await SendEventAsync("TEST", uniqueId, "EXTERNAL");
-            await Task.Delay(100);
+            await SendEventAsync("TEST", _currentMachine.Id, "EXTERNAL");
+            await Task.Delay(100);  
 
             Assert.Equal(initialEntries + 2, _entryCount); // Re-entered twice
             Assert.Equal(initialExits + 2, _exitCount); // Exited twice
@@ -532,7 +547,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
             Assert.Equal(2, externalCount2 is Newtonsoft.Json.Linq.JValue jve2 ? jve2.ToObject<int>() : (int)(externalCount2 ?? 0));
         }
 
-        await SendEventAsync("TEST", uniqueId, "DONE");
+        await SendEventAsync("TEST", _currentMachine.Id, "DONE");
         await Task.Delay(100);
         var currentState = _currentMachine.CurrentState;
         Assert.Contains("complete", currentState);

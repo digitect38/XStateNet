@@ -86,7 +86,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var transitions = new List<StateTransitionEventArgs>();
             var tcs = new TaskCompletionSource<bool>();
 
@@ -101,8 +101,8 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId, "START");
-            await SendToMachineAsync(machineId, "STOP");
+            await SendToMachineAsync(pureMachine.Id, "START");
+            await SendToMachineAsync(pureMachine.Id, "STOP");
 
             // Assert
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -136,7 +136,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var events = new List<StateMachineEventArgs>();
             var tcs = new TaskCompletionSource<bool>();
 
@@ -151,10 +151,10 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId, "START");
-            await SendToMachineAsync(machineId, "PAUSE");
-            await SendToMachineAsync(machineId, "RESUME");
-            await SendToMachineAsync(machineId, "STOP");
+            await SendToMachineAsync(pureMachine.Id, "START");
+            await SendToMachineAsync(pureMachine.Id, "PAUSE");
+            await SendToMachineAsync(pureMachine.Id, "RESUME");
+            await SendToMachineAsync(pureMachine.Id, "STOP");
 
             // Assert
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -184,7 +184,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var actions = new List<ActionExecutedEventArgs>();
             var tcs = new TaskCompletionSource<bool>();
 
@@ -199,8 +199,8 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId, "START"); // Should trigger logStart and startProcess
-            await SendToMachineAsync(machineId, "STOP"); // Should trigger stopProcess and logStop
+            await SendToMachineAsync(pureMachine.Id, "START"); // Should trigger logStart and startProcess
+            await SendToMachineAsync(pureMachine.Id, "STOP"); // Should trigger stopProcess and logStop
 
             // Assert
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -210,7 +210,7 @@ namespace XStateNet.Tests
             }
             catch (OperationCanceledException)
             {
-                Assert.True(false, "Test timed out waiting for actions.");
+                Assert.True(false, $"Test timed out waiting for actions. Got {actions.Count} actions: {string.Join(", ", actions.Select(a => a.ActionName))}");
             }
 
             Assert.True(actions.Count >= 4, $"Expected at least 4 actions, got {actions.Count}");
@@ -230,7 +230,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var tcs = new TaskCompletionSource<bool>();
 
             monitor.StateTransitioned += (sender, e) => tcs.TrySetResult(true);
@@ -240,7 +240,7 @@ namespace XStateNet.Tests
             var initialStates = monitor.GetCurrentStates().Select(s => s.Contains('.') ? s.Split('.').Last() : s).ToList();
             Assert.Contains("idle", initialStates);
 
-            await SendToMachineAsync(machineId, "START");
+            await SendToMachineAsync(pureMachine.Id, "START");
             using var cts1 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try
             {
@@ -255,7 +255,7 @@ namespace XStateNet.Tests
             Assert.Contains("running", runningStates);
 
             tcs = new TaskCompletionSource<bool>();
-            await SendToMachineAsync(machineId, "PAUSE");
+            await SendToMachineAsync(pureMachine.Id, "PAUSE");
             using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try
             {
@@ -278,7 +278,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var eventCount = 0;
             var tcs = new TaskCompletionSource<bool>();
 
@@ -292,7 +292,7 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
             monitor.StartMonitoring(); // Should be idempotent
 
-            await SendToMachineAsync(machineId, "START");
+            await SendToMachineAsync(pureMachine.Id, "START");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try
             {
@@ -307,7 +307,7 @@ namespace XStateNet.Tests
             monitor.StopMonitoring();
             monitor.StopMonitoring(); // Should be idempotent
 
-            await SendToMachineAsync(machineId, "STOP");
+            await SendToMachineAsync(pureMachine.Id, "STOP");
             // Wait for state to stabilize
             await WaitForStateAsync(pureMachine, "idle", 1000);
             var countAfterStop = eventCount;
@@ -327,7 +327,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var transitions = new List<StateTransitionEventArgs>();
             var lockObj = new object();
             var exceptions = new List<Exception>();
@@ -351,10 +351,10 @@ namespace XStateNet.Tests
                     try
                     {
                         // Each SendEventAsync operation is atomic and serialized
-                        await SendToMachineAsync(machineId, "START");
-                        await SendToMachineAsync(machineId, "PAUSE");
-                        await SendToMachineAsync(machineId, "RESUME");
-                        await SendToMachineAsync(machineId, "STOP");
+                        await SendToMachineAsync(pureMachine.Id, "START");
+                        await SendToMachineAsync(pureMachine.Id, "PAUSE");
+                        await SendToMachineAsync(pureMachine.Id, "RESUME");
+                        await SendToMachineAsync(pureMachine.Id, "STOP");
                     }
                     catch (Exception ex)
                     {
@@ -408,7 +408,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var events = new List<StateMachineEventArgs>();
             var tcs = new TaskCompletionSource<bool>();
 
@@ -423,13 +423,13 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId, "START");
+            await SendToMachineAsync(pureMachine.Id, "START");
             await WaitForStateAsync(pureMachine, "running", 1000);
-            await SendToMachineAsync(machineId, "PAUSE");
+            await SendToMachineAsync(pureMachine.Id, "PAUSE");
             await WaitForStateAsync(pureMachine, "paused", 1000);
-            await SendToMachineAsync(machineId, "RESUME");
+            await SendToMachineAsync(pureMachine.Id, "RESUME");
             await WaitForStateAsync(pureMachine, "running", 1000);
-            await SendToMachineAsync(machineId, "STOP");
+            await SendToMachineAsync(pureMachine.Id, "STOP");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try
@@ -461,7 +461,7 @@ namespace XStateNet.Tests
             var underlying = GetUnderlying(pureMachine);
             Assert.NotNull(underlying);
 
-            var monitor = new StateMachineMonitor(underlying!);
+            var monitor = new OrchestratedStateMachineMonitor(pureMachine.Id, underlying!, _orchestrator);
             var guards = new List<GuardEvaluatedEventArgs>();
             var tcs = new TaskCompletionSource<bool>();
 
@@ -473,8 +473,8 @@ namespace XStateNet.Tests
             monitor.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId, "START");
-            await SendToMachineAsync(machineId, "PAUSE"); // This has a guard condition
+            await SendToMachineAsync(pureMachine.Id, "START");
+            await SendToMachineAsync(pureMachine.Id, "PAUSE"); // This has a guard condition
 
             // Assert - Guard should have been evaluated
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -507,8 +507,8 @@ namespace XStateNet.Tests
             Assert.NotNull(underlying1);
             Assert.NotNull(underlying2);
 
-            var monitor1 = new StateMachineMonitor(underlying1!);
-            var monitor2 = new StateMachineMonitor(underlying2!);
+            var monitor1 = new OrchestratedStateMachineMonitor(pureMachine1.Id, underlying1!, _orchestrator);
+            var monitor2 = new OrchestratedStateMachineMonitor(pureMachine2.Id, underlying2!, _orchestrator);
 
             var events1 = new List<StateMachineEventArgs>();
             var events2 = new List<StateMachineEventArgs>();
@@ -528,9 +528,9 @@ namespace XStateNet.Tests
             monitor2.StartMonitoring();
 
             // Act
-            await SendToMachineAsync(machineId1, "START");
-            await SendToMachineAsync(machineId2, "START");
-            await SendToMachineAsync(machineId2, "PAUSE");
+            await SendToMachineAsync(pureMachine1.Id, "START");
+            await SendToMachineAsync(pureMachine2.Id, "START");
+            await SendToMachineAsync(pureMachine2.Id, "PAUSE");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try

@@ -4,11 +4,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Polly;
+using XStateNet.Orchestration;
 
 namespace XStateNet.Semi.Transport
 {
     /// <summary>
     /// Improved resilient HSMS connection with proper async patterns and disposal
+    /// Uses OrchestratedCircuitBreaker for thread-safe state management without manual locking
     /// </summary>
     public class ImprovedResilientHsmsConnection : IAsyncDisposable, IDisposable
     {
@@ -18,7 +20,8 @@ namespace XStateNet.Semi.Transport
         private readonly ILogger<ImprovedResilientHsmsConnection>? _logger;
         private readonly ConnectionHealthMonitor _healthMonitor;
         private readonly IAsyncPolicy<bool> _retryPolicy;
-        private readonly ThreadSafeCircuitBreaker _circuitBreaker;
+        private readonly OrchestratedCircuitBreaker _circuitBreaker;
+        private readonly EventBusOrchestrator _orchestrator;
         private readonly SemaphoreSlim _connectionSemaphore = new(1, 1);
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _supervisorTask;
@@ -95,10 +98,12 @@ namespace XStateNet.Semi.Transport
         public ImprovedResilientHsmsConnection(
             IPEndPoint endpoint,
             HsmsConnection.HsmsConnectionMode mode,
+            EventBusOrchestrator orchestrator,
             ILogger<ImprovedResilientHsmsConnection>? logger = null)
         {
             _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
             _mode = mode;
+            _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _logger = logger;
             _healthMonitor = new ConnectionHealthMonitor(logger);
 
@@ -116,29 +121,29 @@ namespace XStateNet.Semi.Transport
                             retryCount, timespan.TotalMilliseconds, reason);
                     });
 
-            // Setup thread-safe circuit breaker
-            _circuitBreaker = new ThreadSafeCircuitBreaker(
+            // Setup orchestrated circuit breaker (thread-safe without manual locking)
+            _circuitBreaker = new OrchestratedCircuitBreaker(
+                name: $"HsmsConnection-{endpoint}",
+                orchestrator: _orchestrator,
                 failureThreshold: CircuitBreakerThreshold,
-                openDuration: CircuitBreakerDuration,
-                halfOpenTestDelay: TimeSpan.FromMilliseconds(100),
-                logger: _logger);
+                openDuration: CircuitBreakerDuration);
 
-            _circuitBreaker.StateChanged += (sender, state) =>
+            _circuitBreaker.StateTransitioned += (sender, transition) =>
             {
-                switch (state)
-                {
-                    case ThreadSafeCircuitBreaker.CircuitState.Open:
-                        State = ConnectionState.CircuitOpen;
-                        break;
-                    case ThreadSafeCircuitBreaker.CircuitState.Closed:
-                        if (State == ConnectionState.CircuitOpen)
-                            State = ConnectionState.Disconnected;
-                        break;
-                    case ThreadSafeCircuitBreaker.CircuitState.HalfOpen:
-                        _logger?.LogInformation("Circuit breaker half-open, testing connection...");
-                        break;
-                }
+                var (oldState, newState, reason) = transition;
+                _logger?.LogInformation("Circuit breaker state: {OldState} -> {NewState}. Reason: {Reason}",
+                    oldState, newState, reason);
+
+                if (newState == "open")
+                    State = ConnectionState.CircuitOpen;
+                else if (newState == "closed" && State == ConnectionState.CircuitOpen)
+                    State = ConnectionState.Disconnected;
+                else if (newState == "halfOpen")
+                    _logger?.LogInformation("Circuit breaker half-open, testing connection...");
             };
+
+            // Start circuit breaker machine
+            _ = _circuitBreaker.StartAsync();
         }
 
         /// <summary>
@@ -206,7 +211,7 @@ namespace XStateNet.Semi.Transport
                         State = ConnectionState.Connected;
                         StartHealthMonitoring();
                         _reconnectAttempts = 0;
-                        _circuitBreaker.RecordSuccess();
+                        // Note: Circuit breaker already recorded success via ExecuteAsync
                         _logger?.LogInformation("Successfully connected to {Endpoint}", _endpoint);
                         _initialConnectionSignal.TrySetResult(true);
 
@@ -244,10 +249,9 @@ namespace XStateNet.Semi.Transport
                     _logger?.LogWarning("Cannot connect - {Message}", ex.Message);
                     _initialConnectionSignal.TrySetResult(false);
 
-                    // Get remaining open time from circuit breaker stats
+                    // Wait for circuit breaker open duration
                     var stats = _circuitBreaker.GetStats();
-                    var waitTime = TimeSpan.FromSeconds(Math.Max(stats.RemainingOpenTime, 1.0));
-                    await Task.Delay(waitTime, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(stats.OpenDuration, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -337,7 +341,7 @@ namespace XStateNet.Semi.Transport
             {
                 _logger?.LogError(ex, "Connection attempt failed");
                 _healthMonitor.RecordFailure(ex);
-                _circuitBreaker.RecordFailure(ex);
+                await _circuitBreaker.RecordFailureAsync().ConfigureAwait(false);
                 return false;
             }
         }
@@ -363,14 +367,14 @@ namespace XStateNet.Semi.Transport
 
                     await _connection.SendMessageAsync(message, ct).ConfigureAwait(false);
                     _healthMonitor.RecordSuccess();
-                    _circuitBreaker.RecordSuccess();
+                    await _circuitBreaker.RecordSuccessAsync().ConfigureAwait(false);
                     return true;
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, "Failed to send message");
                     _healthMonitor.RecordFailure(ex);
-                    _circuitBreaker.RecordFailure(ex);
+                    await _circuitBreaker.RecordFailureAsync().ConfigureAwait(false);
 
                     if (IsConnectionException(ex))
                     {

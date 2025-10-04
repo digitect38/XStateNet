@@ -71,9 +71,9 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
     [Fact]
     public async Task TestBasicInvokeService()
     {
-        var uniqueId = $"machineId_{Guid.NewGuid():N}";
-        string script = @"{
-            'id': '" + uniqueId + @"',
+        string script = $$"""
+        {            
+            'id': 'machineId',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -101,15 +101,16 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
                     'type': 'final'
                 }
             }
-        }";
+        }
+        """;
 
-        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        _currentMachine = CreateMachine("machineId", script, CreateActions(), null, CreateServices());
         await _currentMachine.StartAsync();
 
         var initialState = _currentMachine.CurrentState;
         Assert.Contains("idle", initialState);
 
-        await SendEventAsync("TEST", uniqueId, "START");
+        await SendEventAsync("TEST", _currentMachine.Id, "START");
 
         // Wait deterministically for service to complete
         await WaitForStateAsync(_currentMachine, "success", timeoutMs: 2000);
@@ -125,9 +126,8 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
     [Fact]
     public async Task TestInvokeServiceWithError()
     {
-        var uniqueId = $"machineId_{Guid.NewGuid():N}";
         string script = @"{
-            'id': '" + uniqueId + @"',
+            'id': 'machineId',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -156,10 +156,10 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
             }
         }";
 
-        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        _currentMachine = CreateMachine("machineId", script, CreateActions(), null, CreateServices());
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "START");
+        await SendEventAsync("TEST", _currentMachine.Id, "START");
 
         // Wait deterministically for error state
         await WaitForStateAsync(_currentMachine, "error", timeoutMs: 2000);
@@ -174,9 +174,8 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
     [Fact]
     public async Task TestMultipleInvokedServices()
     {
-        var uniqueId = $"machineId_{Guid.NewGuid():N}";
         string script = @"{
-            'id': '" + uniqueId + @"',
+            'id': 'machineId',
             'initial': 'idle',
             'type': 'parallel',
             'states': {
@@ -221,10 +220,10 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
             }
         }";
 
-        _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, CreateServices());
+        _currentMachine = CreateMachine("machineId", script, CreateActions(), null, CreateServices());
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "START");
+        await SendEventAsync("TEST", _currentMachine.Id, "START");
 
         // Wait deterministically for serviceA (shorter) to complete
         await WaitForStateAsync(_currentMachine, "serviceA.complete", timeoutMs: 2000);
@@ -260,8 +259,10 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
             }
         };
 
-        string script = @"{
-            'id': '" + uniqueId + @"',
+        string script = $$"""
+        {
+            
+            'id': 'machineId',
             'initial': 'idle',
             'states': {
                 'idle': {
@@ -281,19 +282,20 @@ public class UnitTest_InvokeServices : OrchestratorTestBase
                     'type': 'final'
                 }
             }
-        }";
+        }
+        """;
 
         _currentMachine = CreateMachine(uniqueId, script, CreateActions(), null, cancellableServices);
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "START");
+        await SendEventAsync("TEST", _currentMachine.Id, "START");
 
         // Wait for processing state
         await WaitForStateAsync(_currentMachine, "processing", timeoutMs: 1000);
         Assert.Contains("processing", _currentMachine.CurrentState);
 
         // Cancel should exit the state and cancel the service
-        await SendEventAsync("TEST", uniqueId, "CANCEL");
+        await SendEventAsync("TEST", _currentMachine.Id, "CANCEL");
 
         // Wait for cancelled state
         await WaitForStateAsync(_currentMachine, "cancelled", timeoutMs: 1000);

@@ -294,7 +294,8 @@ public class CMPToolScheduler
             orchestrator: orchestrator,
             orchestratedActions: actions,
             guards: guards,
-            services: services
+            services: services,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
     }
 

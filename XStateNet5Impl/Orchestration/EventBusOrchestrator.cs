@@ -32,6 +32,10 @@ namespace XStateNet.Orchestration
         private readonly OrchestratorLogger _logger;
         public OrchestratorMetrics Metrics => _metrics;
 
+        // Monitoring events for external observers
+        public event EventHandler<MachineEventProcessedEventArgs>? MachineEventProcessed;
+        public event EventHandler<MachineEventFailedEventArgs>? MachineEventFailed;
+
         public EventBusOrchestrator(OrchestratorConfig? config = null)
         {
             _config = config ?? new OrchestratorConfig();
@@ -69,9 +73,12 @@ namespace XStateNet.Orchestration
         /// </summary>
         public void RegisterMachine(string machineId, IStateMachine machine)
         {
-            // Extract channel group from machine ID if present (format: name#groupId#guid)
+            // Extract channel group from machine ID if present
+            // Supports both formats:
+            // - Old: name#groupId#guid
+            // - New: name_groupId_guid
             int? channelGroupId = null;
-            var parts = machineId.Split('#');
+            var parts = machineId.Split('#', '_');
             if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
             {
                 channelGroupId = groupId;
@@ -399,6 +406,18 @@ namespace XStateNet.Orchestration
                     {
                         Console.WriteLine($"[Orchestrator] Processed {evt.EventName} for {evt.ToMachineId}, new state: {newState}");
                     }
+
+                    // Fire monitoring event
+                    MachineEventProcessed?.Invoke(this, new MachineEventProcessedEventArgs
+                    {
+                        MachineId = evt.ToMachineId,
+                        EventName = evt.EventName,
+                        EventData = evt.EventData,
+                        OldState = "", // TODO: Capture old state if needed
+                        NewState = newState,
+                        Timestamp = DateTime.UtcNow,
+                        Duration = TimeSpan.Zero // TODO: Add duration tracking if needed
+                    });
                 }
             }
             catch (Exception ex)
@@ -410,6 +429,16 @@ namespace XStateNet.Orchestration
                     EventId = evt.Id
                 };
                 Console.WriteLine($"[Orchestrator] Error processing event: {ex.Message}");
+
+                // Fire monitoring event for failure
+                MachineEventFailed?.Invoke(this, new MachineEventFailedEventArgs
+                {
+                    MachineId = evt.ToMachineId,
+                    EventName = evt.EventName,
+                    EventData = evt.EventData,
+                    Exception = ex,
+                    Timestamp = DateTime.UtcNow
+                });
             }
 
             // Complete pending request if not fire-and-forget
@@ -719,6 +748,32 @@ namespace XStateNet.Orchestration
         public int BusIndex { get; set; }
         public int QueuedEvents { get; set; }
         public long TotalProcessed { get; set; }
+    }
+
+    /// <summary>
+    /// Event args for machine event processing
+    /// </summary>
+    public class MachineEventProcessedEventArgs : EventArgs
+    {
+        public string MachineId { get; set; } = "";
+        public string EventName { get; set; } = "";
+        public object? EventData { get; set; }
+        public string OldState { get; set; } = "";
+        public string NewState { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+        public TimeSpan Duration { get; set; }
+    }
+
+    /// <summary>
+    /// Event args for machine event failures
+    /// </summary>
+    public class MachineEventFailedEventArgs : EventArgs
+    {
+        public string MachineId { get; set; } = "";
+        public string EventName { get; set; } = "";
+        public object? EventData { get; set; }
+        public Exception Exception { get; set; } = null!;
+        public DateTime Timestamp { get; set; }
     }
 
     #endregion

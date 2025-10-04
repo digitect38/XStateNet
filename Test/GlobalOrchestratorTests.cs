@@ -47,8 +47,8 @@ public class GlobalOrchestratorTests : IDisposable
         // Act
         var machineId = GlobalOrchestratorManager.Instance.CreateScopedMachineId(token, "counter");
 
-        // Assert
-        Assert.Contains($"counter#{token.GroupId}#", machineId);
+        // Assert - Format is #counter_groupId_guid
+        Assert.Contains($"#counter_{token.GroupId}_", machineId);
     }
 
     [Fact]
@@ -108,8 +108,9 @@ public class GlobalOrchestratorTests : IDisposable
 
         // Assert - Machine IDs are different due to channel group scoping
         Assert.NotEqual(machine1.Id, machine2.Id);
-        Assert.Contains($"#{group1.GroupId}#", machine1.Id);
-        Assert.Contains($"#{group2.GroupId}#", machine2.Id);
+        // Format is counter_groupId_guid (normalized, without # prefix)
+        Assert.Contains($"_{group1.GroupId}_", machine1.Id);
+        Assert.Contains($"_{group2.GroupId}_", machine2.Id);
     }
 
     [Fact]

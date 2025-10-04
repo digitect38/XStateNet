@@ -75,9 +75,33 @@ public partial class StateMachine : IStateMachine
     {
         if (string.IsNullOrWhiteSpace(Id))
             return null;
-        
-        _instanceMap.TryGetValue(Id, out var instance);
-        return instance;
+
+        // Try exact match first
+        if (_instanceMap.TryGetValue(Id, out var instance))
+            return instance;
+
+        // Normalize the search ID (remove leading #)
+        string searchId = Id.StartsWith("#") ? Id.Substring(1) : Id;
+
+        // If not found, try to find by base ID (handles GUID isolation and channel groups)
+        // Both formats now use underscore separator:
+        // - GUID isolation: "#machine_guid"
+        // - Channel group:  "#machine_groupId_guid"
+        foreach (var kvp in _instanceMap)
+        {
+            string key = kvp.Key;
+            string normalizedKey = key.StartsWith("#") ? key.Substring(1) : key;
+
+            // Exact match
+            if (key == Id || normalizedKey == searchId)
+                return kvp.Value;
+
+            // Match with underscore separator: "machine" matches "machine_guid" or "machine_1_guid"
+            if (normalizedKey.StartsWith(searchId + "_"))
+                return kvp.Value;
+        }
+
+        return null;
     }
 
     public string machineId { set; get; } = string.Empty;
@@ -1110,22 +1134,37 @@ public partial class StateMachine : IStateMachine
     {
         if (string.IsNullOrWhiteSpace(inConditionString))
             throw new ArgumentNullException(nameof(inConditionString));
-        
+
         var parts = inConditionString.Split('.');
         if (parts.Length == 0)
             throw new ArgumentException("Invalid in-condition string format");
-        
-        string stateMachineId = parts[0];
-        if (stateMachineId != machineId)
-        {
-            StateMachine? sm = GetInstance(stateMachineId);
-            if (sm == null) 
-                throw new InvalidOperationException($"State machine not found: {stateMachineId}");
 
-            return () => IsInState(sm, inConditionString);
+        string stateMachineId = parts[0];
+
+        // Normalize machine ID comparison (handle # prefix and GUID/channel suffixes)
+        string normalizedStateMachineId = stateMachineId.StartsWith("#") ? stateMachineId.Substring(1) : stateMachineId;
+        string normalizedThisMachineId = machineId.StartsWith("#") ? machineId.Substring(1) : machineId;
+
+        // Check if this references the same machine (considering GUID/channel suffixes)
+        bool isSameMachine = normalizedThisMachineId == normalizedStateMachineId ||
+                            normalizedThisMachineId.StartsWith(normalizedStateMachineId + "_") ||
+                            normalizedThisMachineId.StartsWith(normalizedStateMachineId + "#");
+
+        if (!isSameMachine)
+        {
+            // Cross-machine reference - defer lookup to runtime
+            // The other machine may not exist yet at parse time
+            return () =>
+            {
+                StateMachine? sm = GetInstance(stateMachineId);
+                if (sm == null)
+                    return false; // Machine not found = condition not met
+                return IsInState(sm, inConditionString);
+            };
         }
         else
         {
+            // Same machine reference
             return () => IsInState(this, inConditionString);
         }
     }
@@ -1140,11 +1179,12 @@ public partial class StateMachine : IStateMachine
     {
         if (sm == null)
             throw new ArgumentNullException(nameof(sm));
-        
+
         if (string.IsNullOrWhiteSpace(stateName))
             throw new ArgumentNullException(nameof(stateName));
-        
-        var stateNode = GetState(stateName);
+
+        // Get the state from the target machine (sm)
+        var stateNode = sm.GetState(stateName);
         if (stateNode is not CompoundState state)
             throw new InvalidOperationException($"State '{stateName}' is not a CompoundState");
 
@@ -1777,6 +1817,8 @@ public partial class StateMachine : IStateMachine
                         try
                         {
                             await action.Action(this);
+                            // Raise event for monitoring
+                            RaiseActionExecuted(action.Name, toState);
                         }
                         catch (Exception ex)
                         {
@@ -1798,6 +1840,8 @@ public partial class StateMachine : IStateMachine
                         try
                         {
                             await action.Action(this);
+                            // Raise event for monitoring
+                            RaiseActionExecuted(action.Name, toState);
                         }
                         catch (Exception ex)
                         {

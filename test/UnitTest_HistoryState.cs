@@ -16,8 +16,6 @@ public class HistoryState : OrchestratorTestBase
     [Fact]
     public async Task ShallowHistory()
     {
-        var uniqueId = $"testMachine_{Guid.NewGuid():N}";
-
         var stateMachineJson = @"{
             'id': 'testMachine',
             'initial': 'A',
@@ -47,17 +45,17 @@ public class HistoryState : OrchestratorTestBase
         var actions = new Dictionary<string, Action<OrchestratedContext>>();
         var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        _currentMachine = CreateMachine("uniqueId", stateMachineJson, actions, guards);
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "TO_A2");
+        await SendEventAsync("TEST", _currentMachine, "TO_A2");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "TO_B");
+        await SendEventAsync("TEST", _currentMachine, "TO_B");
         await Task.Delay(100);
         var currentState = _currentMachine.CurrentState;
         Assert.Contains("B", currentState);
 
-        await SendEventAsync("TEST", uniqueId, "TO_A");
+        await SendEventAsync("TEST", _currentMachine, "TO_A");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         // When returning to A.hist, it should restore A.A2 for shallow history
@@ -67,8 +65,6 @@ public class HistoryState : OrchestratorTestBase
     [Fact]
     public async Task DeepHistory()
     {
-        var uniqueId = $"testMachine_{Guid.NewGuid():N}";
-
         var stateMachineJson = @" {
             'id': 'testMachine',
             'initial': 'A',
@@ -110,17 +106,17 @@ public class HistoryState : OrchestratorTestBase
         var actions = new Dictionary<string, Action<OrchestratedContext>>();
         var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        _currentMachine = CreateMachine("uniqueId", stateMachineJson, actions, guards);
         await _currentMachine.StartAsync();
 
-        await SendEventAsync("TEST", uniqueId, "TO_A1b");
+        await SendEventAsync("TEST", _currentMachine, "TO_A1b");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "TO_B");
+        await SendEventAsync("TEST", _currentMachine, "TO_B");
         await Task.Delay(100);
         var currentState = _currentMachine.CurrentState;
         Assert.Contains("B", currentState);
 
-        await SendEventAsync("TEST", uniqueId, "TO_A");
+        await SendEventAsync("TEST", _currentMachine, "TO_A");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         // When returning to A.hist (deep), it should restore A.A1.A1b

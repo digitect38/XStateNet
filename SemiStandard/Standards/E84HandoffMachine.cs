@@ -240,7 +240,8 @@ public class E84HandoffMachine
             json: definition,
             orchestrator: orchestrator,
             orchestratedActions: actions,
-            guards: guards
+            guards: guards,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
     }
 

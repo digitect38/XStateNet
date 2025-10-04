@@ -15,9 +15,8 @@ public class StateMachine_AlwaysTests : OrchestratorTestBase
     [Fact]
     public async Task TestAlwaysTransition()
     {
-        var uniqueId = $"counter_{Guid.NewGuid():N}";
         var stateMachineJson = @"{
-            'id': '" + uniqueId + @"',
+            'id': 'uniqueId',
             'initial': 'smallNumber',
             'context': { 'count': 0 },
             'states': {
@@ -84,7 +83,7 @@ public class StateMachine_AlwaysTests : OrchestratorTestBase
             ["isSmallNumber"] = (sm) => IsSmallNumber(sm)
         };
 
-        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        _currentMachine = CreateMachine("uniqueId", stateMachineJson, actions, guards);
         await _currentMachine.StartAsync();
 
         var underlying = GetUnderlying();
@@ -94,10 +93,10 @@ public class StateMachine_AlwaysTests : OrchestratorTestBase
         Assert.Contains("smallNumber", currentState);
 
         // Test incrementing to trigger always transition
-        await SendEventAsync("TEST", uniqueId, "INCREMENT");
-        await SendEventAsync("TEST", uniqueId, "INCREMENT");
-        await SendEventAsync("TEST", uniqueId, "INCREMENT");
-        await SendEventAsync("TEST", uniqueId, "INCREMENT");
+        await SendEventAsync("TEST", _currentMachine, "INCREMENT");
+        await SendEventAsync("TEST", _currentMachine, "INCREMENT");
+        await SendEventAsync("TEST", _currentMachine, "INCREMENT");
+        await SendEventAsync("TEST", _currentMachine, "INCREMENT");
 
         // Wait deterministically for state transition
         await WaitForStateAsync(_currentMachine, "bigNumber");
@@ -105,10 +104,10 @@ public class StateMachine_AlwaysTests : OrchestratorTestBase
         currentState = _currentMachine.CurrentState;
         Assert.Contains("bigNumber", currentState);
 
-        await SendEventAsync("TEST", uniqueId, "DECREMENT");
-        await SendEventAsync("TEST", uniqueId, "DECREMENT");
-        await SendEventAsync("TEST", uniqueId, "DECREMENT");
-        await SendEventAsync("TEST", uniqueId, "DECREMENT");
+        await SendEventAsync("TEST", _currentMachine, "DECREMENT");
+        await SendEventAsync("TEST", _currentMachine, "DECREMENT");
+        await SendEventAsync("TEST", _currentMachine, "DECREMENT");
+        await SendEventAsync("TEST", _currentMachine, "DECREMENT");
 
         // Wait deterministically for state transition
         await WaitForStateAsync(_currentMachine, "smallNumber");

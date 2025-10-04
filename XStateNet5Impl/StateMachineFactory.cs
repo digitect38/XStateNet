@@ -22,12 +22,16 @@ public static class StateMachineFactory
         if (string.IsNullOrEmpty(jsonScript))
             return jsonScript;
 
-        // Pattern to match "id": "value" where value may or may not start with #
-        var pattern = @"""id""\s*:\s*""([^""]*)""";
+        // Pattern to match id: 'value' or id: "value" or "id": 'value' or "id": "value"
+        // Supports both JSON and JavaScript/JSON5 formats
+        // Matches: optional quote + id + optional quote + : + quote + value + quote
+        var pattern = @"(['""]?)id\1\s*:\s*(['""])(.+?)\2";
 
         return Regex.Replace(jsonScript, pattern, match =>
         {
-            var currentId = match.Groups[1].Value;
+            var idQuote = match.Groups[1].Value; // Quote around 'id' key (may be empty)
+            var valueQuote = match.Groups[2].Value; // Quote around value
+            var currentId = match.Groups[3].Value;
 
             // If it starts with #, it's a reference
             if (currentId.StartsWith("#"))
@@ -40,13 +44,13 @@ public static class StateMachineFactory
                 else
                 {
                     // Replace reference with new ID (keeping the # prefix)
-                    return $@"""id"": ""#{newMachineId}""";
+                    return $@"{idQuote}id{idQuote}: {valueQuote}#{newMachineId}{valueQuote}";
                 }
             }
             else
             {
                 // It's a definition, replace with new ID
-                return $@"""id"": ""{newMachineId}""";
+                return $@"{idQuote}id{idQuote}: {valueQuote}{newMachineId}{valueQuote}";
             }
         });
     }

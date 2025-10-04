@@ -561,12 +561,72 @@ public partial class StateMachine
             }
         }
 
+        // Resolve 'in' condition to use actual machine ID (handles guidIsolate)
+        if (!string.IsNullOrEmpty(inCondition))
+        {
+            // Replace the machine ID part with the actual machine ID if it matches this machine
+            // Format: #machineId.state.substate -> #{actualMachineId}.state.substate
+            var parts = inCondition.Split('.');
+            if (parts.Length > 0 && parts[0].StartsWith("#") && source.machineId != null)
+            {
+                // Check if the machine ID in 'in' condition matches this machine's base ID
+                // E.g., "#inConditionMachine" should match "#inConditionMachine_af46cca2"
+                string inConditionMachineId = parts[0]; // e.g., "#inConditionMachine"
+                string actualMachineId = source.machineId; // e.g., "#inConditionMachine_af46cca2"
+
+                // If actualMachineId starts with inConditionMachineId (followed by _ or end of string)
+                // then it's the same machine with GUID isolation
+                if (actualMachineId == inConditionMachineId ||
+                    actualMachineId.StartsWith(inConditionMachineId + "_"))
+                {
+                    parts[0] = actualMachineId; // Replace with actual GUID-isolated ID
+                    inCondition = string.Join(".", parts);
+                }
+                // Otherwise, leave it as-is (references a different machine)
+            }
+        }
+
+        // Resolve target machine IDs for GUID isolation (same logic as 'in' conditions)
+        // This handles targets like '#atm.idle' when actual machine ID is 'atm_guid.idle'
+        var resolveTargetMachineId = new Func<string, string>(target =>
+        {
+            if (string.IsNullOrEmpty(target) || !target.StartsWith("#") || source.machineId == null)
+                return target;
+
+            var parts = target.Split('.');
+            if (parts.Length > 0)
+            {
+                string targetMachineId = parts[0]; // e.g., "#atm"
+                string actualMachineId = source.machineId; // e.g., "atm_guid" (without # prefix)
+
+                // Check if this references the same machine (accounting for GUID suffix)
+                // Normalize by removing leading # from target
+                string targetMachineBase = targetMachineId.TrimStart('#');
+                string actualMachineBase = actualMachineId.TrimStart('#'); // Handle both with/without # prefix
+
+                // If actual machine ID starts with target machine ID base (followed by _ or exact match)
+                // then it's the same machine with GUID isolation
+                if (actualMachineBase == targetMachineBase ||
+                    actualMachineBase.StartsWith(targetMachineBase + "_"))
+                {
+                    // Replace with actual GUID-isolated machine ID
+                    // Preserve the # prefix in the result for consistency with JSON
+                    parts[0] = "#" + actualMachineBase;
+                    return string.Join(".", parts);
+                }
+            }
+            return target;
+        });
+
         // Handle single target (skip resolution for internal transitions)
         if (!string.IsNullOrEmpty(targetName) && targetName != ".")
         {
+            // First resolve GUID-isolated machine ID
+            targetName = resolveTargetMachineId(targetName);
+            // Then resolve relative paths
             targetName = ResolveAbsolutePath(source.Name, targetName);
         }
-        
+
         // Handle multiple targets
         if (targetNames != null && targetNames.Count > 0)
         {
@@ -574,6 +634,9 @@ public partial class StateMachine
             {
                 if (targetNames[i] != ".")
                 {
+                    // First resolve GUID-isolated machine ID
+                    targetNames[i] = resolveTargetMachineId(targetNames[i]);
+                    // Then resolve relative paths
                     targetNames[i] = ResolveAbsolutePath(source.Name, targetNames[i]) ?? targetNames[i];
                 }
             }

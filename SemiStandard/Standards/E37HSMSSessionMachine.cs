@@ -452,7 +452,8 @@ public class HSMSSessionMachine : IDisposable
             json: definition,
             orchestrator: orchestrator,
             orchestratedActions: actions,
-            guards: guards
+            guards: guards,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
 
         // Initialize timers

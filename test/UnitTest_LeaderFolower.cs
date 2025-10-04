@@ -56,24 +56,26 @@ namespace AdvancedFeatures
             var leaderMachine = _machines.First(m => m.Id == _leaderMachineId);
 
             // Initially, both state machines should be in state 'a'
-            Assert.Contains("#follower.a", followerMachine.CurrentState);
-            Assert.Contains("#leader.a", leaderMachine.CurrentState);
+            // Note: Don't use machine.Id in state path - it has channel group format (follower#1#guid)
+            // but CurrentState uses internal format (#follower_guid.state)
+            Assert.Contains(".a", followerMachine.CurrentState);
+            Assert.Contains(".a", leaderMachine.CurrentState);
 
             // Trigger leader to transition to 'b', which should send event to follower
             await SendToMachineAsync(_leaderMachineId, "GO_TO_B");
             await WaitForStateAsync(leaderMachine, "#leader.b", timeoutMs: 1000);
             await WaitForStateAsync(followerMachine, "#follower.b", timeoutMs: 1000);
 
-            Assert.Contains("#follower.b", followerMachine.CurrentState);
-            Assert.Contains("#leader.b", leaderMachine.CurrentState);
+            Assert.Contains(".b", followerMachine.CurrentState);
+            Assert.Contains(".b", leaderMachine.CurrentState);
 
             // Trigger leader to transition back to 'a', which should send event to follower
             await SendToMachineAsync(_leaderMachineId, "GO_TO_A");
             await WaitForStateAsync(leaderMachine, "#leader.a", timeoutMs: 1000);
             await WaitForStateAsync(followerMachine, "#follower.a", timeoutMs: 1000);
 
-            Assert.Contains("#follower.a", followerMachine.CurrentState);
-            Assert.Contains("#leader.a", leaderMachine.CurrentState);
+            Assert.Contains(".a", followerMachine.CurrentState);
+            Assert.Contains(".a", leaderMachine.CurrentState);
         }
         
         public static class LeaderFollowerStateMachine

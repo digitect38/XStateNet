@@ -455,14 +455,14 @@ public class UnitTest_InvokeHeavy_Orchestrated : OrchestratorTestBase
         await machine.StartAsync();
 
         // Act
-        await SendEventAsync("TEST", "cancellableMachine", "START");
+        await SendEventAsync("TEST", machine.Id, "START");
         await WaitForEventLog("service:long:step:2");
-        await SendEventAsync("TEST", "cancellableMachine", "CANCEL");
+        await SendEventAsync("TEST", machine.Id, "CANCEL");
         await WaitForState(machine, "cancelling");
 
         // Assert
         Assert.Contains("service:long:started", _eventLog);
-        Assert.True(_eventLog.Any(e => e.Contains("service:long:step:")));
+        Assert.Contains(_eventLog, e => e.Contains("service:long:step:"));
         Assert.Contains("cancelling", machine.CurrentState);
         Assert.DoesNotContain("service:long:completed", _eventLog);
     }
@@ -566,7 +566,7 @@ public class UnitTest_InvokeHeavy_Orchestrated : OrchestratorTestBase
         await machine.StartAsync();
 
         // Act
-        await SendEventAsync("TEST", "contextFlow", "READY");
+        await SendEventAsync("TEST", _currentMachine.Id, "READY");
         await WaitForState(machine, "processing");
 
         // Assert

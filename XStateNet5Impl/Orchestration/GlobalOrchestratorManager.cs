@@ -88,8 +88,10 @@ namespace XStateNet.Orchestration
             if (token.IsReleased)
                 throw new InvalidOperationException($"Channel group {token.Name} has been released");
 
-            // Format: baseName#GroupId#UniqueId
-            return $"{baseName}#{token.GroupId}#{Guid.NewGuid():N}";
+            // Format: #baseName_groupId_shortGuid (consistent with GUID isolation format)
+            // Use underscore separator instead of # to be consistent with guidIsolate format
+            var shortGuid = Guid.NewGuid().ToString("N").Substring(0, 8);
+            return $"#{baseName}_{token.GroupId}_{shortGuid}";
         }
 
         /// <summary>

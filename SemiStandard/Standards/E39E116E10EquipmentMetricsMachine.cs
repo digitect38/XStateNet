@@ -345,7 +345,8 @@ public class E39E116E10EquipmentMetricsMachine
             id: MachineId,
             json: definition,
             orchestrator: orchestrator,
-            orchestratedActions: actions
+            orchestratedActions: actions,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
     }
 

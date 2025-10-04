@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +19,7 @@ public static class ExtendedPureStateMachineFactory
     /// <summary>
     /// Create a PureStateMachine with full XState feature support
     /// </summary>
+    /// <param name="enableGuidIsolation">If true, appends a GUID to the machine ID to ensure uniqueness. Default is true.</param>
     public static IPureStateMachine CreateFromScriptWithGuardsAndServices(
         string id,
         string json,
@@ -26,11 +28,12 @@ public static class ExtendedPureStateMachineFactory
         Dictionary<string, Func<StateMachine, bool>>? guards = null,
         Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>? services = null,
         Dictionary<string, Func<StateMachine, int>>? delays = null,
-        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
+        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null,
+        bool enableGuidIsolation = true)
     {
         return CreateFromScriptWithGuardsAndServicesInternal(
             id, json, orchestrator,
-            orchestratedActions, guards, services, delays, activities);
+            orchestratedActions, guards, services, delays, activities, enableGuidIsolation);
     }
 
     /// <summary>
@@ -48,11 +51,12 @@ public static class ExtendedPureStateMachineFactory
         Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
     {
         // Generate scoped machine ID with channel group
+        // Channel group already provides isolation, so disable additional GUID isolation
         var machineId = GlobalOrchestratorManager.Instance.CreateScopedMachineId(channelGroupToken, id);
 
         return CreateFromScriptWithGuardsAndServicesInternal(
             machineId, json, orchestrator,
-            orchestratedActions, guards, services, delays, activities);
+            orchestratedActions, guards, services, delays, activities, enableGuidIsolation: false);
     }
 
     /// <summary>
@@ -66,9 +70,60 @@ public static class ExtendedPureStateMachineFactory
         Dictionary<string, Func<StateMachine, bool>>? guards = null,
         Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>? services = null,
         Dictionary<string, Func<StateMachine, int>>? delays = null,
-        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null)
+        Dictionary<string, Func<StateMachine, CancellationToken, Task>>? activities = null,
+        bool enableGuidIsolation = true)
     {
-        var machineContext = orchestrator.GetOrCreateContext(id);
+        // Extract the ID from the JSON to check if it matches the parameter ID
+        var jsonIdPattern = @"(['""]?)id\1\s*:\s*(['""])(.+?)\2";
+        var jsonIdMatch = Regex.Match(json, jsonIdPattern);
+
+        string jsonId = "";
+        if (jsonIdMatch.Success)
+        {
+            jsonId = jsonIdMatch.Groups[3].Value.TrimStart('#');
+        }
+
+        var paramId = id.TrimStart('#');
+
+        // If JSON ID differs from parameter ID, replace it
+        // This ensures the parameter ID is used as the base for GUID isolation
+        if (!string.IsNullOrEmpty(jsonId) && jsonId != paramId)
+        {
+            var idForReplacement = id.StartsWith("#") ? id.Substring(1) : id;
+            // Replace ALL occurrences including references (preserveReferences: false)
+            // This ensures targets like '#machineId.state' become '#test.state'
+            json = StateMachineFactory.ReplaceMachineId(json, idForReplacement, preserveReferences: false);
+
+            // Also replace machine ID references in target strings (e.g., '#machineId.stateName')
+            // This handles targets in arrays that aren't caught by the id: pattern
+            var refPattern = $@"(['""])#{jsonId}\.";
+            json = Regex.Replace(json, refPattern, match =>
+            {
+                var quote = match.Groups[1].Value;
+                return $"{quote}#{idForReplacement}.";
+            });
+        }
+
+        // Predict what the final machine ID will be based on GUID isolation setting
+        string predictedMachineId;
+        if (enableGuidIsolation)
+        {
+            // GUID isolation enabled - generate GUID now to create the correct context
+            var normalizedId = id.TrimStart('#');
+            predictedMachineId = $"{normalizedId}_{Guid.NewGuid():N}";
+
+            // Replace the machine ID in JSON with the GUID-isolated version
+            // This ensures the machine is created with the correct ID from the start
+            json = StateMachineFactory.ReplaceMachineId(json, predictedMachineId, preserveReferences: false);
+        }
+        else
+        {
+            // GUID isolation disabled - use ID as-is
+            predictedMachineId = id.TrimStart('#');
+        }
+
+        // Create machine context with the predicted final ID
+        var machineContext = orchestrator.GetOrCreateContext(predictedMachineId);
 
         // Convert orchestrated actions to ActionMap
         var actionMap = new ActionMap();
@@ -145,7 +200,8 @@ public static class ExtendedPureStateMachineFactory
         var machine = StateMachineFactory.CreateFromScript(
             jsonScript: json,
             threadSafe: false,
-            guidIsolate: true,  // ESSENTIAL: Ensures each machine instance has isolated state
+            // Disable GUID isolation - we've already applied it manually above
+            guidIsolate: false,
             actionCallbacks: actionMap,
             guardCallbacks: guardMap,
             serviceCallbacks: serviceMap,
@@ -154,10 +210,24 @@ public static class ExtendedPureStateMachineFactory
         );
 #pragma warning restore CS0618
 
-        // Register with orchestrator
-        orchestrator.RegisterMachineWithContext(id, machine, machineContext);
+        // Get the machine's actual ID (which should match our predicted ID)
+        // Machine IDs internally use # prefix, but we need to normalize for external API
+        var actualMachineId = machine.machineId;
+        var normalizedMachineId = actualMachineId.StartsWith("#") ? actualMachineId.Substring(1) : actualMachineId;
 
-        // Return pure state machine adapter
-        return new PureStateMachineAdapter(id, machine);
+        // Verify our prediction was correct
+        if (normalizedMachineId != predictedMachineId)
+        {
+            throw new InvalidOperationException(
+                $"Machine ID mismatch: predicted '{predictedMachineId}' but got '{normalizedMachineId}'");
+        }
+
+        // Register with orchestrator using the normalized machine ID (without # prefix)
+        // This ensures that events sent to the machine ID will be routed correctly
+        orchestrator.RegisterMachineWithContext(normalizedMachineId, machine, machineContext);
+
+        // Return pure state machine adapter with the normalized machine ID (without # prefix)
+        // This ensures IPureStateMachine.Id returns the same format as the input ID
+        return new PureStateMachineAdapter(normalizedMachineId, machine);
     }
 }

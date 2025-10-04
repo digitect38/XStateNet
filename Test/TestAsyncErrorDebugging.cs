@@ -22,7 +22,6 @@ namespace Test
         [Fact]
         public async Task Debug_AsyncErrorInEntryAction()
         {
-            var uniqueId = $"debugTest_{Guid.NewGuid():N}";
             var errorCaught = false;
             Exception? lastError = null;
 
@@ -45,7 +44,7 @@ namespace Test
             };
 
             string script = @"{
-                'id': '" + uniqueId + @"',
+                'id': 'machineId',
                 'initial': 'idle',
                 'states': {
                     'idle': {
@@ -66,7 +65,7 @@ namespace Test
                 }
             }";
 
-            _currentMachine = CreateMachine(uniqueId, script, actions);
+            _currentMachine = CreateMachine("machineId", script, actions);
 
             // Subscribe to state changes for debugging
             var underlying = GetUnderlying();
@@ -84,7 +83,7 @@ namespace Test
             // Send GO event through orchestrator
             _output.WriteLine("Sending GO event...");
 
-            var result = await SendEventAsync("TEST", uniqueId, "GO");
+            var result = await SendEventAsync("TEST", _currentMachine.Id, "GO");
             _output.WriteLine($"Result after GO: Success={result.Success}, Message={result.ErrorMessage ?? "none"}");
 
             // Wait deterministically for error state

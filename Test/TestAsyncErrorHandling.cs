@@ -23,7 +23,6 @@ namespace Test
         [Fact]
         public async Task AsyncAction_ThrowsError_TransitionsToErrorState()
         {
-            var uniqueId = $"asyncErrorTest_{Guid.NewGuid():N}";
             var errorHandled = false;
 
             var actions = new Dictionary<string, Action<OrchestratedContext>>
@@ -39,7 +38,7 @@ namespace Test
             };
 
             string script = @"{
-                'id': '" + uniqueId + @"',
+                'id': 'machineId',
                 'initial': 'idle',
                 'states': {
                     'idle': {
@@ -59,10 +58,11 @@ namespace Test
                     }
                 }
             }";
-
-            _currentMachine = CreateMachine(uniqueId, script, actions);
+                        
+            _currentMachine = CreateMachine("machineId", script, actions);
             await _currentMachine.StartAsync();
 
+            var uniqueId = _currentMachine.Id;
             var initialState = _currentMachine.CurrentState;
             Assert.Contains("idle", initialState);
 
@@ -81,11 +81,10 @@ namespace Test
         [Fact]
         public async Task TestAsyncTransitionWithOrchestrator()
         {
-            var uniqueId = $"asynctest_{Guid.NewGuid():N}";
             var messageCount = 0;
 
             var machineJson = @"{
-                'id': '" + uniqueId + @"',
+                'id': 'machineId',
                 'initial': 'idle',
                 'states': {
                     'idle': {
@@ -129,8 +128,9 @@ namespace Test
                     }
                 }
             };
-
-            _currentMachine = CreateMachine(uniqueId, machineJson, actions);
+                        
+            _currentMachine = CreateMachine("machineId", machineJson, actions);
+            var uniqueId = _currentMachine.Id;
             await _currentMachine.StartAsync();
 
             // Send START events through orchestrator

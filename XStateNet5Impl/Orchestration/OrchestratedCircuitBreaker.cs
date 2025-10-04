@@ -22,7 +22,7 @@ namespace XStateNet.Orchestration
         private long _successCount = 0;
         private bool _disposed;
 
-        public string MachineId => $"CircuitBreaker_{_name}";
+        public string MachineId => _machine.Id;
         public string CurrentState => _machine.CurrentState;
         public long FailureCount => Interlocked.Read(ref _failureCount);
         public long SuccessCount => Interlocked.Read(ref _successCount);
@@ -50,9 +50,10 @@ namespace XStateNet.Orchestration
 
         private IPureStateMachine CreateCircuitBreakerMachine()
         {
+            var baseMachineId = $"CircuitBreaker_{_name}";
             var definition = $$"""
             {
-                'id': '{{MachineId}}',
+                'id': '{{baseMachineId}}',
                 'initial': 'closed',
                 'context': {
                     'failureCount': 0,
@@ -152,7 +153,7 @@ namespace XStateNet.Orchestration
             };
 
             return ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-                id: MachineId,
+                id: baseMachineId,
                 json: definition,
                 orchestrator: _orchestrator,
                 orchestratedActions: actions,

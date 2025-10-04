@@ -19,10 +19,17 @@ namespace MultipleTargetsTests
             await _orchestrator.SendEventAsync("test", machineId, eventName);
         }
 
+        private async Task SendToMachineAsync(StateMachine machine, string eventName)
+        {
+            // Normalize machine ID by removing # prefix for orchestrator routing
+            var machineId = machine.machineId.TrimStart('#');
+            await _orchestrator.SendEventAsync("test", machineId, eventName);
+        }
+
         private (StateMachine machine, string machineId) CreateTestMachineWithActions(string script, Dictionary<string, Action<OrchestratedContext>> actions)
         {
             var pureMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-                id: $"test_{Guid.NewGuid():N}",
+                id: "test",
                 json: script,
                 orchestrator: _orchestrator,
                 orchestratedActions: actions,
@@ -102,10 +109,9 @@ namespace MultipleTargetsTests
         [Fact]
         public async Task TestMultipleTargetsTransition()
         {
-            var uniqueId = "machine_" + Guid.NewGuid().ToString("N");
             string script = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'machineId',
                 type: 'parallel',
                 context: {
                     'actionExecuted': '',
@@ -182,10 +188,9 @@ namespace MultipleTargetsTests
         [Fact]
         public async Task TestMultipleTargetsInNestedParallel()
         {
-            var uniqueId = "machine" + Guid.NewGuid().ToString("N");
             string script = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'machineId',
                 initial: 'active',
                 states: {
                     'active': {
@@ -248,10 +253,9 @@ namespace MultipleTargetsTests
         [Fact]
         public async Task TestMixedSingleAndMultipleTargets()
         {
-            var uniqueId = "machine" + Guid.NewGuid().ToString("N");
             string script = @"
             {
-                id: '" + uniqueId + @"',
+                id: 'machineId',
                 type: 'parallel',
                 states: {
                     region1: {
@@ -275,7 +279,7 @@ namespace MultipleTargetsTests
                             'EVENT2': {
                                 target: [
                                     '.x',
-                                    '#" + uniqueId + @".region1.c'
+                                    '#machineId.region1.c'
                                 ]
                             }
                         },
@@ -295,7 +299,7 @@ namespace MultipleTargetsTests
             var (machine, machineId) = CreateTestMachineSimple(script);
 
             // Test single target transition
-            await SendToMachineAsync(machineId, "EVENT1");
+            await SendToMachineAsync(machine, "EVENT1");
 
             var state1 = machine!.GetActiveStateNames();
             Assert.Contains("region1.b", state1);

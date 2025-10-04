@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using XStateNet;
@@ -47,191 +47,191 @@ class Program
 
     static ActionMap? _actions = new()
     {
-        ["EnterS1"] = new () { new ("EnterS1", async (sm) => Log("ENT S1")) },
-        ["ExitS1"] = new () { new ("ExitS1", async (sm) => Log("EXT S1")) },
+        ["EnterS1"] = new () { new ("EnterS1", (sm) => Log("ENT S1")) },
+        ["ExitS1"] = new () { new ("ExitS1", (sm) => Log("EXT S1")) },
 
-            ["EnterS11"] = new () { new ("EnterS11", async (sm) => Log("ENT S11")) },
-            ["ExitS11"] = new () { new ("ExitS11", async (sm) => Log("EXT S11")) },
+            ["EnterS11"] = new () { new ("EnterS11", (sm) => Log("ENT S11")) },
+            ["ExitS11"] = new () { new ("ExitS11", (sm) => Log("EXT S11")) },
 
-                ["EnterS111"] = new () { new ("EnterS111", async (sm) => Log("ENT S111")) },
-                ["ExitS111"] = new () { new ("ExitS111", async (sm) => Log("EXT S111")) },
+                ["EnterS111"] = new () { new ("EnterS111", (sm) => Log("ENT S111")) },
+                ["ExitS111"] = new () { new ("ExitS111", (sm) => Log("EXT S111")) },
 
-                    ["EnterS1111"] = new () { new ("EnterS1111", async (sm) => Log("ENT S1111")) },
-                    ["ExitS1111"] = new () { new ("ExitS1111", async (sm) => Log("EXT S1111")) },
+                    ["EnterS1111"] = new () { new ("EnterS1111", (sm) => Log("ENT S1111")) },
+                    ["ExitS1111"] = new () { new ("ExitS1111", (sm) => Log("EXT S1111")) },
 
-                        ["EnterS11111"] = new () { new ("EnterS11111", async (sm) => Log("ENT S11111")) },
-                        ["ExitS11111"] = new () { new ("ExitS11111", async (sm) => Log("EXT S11111")) },
+                        ["EnterS11111"] = new () { new ("EnterS11111", (sm) => Log("ENT S11111")) },
+                        ["ExitS11111"] = new () { new ("ExitS11111", (sm) => Log("EXT S11111")) },
 
-                        ["EnterS11112"] = new () { new ("EnterS11112", async (sm) => Log("ENT S11112")) },
-                        ["ExitS11112"] = new () { new ("ExitS11112", async (sm) => Log("EXT S11112")) },
+                        ["EnterS11112"] = new () { new ("EnterS11112", (sm) => Log("ENT S11112")) },
+                        ["ExitS11112"] = new () { new ("ExitS11112", (sm) => Log("EXT S11112")) },
 
-                    ["EnterS1112"] = new () { new ("EnterS1112", async (sm) => Log("ENT S1112")) },
-                    ["ExitS1112"] = new () { new ("ExitS1112", async (sm) => Log("EXT S1112")) },
+                    ["EnterS1112"] = new () { new ("EnterS1112", (sm) => Log("ENT S1112")) },
+                    ["ExitS1112"] = new () { new ("ExitS1112", (sm) => Log("EXT S1112")) },
 
-                        ["EnterS11121"] = new () { new ("EnterS11121", async (sm) => Log("ENT S11121")) },
-                        ["ExitS11121"] = new () { new ("ExitS11121", async (sm) => Log("EXT S11121")) },
+                        ["EnterS11121"] = new () { new ("EnterS11121", (sm) => Log("ENT S11121")) },
+                        ["ExitS11121"] = new () { new ("ExitS11121",  (sm) => Log("EXT S11121")) },
 
-                        ["EnterS11122"] = new () { new ("EnterS11122", async (sm) => Log("ENT S11122")) },
-                        ["ExitS11122"] = new () { new ("ExitS11122", async (sm) => Log("EXT S11122")) },
+                        ["EnterS11122"] = new () { new ("EnterS11122", (sm) => Log("ENT S11122")) },
+                        ["ExitS11122"] = new () { new ("ExitS11122",  (sm) => Log("EXT S11122")) },
 
-                ["EnterS112"] = new () { new ("EnterS112", async (sm) => Log("ENT S112")) },
-                ["ExitS112"] = new () { new ("ExitS112", async (sm) => Log("EXT S112")) },
+                ["EnterS112"] = new () { new ("EnterS112",  (sm) => Log("ENT S112")) },
+                ["ExitS112"] = new () { new ("ExitS112",  (sm) => Log("EXT S112")) },
 
-                    ["EnterS1121"] = new () { new ("EnterS1121", async (sm) => Log("ENT S1121")) },
-                    ["ExitS1121"] = new () { new ("ExitS1121", async (sm) => Log("EXT S1121")) },
+                    ["EnterS1121"] = new () { new ("EnterS1121",  (sm) => Log("ENT S1121")) },
+                    ["ExitS1121"] = new () { new ("ExitS1121",  (sm) => Log("EXT S1121")) },
 
-                        ["EnterS11211"] = new () { new ("EnterS11211", async (sm) => Log("ENT S11211")) },
-                        ["ExitS11211"] = new () { new ("ExitS11211", async (sm) => Log("EXT S11211")) },
+                        ["EnterS11211"] = new () { new ("EnterS11211",  (sm) => Log("ENT S11211")) },
+                        ["ExitS11211"] = new () { new ("ExitS11211",  (sm) => Log("EXT S11211")) },
 
-                        ["EnterS11212"] = new () { new ("EnterS11212", async (sm) => Log("ENT S11212")) },
-                        ["ExitS11212"] = new () { new ("ExitS11212", async (sm) => Log("EXT S11212")) },
+                        ["EnterS11212"] = new () { new ("EnterS11212",  (sm) => Log("ENT S11212")) },
+                        ["ExitS11212"] = new () { new ("ExitS11212",  (sm) => Log("EXT S11212")) },
 
-                    ["EnterS1122"] = new () { new ("EnterS1122", async (sm) => Log("ENT S1122")) },
-                    ["ExitS1122"] = new () { new ("ExitS1122", async (sm) => Log("EXT S1122")) },
+                    ["EnterS1122"] = new () { new ("EnterS1122",  (sm) => Log("ENT S1122")) },
+                    ["ExitS1122"] = new () { new ("ExitS1122",  (sm) => Log("EXT S1122")) },
 
-                        ["EnterS11221"] = new () { new ("EnterS11221", async (sm) => Log("ENT S11221")) },
-                        ["ExitS11221"] = new () { new ("ExitS11221", async (sm) => Log("EXT S11221")) },
+                        ["EnterS11221"] = new () { new ("EnterS11221",  (sm) => Log("ENT S11221")) },
+                        ["ExitS11221"] = new () { new ("ExitS11221",  (sm) => Log("EXT S11221")) },
 
-                        ["EnterS11222"] = new () { new ("EnterS11222", async (sm) => Log("ENT S11222")) },
-                        ["ExitS11222"] = new () { new ("ExitS11222", async (sm) => Log("EXT S11222")) },
+                        ["EnterS11222"] = new () { new ("EnterS11222",  (sm) => Log("ENT S11222")) },
+                        ["ExitS11222"] = new () { new ("ExitS11222",  (sm) => Log("EXT S11222")) },
 
-            ["EnterS12"] = new () { new ("EnterS12", async (sm) => Log("ENT S12")) },
-            ["ExitS12"] = new () { new ("ExitS12", async (sm) => Log("EXT S12")) },
+            ["EnterS12"] = new () { new ("EnterS12",  (sm) => Log("ENT S12")) },
+            ["ExitS12"] = new () { new ("ExitS12",  (sm) => Log("EXT S12")) },
 
-                ["EnterS121"] = new () { new ("EnterS121", async (sm) => Log("ENT S121")) },
-                ["ExitS121"] = new () { new ("ExitS121", async (sm) => Log("EXT S121")) },
+                ["EnterS121"] = new () { new ("EnterS121",  (sm) => Log("ENT S121")) },
+                ["ExitS121"] = new () { new ("ExitS121",  (sm) => Log("EXT S121")) },
 
-                    ["EnterS1211"] = new () { new ("EnterS1211", async (sm) => Log("ENT S1211")) },
-                    ["ExitS1211"] = new () { new ("ExitS1211", async (sm) => Log("EXT S1211")) },
+                    ["EnterS1211"] = new () { new ("EnterS1211",  (sm) => Log("ENT S1211")) },
+                    ["ExitS1211"] = new () { new ("ExitS1211",  (sm) => Log("EXT S1211")) },
 
-                        ["EnterS12111"] = new () { new ("EnterS12111", async (sm) => Log("ENT S12111")) },
-                        ["ExitS12111"] = new () { new ("ExitS12111", async (sm) => Log("EXT S12111")) },
+                        ["EnterS12111"] = new () { new ("EnterS12111",  (sm) => Log("ENT S12111")) },
+                        ["ExitS12111"] = new () { new ("ExitS12111",  (sm) => Log("EXT S12111")) },
 
-                        ["EnterS12112"] = new () { new ("EnterS12112", async (sm) => Log("ENT S12112")) },
-                        ["ExitS12112"] = new () { new ("ExitS12112", async (sm) => Log("EXT S12112")) },
+                        ["EnterS12112"] = new () { new ("EnterS12112",  (sm) => Log("ENT S12112")) },
+                        ["ExitS12112"] = new () { new ("ExitS12112",  (sm) => Log("EXT S12112")) },
 
-                    ["EnterS1212"] = new () { new ("EnterS1212", async (sm) => Log("ENT S1212")) },
-                    ["ExitS1212"] = new () { new ("ExitS1212", async (sm) => Log("EXT S1212")) },
+                    ["EnterS1212"] = new () { new ("EnterS1212",  (sm) => Log("ENT S1212")) },
+                    ["ExitS1212"] = new () { new ("ExitS1212",  (sm) => Log("EXT S1212")) },
 
-                        ["EnterS12121"] = new () { new ("EnterS12121", async (sm) => Log("ENT S12121")) },
-                        ["ExitS12121"] = new () { new ("ExitS12121", async (sm) => Log("EXT S12121")) },
+                        ["EnterS12121"] = new () { new ("EnterS12121",  (sm) => Log("ENT S12121")) },
+                        ["ExitS12121"] = new () { new ("ExitS12121",  (sm) => Log("EXT S12121")) },
 
-                        ["EnterS12122"] = new () { new ("EnterS12122", async (sm) => Log("ENT S12122")) },
-                        ["ExitS12122"] = new () { new ("ExitS12122", async (sm) => Log("EXT S12122")) },
+                        ["EnterS12122"] = new () { new ("EnterS12122",  (sm) => Log("ENT S12122")) },
+                        ["ExitS12122"] = new () { new ("ExitS12122",  (sm) => Log("EXT S12122")) },
 
-                ["EnterS122"] = new () { new ("EnterS122", async (sm) => Log("ENT S122")) },
-                ["ExitS122"] = new () { new ("ExitS122", async (sm) => Log("EXT S122")) },
+                ["EnterS122"] = new () { new ("EnterS122",  (sm) => Log("ENT S122")) },
+                ["ExitS122"] = new () { new ("ExitS122",  (sm) => Log("EXT S122")) },
 
-                    ["EnterS1221"] = new () { new ("EnterS1221", async (sm) => Log("ENT S1221")) },
-                    ["ExitS1221"] = new () { new ("ExitS1221", async (sm) => Log("EXT S1221")) },
+                    ["EnterS1221"] = new () { new ("EnterS1221",  (sm) => Log("ENT S1221")) },
+                    ["ExitS1221"] = new () { new ("ExitS1221",  (sm) => Log("EXT S1221")) },
 
-                        ["EnterS12211"] = new () { new ("EnterS12211", async (sm) => Log("ENT S12211")) },
-                        ["ExitS12211"] = new () { new ("ExitS12211", async (sm) => Log("EXT S12211")) },
+                        ["EnterS12211"] = new () { new ("EnterS12211",  (sm) => Log("ENT S12211")) },
+                        ["ExitS12211"] = new () { new ("ExitS12211",  (sm) => Log("EXT S12211")) },
 
-                        ["EnterS12212"] = new () { new ("EnterS12212", async (sm) => Log("ENT S12212")) },
-                        ["ExitS12212"] = new () { new ("ExitS12212", async (sm) => Log("EXT S12212")) },
+                        ["EnterS12212"] = new () { new ("EnterS12212",  (sm) => Log("ENT S12212")) },
+                        ["ExitS12212"] = new () { new ("ExitS12212",  (sm) => Log("EXT S12212")) },
 
-                    ["EnterS1222"] = new () { new ("EnterS1222", async (sm) => Log("ENT S1222")) },
-                    ["ExitS1222"] = new () { new ("ExitS1222", async (sm) => Log("EXT S1222")) },
+                    ["EnterS1222"] = new () { new ("EnterS1222",  (sm) => Log("ENT S1222")) },
+                    ["ExitS1222"] = new () { new ("ExitS1222",  (sm) => Log("EXT S1222")) },
 
-                        ["EnterS12221"] = new () { new ("EnterS12221", async (sm) => Log("ENT S12221")) },
-                        ["ExitS12221"] = new () { new ("ExitS12221", async (sm) => Log("EXT S12221")) },
+                        ["EnterS12221"] = new () { new ("EnterS12221",  (sm) => Log("ENT S12221")) },
+                        ["ExitS12221"] = new () { new ("ExitS12221",  (sm) => Log("EXT S12221")) },
 
-                        ["EnterS12222"] = new () { new ("EnterS12222", async (sm) => Log("ENT S12222")) },
-                        ["ExitS12222"] = new () { new ("ExitS12222", async (sm) => Log("EXT S12222")) },
+                        ["EnterS12222"] = new () { new ("EnterS12222",  (sm) => Log("ENT S12222")) },
+                        ["ExitS12222"] = new () { new ("ExitS12222",  (sm) => Log("EXT S12222")) },
 
-        ["EnterS2"] = new () { new ("EnterS2", async (sm) => Log("ENT S2")) },
-        ["ExitS2"] = new () { new ("ExitS2", async (sm) => Log("EXT S2")) },
+        ["EnterS2"] = new () { new ("EnterS2",  (sm) => Log("ENT S2")) },
+        ["ExitS2"] = new () { new ("ExitS2",  (sm) => Log("EXT S2")) },
 
-            ["EnterS21"] = new () { new ("EnterS21", async (sm) => Log("ENT S21")) },
-            ["ExitS21"] = new () { new ("ExitS21", async (sm) => Log("EXT S21")) },
+            ["EnterS21"] = new () { new ("EnterS21",  (sm) => Log("ENT S21")) },
+            ["ExitS21"] = new () { new ("ExitS21",  (sm) => Log("EXT S21")) },
 
-                ["EnterS211"] = new () { new ("EnterS211", async (sm) => Log("ENT S211")) },
-                ["ExitS211"] = new () { new ("ExitS211", async (sm) => Log("EXT S211")) },
+                ["EnterS211"] = new () { new ("EnterS211",  (sm) => Log("ENT S211")) },
+                ["ExitS211"] = new () { new ("ExitS211",  (sm) => Log("EXT S211")) },
 
-                    ["EnterS2111"] = new () { new ("EnterS2111", async (sm) => Log("ENT S2111")) },
-                    ["ExitS2111"] = new () { new ("ExitS2111", async (sm) => Log("EXT S2111")) },
+                    ["EnterS2111"] = new () { new ("EnterS2111",  (sm) => Log("ENT S2111")) },
+                    ["ExitS2111"] = new () { new ("ExitS2111",  (sm) => Log("EXT S2111")) },
 
-                        ["EnterS21111"] = new () { new ("EnterS21111", async (sm) => Log("ENT S21111")) },
-                        ["ExitS21111"] = new () { new ("ExitS21111", async (sm) => Log("EXT S21111")) },
+                        ["EnterS21111"] = new () { new ("EnterS21111",  (sm) => Log("ENT S21111")) },
+                        ["ExitS21111"] = new () { new ("ExitS21111",  (sm) => Log("EXT S21111")) },
 
-                        ["EnterS21112"] = new () { new ("EnterS21112", async (sm) => Log("ENT S21112")) },
-                        ["ExitS21112"] = new () { new ("ExitS21112", async (sm) => Log("EXT S21112")) },
+                        ["EnterS21112"] = new () { new ("EnterS21112",  (sm) => Log("ENT S21112")) },
+                        ["ExitS21112"] = new () { new ("ExitS21112",  (sm) => Log("EXT S21112")) },
 
-                    ["EnterS2112"] = new () { new ("EnterS2112", async (sm) => Log("ENT S2112")) },
-                    ["ExitS2112"] = new () { new ("ExitS2112", async (sm) => Log("EXT S2112")) },
+                    ["EnterS2112"] = new () { new ("EnterS2112",  (sm) => Log("ENT S2112")) },
+                    ["ExitS2112"] = new () { new ("ExitS2112",  (sm) => Log("EXT S2112")) },
 
-                        ["EnterS21121"] = new () { new ("EnterS21121", async (sm) => Log("ENT S21121")) },
-                        ["ExitS21121"] = new () { new ("ExitS21121", async (sm) => Log("EXT S21121")) },
+                        ["EnterS21121"] = new () { new ("EnterS21121",  (sm) => Log("ENT S21121")) },
+                        ["ExitS21121"] = new () { new ("ExitS21121",  (sm) => Log("EXT S21121")) },
 
-                        ["EnterS21122"] = new () { new ("EnterS21122", async (sm) => Log("ENT S21122")) },
-                        ["ExitS21122"] = new () { new ("ExitS21122", async (sm) => Log("EXT S21122")) },
+                        ["EnterS21122"] = new () { new ("EnterS21122",  (sm) => Log("ENT S21122")) },
+                        ["ExitS21122"] = new () { new ("ExitS21122",  (sm) => Log("EXT S21122")) },
 
-                ["EnterS212"] = new () { new ("EnterS212", async (sm) => Log("ENT S212")) },
-                ["ExitS212"] = new () { new ("ExitS212", async (sm) => Log("EXT S212")) },
+                ["EnterS212"] = new () { new ("EnterS212",  (sm) => Log("ENT S212")) },
+                ["ExitS212"] = new () { new ("ExitS212",  (sm) => Log("EXT S212")) },
 
-                    ["EnterS2121"] = new () { new ("EnterS2121", async (sm) => Log("ENT S2121")) },
-                    ["ExitS2121"] = new () { new ("ExitS2121", async (sm) => Log("EXT S2121")) },
+                    ["EnterS2121"] = new () { new ("EnterS2121",  (sm) => Log("ENT S2121")) },
+                    ["ExitS2121"] = new () { new ("ExitS2121",  (sm) => Log("EXT S2121")) },
 
-                        ["EnterS21211"] = new () { new ("EnterS21211", async (sm) => Log("ENT S21211")) },
-                        ["ExitS21211"] = new () { new ("ExitS21211", async (sm) => Log("EXT S21211")) },
+                        ["EnterS21211"] = new () { new ("EnterS21211",  (sm) => Log("ENT S21211")) },
+                        ["ExitS21211"] = new () { new ("ExitS21211",  (sm) => Log("EXT S21211")) },
 
-                        ["EnterS21212"] = new () { new ("EnterS21212", async (sm) => Log("ENT S21212")) },
-                        ["ExitS21212"] = new () { new ("ExitS21212", async (sm) => Log("EXT S21212")) },
+                        ["EnterS21212"] = new () { new ("EnterS21212",  (sm) => Log("ENT S21212")) },
+                        ["ExitS21212"] = new () { new ("ExitS21212",  (sm) => Log("EXT S21212")) },
 
-                    ["EnterS2122"] = new () { new ("EnterS2122", async (sm) => Log("ENT S2122")) },
-                    ["ExitS2122"] = new () { new ("ExitS2122", async (sm) => Log("EXT S2122")) },
+                    ["EnterS2122"] = new () { new ("EnterS2122",  (sm) => Log("ENT S2122")) },
+                    ["ExitS2122"] = new () { new ("ExitS2122",  (sm) => Log("EXT S2122")) },
 
-                        ["EnterS21221"] = new () { new ("EnterS21221", async (sm) => Log("ENT S21221")) },
-                        ["ExitS21221"] = new () { new ("ExitS21221", async (sm) => Log("EXT S21221")) },
+                        ["EnterS21221"] = new () { new ("EnterS21221",  (sm) => Log("ENT S21221")) },
+                        ["ExitS21221"] = new () { new ("ExitS21221",  (sm) => Log("EXT S21221")) },
 
-                        ["EnterS21222"] = new () { new ("EnterS21222", async (sm) => Log("ENT S21222")) },
-                        ["ExitS21222"] = new () { new ("ExitS21222", async (sm) => Log("EXT S21222")) },
+                        ["EnterS21222"] = new () { new ("EnterS21222",  (sm) => Log("ENT S21222")) },
+                        ["ExitS21222"] = new () { new ("ExitS21222",  (sm) => Log("EXT S21222")) },
 
-            ["EnterS22"] = new () { new ("EnterS22", async (sm) => Log("ENT S22")) },
-            ["ExitS22"] = new () { new ("ExitS22", async (sm) => Log("EXT S22")) },
+            ["EnterS22"] = new () { new ("EnterS22",  (sm) => Log("ENT S22")) },
+            ["ExitS22"] = new () { new ("ExitS22",  (sm) => Log("EXT S22")) },
 
-                ["EnterS221"] = new () { new ("EnterS221", async (sm) => Log("ENT S221")) },
-                ["ExitS221"] = new () { new ("ExitS221", async (sm) => Log("EXT S221")) },
+                ["EnterS221"] = new () { new ("EnterS221",  (sm) => Log("ENT S221")) },
+                ["ExitS221"] = new () { new ("ExitS221",  (sm) => Log("EXT S221")) },
 
-                    ["EnterS2211"] = new () { new ("EnterS2211", async (sm) => Log("ENT S2211")) },
-                    ["ExitS2211"] = new () { new ("ExitS2211", async (sm) => Log("EXT S2211")) },
+                    ["EnterS2211"] = new () { new ("EnterS2211",  (sm) => Log("ENT S2211")) },
+                    ["ExitS2211"] = new () { new ("ExitS2211",  (sm) => Log("EXT S2211")) },
 
-                        ["EnterS22111"] = new () { new ("EnterS22111", async (sm) => Log("ENT S22111")) },
-                        ["ExitS22111"] = new () { new ("ExitS22111", async (sm) => Log("EXT S22111")) },
+                        ["EnterS22111"] = new () { new ("EnterS22111",  (sm) => Log("ENT S22111")) },
+                        ["ExitS22111"] = new () { new ("ExitS22111",  (sm) => Log("EXT S22111")) },
 
-                        ["EnterS22112"] = new () { new ("EnterS22112", async (sm) => Log("ENT S22112")) },
-                        ["ExitS22112"] = new () { new ("ExitS22112", async (sm) => Log("EXT S22112")) },
+                        ["EnterS22112"] = new () { new ("EnterS22112",  (sm) => Log("ENT S22112")) },
+                        ["ExitS22112"] = new () { new ("ExitS22112",  (sm) => Log("EXT S22112")) },
 
-                    ["EnterS2212"] = new () { new ("EnterS2212", async (sm) => Log("ENT S2212")) },
-                    ["ExitS2212"] = new () { new ("ExitS2212", async (sm) => Log("EXT S2212")) },
+                    ["EnterS2212"] = new () { new ("EnterS2212",  (sm) => Log("ENT S2212")) },
+                    ["ExitS2212"] = new () { new ("ExitS2212",  (sm) => Log("EXT S2212")) },
 
-                        ["EnterS22121"] = new () { new ("EnterS22121", async (sm) => Log("ENT S22121")) },
-                        ["ExitS22121"] = new () { new ("ExitS22121", async (sm) => Log("EXT S22121")) },
+                        ["EnterS22121"] = new () { new ("EnterS22121",  (sm) => Log("ENT S22121")) },
+                        ["ExitS22121"] = new () { new ("ExitS22121",  (sm) => Log("EXT S22121")) },
 
-                        ["EnterS22122"] = new () { new ("EnterS22122", async (sm) => Log("ENT S22122")) },
-                        ["ExitS22122"] = new () { new ("ExitS22122", async (sm) => Log("EXT S22122")) },
+                        ["EnterS22122"] = new () { new ("EnterS22122",  (sm) => Log("ENT S22122")) },
+                        ["ExitS22122"] = new () { new ("ExitS22122",  (sm) => Log("EXT S22122")) },
 
-                ["EnterS222"] = new () { new ("EnterS222", async (sm) => Log("ENT S222")) },
-                ["ExitS222"] = new () { new ("ExitS222", async (sm) => Log("EXT S222")) },
+                ["EnterS222"] = new () { new ("EnterS222",  (sm) => Log("ENT S222")) },
+                ["ExitS222"] = new () { new ("ExitS222",  (sm) => Log("EXT S222")) },
 
-                    ["EnterS2221"] = new () { new ("EnterS2221", async (sm) => Log("ENT S2221")) },
-                    ["ExitS2221"] = new () { new ("ExitS2221", async (sm) => Log("EXT S2221")) },
+                    ["EnterS2221"] = new () { new ("EnterS2221",  (sm) => Log("ENT S2221")) },
+                    ["ExitS2221"] = new () { new ("ExitS2221",  (sm) => Log("EXT S2221")) },
 
-                        ["EnterS22211"] = new () { new ("EnterS22211", async (sm) => Log("ENT S22211")) },
-                        ["ExitS22211"] = new () { new ("ExitS22211", async (sm) => Log("EXT S22211")) },
+                        ["EnterS22211"] = new () { new ("EnterS22211",  (sm) => Log("ENT S22211")) },
+                        ["ExitS22211"] = new () { new ("ExitS22211",  (sm) => Log("EXT S22211")) },
 
-                        ["EnterS22212"] = new () { new ("EnterS22212", async (sm) => Log("ENT S22212")) },
-                        ["ExitS22212"] = new () { new ("ExitS22212", async (sm) => Log("EXT S22212")) },
+                        ["EnterS22212"] = new () { new ("EnterS22212",  (sm) => Log("ENT S22212")) },
+                        ["ExitS22212"] = new () { new ("ExitS22212",  (sm) => Log("EXT S22212")) },
 
-                    ["EnterS2222"] = new () { new ("EnterS2222", async (sm) => Log("ENT S2222")) },
-                    ["ExitS2222"] = new () { new ("ExitS2222", async (sm) => Log("EXT S2222")) },
+                    ["EnterS2222"] = new () { new ("EnterS2222",  (sm) => Log("ENT S2222")) },
+                    ["ExitS2222"] = new () { new ("ExitS2222",  (sm) => Log("EXT S2222")) },
 
-                        ["EnterS22221"] = new () { new ("EnterS22221", async (sm) => Log("ENT S22221")) },
-                        ["ExitS22221"] = new () { new ("ExitS22221", async (sm) => Log("EXT S22221")) },
+                        ["EnterS22221"] = new () { new ("EnterS22221",  (sm) => Log("ENT S22221")) },
+                        ["ExitS22221"] = new () { new ("ExitS22221",  (sm) => Log("EXT S22221")) },
 
-                        ["EnterS22222"] = new () { new ("EnterS22222", async (sm) => Log("ENT S22222")) },
-                        ["ExitS22222"] = new () { new ("ExitS22222", async (sm) => Log("EXT S22222")) },
+                        ["EnterS22222"] = new () { new ("EnterS22222",  (sm) => Log("ENT S22222")) },
+                        ["ExitS22222"] = new () { new ("ExitS22222",  (sm) => Log("EXT S22222")) },
     };
 
     static string jsonScript =

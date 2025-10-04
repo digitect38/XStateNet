@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using XStateNet.Semi.Transport;
+using XStateNet.Orchestration;
 using Microsoft.Extensions.Logging;
 
 namespace XStateNet.Tests
@@ -13,22 +14,28 @@ namespace XStateNet.Tests
     {
         private readonly ITestOutputHelper _output;
         private readonly ILogger<ImprovedResilientHsmsConnection> _logger;
+        private readonly EventBusOrchestrator _orchestrator;
 
         public ResilientHsmsConnectionTests(ITestOutputHelper output)
         {
             _output = output;
             _logger = new TestLogger<ImprovedResilientHsmsConnection>(output);
+            _orchestrator = new EventBusOrchestrator();
         }
 
         public Task InitializeAsync() => Task.CompletedTask;
-        public Task DisposeAsync() => Task.CompletedTask;
+        public Task DisposeAsync()
+        {
+            _orchestrator?.Dispose();
+            return Task.CompletedTask;
+        }
 
         [SkippableNetworkFact]
         public async Task ImprovedConnection_ProperAsyncDisposal_NoDeadlock()
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5000);
-            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             // Don't actually try to connect - just test disposal
 
@@ -44,7 +51,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5001);
-            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
             connection.MaxRetryAttempts = 0;  // No retries - fail immediately
             connection.RetryDelayMs = 1;  // Minimal delay
             connection.CircuitBreakerThreshold = 20; // High threshold to avoid opening
@@ -76,7 +83,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5002);
-            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
             // Use very short delays to make test fast but still testable
             connection.MaxRetryAttempts = 1;
             connection.RetryDelayMs = 10;
@@ -117,7 +124,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5003);
-            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             var stateChanges = new System.Collections.Concurrent.ConcurrentBag<ImprovedResilientHsmsConnection.ConnectionState>();
             connection.StateChanged += (s, state) => stateChanges.Add(state);
@@ -150,7 +157,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5004);
-            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             // Act
             await connection.DisposeAsync();
@@ -168,7 +175,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5005);
-            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            await using var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             connection.CircuitBreakerThreshold = 2;
             connection.CircuitBreakerDuration = TimeSpan.FromMilliseconds(100);
@@ -209,7 +216,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5006);
-            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             // Act - Multiple concurrent disposal attempts
             var tasks = new Task[10];
@@ -228,7 +235,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5007);
-            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _logger);
+            var connection = new ImprovedResilientHsmsConnection(endpoint, HsmsConnection.HsmsConnectionMode.Active, _orchestrator, _logger);
 
             // Don't try to connect - just test disposal
 

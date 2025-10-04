@@ -72,8 +72,7 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestInitialState()
     {
-        var uniqueId = $"TestInitialState_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
         var currentState = _currentMachine!.CurrentState;
         Assert.Contains("wait", currentState);
@@ -83,12 +82,11 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestTransitionShoot()
     {
-        var uniqueId = $"TestTransitionShoot_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
-        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await SendEventAsync("TEST", stateMachine, "OPEN");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await SendEventAsync("TEST", stateMachine, "SHOOT");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;
@@ -99,10 +97,9 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestTransitionCannotShoot()
     {
-        var uniqueId = $"TestTransitionCannotShoot_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
-        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await SendEventAsync("TEST", stateMachine, "SHOOT");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;
@@ -113,15 +110,14 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestTransitionCannotClose()
     {
-        var uniqueId = $"TestTransitionCannotClose_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
         // trashcan should not be closed while shooting!
-        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await SendEventAsync("TEST", stateMachine, "OPEN");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await SendEventAsync("TEST", stateMachine, "SHOOT");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await SendEventAsync("TEST", stateMachine, "CLOSE");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;
@@ -132,17 +128,16 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestTransitionCanClose()
     {
-        var uniqueId = $"TestTransitionCanClose_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
         // trashcan can be closed after if shooting is done!
-        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await SendEventAsync("TEST", stateMachine, "OPEN");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await SendEventAsync("TEST", stateMachine, "SHOOT");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "DONE");
+        await SendEventAsync("TEST", stateMachine, "DONE");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await SendEventAsync("TEST", stateMachine, "CLOSE");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;
@@ -153,14 +148,13 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestShootAndDoneTransition()
     {
-        var uniqueId = $"TestShootAndDoneTransition_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
-        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await SendEventAsync("TEST", stateMachine, "OPEN");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "SHOOT");
+        await SendEventAsync("TEST", stateMachine, "SHOOT");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "DONE");
+        await SendEventAsync("TEST", stateMachine, "DONE");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;
@@ -171,12 +165,11 @@ public class MutualExclusionTests : OrchestratorTestBase
     [Fact]
     public async Task TestOpenAndCloseTransition()
     {
-        var uniqueId = $"TestOpenAndCloseTransition_{Guid.NewGuid():N}";
-        var stateMachine = await CreateStateMachine(uniqueId);
+        var stateMachine = await CreateStateMachine("uniqueId");
 
-        await SendEventAsync("TEST", uniqueId, "OPEN");
+        await SendEventAsync("TEST", stateMachine, "OPEN");
         await Task.Delay(100);
-        await SendEventAsync("TEST", uniqueId, "CLOSE");
+        await SendEventAsync("TEST", stateMachine, "CLOSE");
         await Task.Delay(100);
 
         var currentState = _currentMachine!.CurrentState;

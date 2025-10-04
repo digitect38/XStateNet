@@ -532,7 +532,8 @@ public class CarrierMachine
             id: MachineId,
             json: definition,
             orchestrator: orchestrator,
-            orchestratedActions: actions
+            orchestratedActions: actions,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
     }
 
@@ -791,7 +792,8 @@ public class LoadPortMachine
             id: MachineId,
             json: definition,
             orchestrator: orchestrator,
-            orchestratedActions: actions
+            orchestratedActions: actions,
+            enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
     }
 

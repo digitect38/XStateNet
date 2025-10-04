@@ -18,13 +18,13 @@ public class InConditionTests : OrchestratorTestBase
     [Fact]
     public async Task TestInConditionWithParallelStateMet()
     {
-        var uniqueId = $"inConditionMachine_{Guid.NewGuid():N}";
+
         var stateMachineJson = InConditionStateMachineWithParallel.InConditionStateMachineScript;
 
         var actions = new Dictionary<string, Action<OrchestratedContext>>();
         var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        _currentMachine = CreateMachine("uniqueId", stateMachineJson, actions, guards);
         await _currentMachine.StartAsync();
 
         // Check initial states
@@ -33,21 +33,21 @@ public class InConditionTests : OrchestratorTestBase
         Assert.Contains("subStateB1", currentState);
 
         // Transition stateA.subStateA1 to stateA.subStateA2
-        await SendEventAsync("TEST", uniqueId, "EVENT1");
+        await SendEventAsync("TEST", _currentMachine, "EVENT1");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         Assert.Contains("subStateA2", currentState);
         Assert.Contains("subStateB1", currentState);
 
         // Transition stateB.subStateB1 to stateB.subStateB2
-        await SendEventAsync("TEST", uniqueId, "EVENT2");
+        await SendEventAsync("TEST", _currentMachine, "EVENT2");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         Assert.Contains("subStateA2", currentState);
         Assert.Contains("subStateB2", currentState);
 
         // Check InCondition
-        await SendEventAsync("TEST", uniqueId, "CHECK_IN_CONDITION");
+        await SendEventAsync("TEST", _currentMachine, "CHECK_IN_CONDITION");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         Assert.Contains("subStateA2", currentState);
@@ -56,14 +56,13 @@ public class InConditionTests : OrchestratorTestBase
 
     [Fact]
     public async Task TestInConditionWithParallelStateNotMet()
-    {
-        var uniqueId = $"inConditionMachine_{Guid.NewGuid():N}";
+    {        
         var stateMachineJson = InConditionStateMachineWithParallel.InConditionStateMachineScript;
 
         var actions = new Dictionary<string, Action<OrchestratedContext>>();
         var guards = new Dictionary<string, Func<StateMachine, bool>>();
 
-        _currentMachine = CreateMachine(uniqueId, stateMachineJson, actions, guards);
+        _currentMachine = CreateMachine("uniqueId", stateMachineJson, actions, guards);
         await _currentMachine.StartAsync();
 
         // Check initial states
@@ -72,14 +71,14 @@ public class InConditionTests : OrchestratorTestBase
         Assert.Contains("subStateB1", currentState);
 
         // Transition stateB.subStateB1 to stateB.subStateB2
-        await SendEventAsync("TEST", uniqueId, "EVENT2");
+        await SendEventAsync("TEST", _currentMachine, "EVENT2");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         Assert.Contains("subStateA1", currentState);
         Assert.Contains("subStateB2", currentState);
 
         // Check InCondition, should not transition
-        await SendEventAsync("TEST", uniqueId, "CHECK_IN_CONDITION");
+        await SendEventAsync("TEST", _currentMachine, "CHECK_IN_CONDITION");
         await Task.Delay(100);
         currentState = _currentMachine.CurrentState;
         Assert.Contains("subStateA1", currentState);

@@ -74,7 +74,9 @@ namespace TimelineWPF.Tests
             var pureMachine = CreateMachine(fixedId, json, actions);
             pureMachine.StartAsync().Wait();
             var underlying = GetUnderlying(pureMachine);
-            return (underlying!, fixedId);
+            // Return the actual machine ID from pureMachine, not the input parameter
+            // The actual ID may differ due to channel group scoping
+            return (underlying!, pureMachine.Id);
         }
 
         private (StateMachine machine, string machineId) CreateTestMachine(string id)
@@ -118,7 +120,9 @@ namespace TimelineWPF.Tests
             var pureMachine = CreateMachine(uniqueId, json, actions);
             pureMachine.StartAsync().Wait();
             var underlying = GetUnderlying(pureMachine);
-            return (underlying!, uniqueId);
+            // Return the actual machine ID from pureMachine, not the input parameter
+            // The actual ID may differ due to channel group scoping
+            return (underlying!, pureMachine.Id);
         }
 
         [Fact]
