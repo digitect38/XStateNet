@@ -332,7 +332,11 @@ public class UnitTest_InvokeHeavy_Orchestrated : OrchestratorTestBase
 
         await machine.StartAsync();
 
-        // Act - Wait for allComplete state
+        // Act - Wait for quick service to complete (it completes in 50ms)
+        // This service should complete before the parallel state transitions
+        await WaitForEventLog("service:quick:completed", timeoutMs: 1000);
+
+        // Now wait for allComplete state
         // In XState, when parallel states complete, services in incomplete regions are cancelled
         await WaitForState(machine, "allComplete", timeoutMs: 10000);
 
