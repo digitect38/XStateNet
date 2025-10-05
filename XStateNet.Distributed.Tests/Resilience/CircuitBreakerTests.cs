@@ -115,11 +115,17 @@ namespace XStateNet.Distributed.Tests.Resilience
                 openDuration: TimeSpan.FromMilliseconds(100));
             await circuitBreaker.StartAsync();
 
-            var stateChangeObserved = new TaskCompletionSource<string>();
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            var closedStateReached = new TaskCompletionSource<string>();
             circuitBreaker.StateTransitioned += (sender, args) =>
             {
-                if (args.newState.Contains("halfOpen") || args.newState.Contains("closed"))
-                    stateChangeObserved.TrySetResult(args.newState);
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(args.newState);
+                if (args.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(args.newState);
+                if (args.newState.Contains("closed"))
+                    closedStateReached.TrySetResult(args.newState);
             };
 
             // Act - Open the circuit
@@ -133,11 +139,17 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            await Task.Delay(50);
+            // Wait for open state transition (with timeout)
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit breaker should transition to open state within 500ms");
             Assert.Contains("open", circuitBreaker.CurrentState);
 
-            // Wait for timeout
-            await Task.Delay(150);
+            // Wait for half-open state transition (after openDuration of 100ms)
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit breaker should transition to half-open state within 500ms");
+
+            // Give the state machine time to update CurrentState property
+            await Task.Delay(10);
 
             // Attempt execution - should succeed now that circuit is half-open
             string? result = null;
@@ -157,8 +169,9 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.NotNull(result);
             Assert.Equal("success", result);
 
-            await Task.Delay(50);
-            // Circuit should now be closed after successful execution in half-open
+            // Wait for closed state transition after successful test in half-open
+            var closedTask = await Task.WhenAny(closedStateReached.Task, Task.Delay(500));
+            Assert.True(closedTask == closedStateReached.Task, "Circuit breaker should transition to closed state after success in half-open within 500ms");
             Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 

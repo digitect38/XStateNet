@@ -173,16 +173,14 @@ namespace XStateNet.Orchestration
             Func<CancellationToken, Task<T>> operation,
             CancellationToken cancellationToken = default)
         {
-            var state = CurrentState;
-
-            // Check if circuit is open
-            if (state.Contains("open") && !state.Contains("halfOpen"))
+            // Check if circuit is open (read current state, don't cache)
+            if (CurrentState.Contains("open") && !CurrentState.Contains("halfOpen"))
             {
                 throw new CircuitBreakerOpenException($"Circuit breaker '{_name}' is open");
             }
 
-            // Half-open: Only allow one test at a time
-            if (state.Contains("halfOpen"))
+            // Half-open: Only allow one test at a time (re-read state)
+            if (CurrentState.Contains("halfOpen"))
             {
                 var acquired = await _halfOpenSemaphore.WaitAsync(0, cancellationToken);
                 if (!acquired)
