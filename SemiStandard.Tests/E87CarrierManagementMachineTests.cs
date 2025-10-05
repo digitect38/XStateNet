@@ -93,8 +93,19 @@ public class E87CarrierManagementMachineTests : IDisposable
         Assert.Contains("MappingVerification", carrier.GetCurrentState());
         Assert.Equal(3, carrier.SubstrateCount);
 
-        // 4. Verify OK (or wait for auto-transition after 500ms)
-        await Task.Delay(600);
+        // 4. Verify OK (wait for auto-transition after 500ms using event-driven approach)
+        var readyStateReached = new TaskCompletionSource<string>();
+        carrier.StateTransitioned += (sender, args) =>
+        {
+            if (args.newState.Contains("ReadyToAccess"))
+                readyStateReached.TrySetResult(args.newState);
+        };
+
+        var readyTask = await Task.WhenAny(readyStateReached.Task, Task.Delay(1000));
+        Assert.True(readyTask == readyStateReached.Task, "Carrier should transition to ReadyToAccess within 1000ms");
+
+        // Small grace period for property update
+        await Task.Delay(10);
         Assert.Contains("ReadyToAccess", carrier.GetCurrentState());
 
         // 5. Start access

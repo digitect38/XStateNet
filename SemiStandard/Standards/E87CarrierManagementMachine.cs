@@ -347,6 +347,8 @@ public class CarrierMachine
     public string MachineId => $"E87_CARRIER_{Id}_{_instanceId}";
     public IPureStateMachine Machine => _machine;
 
+    public event EventHandler<(string oldState, string newState)>? StateTransitioned;
+
     public CarrierMachine(string id, string loadPortId, int slotCount, string equipmentId, EventBusOrchestrator orchestrator)
     {
         Id = id;
@@ -535,6 +537,20 @@ public class CarrierMachine
             orchestratedActions: actions,
             enableGuidIsolation: false  // Already has GUID suffix in MachineId
         );
+
+        // Forward state changes to StateTransitioned event
+        // Access underlying IStateMachine to subscribe to StateChanged event
+        if (_machine is PureStateMachineAdapter adapter)
+        {
+            var underlying = adapter.GetUnderlying();
+            string? previousState = null;
+            underlying.StateChanged += (newState) =>
+            {
+                var oldState = previousState ?? "NotPresent";
+                StateTransitioned?.Invoke(this, (oldState, newState));
+                previousState = newState;
+            };
+        }
     }
 
     public async Task<string> StartAsync()
