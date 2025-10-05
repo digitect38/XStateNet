@@ -49,17 +49,29 @@ namespace XStateNet.Tests
 
             await breaker.StartAsync();
 
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            breaker.StateTransitioned += (sender, args) =>
+            {
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(args.newState);
+            };
+
             // Act - Record failures up to threshold
             await breaker.RecordFailureAsync();
-            await Task.Delay(10); // Allow event processing
             Assert.Contains("closed", breaker.CurrentState);
 
             await breaker.RecordFailureAsync();
+            Assert.Contains("closed", breaker.CurrentState);
+
+            await breaker.RecordFailureAsync();
+
+            // Wait for open state with timeout
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
+
+            // Grace period for property update
             await Task.Delay(10);
-            Assert.Contains("closed", breaker.CurrentState);
-
-            await breaker.RecordFailureAsync();
-            await Task.Delay(50); // Allow state transition
 
             // Assert
             Assert.Contains("open", breaker.CurrentState);
@@ -80,14 +92,35 @@ namespace XStateNet.Tests
 
             await breaker.StartAsync();
 
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            breaker.StateTransitioned += (sender, args) =>
+            {
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(args.newState);
+                if (args.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(args.newState);
+            };
+
             // Open the circuit
             await breaker.RecordFailureAsync();
             await breaker.RecordFailureAsync();
-            await Task.Delay(50);
+
+            // Wait for open state
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
             Assert.Contains("open", breaker.CurrentState);
 
-            // Act - Wait for timeout
-            await Task.Delay(150);
+            // Act - Wait for half-open transition
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
 
             // Assert
             Assert.Contains("halfOpen", breaker.CurrentState);
@@ -106,13 +139,34 @@ namespace XStateNet.Tests
 
             await breaker.StartAsync();
 
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            var closedStateReached = new TaskCompletionSource<string>();
+            breaker.StateTransitioned += (sender, args) =>
+            {
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(args.newState);
+                if (args.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(args.newState);
+                if (args.newState.Contains("closed"))
+                    closedStateReached.TrySetResult(args.newState);
+            };
+
             // Open the circuit
             await breaker.RecordFailureAsync();
             await breaker.RecordFailureAsync();
-            await Task.Delay(50);
+
+            // Wait for open state
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
 
             // Wait for half-open
-            await Task.Delay(150);
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
             Assert.Contains("halfOpen", breaker.CurrentState);
 
             // Act - Successful test
@@ -122,7 +176,12 @@ namespace XStateNet.Tests
                 return true;
             });
 
-            await Task.Delay(50);
+            // Wait for closed state
+            var closedTask = await Task.WhenAny(closedStateReached.Task, Task.Delay(500));
+            Assert.True(closedTask == closedStateReached.Task, "Circuit should close within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
 
             // Assert
             Assert.True(result);
@@ -143,13 +202,38 @@ namespace XStateNet.Tests
 
             await breaker.StartAsync();
 
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            var reopenedStateReached = new TaskCompletionSource<string>();
+            breaker.StateTransitioned += (sender, args) =>
+            {
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                {
+                    // Distinguish first open from reopened
+                    if (!openStateReached.Task.IsCompleted)
+                        openStateReached.TrySetResult(args.newState);
+                    else
+                        reopenedStateReached.TrySetResult(args.newState);
+                }
+                if (args.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(args.newState);
+            };
+
             // Open the circuit
             await breaker.RecordFailureAsync();
             await breaker.RecordFailureAsync();
-            await Task.Delay(50);
+
+            // Wait for open state
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
 
             // Wait for half-open
-            await Task.Delay(150);
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
             Assert.Contains("halfOpen", breaker.CurrentState);
 
             // Act - Failed test
@@ -162,7 +246,12 @@ namespace XStateNet.Tests
                 });
             });
 
-            await Task.Delay(50);
+            // Wait for reopen state
+            var reopenTask = await Task.WhenAny(reopenedStateReached.Task, Task.Delay(500));
+            Assert.True(reopenTask == reopenedStateReached.Task, "Circuit should reopen within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
 
             // Assert
             Assert.Contains("open", breaker.CurrentState);
@@ -181,10 +270,24 @@ namespace XStateNet.Tests
 
             await breaker.StartAsync();
 
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            breaker.StateTransitioned += (sender, args) =>
+            {
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(args.newState);
+            };
+
             // Open the circuit
             await breaker.RecordFailureAsync();
             await breaker.RecordFailureAsync();
-            await Task.Delay(50);
+
+            // Wait for open state
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
 
             // Act & Assert
             await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
@@ -333,21 +436,50 @@ namespace XStateNet.Tests
                 openDuration: TimeSpan.FromMilliseconds(100));
 
             var transitions = new System.Collections.Concurrent.ConcurrentBag<(string, string, string)>();
-            breaker.StateTransitioned += (s, e) => transitions.Add(e);
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            var closedStateReached = new TaskCompletionSource<string>();
+
+            breaker.StateTransitioned += (s, e) =>
+            {
+                transitions.Add(e);
+                if (e.newState.Contains("open") && !e.newState.Contains("halfOpen"))
+                    openStateReached.TrySetResult(e.newState);
+                if (e.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(e.newState);
+                // Only signal closed state if we came from halfOpen (not initial state)
+                if (e.newState.Contains("closed") && e.oldState.Contains("halfOpen"))
+                    closedStateReached.TrySetResult(e.newState);
+            };
 
             await breaker.StartAsync();
 
             // Act - Trigger full cycle: Closed -> Open -> HalfOpen -> Closed
             await breaker.RecordFailureAsync();
             await breaker.RecordFailureAsync();
-            await Task.Delay(50); // Open
 
-            await Task.Delay(150); // HalfOpen
+            // Wait for open state
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
 
+            // Wait for half-open state
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
+
+            // Grace period to ensure halfOpen state is stable
+            await Task.Delay(10);
+
+            // Execute successful operation to close circuit
             await breaker.ExecuteAsync(async ct => true);
-            await Task.Delay(50); // Closed
 
-            // Assert
+            // Wait for closed state
+            var closedTask = await Task.WhenAny(closedStateReached.Task, Task.Delay(1000));
+            Assert.True(closedTask == closedStateReached.Task, "Circuit should close within 1000ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
+
+            // Assert - verify all expected transitions occurred
             Assert.Contains(transitions, t => t.Item1 == "closed" && t.Item2 == "open");
             Assert.Contains(transitions, t => t.Item1 == "open" && t.Item2 == "halfOpen");
             Assert.Contains(transitions, t => t.Item1 == "halfOpen" && t.Item2 == "closed");
