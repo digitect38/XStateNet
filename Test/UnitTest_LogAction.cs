@@ -26,7 +26,7 @@ namespace XStateNet.UnitTest
         }
 
         [Fact]
-        public void TestLogActionWithString()
+        public async Task TestLogActionWithString()
         {
             var actions = new ActionMap
             {
@@ -48,14 +48,14 @@ namespace XStateNet.UnitTest
             }";
 
             var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             //var output = _stringWriter.ToString();
             //Assert.Contains("Hello from the log action!", output);
         }
 
         [Fact]
-        public void TestLogActionWithExpression()
+        public async Task TestLogActionWithExpression()
         {
             var actions = new ActionMap
             {
@@ -81,14 +81,14 @@ namespace XStateNet.UnitTest
             }";
 
             var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             //var output = _stringWriter.ToString();
             //Assert.Contains("The value is 42", output);
         }
 
         [Fact]
-        public void TestLogActionOnTransition()
+        public async Task TestLogActionOnTransition()
         {
             var actions = new ActionMap
             {
@@ -116,7 +116,7 @@ namespace XStateNet.UnitTest
             }";
 
             var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
-            stateMachine.Start();
+            await stateMachine.StartAsync();
             stateMachine.Send("GO");
 
             //var output = _stringWriter.ToString();

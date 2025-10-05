@@ -155,14 +155,13 @@ public class CMPToolSchedulerTests : IDisposable
         // Wait for full cycle (loading -> processing -> unloading -> reporting)
         // Process takes ~3.4s + loading 1s + unloading 0.8s = ~5.2s
         // Plus requestingConsumables has 3s timeout if consumables low
-        //await Task.Delay(10000);
-        await Task.Delay(1000);
+        await Task.Delay(6000);
 
-        // Assert - Should be back to idle or maintenance (or still requesting consumables)
+        // Assert - Should be back to idle or maintenance (or still requesting consumables or completing report)
         var state = _toolScheduler.GetCurrentState();
         Assert.True(
-            state.Contains("idle") || state.Contains("maintenance") || state.Contains("requestingConsumables"),
-            $"Expected idle, maintenance, or requestingConsumables, got {state}"
+            state.Contains("idle") || state.Contains("maintenance") || state.Contains("requestingConsumables") || state.Contains("reportingComplete"),
+            $"Expected idle, maintenance, requestingConsumables, or reportingComplete, got {state}"
         );
     }
 

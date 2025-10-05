@@ -17,7 +17,7 @@ public class TransitionExecutor : StateObject
         await ExecuteCoreAsync(transition, eventName);
     }
 
-    private async void ExecuteMultipleTargets(Transition transition, string eventName)
+    private async Task ExecuteMultipleTargets(Transition transition, string eventName)
     {
         if (transition.TargetNames == null || StateMachine == null) return;
 
@@ -93,7 +93,7 @@ public class TransitionExecutor : StateObject
                 // Exit
                 if (firstExit != null)
                 {
-                    StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState).GetAwaiter().GetResult();
+                    await StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState);
                 }
 
                 Logger.Info($"Transit: [ {sourceInRegionName} --> {targetName} ] by {eventName}");
@@ -101,7 +101,7 @@ public class TransitionExecutor : StateObject
                 // Entry
                 if (firstEntry != null)
                 {
-                    StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
+                    await StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName);
                 }
 
                 // Fire StateChanged event after transition is complete
@@ -205,7 +205,7 @@ public class TransitionExecutor : StateObject
             // Handle multiple targets
             if (transition.HasMultipleTargets && transition.TargetNames != null)
             {
-                ExecuteMultipleTargets(transition, eventName);
+                await ExecuteMultipleTargets(transition, eventName);
                 return;
             }
 
@@ -219,7 +219,7 @@ public class TransitionExecutor : StateObject
                 // Exit
                 if (firstExit != null)
                 {
-                    StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState).GetAwaiter().GetResult();
+                    await StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState);
                 }
 
                 Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
@@ -251,7 +251,7 @@ public class TransitionExecutor : StateObject
                 // Entry
                 if (firstEntry != null)
                 {
-                    StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName).GetAwaiter().GetResult();
+                    await StateMachine.TransitDown(firstEntry.ToState(StateMachine) as CompoundState, targetName);
                 }
 
                 // Fire StateChanged event after transition is complete

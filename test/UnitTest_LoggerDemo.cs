@@ -8,7 +8,7 @@ namespace XStateNet.UnitTest
     public class LoggerDemoTests
     {
         [Fact]
-        public void DemoLoggerWithStateMachine()
+        public async Task DemoLoggerWithStateMachine()
         {
             var uniqueId = "DemoLoggerWithStateMachine_" + Guid.NewGuid().ToString("N");
 
@@ -52,7 +52,7 @@ namespace XStateNet.UnitTest
             var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
 
             Logger.Info("Starting state machine");
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             Logger.Info("Sending START event");
             stateMachine.Send("START");

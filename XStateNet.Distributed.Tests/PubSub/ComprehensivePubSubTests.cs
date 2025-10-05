@@ -177,7 +177,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Act
             await eventBus.ConnectAsync();
             await service.StartAsync();
-            machine.Start();
+            await machine.StartAsync();
 
             // Wait a bit for initial state to be established
             await TestSynchronization.WaitForConditionAsync(
@@ -272,7 +272,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             // Act
             await eventBus.ConnectAsync();
             await service.StartAsync();
-            machine.Start();
+            await machine.StartAsync();
 
             // Wait for initial state to be established
             await TestSynchronization.WaitForConditionAsync(
@@ -1035,7 +1035,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 }";
 
                 var machine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
-                machine.Start();
+                await machine.StartAsync();
 
                 var stateHistory = new List<string>();
                 var stateIndex = 0;

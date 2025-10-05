@@ -37,18 +37,21 @@ public class NormalState : CompoundState
     /// <summary>
     /// 
     /// </summary>
-    public override async Task Start()
+    public override async Task StartAsync()
     {
-        await base.Start();
+        await base.StartAsync();
 
         if (InitialStateName != null)
         {
             var initialState = GetState(InitialStateName);
             if (initialState != null)
             {
-                await initialState.Start();
+                await initialState.StartAsync();
             }
         }
+
+        // Note: CheckAlwaysTransitions() is called from StateMachine.StartAsync() after full state tree initialization
+        // Not needed here since StateMachine.StartAsync() handles it globally
     }
 
     /// <summary>

@@ -142,13 +142,6 @@ namespace XStateNet
             set => _innerMachine.ServiceInvoker = value;
         }
 
-        [Obsolete("Use StartAsync() instead")]
-        public IStateMachine Start()
-        {
-            _innerMachine.Start();
-            return this;
-        }
-
         public Task<string> StartAsync() => _innerMachine.StartAsync();
         public void Stop() => _innerMachine.Stop();
         /*        

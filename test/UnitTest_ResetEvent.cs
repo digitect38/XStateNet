@@ -126,7 +126,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -135,7 +135,7 @@ public class UnitTest_ResetEvent : IDisposable
             .Build("resetTest");
 
         //_stateMachine = StateMachines.CreateFromScript(script, _actions, _guards);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Navigate to non-initial state
         await _stateMachine.SendAsync("START");
@@ -188,7 +188,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -264,7 +264,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -336,7 +336,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -407,7 +407,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -457,7 +457,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -498,7 +498,7 @@ public class UnitTest_ResetEvent : IDisposable
         var notCompleted = await Task.WhenAny(completedTask, Task.Delay(TimeSpan.FromSeconds(1)));
         Assert.NotSame(notCompleted, completedTask);
 #else
-        //_stateMachine.Start();
+        //await _stateMachine.StartAsync();
 
         // Start service
         var stateString = await _stateMachine.SendAsync("START");
@@ -561,7 +561,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -569,7 +569,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithAutoStart(false)
             .Build("queueReset");
 
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Queue multiple events before processing
         await _stateMachine.SendAsync("EVENT1");
@@ -605,7 +605,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -613,7 +613,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithAutoStart(false)
             .Build("multiReset");
 
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // First reset
         await _stateMachine.SendAsync("NEXT");
@@ -654,7 +654,7 @@ public class UnitTest_ResetEvent : IDisposable
             }
         }";
 
-        _stateMachine = new StateMachineBuilder()
+        _stateMachine = await new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
             .WithGuardMap(_guards)
@@ -662,7 +662,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithAutoStart(false)
             .Build("finalReset");
 
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Go to final state
         await _stateMachine.SendAsync("FINISH");

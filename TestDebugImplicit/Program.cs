@@ -43,7 +43,7 @@ class Program
 
         var stateMachine = new StateMachine();
         StateMachine.ParseStateMachine(stateMachine, json, false, null, null, null, null, null);
-        stateMachine.Start();
+        await stateMachine.StartAsync();
 
         Console.WriteLine("Initial state: " + stateMachine.GetActiveStateNames());
 
@@ -55,7 +55,7 @@ class Program
 
         // Reset
         stateMachine.Stop();
-        stateMachine.Start();
+        await stateMachine.StartAsync();
         Console.WriteLine("\n=== Reset ===");
         Console.WriteLine("State after reset: " + stateMachine.GetActiveStateNames());
 

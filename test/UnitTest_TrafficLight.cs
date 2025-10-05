@@ -126,7 +126,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestInitialState()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         var currentState = _stateMachine!.GetActiveStateNames();
@@ -147,7 +147,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestGuardCondition()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = false;
         _stateMachine!.Send("TIMER");
@@ -159,7 +159,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestEntryAndExitActions()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
@@ -176,7 +176,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestParallelStates()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         _stateMachine!.Send("PUSH_BUTTON");
         var currentState = _stateMachine!.GetActiveStateNames();
         Assert.Contains("canWalk", currentState);
@@ -186,7 +186,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestNestedStates()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
@@ -198,7 +198,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestInvalidTransition()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         _stateMachine!.Send("INVALID_EVENT");
         var currentState = _stateMachine!.GetActiveStateNames();
         currentState.AssertEquivalence($"#trafficLight.light.red.bright;{_stateMachine!.machineId}.pedestrian.cannotWalk");
@@ -207,7 +207,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public void TestNoTargetEvent()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions2, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 
@@ -219,7 +219,7 @@ public class TrafficMachine : IDisposable
     [Fact]
     public async void TestImplicitTargetTransition()
     {
-        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
+        _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start(); ;
         if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
 

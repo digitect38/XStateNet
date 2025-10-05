@@ -314,7 +314,7 @@ public class StateMachineActorV2 : ActorBase
     {
         if (_stateMachine != null)
         {
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
         }
         await base.PreStart();
     }

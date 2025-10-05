@@ -222,7 +222,7 @@ namespace TimelineWPF
             };
 
             var machine = StateMachineFactory.CreateFromScript(json, threadSafe: false, true, actionMap);
-            machine.Start();
+            machine.StartAsync().GetAwaiter();
             _machines.Add(machine);
             return machine;
         }

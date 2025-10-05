@@ -64,7 +64,7 @@ public class UnitTest_ErrorHandling : IDisposable
     }
 
     [Fact]
-    public void TestBasicErrorHandling()
+    public async Task TestBasicErrorHandling()
     {
         string uniqueId = $"'errorTest{Guid.NewGuid():N}'";
         string script = @"{
@@ -90,7 +90,7 @@ public class UnitTest_ErrorHandling : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
-        _stateMachine!.Start();
+        await _stateMachine!.StartAsync();
 
         Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());
 
@@ -160,7 +160,7 @@ public class UnitTest_ErrorHandling : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync();
 
         // Test InvalidOperationException handling
         _stateMachine!.Send("THROW_INVALID");
@@ -174,7 +174,7 @@ public class UnitTest_ErrorHandling : IDisposable
         _errorType = null;
         _actionLog.Clear();
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync();
 
         _stateMachine!.Send("THROW_ARGUMENT");
         Assert.Contains($"{_stateMachine.machineId}.handledArgument", _stateMachine.GetActiveStateNames());
@@ -270,7 +270,7 @@ public class UnitTest_ErrorHandling : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, false, _actions, _guards);
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync();
 
         _stateMachine!.Send("START");
 
@@ -318,7 +318,7 @@ public class UnitTest_ErrorHandling : IDisposable
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
         _stateMachine.ContextMap!["attempts"] = 0;
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync();
 
         _stateMachine!.Send("START");
 
@@ -382,7 +382,7 @@ public class UnitTest_ErrorHandling : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync();
 
         var initialState = _stateMachine!.GetActiveStateNames();
         Assert.Contains("regionA.idle", initialState);

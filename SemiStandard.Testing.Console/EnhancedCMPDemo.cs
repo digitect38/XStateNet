@@ -49,7 +49,7 @@ public class EnhancedCMPDemo
 
         // Create enhanced master scheduler
         System.Console.WriteLine("📋 Creating Enhanced Master Scheduler with SEMI integration...");
-        var masterScheduler = new EnhancedCMPMasterScheduler("001", orchestrator, maxWip: 3);
+        var masterScheduler = new EnhancedCMPMasterScheduler("001", orchestrator, maxWip: 7);
         await masterScheduler.StartAsync();
         System.Console.WriteLine("   ✅ E40 Process Job management active");
         System.Console.WriteLine("   ✅ E134 Data Collection plans configured");
@@ -61,10 +61,18 @@ public class EnhancedCMPDemo
         var tool1 = new EnhancedCMPToolScheduler("CMP_TOOL_1", orchestrator);
         var tool2 = new EnhancedCMPToolScheduler("CMP_TOOL_2", orchestrator);
         var tool3 = new EnhancedCMPToolScheduler("CMP_TOOL_3", orchestrator);
+        var tool4 = new EnhancedCMPToolScheduler("CMP_TOOL_4", orchestrator);
+        var tool5 = new EnhancedCMPToolScheduler("CMP_TOOL_5", orchestrator);
+        var tool6 = new EnhancedCMPToolScheduler("CMP_TOOL_6", orchestrator);
+        var tool7 = new EnhancedCMPToolScheduler("CMP_TOOL_7", orchestrator);
 
         await tool1.StartAsync();
         await tool2.StartAsync();
         await tool3.StartAsync();
+        await tool4.StartAsync();
+        await tool5.StartAsync();
+        await tool6.StartAsync();
+        await tool7.StartAsync();
 
         System.Console.WriteLine("   ✅ E90 Substrate Tracking ready");
         System.Console.WriteLine("   ✅ E134 Tool-level data collection active");
@@ -73,25 +81,53 @@ public class EnhancedCMPDemo
 
         // Register tools
         System.Console.WriteLine("📝 Registering tools with master scheduler...");
-        masterScheduler.RegisterTool("CMP_TOOL_1", "CMP", new Dictionary<string, object>
+        await masterScheduler.RegisterToolAsync(tool1.MachineId, "CMP", new Dictionary<string, object>
         {
             ["recipes"] = new[] { "CMP_STANDARD_01", "CMP_OXIDE_01" },
             ["maxWaferSize"] = 300,
             ["chamber"] = "A"
         });
 
-        masterScheduler.RegisterTool("CMP_TOOL_2", "CMP", new Dictionary<string, object>
+        await masterScheduler.RegisterToolAsync(tool2.MachineId, "CMP", new Dictionary<string, object>
         {
             ["recipes"] = new[] { "CMP_STANDARD_01", "CMP_METAL_01" },
             ["maxWaferSize"] = 300,
             ["chamber"] = "B"
         });
 
-        masterScheduler.RegisterTool("CMP_TOOL_3", "CMP", new Dictionary<string, object>
+        await masterScheduler.RegisterToolAsync(tool3.MachineId, "CMP", new Dictionary<string, object>
         {
             ["recipes"] = new[] { "CMP_STANDARD_01" },
             ["maxWaferSize"] = 300,
             ["chamber"] = "C"
+        });
+
+        await masterScheduler.RegisterToolAsync(tool4.MachineId, "CMP", new Dictionary<string, object>
+        {
+            ["recipes"] = new[] { "CMP_STANDARD_01", "CMP_OXIDE_01" },
+            ["maxWaferSize"] = 300,
+            ["chamber"] = "D"
+        });
+
+        await masterScheduler.RegisterToolAsync(tool5.MachineId, "CMP", new Dictionary<string, object>
+        {
+            ["recipes"] = new[] { "CMP_STANDARD_01", "CMP_METAL_01" },
+            ["maxWaferSize"] = 300,
+            ["chamber"] = "E"
+        });
+
+        await masterScheduler.RegisterToolAsync(tool6.MachineId, "CMP", new Dictionary<string, object>
+        {
+            ["recipes"] = new[] { "CMP_STANDARD_01" },
+            ["maxWaferSize"] = 300,
+            ["chamber"] = "F"
+        });
+
+        await masterScheduler.RegisterToolAsync(tool7.MachineId, "CMP", new Dictionary<string, object>
+        {
+            ["recipes"] = new[] { "CMP_STANDARD_01", "CMP_OXIDE_01", "CMP_METAL_01" },
+            ["maxWaferSize"] = 300,
+            ["chamber"] = "G"
         });
         System.Console.WriteLine();
 
@@ -100,13 +136,13 @@ public class EnhancedCMPDemo
         System.Console.WriteLine("╚════════════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
-        PrintSystemStatus(masterScheduler, new[] { tool1, tool2, tool3 });
+        PrintSystemStatus(masterScheduler, new[] { tool1, tool2, tool3, tool4, tool5, tool6, tool7 });
 
         // Simulate job processing
         System.Console.WriteLine("\n🚀 Starting job processing simulation...\n");
 
-        var jobCount = 12;
-        var jobInterval = 1500;
+        var jobCount = 21;  // 3 wafers per tool (7 tools × 3)
+        var jobInterval = 800;
 
         for (int i = 0; i < jobCount; i++)
         {
@@ -128,7 +164,7 @@ public class EnhancedCMPDemo
             if ((i + 1) % 4 == 0)
             {
                 System.Console.WriteLine();
-                PrintSystemStatus(masterScheduler, new[] { tool1, tool2, tool3 });
+                PrintSystemStatus(masterScheduler, new[] { tool1, tool2, tool3, tool4, tool5, tool6, tool7 });
                 System.Console.WriteLine();
             }
         }
@@ -194,7 +230,12 @@ public class EnhancedCMPDemo
         for (int i = 0; i < tools.Length; i++)
         {
             var tool = tools[i];
-            System.Console.WriteLine($"│ Tool {i + 1}:          {tool.GetCurrentState(),-41} │");
+            var fullState = tool.GetCurrentState();
+            var (mainState, subState) = ParseState(fullState);
+
+            System.Console.WriteLine($"│ Tool {i + 1}:          {mainState,-41} │");
+            if (!string.IsNullOrEmpty(subState))
+                System.Console.WriteLine($"│   └─ Substate:    {subState,-41} │");
             System.Console.WriteLine($"│   Wafers:         {tool.GetWafersProcessed(),-41} │");
             System.Console.WriteLine($"│   Slurry:         {tool.GetSlurryLevel():F1}%{new string(' ', 37)} │");
             System.Console.WriteLine($"│   Pad Wear:       {tool.GetPadWear():F1}%{new string(' ', 37)} │");
@@ -270,5 +311,33 @@ public class EnhancedCMPDemo
 
         System.Console.WriteLine();
         System.Console.WriteLine($"📊 E134 Data Collection: {master.GetReports("JOB_COMPLETION").Count() + tools.Sum(t => t.GetReports("WAFER_COMPLETION").Count())} total reports collected");
+    }
+
+    private static (string mainState, string subState) ParseState(string fullState)
+    {
+        // State format: #CMP_TOOL_1_abc123.mainState.subState
+        // or: #CMP_TOOL_1_abc123.mainState
+
+        if (string.IsNullOrEmpty(fullState))
+            return ("unknown", "");
+
+        // Remove the machine ID prefix (everything up to and including the first dot)
+        var firstDot = fullState.IndexOf('.');
+        if (firstDot < 0)
+            return (fullState, "");
+
+        var stateHierarchy = fullState.Substring(firstDot + 1);
+
+        // Split by dots to get state hierarchy
+        var parts = stateHierarchy.Split('.');
+
+        if (parts.Length == 1)
+            return (parts[0], "");
+
+        // First part is main state, rest are substates
+        var mainState = parts[0];
+        var subState = string.Join(" → ", parts.Skip(1));
+
+        return (mainState, subState);
     }
 }

@@ -121,12 +121,6 @@ namespace SemiStandard
             }
         }
 
-        // Keep synchronous Start for backward compatibility
-        public void Start()
-        {
-            StartAsync().GetAwaiter().GetResult();
-        }
-
         // Keep synchronous Send methods for backward compatibility
         public void Send(string eventName)
         {

@@ -89,7 +89,7 @@ namespace XStateV5_Test.AdvancedFeatures
             // Debug: Check if states have entry actions after starting
             _eventLog.Add("state-machine-created");
 
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
             _eventLog.Add($"initial-state:{_stateMachine.GetActiveStateNames()}");
 
             // Act
@@ -143,7 +143,7 @@ namespace XStateV5_Test.AdvancedFeatures
             }";
 
             _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, null, _services);
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
 
             // Act
             _stateMachine.Send("START");

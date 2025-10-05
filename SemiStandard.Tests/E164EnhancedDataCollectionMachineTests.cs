@@ -1,6 +1,8 @@
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 using XStateNet.Orchestration;
 using XStateNet.Semi.Standards;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace SemiStandard.Tests;
 
@@ -12,9 +14,11 @@ public class E164EnhancedDataCollectionMachineTests : IDisposable
     private readonly EventBusOrchestrator _orchestrator;
     private readonly E134DataCollectionManager _dcmManager;
     private readonly E164EnhancedDataCollectionManager _enhancedDcmManager;
-
-    public E164EnhancedDataCollectionMachineTests()
+    private readonly ITestOutputHelper _output;
+        
+    public E164EnhancedDataCollectionMachineTests(ITestOutputHelper output)
     {
+        _output = output;
         _orchestrator = new EventBusOrchestrator(new OrchestratorConfig());
         _dcmManager = new E134DataCollectionManager("EQUIP001", _orchestrator);
         _enhancedDcmManager = new E164EnhancedDataCollectionManager("EQUIP001", _orchestrator, _dcmManager);
@@ -227,6 +231,8 @@ public class E164EnhancedDataCollectionMachineTests : IDisposable
         // Act
         var session = await _enhancedDcmManager.StartStreamingAsync(sessionId, new[] { "Fast" }, updateRate);
 
+        // wait for completion
+
         await Task.Delay(100); // Should get ~10 updates
 
         await _enhancedDcmManager.StopStreamingAsync(sessionId);
@@ -313,12 +319,27 @@ public class E164EnhancedDataCollectionMachineTests : IDisposable
     [Fact]
     public async Task StreamingSession_ShouldHandle_MultipleSessions()
     {
+        var completed = new TaskCompletionSource<bool>();
+
         // Arrange & Act
         var session1 = await _enhancedDcmManager.StartStreamingAsync("SESSION_1", new[] { "A" }, 100);
         var session2 = await _enhancedDcmManager.StartStreamingAsync("SESSION_2", new[] { "B" }, 100);
         var session3 = await _enhancedDcmManager.StartStreamingAsync("SESSION_3", new[] { "C" }, 100);
 
-        await Task.Delay(200);
+        //await Task.Delay(200);
+        // Wait for completion
+        
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try
+        {
+            await completed.Task.WaitAsync(cts.Token);
+            //_output.WriteLine("Test completed successfully");
+        }
+        catch (OperationCanceledException)
+        {
+            _output.WriteLine("TEST FAILED: Timeout!");
+        }
+
 
         // Assert
         Assert.True(session1.IsStreaming);

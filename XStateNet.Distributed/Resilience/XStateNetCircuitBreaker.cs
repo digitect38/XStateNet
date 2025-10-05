@@ -39,7 +39,7 @@ namespace XStateNet.Distributed.Resilience
 
             // Create state machine configuration
             _stateMachine = CreateStateMachine();
-            _stateMachine.Start();
+            _stateMachine.StartAsync().GetAwaiter().GetResult();
         }
 
         private StateMachine CreateStateMachine()

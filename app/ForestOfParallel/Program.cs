@@ -7,9 +7,11 @@ using XStateNet;
 // main
 class Program
 {
-    static void Main()
+    static async Task Main()
     {
-        var stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, guidIsolate: false, _actions).Start();
+        var factory = StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, guidIsolate: false, _actions);
+        await factory.StartAsync();
+        var stateMachine = (StateMachine)factory;
         Log("==========================================================================");
 
         var path1 = stateMachine.GetFullTransitionSinglePath("#S.S1", "#S.S2");
@@ -32,11 +34,11 @@ class Program
 
         if (stateMachine != null)
         {
-            stateMachine.TransitUp(firstExit?.ToState(stateMachine) as CompoundState);
+            await stateMachine.TransitUp(firstExit?.ToState(stateMachine) as CompoundState);
 
             var firstEntry = path1.entrySinglePath.First();
 
-            stateMachine.TransitDown(firstEntry.ToState(stateMachine) as CompoundState, null);
+            await stateMachine.TransitDown(firstEntry.ToState(stateMachine) as CompoundState, null);
         }
 
     }

@@ -143,8 +143,8 @@ namespace XStateNet.Distributed.Tests
             _machines.Add(distributedMachine2);
 
             // Act
-            distributedMachine1.Start();
-            distributedMachine2.Start();
+            await distributedMachine1.StartAsync();
+            await distributedMachine2.StartAsync();
 
             // Machine 2 requests sync from Machine 1
             await distributedMachine2.SendAsync("REQUEST_SYNC");
@@ -162,9 +162,9 @@ namespace XStateNet.Distributed.Tests
             var machine2 = CreateTestMachine("discovery2", "local://discovery2");
             var machine3 = CreateTestMachine("discovery3", "local://discovery3");
 
-            machine1.Start();
-            machine2.Start();
-            machine3.Start();
+            await machine1.StartAsync();
+            await machine2.StartAsync();
+            await machine3.StartAsync();
 
             // Act
             var discovered = await machine1.DiscoverMachinesAsync("*", TimeSpan.FromSeconds(1));
@@ -314,11 +314,11 @@ namespace XStateNet.Distributed.Tests
                     _loggerFactory.CreateLogger<DistributedStateMachine>());
                 _machines.Add(childMachine);
                 childMachines.Add(childMachine);
-                childMachine.Start();
+                await childMachine.StartAsync();
             }
 
             // Act
-            parentMachine.Start();
+            await parentMachine.StartAsync();
             await _orchestrator.SendEventAsync("test", "parent", "START");
 
             // Simulate child work completion (replaced 'after' with manual trigger)
@@ -411,7 +411,7 @@ namespace XStateNet.Distributed.Tests
                     _loggerFactory.CreateLogger<DistributedStateMachine>());
                 _machines.Add(workerMachine);
                 workers.Add(workerMachine);
-                workerMachine.Start();
+                await workerMachine.StartAsync();
             }
 
             // Act - Distribute work
@@ -460,8 +460,8 @@ namespace XStateNet.Distributed.Tests
             var machine1 = CreateTestMachine("health1", "local://health1");
             var machine2 = CreateTestMachine("health2", "local://health2");
 
-            machine1.Start();
-            machine2.Start();
+            await machine1.StartAsync();
+            await machine2.StartAsync();
 
             // Act
             var health1 = await machine1.GetHealthAsync();
@@ -481,8 +481,8 @@ namespace XStateNet.Distributed.Tests
             var machine1 = CreateTestMachine("router1", "local://router1");
             var machine2 = CreateTestMachine("router2", "local://router2");
 
-            machine1.Start();
-            machine2.Start();
+            await machine1.StartAsync();
+            await machine2.StartAsync();
 
             // Act & Assert - Should not throw
             Action act = () => machine1.SendAsync("router2@REMOTE_EVENT");
@@ -581,7 +581,7 @@ namespace XStateNet.Distributed.Tests
             _machines.Add(circuitBreaker);
 
             // Act
-            circuitBreaker.Start();
+            await circuitBreaker.StartAsync();
 
             // Successful requests
             await circuitBreaker.SendAsync("REQUEST");

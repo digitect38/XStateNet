@@ -72,7 +72,8 @@ namespace VideoPlayerStateMachineTests
                 })
             };
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, false, actions, guards, services).Start();
+            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, false, actions, guards, services);
+        await _stateMachine.StartAsync();
 
             // Initially, the service should not have been invoked
             Assert.False(_serviceInvoked);

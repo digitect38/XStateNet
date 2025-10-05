@@ -143,7 +143,7 @@ namespace XStateNet
         /// <summary>
         /// Build the state machine with configured options
         /// </summary>
-        public StateMachine Build(string? instanceId = null)
+        public async Task<StateMachine> Build(string? instanceId = null)
         {
             if (string.IsNullOrEmpty(_jsonScript))
                 throw new InvalidOperationException("JSON script is required");
@@ -172,7 +172,7 @@ namespace XStateNet
 
             if (_autoStart)
             {
-                stateMachine.Start();
+                await stateMachine.StartAsync();
             }
 
             return stateMachine;
@@ -239,45 +239,5 @@ namespace XStateNet
                 .WithIsolation(IsolationMode.Guid)
                 .WithAutoStart(true);
         }
-    }
-
-    /// <summary>
-    /// Extension methods for StateMachine creation with isolation
-    /// </summary>
-    public static class StateMachineExtensions
-    {
-        /// <summary>
-        /// Create a state machine from script with automatic GUID isolation
-        /// </summary>
-        public static StateMachine CreateFromScriptWithIsolation(
-            string jsonScript,
-            string baseId,
-            string? instanceId = null,
-            ActionMap? actionMap = null)
-        {
-            return new StateMachineBuilder()
-                .WithJsonScript(jsonScript)
-                .WithBaseId(baseId)
-                .WithIsolation(StateMachineBuilder.IsolationMode.Guid)
-                .WithActionMap(actionMap ?? new ActionMap())
-                .WithAutoStart(true)
-                .Build(instanceId);
-        }
-
-        /// <summary>
-        /// Create a test-isolated state machine
-        /// </summary>
-        public static StateMachine CreateForTesting(
-            string jsonScript,
-            string baseId,
-            string testName,
-            ActionMap? actionMap = null)
-        {
-            return StateMachineBuilder.ForTesting()
-                .WithJsonScript(jsonScript)
-                .WithBaseId(baseId)
-                .WithActionMap(actionMap ?? new ActionMap())
-                .Build($"{testName}_{Guid.NewGuid().ToString("N")[..8]}");
-        }
-    }
+    }    
 }

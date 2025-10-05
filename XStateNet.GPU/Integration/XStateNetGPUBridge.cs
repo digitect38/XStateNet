@@ -53,7 +53,7 @@ namespace XStateNet.GPU.Integration
             for (int i = 0; i < Math.Min(instanceCount, 10); i++) // Keep first 10 for validation
             {
                 var machine = StateMachineFactory.CreateFromScript(_machineDefinitionJson, threadSafe: false, true, actions);
-                machine.Start(); // Start the machine so it can process events
+                await machine.StartAsync(); // Start the machine so it can process events
                 _cpuMachines[i] = machine;
             }
         }

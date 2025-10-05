@@ -67,7 +67,7 @@ namespace XStateNet.Semi.Transport
 
             // Create state machine
             _stateMachine = CreateStateMachine();
-            _stateMachine.Start();
+            _stateMachine.StartAsync().GetAwaiter().GetResult();
 
             // Add mode to log context for identification
             if (_logger != null)

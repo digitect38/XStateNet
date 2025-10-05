@@ -115,7 +115,7 @@ namespace XStateNet.Distributed.Examples
 
             // Start services
             await notificationService.StartAsync();
-            trafficLight.Start();
+            await trafficLight.StartAsync();
 
             // Simulate traffic light cycles
             for (int i = 0; i < 3; i++)
@@ -273,8 +273,8 @@ namespace XStateNet.Distributed.Examples
             // Start services
             await orderNotifications.StartAsync();
             await inventoryNotifications.StartAsync();
-            orderMachine.Start();
-            inventoryMachine.Start();
+            await orderMachine.StartAsync();
+            await inventoryMachine.StartAsync();
 
             // Process order
             Console.WriteLine("\n🛒 Starting order processing...");
@@ -371,7 +371,7 @@ namespace XStateNet.Distributed.Examples
 
             // Start services
             await notificationService.StartAsync();
-            counterMachine.Start();
+            await counterMachine.StartAsync();
 
             // Generate events rapidly
             Console.WriteLine("🚀 Generating rapid events...");

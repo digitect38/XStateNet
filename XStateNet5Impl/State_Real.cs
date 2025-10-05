@@ -324,12 +324,15 @@ public abstract class CompoundState : RealState
         OnDoneTransition = null;
     }
 
-    public virtual async Task Start()
+    public virtual async Task StartAsync()
     {
         var entryTaskTask = EntryState();
         var entryTask = await entryTaskTask;
         if (entryTask != null)
             await entryTask;
+
+        // Note: CheckAlwaysTransitions() is called from the leaf state after full tree entry
+        // See State_Normal.StartAsync() and State_Final.StartAsync()
     }
 
     public bool IsDone { set; get; } = false;             // If the state is done, it will not be active anymore.
@@ -404,12 +407,8 @@ public abstract class CompoundState : RealState
 
         ScheduleAfterTransitionTimer();
 
-        // Check for always transitions after entering the state
-        // Only check if we actually have an always transition to avoid unnecessary async operations
-        if (AlwaysTransition != null)
-        {
-            CheckAndExecuteAlwaysTransition();
-        }
+        // Note: Always transitions are now checked automatically after Transit() completes
+        // No need to check here - see StateMachine.CheckAlwaysTransitions()
 
         return Task.FromResult(Task.CompletedTask);
     }
@@ -456,13 +455,13 @@ public abstract class CompoundState : RealState
 
         var now = DateTime.Now;
 
-        timer.Elapsed += (sender, e) =>
+        timer.Elapsed += async (sender, e) =>
         {
             StateMachine.Log("");
             StateMachine.Log($">>> Scheduled time has come {Name} in {AfterTransition?.Delay} ms");
             StateMachine.Log($">>> Timer elapsed (ms): {(e.SignalTime - now).TotalMilliseconds}");
             StateMachine.Log("");
-            StateMachine.transitionExecutor.Execute(AfterTransition, $"after: {timer.Interval}");
+            await StateMachine.transitionExecutor.Execute(AfterTransition, $"after: {timer.Interval}");
             timer.Stop();
             // Dispose timer instead of returning to pool
             if (sender is System.Timers.Timer t)
@@ -482,9 +481,10 @@ public abstract class CompoundState : RealState
         StateMachine.Log("");
     }
 
-    private void CheckAndExecuteAlwaysTransition()
+    private Task CheckAndExecuteAlwaysTransition()
     {
-        if (AlwaysTransition == null || StateMachine == null) return;
+        if (AlwaysTransition == null || StateMachine == null)
+            return Task.CompletedTask;
 
         // Check if guard passes (if there is one)
         bool guardPassed = AlwaysTransition.Guard == null ||
@@ -496,11 +496,11 @@ public abstract class CompoundState : RealState
 
             // Execute the always transition immediately
             // Use Task.Run to avoid blocking the current state entry
-            Task.Run(() =>
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    StateMachine.transitionExecutor.Execute(AlwaysTransition, "always");
+                    await StateMachine.transitionExecutor.Execute(AlwaysTransition, "always");
                 }
                 catch (Exception ex)
                 {
@@ -514,6 +514,8 @@ public abstract class CompoundState : RealState
                 }
             });
         }
+
+        return Task.CompletedTask;
     }
 
     public virtual void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)

@@ -706,7 +706,10 @@ public partial class StateMachine
                 break;
             case TransitionType.Always:
                 {
-                    source.AlwaysTransition = transition as AlwaysTransition;
+                    // Always transitions are stored in the OnTransitionMap with event name "always"
+                    // This allows multiple always transitions per state
+                    // Use thread-safe AddTransition method
+                    source.OnTransitionMap.AddTransition("always", transition);
                 }
                 break;
             case TransitionType.OnDone:

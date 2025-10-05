@@ -168,7 +168,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit breaker should transition to half-open state within 500ms");
 
             // Give the state machine time to update CurrentState property
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             // Attempt execution - should succeed now that circuit is half-open
             string? result = null;

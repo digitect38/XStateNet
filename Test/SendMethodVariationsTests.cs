@@ -67,12 +67,12 @@ namespace XStateNet.Tests
         #region Send - Synchronous
 
         [Fact]
-        public void Send_BasicTransition_ReturnsCorrectState()
+        public async Task Send_BasicTransition_ReturnsCorrectState()
         {
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = machine.Send("START");
@@ -82,12 +82,12 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Send_InvalidEvent_StaysInCurrentState()
+        public async Task Send_InvalidEvent_StaysInCurrentState()
         {
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = machine.Send("NONEXISTENT");
@@ -106,7 +106,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = await machine.SendAsync("START");
@@ -121,7 +121,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, ParallelStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = await machine.SendAsync("NEXT");
@@ -162,7 +162,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             var testData = new { value = 42, message = "test" };
 
@@ -211,7 +211,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             machine.SendAndForget("START");
@@ -230,15 +230,15 @@ namespace XStateNet.Tests
         #region TrySend and TrySendAsync
 
         [Fact]
-        public void TrySend_ValidTransition_ReturnsTrue()
+        public async void TrySend_ValidTransition_ReturnsTrue()
         {
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
-            var success = machine.TrySend("START");
+            var success = await machine.TrySend("START");
 
             // Assert
             Assert.True(success);
@@ -246,7 +246,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void TrySend_MachineNotRunning_ReturnsFalse()
+        public async void TrySend_MachineNotRunning_ReturnsFalse()
         {
             // Arrange
             var machine = new StateMachine();
@@ -254,7 +254,7 @@ namespace XStateNet.Tests
             // Don't start the machine
 
             // Act
-            var success = machine.TrySend("START");
+            var success = await machine.TrySend("START");
 
             // Assert
             Assert.False(success);
@@ -266,7 +266,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var (success, state) = await machine.TrySendAsync("START");
@@ -302,7 +302,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = await machine.SendWithTimeoutAsync("START", TimeSpan.FromSeconds(1));
@@ -339,7 +339,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act & Assert
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
@@ -358,7 +358,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             using var cts = new CancellationTokenSource();
 
@@ -397,7 +397,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             using var cts = new CancellationTokenSource();
 
@@ -415,15 +415,15 @@ namespace XStateNet.Tests
         #region SendBatch
 
         [Fact]
-        public void SendBatch_MultipleEvents_ProcessesInOrder()
+        public async Task SendBatch_MultipleEvents_ProcessesInOrder()
         {
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
-            var results = machine.SendBatch("START", "PAUSE", "RESUME");
+            var results = await machine.SendBatchAsync("START", "PAUSE", "RESUME");
 
             // Assert
             Assert.Equal(3, results.Count);
@@ -438,7 +438,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var results = await machine.SendBatchAsync("START", "PAUSE", "STOP");
@@ -481,7 +481,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var results = await machine.SendBatchAsync(
@@ -505,7 +505,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             string? callbackResult = null;
             var callbackCompleted = new TaskCompletionSource<bool>();
@@ -528,7 +528,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, SimpleStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             string? callbackResult = null;
 
@@ -552,7 +552,7 @@ namespace XStateNet.Tests
         {
             // Arrange
             var machine = StateMachineFactory.CreateFromScript(SimpleStateMachineJson, threadSafe: true);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var result = await machine.SendAsync("START");
@@ -589,7 +589,7 @@ namespace XStateNet.Tests
             }";
 
             var machine = StateMachineFactory.CreateFromScript(json, threadSafe: false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             machine.SendAndForget("START");
@@ -610,7 +610,7 @@ namespace XStateNet.Tests
             // Arrange
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, ParallelStateMachineJson);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act - Send multiple events concurrently
             var tasks = new[]

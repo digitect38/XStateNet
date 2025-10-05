@@ -70,24 +70,11 @@ namespace XStateNet.Distributed
         }
 
         /// <summary>
-        /// Start the distributed state machine
-        /// </summary>
-        public void Start()
-        {
-            _stateMachine.Start();
-
-            _cancellationTokenSource = new CancellationTokenSource();
-
-            // Start transport connection asynchronously
-            _ = StartTransportAsync();
-        }
-
-        /// <summary>
         /// Start the distributed state machine asynchronously
         /// </summary>
         public async Task StartAsync()
         {
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
 
             _cancellationTokenSource = new CancellationTokenSource();
 

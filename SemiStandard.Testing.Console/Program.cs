@@ -27,6 +27,11 @@ namespace SemiStandard.Testing.Console
                     case "enh":
                         await EnhancedCMPDemo.RunAsync();
                         break;
+                    case "multistation":
+                    case "multi":
+                    case "workflow":
+                        await MultiStationCMPDemo.Run();
+                        break;
                     default:
                         ShowHelp();
                         break;
@@ -53,6 +58,8 @@ namespace SemiStandard.Testing.Console
             System.Console.WriteLine("  sched            - Alias for scheduler");
             System.Console.WriteLine("  enhanced         - Run Enhanced CMP with E40/E90/E134/E39 integration");
             System.Console.WriteLine("  enh              - Alias for enhanced");
+            System.Console.WriteLine("  multistation     - Run Multi-Station CMP workflow (LP→WTR1→POL→WTR2→CLN→WTR1→LP)");
+            System.Console.WriteLine("  multi/workflow   - Alias for multistation");
         }
     }
 }

@@ -9,12 +9,12 @@ public class ParallelState : CompoundState
     {
     }
 
-    public override async Task Start()
+    public override async Task StartAsync()
     {
-        await base.Start();
+        await base.StartAsync();
 
         // Start all parallel regions synchronously to ensure they're initialized
-        // before returning from Start()
+        // before returning from StartAsync()
         // Each parallel region should start from its initial state
         foreach (var subStateName in SubStateNames)
         {
@@ -30,16 +30,20 @@ public class ParallelState : CompoundState
                     var initialState = GetState(compoundState.InitialStateName);
                     if (initialState != null)
                     {
-                        await initialState.Start();
+                        await initialState.StartAsync();
                     }
                 }
                 else
                 {
                     // Otherwise just start the substate directly
-                    await subState.Start();
+                    await subState.StartAsync();
                 }
             }
         }
+
+        // Check for always transitions after full state tree entry
+        // This ensures eventless transitions fire from all active parallel regions
+        StateMachine?.CheckAlwaysTransitions();
     }
 
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)

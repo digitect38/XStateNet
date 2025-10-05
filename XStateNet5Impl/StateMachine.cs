@@ -19,7 +19,7 @@
 // [v] Implement List based Exit and Entry for simple and symmetry operation 
 // [v] Implement parallel state using concurrent dictionary (.. substates arise err when converted to concurrent dictionary)
 // [v] Implement after property to store delayed transitions
-// [v] Implement Start() method for initial state entry actions (Need to decide whther call it explicitely or not)
+// [v] Implement StartAsync() method for initial state entry actions (Need to decide whther call it explicitely or not)
 // [v] Implement Pause() and Stop() methods (Need to decide whther call it explicitely or not)
 // [v] Refactoring between State, StateMachine and Parser
 // [ ] Make multiple machine run together
@@ -459,6 +459,10 @@ public partial class StateMachine : IStateMachine
             // Fire StateChanged event with initial state
             var initialState = GetActiveStateNames();
             StateChanged?.Invoke(initialState);
+
+            // Check for always transitions after initial state entry
+            // This ensures eventless transitions fire immediately after machine starts
+            CheckAlwaysTransitions();
         }
         finally
         {
@@ -486,7 +490,7 @@ public partial class StateMachine : IStateMachine
 
     /// <param name="eventName"></param>
 #pragma warning disable CS0618 // Type or member is obsolete
-    private string SendInternal(string eventName, object? eventData = null)
+    private async Task<string> SendInternal(string eventName, object? eventData = null)
 #pragma warning restore CS0618
     {
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $">>> Send event: {eventName}");
@@ -514,7 +518,7 @@ public partial class StateMachine : IStateMachine
 
             // Direct synchronous processing for backward compatibility
             // EventQueue is only used when explicitly enabled
-            Transit(eventName, eventData);
+            await TransitAsync(eventName, eventData);
             //PrintCurrentStateTree();
             //PrintCurrentStatesString();
         }
@@ -664,7 +668,7 @@ public partial class StateMachine : IStateMachine
     /// <summary>
     /// Try to send an event synchronously, returns true if successful
     /// </summary>
-    public bool TrySend(string eventName, object? eventData = null)
+    public async Task<bool> TrySend(string eventName, object? eventData = null)
     {
         try
         {
@@ -674,7 +678,7 @@ public partial class StateMachine : IStateMachine
                 return false;
             }
 
-            SendInternal(eventName, eventData);
+            await SendInternal(eventName, eventData);
             return true;
         }
         catch (Exception ex)
@@ -751,19 +755,6 @@ public partial class StateMachine : IStateMachine
                 throw new OperationCanceledException("SendWithCancellation was cancelled", cancellationToken);
             }
         }
-    }
-
-    /// <summary>
-    /// Send multiple events in batch synchronously
-    /// </summary>
-    public List<string> SendBatch(params string[] eventNames)
-    {
-        var results = new List<string>();
-        foreach (var eventName in eventNames)
-        {
-            results.Add(SendInternal(eventName));
-        }
-        return results;
     }
 
     /// <summary>
@@ -918,6 +909,61 @@ public partial class StateMachine : IStateMachine
             // Return the list to the pool for reuse
             PerformanceOptimizations.ReturnTransitionList(transitionList);
         }
+
+        // After completing the transition, check for always/eventless transitions
+        // This ensures they fire immediately after state changes
+        CheckAlwaysTransitions();
+    }
+
+    /// <summary>
+    /// Check and execute always transitions with loop protection
+    /// </summary>
+    public void CheckAlwaysTransitions(int maxIterations = 10)
+    {
+        int iteration = 0;
+        bool transitionOccurred;
+
+        do
+        {
+            transitionOccurred = false;
+            iteration++;
+
+            if (iteration > maxIterations)
+            {
+                Logger.Warning($"Always transition loop limit ({maxIterations}) reached - stopping to prevent infinite loop");
+                break;
+            }
+
+            // Build list of always transitions from current active states
+            var transitionList = PerformanceOptimizations.RentTransitionList();
+            try
+            {
+                RootState?.BuildTransitionList("always", transitionList);
+
+                if (transitionList.Count > 0)
+                {
+                    // Execute first matching always transition
+                    foreach (var (state, transition, @event) in transitionList)
+                    {
+                        // Check guard if present
+                        bool guardPassed = transition?.Guard == null || transition.Guard.PredicateFunc(this);
+
+                        if (guardPassed)
+                        {
+                            Logger.Debug($"Executing always transition from {transition?.SourceName} to {transition?.TargetName}");
+                            transitionExecutor.Execute(transition, @event);
+                            transitionOccurred = true;
+                            break; // Only execute first matching transition
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                PerformanceOptimizations.ReturnTransitionList(transitionList);
+            }
+        }
+        while (transitionOccurred);
     }
 
     /// <summary>
@@ -987,6 +1033,10 @@ public partial class StateMachine : IStateMachine
             // Return the list to the pool for reuse
             PerformanceOptimizations.ReturnTransitionList(transitionList);
         }
+
+        // After completing the transition, check for always/eventless transitions
+        // This ensures they fire immediately after state changes
+        CheckAlwaysTransitions();
     }
 
     public List<string> GetEntryList(string target) // for Start
@@ -1628,7 +1678,7 @@ public partial class StateMachine : IStateMachine
                 }
 
                 // Send onError event to trigger error transitions
-                SendInternal("onError");
+                await SendInternal("onError");
             }
             catch (Exception ex)
             {
@@ -1642,7 +1692,7 @@ public partial class StateMachine : IStateMachine
                 }
 
                 // Send onError event to trigger error transitions
-                SendInternal("onError");
+                await SendInternal("onError");
             }
         }
     }
@@ -1675,7 +1725,7 @@ public partial class StateMachine : IStateMachine
                 }
 
                 // Send onError event to trigger error transitions
-                SendInternal("onError");
+                await SendInternal("onError");
             }
             catch (Exception ex)
             {
@@ -1689,7 +1739,7 @@ public partial class StateMachine : IStateMachine
                 }
 
                 // Send onError event to trigger error transitions
-                SendInternal("onError");
+                await SendInternal("onError");
             }
         }
     }
@@ -1949,7 +1999,7 @@ public partial class StateMachine : IStateMachine
     /// <summary>
     /// Reset the state machine to its initial state
     /// </summary>
-    public void Reset()
+    public async void Reset()
     {
         Logger.Info(">>> Reset state machine");
 
@@ -2015,7 +2065,7 @@ public partial class StateMachine : IStateMachine
             // Re-enter initial state
             if (RootState != null)
             {
-                RootState.Start();
+                await RootState.StartAsync();
             }
 
             Logger.Info("State machine reset completed");

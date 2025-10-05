@@ -405,7 +405,7 @@ namespace TimelineWPF.Tests
             };
 
             var machine = StateMachineFactory.CreateFromScript(json, false, true, actionMap);
-            machine.Start();
+            machine.StartAsync().GetAwaiter();
             _machines.Add(machine);
             return machine;
         }

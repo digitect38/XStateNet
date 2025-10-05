@@ -124,7 +124,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_StartsWhenEnteringState()
+    public async Task Activity_StartsWhenEnteringState()
     {
         // Arrange
         var script = @"
@@ -147,7 +147,7 @@ public class UnitTest_Activities : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, null, null, _activities);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Act
         _stateMachine.Send("START");
@@ -159,7 +159,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_StopsWhenExitingState()
+    public async Task Activity_StopsWhenExitingState()
     {
         // Arrange
         var script = @"
@@ -182,7 +182,7 @@ public class UnitTest_Activities : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Act
         _stateMachine.Send("START");
@@ -197,7 +197,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_ContinuesRunningWhileStateIsActive()
+    public async Task Activity_ContinuesRunningWhileStateIsActive()
     {
         // Arrange
         var uniqueId = "activityMachine" + Guid.NewGuid().ToString("N");
@@ -219,7 +219,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(350); // Let activity run for multiple ticks
 
         // Assert
@@ -236,7 +236,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void MultipleActivities_CanRunSimultaneously()
+    public async Task MultipleActivities_CanRunSimultaneously()
     {
         var uniqueId = "multiActivityMachine" + Guid.NewGuid().ToString("N");
         // Arrange
@@ -258,7 +258,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(250); // Let activities run
 
         // Assert
@@ -273,7 +273,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activities_InNestedStates_WorkCorrectly()
+    public async Task Activities_InNestedStates_WorkCorrectly()
     {
         var uniqueId = "nestedActivityMachine" + Guid.NewGuid().ToString("N");
         // Arrange
@@ -307,7 +307,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(150); // Let activities start
 
         // Assert - Both parent and child activities should start
@@ -334,7 +334,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activities_InParallelStates_RunIndependently()
+    public async Task Activities_InParallelStates_RunIndependently()
     {
         // Arrange
         var script = @"
@@ -373,7 +373,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(200);
 
         // Assert - Both parallel activities should be running
@@ -389,7 +389,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_WithStateContext_AccessesContext()
+    public async Task Activity_WithStateContext_AccessesContext()
     {
         // Arrange
         var contextAwareActivity = new NamedActivity("contextActivity", (sm, token) =>
@@ -449,7 +449,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(150);
         _stateMachine.Send("UPDATE");
         Thread.Sleep(150);
@@ -463,7 +463,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_ErrorHandling_DoesNotCrashStateMachine()
+    public async Task Activity_ErrorHandling_DoesNotCrashStateMachine()
     {
         // Arrange
         var errorActivity = new NamedActivity("errorActivity", (sm, token) =>
@@ -506,7 +506,7 @@ public class UnitTest_Activities : IDisposable
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
 
         // Act
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
         Thread.Sleep(150); // Let error occur
 
         // Machine should still be responsive
@@ -524,7 +524,7 @@ public class UnitTest_Activities : IDisposable
     }
 
     [Fact]
-    public void Activity_RestartOnReentry_WorksCorrectly()
+    public async Task Activity_RestartOnReentry_WorksCorrectly()
     {
         // Arrange
         var script = @"
@@ -547,7 +547,7 @@ public class UnitTest_Activities : IDisposable
         }";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards, null, null, _activities);
-        _stateMachine.Start();
+        await _stateMachine.StartAsync();
 
         // Act - First entry
         _stateMachine.Send("START");

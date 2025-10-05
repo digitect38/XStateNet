@@ -25,7 +25,7 @@ public class TestSendReturn
 
         var machine = new StateMachine();
         StateMachine.ParseStateMachine(machine, json, false, null, null, null, null, null);
-        machine.Start();
+        await machine.StartAsync();
 
         Console.WriteLine($"Initial state: {machine.GetActiveStateNames()}");
 

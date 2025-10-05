@@ -152,7 +152,7 @@ namespace XStateNet.Distributed
             );
 #pragma warning restore CS0618
 
-            _internalMachine.Start();
+            await _internalMachine.StartAsync();
 
             // Subscribe to incoming events from message bus
             _subscription = await _messageBus.SubscribeAsync(_machineId, async (evt) =>

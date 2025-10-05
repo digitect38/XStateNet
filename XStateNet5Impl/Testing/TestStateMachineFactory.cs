@@ -24,7 +24,7 @@ namespace XStateNet.Testing
         /// <summary>
         /// Create an isolated state machine for testing
         /// </summary>
-        public StateMachine CreateStateMachine(
+        public async Task<StateMachine> CreateStateMachine(
             string jsonScript,
             string baseId,
             string? testMethodName = null,
@@ -32,7 +32,7 @@ namespace XStateNet.Testing
         {
             var instanceId = GenerateInstanceId(testMethodName);
 
-            var machine = new StateMachineBuilder()
+            var machine = await new StateMachineBuilder()
                 .WithJsonScript(jsonScript)
                 .WithBaseId(baseId)
                 .WithIsolation(StateMachineBuilder.IsolationMode.Test, $"{_testClassName}_{_testInstanceId}")
@@ -50,7 +50,7 @@ namespace XStateNet.Testing
         /// <summary>
         /// Create multiple isolated state machines
         /// </summary>
-        public List<StateMachine> CreateMultiple(
+        public async Task<List<StateMachine>> CreateMultiple(
             int count,
             string jsonScript,
             string baseId,
@@ -61,7 +61,7 @@ namespace XStateNet.Testing
 
             for (int i = 0; i < count; i++)
             {
-                var machine = CreateStateMachine(
+                var machine = await CreateStateMachine(
                     jsonScript,
                     baseId,
                     $"{testMethodName}_{i}",
@@ -155,13 +155,13 @@ namespace XStateNet.Testing
         /// <summary>
         /// Create an isolated state machine for the current test
         /// </summary>
-        protected StateMachine CreateStateMachine(
+        protected async Task<StateMachine> CreateStateMachine(
             string jsonScript,
             string baseId,
             ActionMap? actionMap = null,
             [System.Runtime.CompilerServices.CallerMemberName] string? testMethodName = null)
         {
-            return Factory.CreateStateMachine(jsonScript, baseId, testMethodName, actionMap);
+            return await Factory.CreateStateMachine(jsonScript, baseId, testMethodName, actionMap);
         }
 
         /// <summary>

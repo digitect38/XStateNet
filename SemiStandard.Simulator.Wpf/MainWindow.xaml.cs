@@ -161,7 +161,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _messagesReceived = 0;
     }
 
-    private void InitializeStateMachines()
+    private async Task InitializeStateMachines()
     {
         // Create real XStateNet state machines
         _stateMachines = StateMachineDefinitions.CreateAllStateMachines(
@@ -179,7 +179,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             var machineName = kvp.Key;
             var machine = kvp.Value;
-            machine.Start();
+            await machine.StartAsync();
             // Initial state will be set via OnTransition callback when machine starts
             _currentStates[machineName] = "Initializing...";
         }

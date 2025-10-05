@@ -108,7 +108,7 @@ namespace Test
         }
 
         [Fact]
-        public void CreateFromScript_WithCustomMachineId()
+        public async Task CreateFromScript_WithCustomMachineId()
         {
             // Arrange
             var jsonScript = @"{
@@ -127,7 +127,7 @@ namespace Test
             // Act
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, jsonScript, threadSafe: false);
-            machine.Start();
+            await machine.StartAsync();
 
             // Assert
             Assert.Equal("#customMachine.idle", machine.GetActiveStateNames());
@@ -162,9 +162,9 @@ namespace Test
             StateMachineFactory.CreateFromScript(machine2, templateScript, threadSafe: false, guidIsolate: true);
             StateMachineFactory.CreateFromScript(machine3, templateScript, threadSafe: false, guidIsolate: true);
 
-            machine1.Start();
-            machine2.Start();
-            machine3.Start();
+            machine1.StartAsync();
+            machine2.StartAsync();
+            machine3.StartAsync();
 
             // Assert
 

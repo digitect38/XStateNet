@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.UnitTest;
 using Xunit;
@@ -10,7 +11,7 @@ public class DiagrammingFrameworkTests : IDisposable
 {
     private ContextMap _context = new();
 
-    private StateMachine CreateStateMachine(string uniqueId)
+    private IStateMachine CreateStateMachine(string uniqueId)
     {
         var actionMap = new ActionMap();
         var guardMap = new GuardMap();
@@ -54,8 +55,9 @@ public class DiagrammingFrameworkTests : IDisposable
         var script = GetScript(uniqueId);
 
         // Initialize state machine
-        var stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(script, threadSafe: false, false, actionMap, guardMap).Start();
-        return stateMachine;
+        var s = StateMachineFactory.CreateFromScript(script, threadSafe: false, false, actionMap, guardMap);
+        s.StartAsync().GetAwaiter().GetResult();
+        return s;
     }
 
 
@@ -71,27 +73,27 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public void TestLButtonDownOnShapeBody()
+    public async Task TestLButtonDownOnShapeBody()
     {
         var uniqueId = "TestLButtonDownOnShapeBody_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
-        stateMachine!.Send("L_BUTTON_DOWN");
+        await stateMachine!.SendAsync("L_BUTTON_DOWN");
         var states = stateMachine!.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selected.moving.idle");
     }
 
     [Fact]
-    public void TestLButtonDownOnCanvas()
+    public async Task TestLButtonDownOnCanvas()
     {
         var uniqueId = "TestLButtonDownOnCanvas_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        stateMachine!.Send("L_BUTTON_DOWN");
+        await stateMachine!.SendAsync("L_BUTTON_DOWN");
         var states = stateMachine!.GetActiveStateNames();
         states.AssertEquivalence($"#{uniqueId}.selecting");
     }
@@ -104,8 +106,8 @@ public class DiagrammingFrameworkTests : IDisposable
 
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        stateMachine.Send("L_BUTTON_DOWN");
-        stateMachine.Send("MOUSE_MOVE");
+        await stateMachine.SendAsync("L_BUTTON_DOWN");
+        await stateMachine.SendAsync("MOUSE_MOVE");
         _context["selectionCount"] = 0;
         var states = await stateMachine.SendAsync("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.idle");
@@ -119,8 +121,8 @@ public class DiagrammingFrameworkTests : IDisposable
 
         _context["onShapeBody"] = false;
         _context["onCanvas"] = true;
-        stateMachine.Send("L_BUTTON_DOWN");
-        stateMachine.Send("MOUSE_MOVE");
+        await stateMachine.SendAsync("L_BUTTON_DOWN");
+        await stateMachine.SendAsync("MOUSE_MOVE");
         _context["selectionCount"] = 1;
         var states = await stateMachine.SendAsync("L_BUTTON_UP");
         states.AssertEquivalence($"#{uniqueId}.selecting");
@@ -130,7 +132,7 @@ public class DiagrammingFrameworkTests : IDisposable
     public async Task TestMovingState()
     {
         var uniqueId = "stateMachine_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var stateMachine =  CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
@@ -150,7 +152,7 @@ public class DiagrammingFrameworkTests : IDisposable
     public async Task TestResizingState()
     {
         var uniqueId = "TestResizingState_" + Guid.NewGuid().ToString("N");
-        var stateMachine = CreateStateMachine(uniqueId);
+        var stateMachine =   CreateStateMachine(uniqueId);
 
         _context["onShapeBody"] = true;
         _context["onCanvas"] = false;
@@ -164,7 +166,7 @@ public class DiagrammingFrameworkTests : IDisposable
         _context["onResizePad"] = true;
         _context["l_button_down"] = false;
 
-        stateMachine.Send("MOUSE_MOVE");
+        await stateMachine.SendAsync("MOUSE_MOVE");
         states = await stateMachine.SendAsync("MOUSE_MOVE");
 
         //states = stateMachine.GetActiveStateNames();

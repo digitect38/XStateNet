@@ -255,7 +255,7 @@ namespace XStateNet.Distributed.PubSub.FalseSharingOptimized
                 SetThreadAffinity(_thread, cpuId);
             }
 
-            public void Start() => _thread.Start();
+            public void StartAsync() => _thread.Start();
 
             public void Stop()
             {
@@ -430,13 +430,13 @@ namespace XStateNet.Distributed.PubSub.FalseSharingOptimized
             return (key.GetHashCode() & 0x7FFFFFFF) % LOCK_STRIPE_COUNT;
         }
 
-        public void Start()
+        public void StartAsync()
         {
             if (_isRunning.CompareExchange(true, false))
             {
                 foreach (var worker in _workers)
                 {
-                    worker.Start();
+                    worker.StartAsync();
                 }
 
                 _logger?.LogInformation("FalseSharingOptimizedEventBus started with {WorkerCount} workers",

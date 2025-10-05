@@ -49,7 +49,7 @@ public class UnitTest_InvokeOnError
         }";
 
         var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
-        stateMachine.Start();
+        await stateMachine.StartAsync();
 
         // Act
         await Task.Delay(100); // Give the service time to fail
@@ -102,7 +102,7 @@ public class UnitTest_InvokeOnError
         }";
 
         var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
-        stateMachine.Start();
+        await stateMachine.StartAsync();
 
         // Act
         await Task.Delay(100); // Give the service time to complete
@@ -160,7 +160,7 @@ public class UnitTest_InvokeOnError
         }";
 
         var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
-        stateMachine.Start();
+        await stateMachine.StartAsync();
 
         // Act
         await Task.Delay(200); // Give the service time to complete and send events

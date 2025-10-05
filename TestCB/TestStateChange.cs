@@ -39,7 +39,7 @@ class TestStateChange
 
         Console.WriteLine($"Initial state: {machine.RootState?.CurrentState?.Name}");
 
-        machine.Start();
+        await machine.StartAsync();
         Console.WriteLine($"After Start - State: {machine.RootState?.CurrentState?.Name}, Changes: {stateChangeCount}");
 
         machine.Send("GO");

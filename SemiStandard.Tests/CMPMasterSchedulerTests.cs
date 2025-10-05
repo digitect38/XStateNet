@@ -109,17 +109,49 @@ public class CMPMasterSchedulerTests : IDisposable
             null
         );
 
+        // Wait deterministically for state to settle using exponential backoff polling
+        var settled = await WaitForStateSettled(_scheduler, timeoutMs: 2000);
+
         // Assert
         Assert.True(result.Success);
-        // Should go through evaluating -> dispatching -> idle or waiting
-        // Goes to waiting if tool becomes busy or no more jobs to dispatch
-        await Task.Delay(200); // Wait for transitions
+        Assert.True(settled, "State did not settle within timeout");
 
         var state = _scheduler.GetCurrentState();
         Assert.True(
             state.Contains("idle") || state.Contains("waiting"),
             $"Expected idle or waiting, got {state}"
         );
+    }
+
+    private async Task<bool> WaitForStateSettled(CMPMasterScheduler scheduler, int timeoutMs = 2000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        string? lastState = null;
+        int stableCount = 0;
+        const int requiredStableCount = 3; // State must be stable for 3 consecutive checks
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var currentState = scheduler.GetCurrentState();
+
+            if (currentState == lastState)
+            {
+                stableCount++;
+                if (stableCount >= requiredStableCount)
+                {
+                    return true; // State is stable
+                }
+            }
+            else
+            {
+                stableCount = 0;
+                lastState = currentState;
+            }
+
+            await Task.Delay(50); // Poll every 50ms
+        }
+
+        return false; // Timeout
     }
 
     [Fact]

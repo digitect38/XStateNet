@@ -29,7 +29,7 @@ namespace XStateNet.UnitTest
             Logger.CurrentLevel = Logger.LogLevel.Warning;
 
             var stateMachine = StateMachineFactory.CreateFromScript(stateMachineJson, false, true);
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             // The transition should happen immediately
             await Task.Delay(50);

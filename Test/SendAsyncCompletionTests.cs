@@ -38,7 +38,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var resultState = await machine.SendAsync("START");
@@ -102,7 +102,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var resultState = await machine.SendAsync("GO");
@@ -175,7 +175,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false);
-            machine.Start();
+            await machine.StartAsync();
 
             // Verify initial state
             var initialState = machine.GetActiveStateNames();
@@ -242,7 +242,7 @@ namespace XStateNet.Tests
 
             // Create thread-safe state machine
             var machine = StateMachineFactory.CreateFromScript(json, threadSafe: false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var resultState = await machine.SendAsync("WORK");
@@ -284,13 +284,13 @@ namespace XStateNet.Tests
             // Test with Send
             var machine1 = new StateMachine();
             StateMachineFactory.CreateFromScript(machine1, json);
-            machine1.Start();
+            machine1.StartAsync().GetAwaiter();
             var sendResult = machine1.Send("NEXT");
 
             // Test with SendAsync
             var machine2 = new StateMachine();
             StateMachineFactory.CreateFromScript(machine2, json);
-            machine2.Start();
+            machine2.StartAsync().GetAwaiter();
             var sendAsyncResult = await machine2.SendAsync("NEXT");
 
             // Assert - Both should return the same state
@@ -390,7 +390,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, null, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var resultState = await machine.SendAsync("ACTIVATE");
@@ -464,7 +464,7 @@ namespace XStateNet.Tests
 
             var machine = new StateMachine();
             StateMachineFactory.CreateFromScript(machine, json, false, false, actions, guards, null, null, null);
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var resultState = await machine.SendAsync("TRY");

@@ -42,7 +42,7 @@ public class TestImplicitDebug
 
         var stateMachine = new StateMachine();
         StateMachine.ParseStateMachine(stateMachine, json, false, null, null, null, null, null);
-        stateMachine.Start();
+        await stateMachine.StartAsync();
 
         Console.WriteLine("Initial state: " + stateMachine.GetActiveStateNames());
 
@@ -52,7 +52,7 @@ public class TestImplicitDebug
 
         // Reset
         stateMachine.Stop();
-        stateMachine.Start();
+        await stateMachine.StartAsync();
         Console.WriteLine("\nReset to initial: " + stateMachine.GetActiveStateNames());
 
         // Test SendAsync

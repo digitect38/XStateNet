@@ -574,7 +574,7 @@ namespace XStateNet.Semi.Testing
             // Start all state machines
             foreach (var (name, machine) in _stateMachines)
             {
-                machine.Start();
+                await machine.StartAsync();
                 _logger?.LogInformation("Started state machine: {Name}", name);
             }
 

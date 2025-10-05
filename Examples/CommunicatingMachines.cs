@@ -85,7 +85,7 @@ public class CommunicatingMachinesExample
             };
             
             _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
         }
         
         public void AddChild(ChildMachine child)
@@ -240,7 +240,7 @@ public class CommunicatingMachinesExample
             };
             
             _stateMachine = StateMachine.CreateFromScript(jsonScript, actionMap);
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
         }
         
         public void Start()
@@ -412,7 +412,7 @@ public class CommunicatingMachinesExample
         };
         
         var machine = StateMachine.CreateFromScript(json, actionMap);
-        machine.Start();
+        await machine.StartAsync();
         return machine;
     }
     
@@ -458,7 +458,7 @@ public class CommunicatingMachinesExample
         };
         
         var machine = StateMachine.CreateFromScript(json, actionMap);
-        machine.Start();
+        await machine.StartAsync();
         return machine;
     }
 }

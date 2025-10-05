@@ -19,14 +19,15 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
         _actions = new()
         {
             ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", (sm) => send_to_b(sm)) },
-            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", (sm) => _pingPongStateMachine.Send("to_a")) }
+            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", (sm) => _pingPongStateMachine?.Send("to_a")) }
         };
 
         _guards = new();
 
         var stateMachineJson = PingPongMachine.PingPongStateMachineScript;
 
-        _pingPongStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, _actions, _guards).Start();
+        _pingPongStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, _actions, _guards);
+        _pingPongStateMachine.Start();
     }
 
     Action<StateMachine> send_to_b = (sm) => sm.Send("to_b");

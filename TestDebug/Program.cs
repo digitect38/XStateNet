@@ -68,7 +68,7 @@ class Program
         try
         {
             var stateMachine = StateMachine.CreateFromScript(config, actionMap, guardMap);
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             Console.WriteLine($"Initial state: {stateMachine.GetActiveStateString()}");
 

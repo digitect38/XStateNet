@@ -51,7 +51,7 @@ namespace XStateNet.TimingSensitive.Tests
             }";
 
             var innerMachine = StateMachineFactory.CreateFromScript(config.Replace("'", "\""), false, true);
-            innerMachine.Start();
+            innerMachine.StartAsync();
             using var priorityMachine = new PriorityStateMachine(innerMachine);
 
             var transitionOrder = new List<string>();
@@ -164,7 +164,7 @@ namespace XStateNet.TimingSensitive.Tests
             // Arrange
             var config = CreateTestStateMachineJson();
             var innerMachine = StateMachineFactory.CreateFromScript(config, false, true);
-            innerMachine.Start();
+            innerMachine.StartAsync();
             using var priorityMachine = new PriorityStateMachine(innerMachine);
 
             var processedEvents = new ConcurrentBag<(string eventName, DateTime time)>();
@@ -222,7 +222,7 @@ namespace XStateNet.TimingSensitive.Tests
             // Arrange
             var config = CreateTestStateMachineJson();
             var innerMachine = StateMachineFactory.CreateFromScript(config, false, true);
-            innerMachine.Start();
+            innerMachine.StartAsync();
 
             using var timingSensitive = new TimingSensitiveStateMachine(innerMachine);
 
@@ -256,7 +256,7 @@ namespace XStateNet.TimingSensitive.Tests
             // Arrange
             var config = CreateTestStateMachineJson();
             var innerMachine = StateMachineFactory.CreateFromScript(config, false, true);
-            innerMachine.Start();
+            innerMachine.StartAsync();
             var timingSensitive = new TimingSensitiveStateMachine(innerMachine);
 
             timingSensitive.AddCriticalState($"{innerMachine.machineId}.running");
@@ -341,7 +341,7 @@ namespace XStateNet.TimingSensitive.Tests
             // Arrange
             var config = CreateTestStateMachineJson();
             var innerMachine = StateMachineFactory.CreateFromScript(config, false, true);
-            innerMachine.Start();
+            innerMachine.StartAsync();
             using var priorityMachine = new PriorityStateMachine(innerMachine);
 
             var stateChanges = new List<string>();
@@ -450,7 +450,7 @@ namespace XStateNet.TimingSensitive.Tests
 
             var config = CreateSlowStateMachineJson();
             var innerMachine = StateMachineFactory.CreateFromScript(config, threadSafe: false, true, actions);
-            innerMachine.Start();
+            innerMachine.StartAsync();
             using var timingSensitive = new TimingSensitiveStateMachine(innerMachine);
 
             // Act & Assert - Send low priority event with short timeout

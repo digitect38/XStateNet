@@ -314,7 +314,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             var currentState = await _stateMachine!.SendAsync("INIT_COMPLETE");
 
@@ -331,7 +331,8 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             await _stateMachine!.SendAsync("CARRIER_DETECTED");
@@ -349,7 +350,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             var currentState = await _stateMachine!.SendAsync("START_PRODUCTION");
@@ -366,7 +367,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             await _stateMachine!.SendAsync("START_PRODUCTION");
@@ -393,7 +394,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             await _stateMachine!.SendAsync("START_PRODUCTION");
@@ -426,7 +427,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Initialize equipment
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -468,7 +469,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Initialize and start production
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -511,7 +512,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Setup prerequisites
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -555,7 +556,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Load recipe
             var currentState = await _stateMachine!.SendAsync("LOAD_RECIPE");
@@ -594,7 +595,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Setup prerequisites
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -699,7 +700,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Initialize system
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -747,7 +748,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Initialize and start production
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -865,7 +866,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
@@ -912,7 +913,7 @@ namespace SemiStandard.Tests
                 [9] = "PRESENT",
                 [10] = "ABSENT"
             };
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
@@ -951,7 +952,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Initial state - not communicating
             _stateMachine.ContextMap!["communicationState"].Should().Be("NOT_COMMUNICATING");
@@ -995,7 +996,7 @@ namespace SemiStandard.Tests
                 new { id = "PM3", status = "IDLE", substrateId = "" }
             };
 
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
             // Start substrate processing in module
@@ -1029,7 +1030,7 @@ namespace SemiStandard.Tests
             var dataPoints = new List<(string parameter, object value, DateTime timestamp)>();
             _stateMachine.ContextMap!["dataCollection"] = dataPoints;
 
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Collect data on state changes
             await _stateMachine!.SendAsync("INIT_COMPLETE");
@@ -1071,7 +1072,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             var visitedStates = new HashSet<string>();
 
@@ -1181,7 +1182,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
             var visitedStates = new HashSet<string>();
@@ -1299,7 +1300,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             var visitedStates = new HashSet<string>();
 
@@ -1381,7 +1382,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
             _stateMachine!.Send("INIT_COMPLETE");
 
             var visitedStates = new HashSet<string>();
@@ -1465,7 +1466,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
             _stateMachine!.Send("INIT_COMPLETE");
 
             var visitedStates = new HashSet<string>();
@@ -1589,7 +1590,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             var visitedStates = new HashSet<string>();
             string currentState;
@@ -1677,7 +1678,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            _stateMachine!.Start();
+            await _stateMachine!.StartAsync();
 
             // Test SYSTEM_INITIALIZE (actions only, no transition)
             await _stateMachine!.SendAsync("SYSTEM_INITIALIZE");

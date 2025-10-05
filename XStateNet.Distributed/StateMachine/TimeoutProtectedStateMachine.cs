@@ -572,14 +572,6 @@ namespace XStateNet.Distributed.StateMachines
             return summary;
         }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-        public new IStateMachine Start()
-#pragma warning restore CS0618
-        {
-            _innerMachine.Start();
-            return this;
-        }
-
         public new async Task<string> StartAsync()
         {
             return await _innerMachine.StartAsync();

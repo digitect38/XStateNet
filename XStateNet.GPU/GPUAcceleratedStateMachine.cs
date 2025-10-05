@@ -89,7 +89,7 @@ namespace XStateNet.GPU
             for (int i = 0; i < instanceCount; i++)
             {
                 var instance = StateMachineFactory.CreateFromScript(_definitionJson, false, true);
-                instance.Start(); // Start instances so they can process events
+                await instance.StartAsync(); // Start instances so they can process events
                 _cpuInstances.Add(instance);
             }
             return new StateMachinePool(this, instanceCount, false);

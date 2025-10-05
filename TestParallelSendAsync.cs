@@ -45,7 +45,7 @@ public class TestParallelSendAsync
 
         var machine = new StateMachine();
         StateMachine.ParseStateMachine(machine, json, false, null, null, null, null, null);
-        machine.Start();
+        await machine.StartAsync();
 
         Console.WriteLine("Initial state: " + machine.GetActiveStateNames());
 
@@ -57,7 +57,7 @@ public class TestParallelSendAsync
 
         // Reset to initial state
         machine.Stop();
-        machine.Start();
+        await machine.StartAsync();
         Console.WriteLine("\n--- Reset to initial: " + machine.GetActiveStateNames());
 
         // Test SendAsync (should now properly wait for all parallel transitions)

@@ -43,7 +43,7 @@ namespace XStateNet.Distributed.Tests
         }
 
         [Fact]
-        public void Start_Should_StartMachine()
+        public async Task Start_Should_StartMachine()
         {
             // Arrange
             var json = @"
@@ -62,7 +62,7 @@ namespace XStateNet.Distributed.Tests
             _machines.Add(machine);
 
             // Act
-            machine.Start();
+            await machine.StartAsync();
 
             // Assert
             // Note: StateMachines doesn't have a Started property in this implementation
@@ -94,7 +94,7 @@ namespace XStateNet.Distributed.Tests
                 "local://test");
             _machines.Add(machine);
 
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             await machine.SendAsync("START");
@@ -150,8 +150,8 @@ namespace XStateNet.Distributed.Tests
                 "local://machine2");
             _machines.Add(machine2);
 
-            machine1.Start();
-            machine2.Start();
+            await machine1.StartAsync();
+            await machine2.StartAsync();
 
             // Act
             await machine2.SendToMachineAsync("machine1", "REMOTE_EVENT");
@@ -189,7 +189,7 @@ namespace XStateNet.Distributed.Tests
                 "local://test");
             _machines.Add(machine);
 
-            machine.Start();
+            await machine.StartAsync();
 
             // Act & Assert (should not throw)
             Func<Task> act = async () => await machine.SendAsync("remoteMachine@EVENT");
@@ -215,7 +215,7 @@ namespace XStateNet.Distributed.Tests
                 "local://test");
             _machines.Add(machine);
 
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var endpoints = await machine.DiscoverMachinesAsync();
@@ -244,7 +244,7 @@ namespace XStateNet.Distributed.Tests
                 "local://test");
             _machines.Add(machine);
 
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             var health = await machine.GetHealthAsync();
@@ -255,7 +255,7 @@ namespace XStateNet.Distributed.Tests
         }
 
         [Fact]
-        public void Stop_Should_StopMachine()
+        public async Task Stop_Should_StopMachine()
         {
             // Arrange
             var json = @"
@@ -273,7 +273,7 @@ namespace XStateNet.Distributed.Tests
                 "local://test");
             _machines.Add(machine);
 
-            machine.Start();
+            await machine.StartAsync();
 
             // Act
             machine.Stop();

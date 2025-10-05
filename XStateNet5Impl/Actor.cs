@@ -130,7 +130,7 @@ public class StateMachineActor : IActor
         {
             Status = ActorStatus.Running;
             _cancellationTokenSource = new CancellationTokenSource();
-            _stateMachine.Start();
+            await _stateMachine.StartAsync();
 
             // Start message processing loop
             _processingTask = ProcessMessages(_cancellationTokenSource.Token);

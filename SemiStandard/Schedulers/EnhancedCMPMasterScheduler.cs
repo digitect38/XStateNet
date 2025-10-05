@@ -71,31 +71,34 @@ public class EnhancedCMPMasterScheduler
                     on: {
                         JOB_ARRIVED: {
                             target: 'evaluating',
-                            actions: ['createProcessJob', 'collectJobMetrics']
+                            actions: ['createProcessJob', 'collectJobMetrics', 'triggerCheck']
                         },
                         TOOL_STATUS_UPDATE: {
                             actions: ['updateToolStatus']
                         },
                         TOOL_AVAILABLE: {
-                            target: 'evaluating'
+                            target: 'evaluating',
+                            actions: ['triggerCheck']
                         },
                         JOB_COMPLETED: {
                             target: 'evaluating',
-                            actions: ['completeProcessJob', 'collectCompletionMetrics']
+                            actions: ['completeProcessJob', 'collectCompletionMetrics', 'triggerCheck']
                         }
                     }
                 },
                 evaluating: {
                     entry: ['logEvaluating', 'collectEvaluationMetrics'],
-                    always: [
-                        {
-                            target: 'dispatching',
-                            cond: 'hasAvailableToolAndCapacity'
-                        },
-                        {
-                            target: 'waiting'
-                        }
-                    ]
+                    on: {
+                        CHECK_DISPATCH: [
+                            {
+                                target: 'dispatching',
+                                cond: 'hasAvailableToolAndCapacity'
+                            },
+                            {
+                                target: 'waiting'
+                            }
+                        ]
+                    }
                 },
                 dispatching: {
                     entry: ['logDispatching', 'dispatchProcessJob', 'collectDispatchMetrics'],
@@ -106,12 +109,17 @@ public class EnhancedCMPMasterScheduler
                 waiting: {
                     entry: ['logWaiting', 'collectWaitingMetrics'],
                     on: {
+                        JOB_ARRIVED: {
+                            target: 'evaluating',
+                            actions: ['createProcessJob', 'collectJobMetrics', 'triggerCheck']
+                        },
                         TOOL_AVAILABLE: {
-                            target: 'evaluating'
+                            target: 'evaluating',
+                            actions: ['triggerCheck']
                         },
                         JOB_COMPLETED: {
                             target: 'evaluating',
-                            actions: ['completeProcessJob', 'collectCompletionMetrics']
+                            actions: ['completeProcessJob', 'collectCompletionMetrics', 'triggerCheck']
                         }
                     }
                 }
@@ -173,6 +181,13 @@ public class EnhancedCMPMasterScheduler
 
             ["logEvaluating"] = (ctx) =>
                 Console.WriteLine($"[{MachineId}] 🔍 Evaluating dispatch conditions..."),
+
+            ["triggerCheck"] = (ctx) =>
+            {
+                // Send CHECK_DISPATCH event to trigger guard evaluation
+                Console.WriteLine($"[{MachineId}] 🔔 triggerCheck: Sending CHECK_DISPATCH");
+                ctx.RequestSend(MachineId, "CHECK_DISPATCH", new { });
+            },
 
             ["collectEvaluationMetrics"] = async (ctx) =>
             {
@@ -290,8 +305,11 @@ public class EnhancedCMPMasterScheduler
                 var hasCapacity = _currentWip < _maxWip;
                 var hasAvailableTool = _toolStatus.Values.Any(t => t.IsAvailable);
                 var hasJobs = GetQueueSize() > 0;
+                var result = hasCapacity && hasAvailableTool && hasJobs;
 
-                return hasCapacity && hasAvailableTool && hasJobs;
+                Console.WriteLine($"[{MachineId}] 🔍 Guard Check: WIP={_currentWip}/{_maxWip} (capacity={hasCapacity}), Tools={_toolStatus.Count} (available={hasAvailableTool}), Queue={GetQueueSize()} (hasJobs={hasJobs}) => RESULT: {result}");
+
+                return result;
             }
         };
 
@@ -399,7 +417,7 @@ public class EnhancedCMPMasterScheduler
     /// <summary>
     /// Register tool with scheduler
     /// </summary>
-    public void RegisterTool(string toolId, string toolType, Dictionary<string, object>? capabilities = null)
+    public async Task RegisterToolAsync(string toolId, string toolType, Dictionary<string, object>? capabilities = null)
     {
         _toolStatus[toolId] = new EnhancedToolStatus
         {
@@ -414,6 +432,9 @@ public class EnhancedCMPMasterScheduler
         };
 
         Console.WriteLine($"[{MachineId}] 🔧 Registered tool: {toolId}");
+
+        // Trigger re-evaluation
+        await _orchestrator.SendEventAsync("SYSTEM", MachineId, "TOOL_AVAILABLE", new { toolId });
     }
 
     private void AddJobToQueue(EnhancedJobRequest job)

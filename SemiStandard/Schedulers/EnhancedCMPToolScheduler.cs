@@ -487,6 +487,9 @@ public class EnhancedCMPToolScheduler
     public int GetWafersProcessed() => _wafersProcessed;
     public double GetSlurryLevel() => _slurryLevel;
     public double GetPadWear() => _padWear;
+    public string? GetCurrentWaferId() => _currentWaferId;
+    public string? GetCurrentJobId() => _currentJobId;
+    public bool HasWafer() => _currentWaferId != null;
     public double GetAvgCycleTime() => _cycleTimes.Any() ? _cycleTimes.Average() : 0;
 
     public IEnumerable<DataReport> GetReports(string planId, DateTime? since = null)

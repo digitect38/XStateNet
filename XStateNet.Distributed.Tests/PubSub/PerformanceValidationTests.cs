@@ -56,7 +56,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             }
 
             // Act
-            _monitor.Start();
+            _monitor.StartAsync();
 
             var publishTasks = new Task[Environment.ProcessorCount];
             var eventsPerTask = eventCount / publishTasks.Length;
@@ -278,7 +278,7 @@ namespace XStateNet.Distributed.Tests.PubSub
             }
 
             // Act
-            _monitor.Start();
+            _monitor.StartAsync();
 
             var publisherTasks = new Task[publisherCount];
             for (int i = 0; i < publisherCount; i++)
@@ -692,7 +692,7 @@ namespace XStateNet.Distributed.Tests.PubSub
                 _process = Process.GetCurrentProcess();
             }
 
-            public void Start()
+            public void StartAsync()
             {
                 _startTime = DateTime.UtcNow;
                 _startTotalProcessorTime = _process.TotalProcessorTime.Ticks;

@@ -9,7 +9,7 @@ namespace XStateNet.Tests
     public class BenchmarkGetActiveStateString
     {
         [Fact]
-        public void Benchmark_GetActiveStateString_Performance()
+        public async Task Benchmark_GetActiveStateString_Performance()
         {
             // Create a complex state machine with parallel states
             string script = @"{
@@ -52,7 +52,7 @@ namespace XStateNet.Tests
             }";
 
             var stateMachine = StateMachineFactory.CreateFromScript(script, false, true);
-            stateMachine.Start();
+            await stateMachine.StartAsync();
             stateMachine.Send("START");
 
             // Warm up
@@ -97,7 +97,7 @@ namespace XStateNet.Tests
         }
 
         [Fact]
-        public void Verify_Cache_Correctness()
+        public async Task Verify_Cache_Correctness()
         {
             string script = @"{
                 'id': 'cachetest',
@@ -110,7 +110,7 @@ namespace XStateNet.Tests
             }";
 
             var stateMachine = StateMachineFactory.CreateFromScript(script, false, true);
-            stateMachine.Start();
+            await stateMachine.StartAsync();
 
             // Get initial state
             var state1 = stateMachine.GetActiveStateNames();

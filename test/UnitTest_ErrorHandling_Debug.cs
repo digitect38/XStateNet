@@ -72,7 +72,7 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         }}";
 
         _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
-        _stateMachine!.Start();
+        _stateMachine!.StartAsync().GetAwaiter();
 
         Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateNames()}");
         Assert.Contains($"{_stateMachine.machineId}.idle", _stateMachine.GetActiveStateNames());

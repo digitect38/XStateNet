@@ -103,7 +103,7 @@ namespace DistributedExample
             
             // Create distributed machine
             _machine = new DistributedStateMachine(baseMachine, nodeId, nodeAddress, _logger);
-            _machine.Start();
+            await _machine.StartAsync();
 
             // Discover other nodes periodically
             _ = Task.Run(async () =>

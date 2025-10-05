@@ -8,9 +8,9 @@ public class FinalState : NormalState
     {
     }
 
-    public override async Task Start()
+    public override async Task StartAsync()
     {
-        await base.Start();
+        await base.StartAsync();
     }
 
     public override void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)

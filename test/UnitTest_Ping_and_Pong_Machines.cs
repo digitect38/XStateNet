@@ -40,7 +40,7 @@ namespace AdvancedFeatures
         /// <summary>
         /// Setup method to be called at the beginning of each test
         /// </summary>
-        private void SetupTest()
+        private async Task SetupTest()
         {
             // Initialize fresh state for this test
             _transitionLog = new List<string>();
@@ -84,8 +84,8 @@ namespace AdvancedFeatures
             _pongStateMachine.OnTransition += LogTransition;
 
             // Start the state machines
-            _pingStateMachine.Start();
-            _pongStateMachine.Start();
+            await _pingStateMachine.StartAsync();
+            await _pongStateMachine.StartAsync();
         }
 
         /// <summary>

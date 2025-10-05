@@ -30,8 +30,8 @@ public interface IStateMachine : IDisposable
     /// <summary>
     /// Starts the state machine (DEPRECATED - Use StartAsync instead)
     /// </summary>
-    [Obsolete("Use StartAsync() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
-    IStateMachine Start();
+    ///[Obsolete("Use StartAsync() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
+    ///IStateMachine StartAsync();
 
     /// <summary>
     /// Starts the state machine asynchronously and returns the initial state
