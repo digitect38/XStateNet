@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Minimal HSMS test to verify basic connectivity without hanging

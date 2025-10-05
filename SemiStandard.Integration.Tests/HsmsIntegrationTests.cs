@@ -5,7 +5,7 @@ using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 using Xunit.Abstractions;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Integration tests for HSMS protocol communication between equipment simulator and host

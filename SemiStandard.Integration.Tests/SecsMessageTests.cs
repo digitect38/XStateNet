@@ -1,7 +1,7 @@
 using XStateNet.Semi.Secs;
 using Xunit.Abstractions;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Unit tests for SECS-II message encoding and decoding

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Logger provider that redirects logging output to xUnit test output

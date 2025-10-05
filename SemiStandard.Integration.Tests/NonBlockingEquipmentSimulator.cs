@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 
-namespace SemiStandard.Integration.Tests
+namespace SemiStandard.Tests
 {
     /// <summary>
     /// Non-blocking equipment simulator for testing

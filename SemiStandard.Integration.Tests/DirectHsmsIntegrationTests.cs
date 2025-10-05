@@ -5,7 +5,7 @@ using XStateNet.Semi.Testing;
 using XStateNet.Semi.Transport;
 using Xunit.Abstractions;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Integration tests using direct HsmsConnection without resilient wrapper

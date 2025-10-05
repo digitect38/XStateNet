@@ -3,7 +3,7 @@ using System.Net;
 using XStateNet.Semi.Transport;
 using Xunit.Abstractions;
 
-namespace SemiStandard.Integration.Tests;
+namespace SemiStandard.Tests;
 
 /// <summary>
 /// Unit tests for HSMS transport layer functionality
