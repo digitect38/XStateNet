@@ -231,11 +231,23 @@ namespace XStateNet.Distributed.Tests.Resilience
                 openDuration: TimeSpan.FromMilliseconds(100));
             await circuitBreaker.StartAsync();
 
-            // Track state changes
-            var stateChanges = new List<string>();
+            // Event-driven waiting setup
+            var openStateReached = new TaskCompletionSource<string>();
+            var halfOpenStateReached = new TaskCompletionSource<string>();
+            var reopenedStateReached = new TaskCompletionSource<string>();
+
             circuitBreaker.StateTransitioned += (sender, args) =>
             {
-                stateChanges.Add(args.newState);
+                if (args.newState.Contains("open") && !args.newState.Contains("halfOpen"))
+                {
+                    // First open or reopened
+                    if (!openStateReached.Task.IsCompleted)
+                        openStateReached.TrySetResult(args.newState);
+                    else
+                        reopenedStateReached.TrySetResult(args.newState);
+                }
+                if (args.newState.Contains("halfOpen"))
+                    halfOpenStateReached.TrySetResult(args.newState);
             };
 
             // Step 1: Open circuit with initial failure
@@ -249,11 +261,20 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch (InvalidOperationException) { /* Expected */ }
 
-            await Task.Delay(50);
+            // Wait for open state with timeout
+            var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
+            Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
             Assert.Contains("open", circuitBreaker.CurrentState);
 
             // Step 2: Wait for circuit to transition to half-open
-            await Task.Delay(150);
+            var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
+            Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
+
+            // Grace period for property update
+            await Task.Delay(10);
 
             // Step 3: Fail in half-open state
             Exception? caughtException = null;
@@ -274,9 +295,12 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.NotNull(caughtException);
             Assert.IsType<InvalidOperationException>(caughtException);
 
-            await Task.Delay(100);
+            // Step 5: Wait for circuit to reopen (event-driven)
+            var reopenTask = await Task.WhenAny(reopenedStateReached.Task, Task.Delay(500));
+            Assert.True(reopenTask == reopenedStateReached.Task, "Circuit should reopen within 500ms");
 
-            // Step 5: Verify circuit reopened
+            // Grace period for property update
+            await Task.Delay(10);
             Assert.Contains("open", circuitBreaker.CurrentState);
         }
 
