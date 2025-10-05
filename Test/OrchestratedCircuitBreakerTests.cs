@@ -470,7 +470,7 @@ namespace XStateNet.Tests
             await Task.Delay(10);
 
             // Execute successful operation to close circuit
-            await breaker.ExecuteAsync(async ct => true);
+            await breaker.ExecuteAsync(ct => Task.FromResult(true));
 
             // Wait for closed state
             var closedTask = await Task.WhenAny(closedStateReached.Task, Task.Delay(1000));
