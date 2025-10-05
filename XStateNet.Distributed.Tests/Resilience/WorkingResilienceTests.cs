@@ -222,8 +222,14 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            await Task.Delay(50);
-            Assert.Contains("open", circuitBreaker.CurrentState);
+            // Wait for circuit to open (with polling)
+            var deadline = DateTime.UtcNow.AddMilliseconds(200);
+            while (!circuitBreaker.CurrentState.Contains("open", StringComparison.OrdinalIgnoreCase)
+                   && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(10);
+            }
+            Assert.Contains("open", circuitBreaker.CurrentState, StringComparison.OrdinalIgnoreCase);
 
             // Wait for timeout
             await Task.Delay(150);
