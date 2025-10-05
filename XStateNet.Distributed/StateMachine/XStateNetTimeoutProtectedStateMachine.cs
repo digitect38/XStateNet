@@ -253,7 +253,7 @@ namespace XStateNet.Distributed.StateMachines
             // State timeout actions
             actionMap["startStateTimeout"] = new List<NamedAction>
             {
-                new NamedAction("startStateTimeout", async (sm) =>
+                new NamedAction("startStateTimeout",  (sm) =>
                 {
                     var state = sm.ContextMap["currentState"]?.ToString() ?? "";
                     if (_stateTimeouts.TryGetValue(state, out var timeout))
@@ -268,7 +268,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["cancelStateTimeout"] = new List<NamedAction>
             {
-                new NamedAction("cancelStateTimeout", async (sm) =>
+                new NamedAction("cancelStateTimeout",  (sm) =>
                 {
                     var state = sm.ContextMap["currentState"]?.ToString() ?? "";
                     CancelTimeout($"state_{state}");
@@ -302,7 +302,7 @@ namespace XStateNet.Distributed.StateMachines
             // Transition timeout actions
             actionMap["startTransitionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("startTransitionTimeout", async (sm) =>
+                new NamedAction("startTransitionTimeout",  (sm) =>
                 {
                     var transition = sm.ContextMap["currentTransition"]?.ToString() ?? "";
                     if (_transitionTimeouts.TryGetValue(transition, out var timeout))
@@ -317,7 +317,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["cancelTransitionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("cancelTransitionTimeout", async (sm) =>
+                new NamedAction("cancelTransitionTimeout", (sm) =>
                 {
                     var transition = sm.ContextMap["currentTransition"]?.ToString() ?? "";
                     CancelTimeout($"transition_{transition}");
@@ -353,7 +353,7 @@ namespace XStateNet.Distributed.StateMachines
             // Action timeout actions
             actionMap["startActionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("startActionTimeout", async (sm) =>
+                new NamedAction("startActionTimeout",  (sm) =>
                 {
                     var action = sm.ContextMap["currentAction"]?.ToString() ?? "";
                     if (_actionTimeouts.TryGetValue(action, out var timeout))
@@ -368,7 +368,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["cancelActionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("cancelActionTimeout", async (sm) =>
+                new NamedAction("cancelActionTimeout",  (sm) =>
                 {
                     var action = sm.ContextMap["currentAction"]?.ToString() ?? "";
                     CancelTimeout($"action_{action}");
@@ -428,7 +428,7 @@ namespace XStateNet.Distributed.StateMachines
             // Notification actions
             actionMap["notifyStateTimeout"] = new List<NamedAction>
             {
-                new NamedAction("notifyStateTimeout", async (sm) =>
+                new NamedAction("notifyStateTimeout", (sm) =>
                 {
                     var state = sm.ContextMap["currentState"]?.ToString() ?? "";
                     _logger?.LogError("State '{State}' has timed out and entered timeout state", state);
@@ -437,7 +437,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["notifyTransitionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("notifyTransitionTimeout", async (sm) =>
+                new NamedAction("notifyTransitionTimeout", (sm) =>
                 {
                     var transition = sm.ContextMap["currentTransition"]?.ToString() ?? "";
                     _logger?.LogError("Transition '{Transition}' has timed out", transition);
@@ -446,7 +446,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["notifyActionTimeout"] = new List<NamedAction>
             {
-                new NamedAction("notifyActionTimeout", async (sm) =>
+                new NamedAction("notifyActionTimeout", (sm) =>
                 {
                     var action = sm.ContextMap["currentAction"]?.ToString() ?? "";
                     _logger?.LogError("Action '{Action}' has timed out", action);
@@ -456,7 +456,7 @@ namespace XStateNet.Distributed.StateMachines
             // Execution actions
             actionMap["executeOperation"] = new List<NamedAction>
             {
-                new NamedAction("executeOperation", async (sm) =>
+                new NamedAction("executeOperation", (sm) =>
                 {
                     var operationId = sm.ContextMap["operationId"]?.ToString() ?? "";
                     if (_pendingOperations.TryGetValue(operationId, out var tcs))
@@ -478,7 +478,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["handleError"] = new List<NamedAction>
             {
-                new NamedAction("handleError", async (sm) =>
+                new NamedAction("handleError", (sm) =>
                 {
                     var exception = sm.ContextMap["lastException"] as Exception;
                     _logger?.LogError(exception, "Operation failed");
@@ -487,7 +487,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["handleTimeout"] = new List<NamedAction>
             {
-                new NamedAction("handleTimeout", async (sm) =>
+                new NamedAction("handleTimeout", (sm) =>
                 {
                     _logger?.LogError("Operation timed out");
                 })
@@ -495,7 +495,7 @@ namespace XStateNet.Distributed.StateMachines
 
             actionMap["logFailure"] = new List<NamedAction>
             {
-                new NamedAction("logFailure", async (sm) =>
+                new NamedAction("logFailure", (sm) =>
                 {
                     _logger?.LogError("Recovery failed - entering failed state");
                 })
@@ -619,27 +619,27 @@ namespace XStateNet.Distributed.StateMachines
         }
 
         // IStateMachine implementation
-        public IStateMachine Start()
+        public new async Task<IStateMachine> Start()
         {
             _protectionMachine.Send("START_MONITORING");
-            _innerMachine.Start();
+            await _innerMachine.StartAsync();
             return this;
         }
 
-        public async Task<string> StartAsync()
+        public new async Task<string> StartAsync()
         {
-            _protectionMachine.Send("START_MONITORING");
+            await _protectionMachine.SendAsync("START_MONITORING");
             return await _innerMachine.StartAsync();
         }
 
-        public void Stop()
+        public new void Stop()
         {
             _protectionMachine.Send("STOP_MONITORING");
             _innerMachine.Stop();
             _protectionMachine.Stop();
         }
 
-        public async Task<string> SendAsync(string eventName, object? eventData = null)
+        public new async Task<string> SendAsync(string eventName, object? eventData = null)
         {
             return await _innerMachine.SendAsync(eventName, eventData);
         }
