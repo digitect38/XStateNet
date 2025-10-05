@@ -1,13 +1,8 @@
-using Xunit;
-using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
+using Xunit;
 
 namespace XStateV5_Test.AdvancedFeatures;
 
@@ -337,22 +332,24 @@ public class UnitTest_InvokeHeavy_Orchestrated : OrchestratorTestBase
 
         await machine.StartAsync();
 
-        // Act - Wait for services to complete
-        await WaitForState(machine, "allComplete");
+        // Act - Wait for allComplete state
+        // In XState, when parallel states complete, services in incomplete regions are cancelled
+        await WaitForState(machine, "allComplete", timeoutMs: 10000);
 
-        // Assert - Deterministically wait for expected log entries
+        // Assert - Check that services executed
         Assert.NotEmpty(_eventLog);
-        var hasQuick = _eventLog.Contains("service:quick:started");
-        var hasContext = _eventLog.Contains("service:context:input:test-input");
-        var hasP1 = _eventLog.Contains("service:p1:started");
 
-        Assert.True(hasQuick || hasContext || hasP1, "At least one service should have started");
+        // All three services should have started
+        Assert.Contains("service:quick:started", _eventLog);
+        Assert.Contains("service:context:input:test-input", _eventLog);
+        Assert.Contains("service:p1:started", _eventLog);
 
-        if (hasQuick)
-        {
-            // Wait deterministically for completion log
-            await WaitForEventLog("service:quick:completed");
-        }
+        // Quick service completes fast (50ms) - should complete
+        Assert.Contains("service:quick:completed", _eventLog);
+
+        // Note: parallelService1 takes 100ms but may be cancelled when other regions complete
+        // This is correct XState behavior - when parallel state transitions, services are cancelled
+        // So we don't assert completion of p1
     }
 
     [Fact]
