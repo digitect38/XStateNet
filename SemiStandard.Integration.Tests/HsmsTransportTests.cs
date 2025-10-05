@@ -148,6 +148,9 @@ public class HsmsTransportTests : IAsyncDisposable
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
 
+        // Ensure both connections are fully established before sending
+        await WaitForConnectionsAsync();
+
         var linktestRspReceived = new TaskCompletionSource<HsmsMessage>();
 
         _activeConnection!.MessageReceived += (sender, msg) =>
@@ -295,6 +298,24 @@ public class HsmsTransportTests : IAsyncDisposable
         await Task.Delay(200);
 
         _logger.LogInformation("Active connection established to {Endpoint}", _testEndpoint);
+    }
+
+    private async Task WaitForConnectionsAsync()
+    {
+        // Wait for both connections to be fully established (poll with timeout)
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (_activeConnection?.IsConnected == true &&
+                _passiveConnection?.IsConnected == true &&
+                _activeConnection.State == HsmsConnection.HsmsConnectionState.Connected &&
+                _passiveConnection.State == HsmsConnection.HsmsConnectionState.Connected)
+            {
+                return;
+            }
+            await Task.Delay(10);
+        }
+        throw new TimeoutException("Connections did not fully establish within timeout");
     }
 
     private static int GetAvailablePort()
