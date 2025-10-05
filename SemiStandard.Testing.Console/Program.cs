@@ -23,6 +23,10 @@ namespace SemiStandard.Testing.Console
                     case "sched":
                         await CMPSchedulerDemo.RunAsync();
                         break;
+                    case "enhanced":
+                    case "enh":
+                        await EnhancedCMPDemo.RunAsync();
+                        break;
                     default:
                         ShowHelp();
                         break;
@@ -47,6 +51,8 @@ namespace SemiStandard.Testing.Console
             System.Console.WriteLine("  simple           - Alias for test");
             System.Console.WriteLine("  scheduler        - Run CMP scheduler system (master + tool schedulers)");
             System.Console.WriteLine("  sched            - Alias for scheduler");
+            System.Console.WriteLine("  enhanced         - Run Enhanced CMP with E40/E90/E134/E39 integration");
+            System.Console.WriteLine("  enh              - Alias for enhanced");
         }
     }
 }

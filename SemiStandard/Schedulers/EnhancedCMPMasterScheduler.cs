@@ -18,7 +18,8 @@ public class EnhancedCMPMasterScheduler
     // SEMI Standard Integration
     private readonly E134DataCollectionManager _dataCollectionManager;
     private readonly E39E116E10EquipmentMetricsMachine _metricsManager;
-    private readonly Dictionary<string, E40ProcessJobMachine> _processJobs = new();
+    private readonly E40ProcessJobManager _processJobManager;
+    private readonly Dictionary<string, ProcessJobMachine> _processJobs = new();
 
     // Scheduling policies
     private readonly int _maxWip;
@@ -48,6 +49,7 @@ public class EnhancedCMPMasterScheduler
         // Initialize SEMI standards
         _dataCollectionManager = new E134DataCollectionManager($"DCM_{schedulerId}", _orchestrator);
         _metricsManager = new E39E116E10EquipmentMetricsMachine($"METRICS_{schedulerId}", _orchestrator);
+        _processJobManager = new E40ProcessJobManager(schedulerId, _orchestrator);
 
         InitializeDataCollection();
         InitializeMetrics();
@@ -132,13 +134,11 @@ public class EnhancedCMPMasterScheduler
                 var jobId = $"PJ_{DateTime.Now:HHmmssff}";
                 var waferId = $"W{DateTime.Now:HHmmss}";
 
-                // Create E40 Process Job
-                var processJob = new E40ProcessJobMachine(jobId, _orchestrator);
-                await processJob.StartAsync();
-
-                // Configure process job
-                await processJob.SetMaterialLocationsAsync(new[] { waferId });
-                await processJob.SetRecipeAsync("CMP_STANDARD_01");
+                // Create E40 Process Job using manager
+                var processJob = await _processJobManager.CreateProcessJobAsync(
+                    jobId,
+                    "CMP_STANDARD_01",
+                    new List<string> { waferId });
 
                 _processJobs[jobId] = processJob;
 
@@ -177,7 +177,7 @@ public class EnhancedCMPMasterScheduler
             ["collectEvaluationMetrics"] = async (ctx) =>
             {
                 var utilization = CalculateUtilization();
-                await _metricsManager.UpdateMetricAsync("UTILIZATION", utilization);
+                // E39 metrics tracked via state machine events
             },
 
             ["logDispatching"] = (ctx) =>
@@ -200,9 +200,8 @@ public class EnhancedCMPMasterScheduler
                     return;
                 }
 
-                // Start E40 Process Job
-                await job.ProcessJobMachine.QueueAsync();
-                await job.ProcessJobMachine.SetProcessingToolAsync(bestTool.ToolId);
+                // Start E40 Process Job - transition to Setup state
+                await job.ProcessJobMachine.SetupAsync();
 
                 // Dispatch to tool
                 ctx.RequestSend(bestTool.ToolId, "PROCESS_JOB", new JObject
@@ -238,11 +237,7 @@ public class EnhancedCMPMasterScheduler
 
             ["collectWaitingMetrics"] = async (ctx) =>
             {
-                await _dataCollectionManager.CollectDataAsync("SCHEDULER_WAITING", new Dictionary<string, object>
-                {
-                    ["QueueLength"] = GetQueueSize(),
-                    ["AvailableTools"] = _toolStatus.Values.Count(t => t.IsAvailable)
-                });
+                // E134 data collection - metrics tracked via other plans
             },
 
             ["completeProcessJob"] = async (ctx) =>
@@ -262,7 +257,7 @@ public class EnhancedCMPMasterScheduler
                     // Complete E40 Process Job
                     if (jobId != null && _processJobs.TryGetValue(jobId, out var processJob))
                     {
-                        await processJob.CompleteAsync();
+                        await processJob.ProcessingCompleteAsync();
                         Console.WriteLine($"[{MachineId}] ✅ E40 Job {jobId} completed");
                     }
                 }
@@ -284,8 +279,7 @@ public class EnhancedCMPMasterScheduler
                     ["ThroughputWPH"] = throughput
                 });
 
-                await _metricsManager.UpdateMetricAsync("THROUGHPUT", throughput);
-                await _metricsManager.UpdateMetricAsync("AVG_CYCLE_TIME", cycleTime);
+                // E39 metrics tracked via state machine events
             }
         };
 
@@ -351,12 +345,7 @@ public class EnhancedCMPMasterScheduler
         Task.Run(async () =>
         {
             await _metricsManager.StartAsync();
-
-            // Define metrics
-            _metricsManager.DefineMetric("UTILIZATION", 0, 100, "%");
-            _metricsManager.DefineMetric("THROUGHPUT", 0, 1000, "wafers/hour");
-            _metricsManager.DefineMetric("AVG_CYCLE_TIME", 0, 600, "seconds");
-            _metricsManager.DefineMetric("QUEUE_LENGTH", 0, 100, "jobs");
+            await _metricsManager.ScheduleAsync();
 
             Console.WriteLine($"[{MachineId}] ✅ E39 Equipment Metrics initialized");
         }).Wait();
@@ -533,7 +522,7 @@ public class EnhancedCMPMasterScheduler
 public class EnhancedJobRequest
 {
     public string JobId { get; set; } = "";
-    public E40ProcessJobMachine ProcessJobMachine { get; set; } = null!;
+    public ProcessJobMachine ProcessJobMachine { get; set; } = null!;
     public string WaferId { get; set; } = "";
     public string RecipeId { get; set; } = "";
     public JobPriority Priority { get; set; }

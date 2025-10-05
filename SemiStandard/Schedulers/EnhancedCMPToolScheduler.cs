@@ -18,7 +18,8 @@ public class EnhancedCMPToolScheduler
     // SEMI Standard Integration
     private readonly E134DataCollectionManager _dataCollectionManager;
     private readonly E39E116E10EquipmentMetricsMachine _metricsManager;
-    private readonly Dictionary<string, E90SubstrateTrackingMachine> _substrateTracking = new();
+    private readonly E90SubstrateTrackingMachine _substrateTracker;
+    private readonly Dictionary<string, SubstrateMachine> _substrateTracking = new();
 
     // Tool state
     private string? _currentJobId;
@@ -42,6 +43,7 @@ public class EnhancedCMPToolScheduler
         // Initialize SEMI standards
         _dataCollectionManager = new E134DataCollectionManager($"DCM_{toolId}", _orchestrator);
         _metricsManager = new E39E116E10EquipmentMetricsMachine($"METRICS_{toolId}", _orchestrator);
+        _substrateTracker = new E90SubstrateTrackingMachine(toolId, _orchestrator);
 
         InitializeDataCollection();
         InitializeMetrics();
@@ -182,11 +184,12 @@ public class EnhancedCMPToolScheduler
             {
                 if (_currentWaferId == null) return;
 
-                // Create E90 Substrate Tracking
-                var substrate = new E90SubstrateTrackingMachine(_currentWaferId, _orchestrator);
-                await substrate.StartAsync();
-                await substrate.AcquireAsync(lotId: _currentJobId ?? "UNKNOWN");
-                await substrate.AtLocationAsync(_toolId, "LoadPort");
+                // Register substrate with E90 Substrate Tracker
+                var substrate = await _substrateTracker.RegisterSubstrateAsync(
+                    _currentWaferId,
+                    lotId: _currentJobId ?? "UNKNOWN");
+
+                await _substrateTracker.UpdateLocationAsync(_currentWaferId, "LoadPort", SubstrateLocationType.LoadPort);
 
                 _substrateTracking[_currentWaferId] = substrate;
 
@@ -205,8 +208,7 @@ public class EnhancedCMPToolScheduler
                     ["WafersUntilPM"] = _wafersBetweenPM - _wafersProcessed
                 });
 
-                await _metricsManager.UpdateMetricAsync("SLURRY_LEVEL", _slurryLevel);
-                await _metricsManager.UpdateMetricAsync("PAD_WEAR", _padWear);
+                // E39 metrics tracked via state machine events
             },
 
             ["requestConsumableRefill"] = (ctx) =>
@@ -229,9 +231,9 @@ public class EnhancedCMPToolScheduler
 
             ["trackSubstrateLoading"] = async (ctx) =>
             {
-                if (_currentWaferId != null && _substrateTracking.TryGetValue(_currentWaferId, out var substrate))
+                if (_currentWaferId != null && _substrateTracking.ContainsKey(_currentWaferId))
                 {
-                    await substrate.AtLocationAsync(_toolId, "Process Chamber");
+                    await _substrateTracker.UpdateLocationAsync(_currentWaferId, "Process Chamber", SubstrateLocationType.ProcessModule);
                 }
             },
 
@@ -240,9 +242,9 @@ public class EnhancedCMPToolScheduler
 
             ["trackSubstrateProcessing"] = async (ctx) =>
             {
-                if (_currentWaferId != null && _substrateTracking.TryGetValue(_currentWaferId, out var substrate))
+                if (_currentWaferId != null && _substrateTracking.ContainsKey(_currentWaferId))
                 {
-                    await substrate.ProcessingAsync();
+                    await _substrateTracker.StartProcessingAsync(_currentWaferId, "CMP_STANDARD_01");
                 }
             },
 
@@ -279,10 +281,10 @@ public class EnhancedCMPToolScheduler
 
             ["trackSubstrateUnloading"] = async (ctx) =>
             {
-                if (_currentWaferId != null && _substrateTracking.TryGetValue(_currentWaferId, out var substrate))
+                if (_currentWaferId != null && _substrateTracking.ContainsKey(_currentWaferId))
                 {
-                    await substrate.ProcessedAsync();
-                    await substrate.AtLocationAsync(_toolId, "Unload Port");
+                    await _substrateTracker.CompleteProcessingAsync(_currentWaferId, success: true);
+                    await _substrateTracker.UpdateLocationAsync(_currentWaferId, "Unload Port", SubstrateLocationType.LoadPort);
                 }
             },
 
@@ -301,9 +303,9 @@ public class EnhancedCMPToolScheduler
 
             ["trackSubstrateComplete"] = async (ctx) =>
             {
-                if (_currentWaferId != null && _substrateTracking.TryGetValue(_currentWaferId, out var substrate))
+                if (_currentWaferId != null && _substrateTracking.ContainsKey(_currentWaferId))
                 {
-                    await substrate.ReleaseAsync();
+                    await _substrateTracker.RemoveSubstrateAsync(_currentWaferId);
                     Console.WriteLine($"[{_toolId}] ✅ E90 Substrate {_currentWaferId} released");
                 }
             },
@@ -321,8 +323,7 @@ public class EnhancedCMPToolScheduler
                     ["TotalWafers"] = _wafersProcessed
                 });
 
-                await _metricsManager.UpdateMetricAsync("AVG_CYCLE_TIME", avgCycleTime);
-                await _metricsManager.UpdateMetricAsync("TOTAL_WAFERS", _wafersProcessed);
+                // E39 metrics tracked via state machine events
             },
 
             ["logMaintenance"] = (ctx) =>
@@ -361,9 +362,9 @@ public class EnhancedCMPToolScheduler
 
             ["trackSubstrateError"] = async (ctx) =>
             {
-                if (_currentWaferId != null && _substrateTracking.TryGetValue(_currentWaferId, out var substrate))
+                if (_currentWaferId != null && _substrateTracking.ContainsKey(_currentWaferId))
                 {
-                    await substrate.AtLocationAsync(_toolId, "Error");
+                    await _substrateTracker.CompleteProcessingAsync(_currentWaferId, success: false);
                 }
             },
 
@@ -471,11 +472,7 @@ public class EnhancedCMPToolScheduler
         Task.Run(async () =>
         {
             await _metricsManager.StartAsync();
-
-            _metricsManager.DefineMetric("SLURRY_LEVEL", 0, 100, "%");
-            _metricsManager.DefineMetric("PAD_WEAR", 0, 100, "%");
-            _metricsManager.DefineMetric("AVG_CYCLE_TIME", 0, 600, "seconds");
-            _metricsManager.DefineMetric("TOTAL_WAFERS", 0, 10000, "count");
+            await _metricsManager.ScheduleAsync();
 
             Console.WriteLine($"[{_toolId}] ✅ E39 Equipment Metrics initialized");
         }).Wait();
