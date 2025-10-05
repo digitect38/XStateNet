@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace XStateNet;
 
@@ -46,36 +43,36 @@ public class InvokedService : IDisposable
 public class ServiceInvoker : StateObject
 {
     private readonly ConcurrentDictionary<string, InvokedService> _activeServices = new();
-    
-    
+
+
     private readonly ConcurrentDictionary<string, TaskCompletionSource<object>> _serviceCompletions = new();
-    
+
     public ServiceInvoker(string? machineId) : base(machineId) { }
-    
+
     /// <summary>
     /// Invokes a service when entering a state
     /// </summary>
     public async Task InvokeService(CompoundState state, string serviceName, NamedService? service)
     {
         if (service == null || StateMachine == null) return;
-        
+
         var serviceId = $"{state.Name}_{serviceName}_{Guid.NewGuid():N}";
         var invokedService = new InvokedService(serviceId, serviceName, state);
-        
+
         if (!_activeServices.TryAdd(serviceId, invokedService))
         {
             Logger.Warning($"Service {serviceId} already exists");
             return;
         }
-        
+
         Logger.Info($"Invoking service '{serviceName}' for state '{state.Name}'");
-        
+
         try
         {
             // Create a task completion source for this service
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             _serviceCompletions[serviceId] = tcs;
-            
+
             // Start the service
             invokedService.ServiceTask = Task.Run(async () =>
             {
@@ -90,7 +87,7 @@ public class ServiceInvoker : StateObject
                     throw;
                 }
             }, invokedService.CancellationToken.Token);
-            
+
             // Handle service completion properly
             _ = Task.Run(async () =>
             {
@@ -120,10 +117,10 @@ public class ServiceInvoker : StateObject
         try
         {
             await service.ServiceTask;
-            
+
             // Service completed successfully
             Logger.Info($"Service '{service.ServiceName}' completed successfully");
-            
+
             // Get result from task
             object? result = null;
             if (_serviceCompletions.TryGetValue(service.Id, out var tcs))
@@ -193,9 +190,9 @@ public class ServiceInvoker : StateObject
             _serviceCompletions.TryRemove(service.Id, out _);
         }
     }
-    
-    
-    
+
+
+
     /// <summary>
     /// Handles service errors
     /// </summary>
@@ -239,9 +236,9 @@ public class ServiceInvoker : StateObject
             }
 #endif
         }
-            await Task.CompletedTask;
+        await Task.CompletedTask;
     }
-    
+
     /// <summary>
     /// Cancels a service when exiting a state
     /// </summary>
@@ -250,7 +247,7 @@ public class ServiceInvoker : StateObject
         var servicesToCancel = _activeServices.Values
             .Where(s => s.InvokingState == state)
             .ToList();
-        
+
         foreach (var service in servicesToCancel)
         {
             Logger.Info($"Cancelling service '{service.ServiceName}' for state '{state.Name}'");
@@ -258,7 +255,7 @@ public class ServiceInvoker : StateObject
             _activeServices.TryRemove(service.Id, out _);
         }
     }
-    
+
     /// <summary>
     /// Cancels all active services
     /// </summary>
@@ -271,7 +268,7 @@ public class ServiceInvoker : StateObject
         _activeServices.Clear();
         _serviceCompletions.Clear();
     }
-    
+
     /// <summary>
     /// Gets all active services
     /// </summary>
@@ -279,7 +276,7 @@ public class ServiceInvoker : StateObject
     {
         return _activeServices.Values;
     }
-    
+
     /// <summary>
     /// Checks if a state has active services
     /// </summary>

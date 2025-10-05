@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -20,43 +18,43 @@ public static class PerformanceOptimizations
     /// State cache to avoid repeated lookups (bounded with weak references)
     /// </summary>
     private static readonly BoundedConcurrentDictionary<(WeakReference, string), StateNode?> _stateCache = new(maxSize: 1000);
-    
+
     /// <summary>
     /// StringBuilder pool for string operations
     /// </summary>
     private static readonly ObjectPool<StringBuilder> _stringBuilderPool = new(() => new StringBuilder(256), 10);
-    
+
     /// <summary>
     /// Pool for transition lists used in state machine transitions
     /// </summary>
-    private static readonly ObjectPool<List<(CompoundState state, Transition transition, string @event)>> 
-        _transitionListPool = new(() => new List<(CompoundState, Transition, string)>(16), 
-            maxSize: 20, 
+    private static readonly ObjectPool<List<(CompoundState state, Transition transition, string @event)>>
+        _transitionListPool = new(() => new List<(CompoundState, Transition, string)>(16),
+            maxSize: 20,
             resetAction: list => list.Clear());
-    
+
     /// <summary>
     /// Pool for string lists used in path calculations
     /// </summary>
-    private static readonly ObjectPool<List<string>> _stringListPool = 
-        new(() => new List<string>(32), 
-            maxSize: 50, 
+    private static readonly ObjectPool<List<string>> _stringListPool =
+        new(() => new List<string>(32),
+            maxSize: 50,
             resetAction: list => list.Clear());
-    
+
     /// <summary>
     /// Pool for HashSet used in transition execution tracking
     /// </summary>
-    private static readonly ObjectPool<HashSet<(string?, string?)>> _transitionHashSetPool = 
-        new(() => new HashSet<(string?, string?)>(), 
-            maxSize: 20, 
+    private static readonly ObjectPool<HashSet<(string?, string?)>> _transitionHashSetPool =
+        new(() => new HashSet<(string?, string?)>(),
+            maxSize: 20,
             resetAction: set => set.Clear());
-    
+
     /// <summary>
     /// Pool for System.Timers.Timer used in AfterTransitions
     /// </summary>
-    private static readonly ObjectPool<System.Timers.Timer> _timerPool = 
-        new(() => new System.Timers.Timer(), 
-            maxSize: 50, 
-            resetAction: timer => 
+    private static readonly ObjectPool<System.Timers.Timer> _timerPool =
+        new(() => new System.Timers.Timer(),
+            maxSize: 50,
+            resetAction: timer =>
             {
                 timer.Stop();
                 timer.Enabled = false;
@@ -66,12 +64,12 @@ public static class PerformanceOptimizations
                 var eventInfo = typeof(System.Timers.Timer).GetEvent("Elapsed");
                 if (eventInfo != null)
                 {
-                    var field = typeof(System.Timers.Timer).GetField("Elapsed", 
+                    var field = typeof(System.Timers.Timer).GetField("Elapsed",
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                     if (field == null)
                     {
                         // Try different field name for the backing field
-                        field = typeof(System.Timers.Timer).GetField("onIntervalElapsed", 
+                        field = typeof(System.Timers.Timer).GetField("onIntervalElapsed",
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                     }
                     if (field != null)
@@ -80,17 +78,17 @@ public static class PerformanceOptimizations
                     }
                 }
             });
-    
+
     /// <summary>
     /// Get cached transition key
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string GetTransitionKey(string? source, string? target)
     {
-        return _transitionKeyCache.GetOrAdd((source, target), 
+        return _transitionKeyCache.GetOrAdd((source, target),
             key => $"{key.Item1}->{key.Item2}");
     }
-    
+
     /// <summary>
     /// Get cached state with single lookup (using weak references)
     /// </summary>
@@ -106,7 +104,7 @@ public static class PerformanceOptimizations
                 return null;
             });
     }
-    
+
     /// <summary>
     /// Clear caches when state machine changes
     /// </summary>
@@ -120,7 +118,7 @@ public static class PerformanceOptimizations
             GC.Collect(0, GCCollectionMode.Optimized);
         }
     }
-    
+
     /// <summary>
     /// Efficient string concatenation using pooled StringBuilder
     /// </summary>
@@ -145,7 +143,7 @@ public static class PerformanceOptimizations
             _stringBuilderPool.Return(sb);
         }
     }
-    
+
     /// <summary>
     /// Optimized logging that only builds strings when needed
     /// </summary>
@@ -160,7 +158,7 @@ public static class PerformanceOptimizations
             Logger.Log(messageFactory(), requiredLevel, memberName, filePath, lineNumber);
         }
     }
-    
+
     /// <summary>
     /// Check if parallel processing is worth it based on collection size
     /// </summary>
@@ -169,7 +167,7 @@ public static class PerformanceOptimizations
     {
         return collection.Count > threshold && Environment.ProcessorCount > 1;
     }
-    
+
     /// <summary>
     /// Rent a transition list from the pool
     /// </summary>
@@ -177,7 +175,7 @@ public static class PerformanceOptimizations
     {
         return _transitionListPool.Rent();
     }
-    
+
     /// <summary>
     /// Return a transition list to the pool
     /// </summary>
@@ -185,7 +183,7 @@ public static class PerformanceOptimizations
     {
         _transitionListPool.Return(list);
     }
-    
+
     /// <summary>
     /// Rent a string list from the pool
     /// </summary>
@@ -193,7 +191,7 @@ public static class PerformanceOptimizations
     {
         return _stringListPool.Rent();
     }
-    
+
     /// <summary>
     /// Return a string list to the pool
     /// </summary>
@@ -201,7 +199,7 @@ public static class PerformanceOptimizations
     {
         _stringListPool.Return(list);
     }
-    
+
     /// <summary>
     /// Rent a HashSet for transition tracking from the pool
     /// </summary>
@@ -209,7 +207,7 @@ public static class PerformanceOptimizations
     {
         return _transitionHashSetPool.Rent();
     }
-    
+
     /// <summary>
     /// Return a HashSet to the pool
     /// </summary>
@@ -217,7 +215,7 @@ public static class PerformanceOptimizations
     {
         _transitionHashSetPool.Return(set);
     }
-    
+
     /// <summary>
     /// Rent a Timer from the pool
     /// </summary>
@@ -225,7 +223,7 @@ public static class PerformanceOptimizations
     {
         return _timerPool.Rent();
     }
-    
+
     /// <summary>
     /// Return a Timer to the pool
     /// </summary>
@@ -244,19 +242,19 @@ public class ObjectPool<T> where T : class
     private readonly Func<T> _objectGenerator;
     private readonly int _maxSize;
     private readonly Action<T>? _resetAction;
-    
+
     public ObjectPool(Func<T> objectGenerator, int maxSize = 50, Action<T>? resetAction = null)
     {
         _objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
         _maxSize = maxSize;
         _resetAction = resetAction;
     }
-    
+
     public T Rent()
     {
         return _objects.TryTake(out T? item) ? item : _objectGenerator();
     }
-    
+
     public void Return(T item)
     {
         if (_resetAction != null)
@@ -267,7 +265,7 @@ public class ObjectPool<T> where T : class
         {
             sb.Clear();
         }
-        
+
         if (_objects.Count < _maxSize)
         {
             _objects.Add(item);
@@ -282,12 +280,12 @@ public class StateLookupOptimizer
 {
     private readonly ConcurrentDictionary<string, StateNode> _lookupCache = new();
     private readonly StateMachine _machine;
-    
+
     public StateLookupOptimizer(StateMachine machine)
     {
         _machine = machine;
     }
-    
+
     /// <summary>
     /// Pre-cache frequently accessed states
     /// </summary>
@@ -308,7 +306,7 @@ public class StateLookupOptimizer
             }
         }
     }
-    
+
     /// <summary>
     /// Get state from cache or fetch
     /// </summary>
@@ -317,12 +315,12 @@ public class StateLookupOptimizer
     {
         if (_lookupCache.TryGetValue(stateName, out var cached))
             return cached;
-        
+
         var state = _machine.GetState(stateName);
         _lookupCache[stateName] = state;
         return state;
     }
-    
+
     public void Clear()
     {
         _lookupCache.Clear();
@@ -337,17 +335,17 @@ public class LazyStateInfo
     private readonly Lazy<string> _fullPath;
     private readonly Lazy<List<string>> _activeStates;
     private readonly CompoundState _state;
-    
+
     public LazyStateInfo(CompoundState state)
     {
         _state = state;
         _fullPath = new Lazy<string>(() => ComputeFullPath());
         _activeStates = new Lazy<List<string>>(() => ComputeActiveStates());
     }
-    
+
     public string FullPath => _fullPath.Value;
     public List<string> ActiveStates => _activeStates.Value;
-    
+
     private string ComputeFullPath()
     {
         var parts = new List<string>();
@@ -359,7 +357,7 @@ public class LazyStateInfo
         }
         return string.Join(".", parts);
     }
-    
+
     private List<string> ComputeActiveStates()
     {
         var list = new List<string>();

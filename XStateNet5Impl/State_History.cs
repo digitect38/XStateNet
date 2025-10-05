@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
 /// <summary>
@@ -46,5 +46,5 @@ public class Parser_HistoryState : Parser_StateBase
     public override StateNode Parse(string stateName, string? parentName, JToken stateToken)
     {
         return new HistoryState(stateName, parentName, machineId, historyType);
-    }    
+    }
 }

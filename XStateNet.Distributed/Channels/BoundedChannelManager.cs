@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace XStateNet.Distributed.Channels
 {
@@ -411,7 +406,7 @@ namespace XStateNet.Distributed.Channels
                 IsCompleted = _channel.Reader.Completion.IsCompleted
             };
         }
-        
+
         private void MonitoringCallback(object? state)
         {
             try

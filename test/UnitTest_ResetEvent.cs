@@ -1,12 +1,6 @@
-using System;
-using System.Buffers.Text;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet;
-using XStateNet.Helpers;
 using Xunit;
 
 // Suppress obsolete warning - standalone reset event test with no inter-machine communication
@@ -84,14 +78,16 @@ public class UnitTest_ResetEvent : IDisposable
 
         _guards = new GuardMap
         {
-            ["isReady"] = new NamedGuard((sm) => {
+            ["isReady"] = new NamedGuard((sm) =>
+            {
                 return sm.ContextMap?["ready"] as bool? ?? false;
             }, "isReady")
         };
 
         _services = new ServiceMap
         {
-            ["longRunningService"] = new NamedService(async (sm, ct) => {
+            ["longRunningService"] = new NamedService(async (sm, ct) =>
+            {
                 _actionLog.Add("service:started");
                 await Task.Delay(1000, ct);
                 _actionLog.Add("service:completed");
@@ -191,7 +187,7 @@ public class UnitTest_ResetEvent : IDisposable
                 }
             }
         }";
-        
+
         _stateMachine = new StateMachineBuilder()
             .WithJsonScript(script)
             .WithActionMap(_actions)
@@ -200,7 +196,7 @@ public class UnitTest_ResetEvent : IDisposable
             .WithIsolation(StateMachineBuilder.IsolationMode.Test)
             .WithAutoStart(true)
             .Build("contextReset");
-        
+
 
         // Modify context
         await _stateMachine.SendAsync("NEXT");
@@ -351,7 +347,7 @@ public class UnitTest_ResetEvent : IDisposable
         // Advance both regions
         await _stateMachine.SendAsync("ADVANCE1");
         await _stateMachine.SendAsync("ADVANCE2");
-        
+
         await _stateMachine.WaitForStateAsync("region1.r1s2", 2000);
         await _stateMachine.WaitForStateAsync("region2.r2s2", 2000);
 

@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using Xunit;
-using XStateNet;
-using XStateNet.Distributed;
-using XStateNet.Orchestration;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using XStateNet.Orchestration;
+using Xunit;
 
 // Suppress obsolete warning - distributed tests use DistributedStateMachine wrapper with orchestrator
 #pragma warning disable CS0618
@@ -126,7 +119,7 @@ namespace XStateNet.Distributed.Tests
 
             // Create distributedMachine2 variable first (will be initialized below)
             DistributedStateMachine? distributedMachine2 = null;
-            
+
             var machine2Actions = new ActionMap();
             machine2Actions["sendSyncRequest"] = new List<NamedAction>
             {
@@ -135,7 +128,7 @@ namespace XStateNet.Distributed.Tests
                     machine2Events.Add("SENDING_SYNC");
                     if (distributedMachine2 != null)
                     {
-                        Task.Run(async () => 
+                        Task.Run(async () =>
                             await distributedMachine2.SendToMachineAsync("trafficLight1", "SYNC_REQUEST"));
                     }
                 })
@@ -549,7 +542,7 @@ namespace XStateNet.Distributed.Tests
 
             var failureCount = 0;
             var events = new List<string>();
-            
+
             var actions = new ActionMap();
             actions["handleRequest"] = new List<NamedAction>
             {
@@ -593,14 +586,14 @@ namespace XStateNet.Distributed.Tests
             // Successful requests
             await circuitBreaker.SendAsync("REQUEST");
             await circuitBreaker.SendAsync("REQUEST");
-            
+
             // Simulate failures
             failureCount = 3;
             await circuitBreaker.SendAsync("REQUEST"); // This should trip the breaker
 
             // Try request while open
             await circuitBreaker.SendAsync("REQUEST");
-            
+
             // Reset failure count and try again
             failureCount = 0;
             await circuitBreaker.SendAsync("REQUEST");

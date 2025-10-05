@@ -1,14 +1,8 @@
-using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using XStateNet;
 using XStateNet.Distributed.Core;
 using XStateNet.Distributed.Transports;
-using Microsoft.Extensions.Logging;
 
 namespace XStateNet.Distributed
 {
@@ -43,7 +37,7 @@ namespace XStateNet.Distributed
             _machineId = machineId;
             _address = address ?? $"local://{machineId}";
             _logger = logger;
-            
+
             InitializeTransport();
         }
 
@@ -71,7 +65,7 @@ namespace XStateNet.Distributed
                 _transport = new InMemoryTransport();
             }
 
-            _logger?.LogInformation("Initialized {TransportType} transport for machine {MachineId} at {Address}", 
+            _logger?.LogInformation("Initialized {TransportType} transport for machine {MachineId} at {Address}",
                 _transport.Type, _machineId, _address);
         }
 
@@ -148,7 +142,7 @@ namespace XStateNet.Distributed
             // Get appropriate transport for target
             var transport = await GetTransportForTarget(targetMachine);
             var success = await transport.SendAsync(message, cancellationToken);
-            
+
             if (success)
             {
                 _logger?.LogDebug("Sent event {EventName} from {From} to {To}", eventName, _machineId, targetMachine);
@@ -186,7 +180,7 @@ namespace XStateNet.Distributed
         /// Request-Response pattern
         /// </summary>
         public async Task<TResponse?> RequestAsync<TRequest, TResponse>(
-            string targetMachine, 
+            string targetMachine,
             TRequest request,
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
@@ -245,10 +239,10 @@ namespace XStateNet.Distributed
                     try
                     {
                         _logger?.LogDebug("Received event {EventName} from {From}", message.EventName, message.From);
-                        
+
                         // Process the event in the state machine
                         await _stateMachine.SendAsync(message.EventName);
-                        
+
                         // If this is a request, send response
                         if (!string.IsNullOrEmpty(message.ReplyTo) && !string.IsNullOrEmpty(message.CorrelationId))
                         {
@@ -291,10 +285,10 @@ namespace XStateNet.Distributed
         {
             if (_address.StartsWith("local://"))
                 return MachineLocation.SameProcess;
-            
+
             if (_address.StartsWith("ipc://"))
                 return MachineLocation.SameMachine;
-            
+
             return MachineLocation.Remote;
         }
 
@@ -304,18 +298,18 @@ namespace XStateNet.Distributed
         public void Stop()
         {
             _stateMachine.Stop();
-            
+
             _cancellationTokenSource?.Cancel();
-            
+
             try
             {
                 _messageProcessingTask?.Wait(TimeSpan.FromSeconds(5));
             }
             catch { }
-            
+
             _transport?.DisconnectAsync().Wait(TimeSpan.FromSeconds(5));
             _transport?.Dispose();
-            
+
             _logger?.LogInformation("Distributed state machine {MachineId} stopped", _machineId);
         }
 
@@ -329,16 +323,16 @@ namespace XStateNet.Distributed
                 Stop();
                 _cancellationTokenSource?.Dispose();
                 _transport?.Dispose();
-                
+
                 foreach (var transport in _transportCache.Values)
                 {
                     transport.Dispose();
                 }
-                
+
                 _stateMachine?.Dispose();
             }
         }
-        
+
         public void Dispose()
         {
             Dispose(true);

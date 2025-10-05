@@ -1,11 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 using XStateNet.Distributed.Core;
 
 namespace XStateNet.Distributed.Transports
@@ -17,7 +12,7 @@ namespace XStateNet.Distributed.Transports
     {
         private static readonly ConcurrentDictionary<string, Channel<StateMachineMessage>> _channels = new();
         private static readonly ConcurrentDictionary<string, StateMachineEndpoint> _registry = new();
-        
+
         private Channel<StateMachineMessage>? _receiveChannel;
         private readonly ConcurrentDictionary<string, List<string>> _subscriptions = new();
         private bool _isConnected;
@@ -29,7 +24,7 @@ namespace XStateNet.Distributed.Transports
 
         public event EventHandler<ConnectionStatusChangedEventArgs>? ConnectionStatusChanged;
         public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
-        
+
         /// <summary>
         /// Clear all registered endpoints - for testing purposes
         /// </summary>
@@ -134,7 +129,7 @@ namespace XStateNet.Distributed.Transports
             // Add subscription
             if (!_subscriptions.ContainsKey(pattern))
                 _subscriptions[pattern] = new List<string>();
-            
+
             if (!_subscriptions[pattern].Contains(_address))
                 _subscriptions[pattern].Add(_address);
 
@@ -184,7 +179,7 @@ namespace XStateNet.Distributed.Transports
                 cts.CancelAfter(timeout);
 
                 var reply = await replyChannel.Reader.ReadAsync(cts.Token);
-                
+
                 if (reply.Payload != null)
                 {
                     return MessageSerializer.Deserialize<TResponse>(reply.Payload);

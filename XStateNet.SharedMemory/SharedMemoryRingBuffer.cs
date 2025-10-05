@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet.SharedMemory.Core;
 
 namespace XStateNet.SharedMemory
@@ -72,29 +69,29 @@ namespace XStateNet.SharedMemory
                     }
                     else
                     {
-                    // Write message length prefix
-                    long writePos = header.WritePosition;
-                    WriteLengthPrefix(writePos, message.Length);
-                    writePos = IncrementPosition(writePos, 4);
+                        // Write message length prefix
+                        long writePos = header.WritePosition;
+                        WriteLengthPrefix(writePos, message.Length);
+                        writePos = IncrementPosition(writePos, 4);
 
-                    // Write message data (handle wrap-around)
-                    if (writePos + message.Length <= _bufferSize)
-                    {
-                        // Contiguous write
-                        _segment.WriteData(writePos, message, 0, message.Length);
-                        writePos = IncrementPosition(writePos, message.Length);
-                    }
-                    else
-                    {
-                        // Wrapped write (in two parts)
-                        int firstPart = (int)(_bufferSize - writePos);
-                        int secondPart = message.Length - firstPart;
+                        // Write message data (handle wrap-around)
+                        if (writePos + message.Length <= _bufferSize)
+                        {
+                            // Contiguous write
+                            _segment.WriteData(writePos, message, 0, message.Length);
+                            writePos = IncrementPosition(writePos, message.Length);
+                        }
+                        else
+                        {
+                            // Wrapped write (in two parts)
+                            int firstPart = (int)(_bufferSize - writePos);
+                            int secondPart = message.Length - firstPart;
 
-                        _segment.WriteData(writePos, message, 0, firstPart);
-                        _segment.WriteData(0, message, firstPart, secondPart);
+                            _segment.WriteData(writePos, message, 0, firstPart);
+                            _segment.WriteData(0, message, firstPart, secondPart);
 
-                        writePos = secondPart;
-                    }
+                            writePos = secondPart;
+                        }
 
                         // Update header
                         header.WritePosition = writePos;

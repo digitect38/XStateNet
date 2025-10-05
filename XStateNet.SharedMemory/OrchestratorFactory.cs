@@ -1,4 +1,3 @@
-using System;
 using XStateNet.Orchestration;
 
 namespace XStateNet.SharedMemory

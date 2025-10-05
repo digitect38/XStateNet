@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using XStateNet;
 
@@ -44,7 +42,7 @@ namespace TimelineWPF.PubSub
 
                 // Get initial state
                 var initialState = machine.GetActiveStateNames() ?? "initial";
-                
+
                 // If states not provided, try to extract from machine
                 if (states == null)
                 {

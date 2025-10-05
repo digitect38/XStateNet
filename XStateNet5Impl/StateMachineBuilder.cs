@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace XStateNet
 {
@@ -155,7 +152,7 @@ namespace XStateNet
 #pragma warning disable CS0618
             var stateMachine = StateMachineFactory.CreateFromScript(
                 processedScript,
-                threadSafe:false,
+                threadSafe: false,
                 true,
                 _actionMap,
                 _guardMap,
@@ -192,18 +189,18 @@ namespace XStateNet
             var uniqueId = GenerateUniqueId(instanceId);
             var searchPattern = $"\"id\": \"{_baseId}\"";
             var replacement = $"\"id\": \"{uniqueId}\"";
-            
+
             return _jsonScript.Replace(searchPattern, replacement);
         }
 
-        
+
         /// <summary>
         /// Generate a unique ID based on isolation mode
         /// </summary>
         private string GenerateUniqueId(string? instanceId)
         {
             var baseId = string.IsNullOrEmpty(instanceId) ? _baseId : instanceId;
-            
+
             return _isolationMode switch
             {
                 IsolationMode.Guid => $"{baseId}_{Guid.NewGuid():N}".Substring(0, Math.Min(baseId.Length + 33, 64)),
@@ -253,8 +250,8 @@ namespace XStateNet
         /// Create a state machine from script with automatic GUID isolation
         /// </summary>
         public static StateMachine CreateFromScriptWithIsolation(
-            string jsonScript, 
-            string baseId, 
+            string jsonScript,
+            string baseId,
             string? instanceId = null,
             ActionMap? actionMap = null)
         {

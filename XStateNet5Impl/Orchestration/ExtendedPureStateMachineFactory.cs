@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace XStateNet.Orchestration;
 
@@ -33,7 +29,8 @@ public static class ExtendedPureStateMachineFactory
     {
         return CreateFromScriptWithGuardsAndServicesInternal(
             id, json, orchestrator,
-            orchestratedActions, guards, services, delays, activities, enableGuidIsolation);
+            orchestratedActions, guards, services, delays, activities,
+            enableGuidIsolation);
     }
 
     /// <summary>
@@ -228,6 +225,10 @@ public static class ExtendedPureStateMachineFactory
 
         // Return pure state machine adapter with the normalized machine ID (without # prefix)
         // This ensures IPureStateMachine.Id returns the same format as the input ID
+        //
+        // NOTE: For timeout protection, applications should use:
+        // - TimeoutProtectedPureStateMachineFactory in XStateNet.Distributed (wraps with TimeoutProtectedStateMachine)
+        // - This keeps the core XStateNet assembly free of resilience dependencies
         return new PureStateMachineAdapter(normalizedMachineId, machine);
     }
 }

@@ -50,7 +50,7 @@ public class XunitLogger : ILogger
 
         var message = formatter(state, exception);
         var logLine = $"[{DateTime.Now:HH:mm:ss.fff}] [{logLevel}] [{_categoryName}] {message}";
-        
+
         if (exception != null)
         {
             logLine += Environment.NewLine + exception.ToString();

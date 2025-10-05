@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Moq;
 using MessagePack;
-using XStateNet.Distributed.Resilience;
+using Moq;
 using System.Collections.Concurrent;
+using XStateNet.Distributed.Resilience;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {

@@ -1,14 +1,9 @@
-using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
 using XStateNet.Semi.Transport;
 using XStateNet.Tests.TestInfrastructure;
-using Microsoft.Extensions.Logging;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace XStateNet.Tests
 {

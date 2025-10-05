@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Net;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 
@@ -20,7 +16,7 @@ namespace XStateNet.Semi.Drivers
         protected readonly ILogger? _logger;
         // protected E37HSMSSession? _hsmsSession; // TODO: Implement when E37HSMSSession is available
         // protected E30GemController? _gemController; // TODO: Implement when E30GemController is available
-        
+
         private readonly ConcurrentDictionary<uint, TaskCompletionSource<SecsMessage>> _pendingReplies = new();
         private readonly ConcurrentDictionary<uint, object> _statusVariables = new();
         private readonly ConcurrentDictionary<uint, object> _equipmentConstants = new();
@@ -28,29 +24,29 @@ namespace XStateNet.Semi.Drivers
         private readonly SemaphoreSlim _commandSemaphore = new(1, 1);
         private CancellationTokenSource? _cancellationTokenSource;
         private bool _disposed;
-        
+
         public abstract string ModelName { get; }
         public abstract string SoftwareRevision { get; }
         public abstract string Manufacturer { get; }
-        
+
         public bool IsConnected => _connection?.IsConnected ?? false;
         public EquipmentState State { get; protected set; } = EquipmentState.Offline;
-        
+
         public event EventHandler<EquipmentState>? StateChanged;
         public event EventHandler<AlarmEventArgs>? AlarmOccurred;
         public event EventHandler<EventReportArgs>? EventReported;
         public event EventHandler<VariableChangedArgs>? VariableChanged;
-        
+
         protected BaseEquipmentDriver(ILogger? logger = null)
         {
             _logger = logger;
         }
-        
+
         public virtual async Task InitializeAsync(EquipmentConfiguration config, CancellationToken cancellationToken = default)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            
+
             // Initialize HSMS session
             // TODO: Uncomment when E37HSMSSession is available
             // var mode = config.IsActive ? E37HSMSSession.HSMSMode.Active : E37HSMSSession.HSMSMode.Passive;
@@ -61,53 +57,53 @@ namespace XStateNet.Semi.Drivers
             //     config.T6Timeout,
             //     config.T7Timeout,
             //     config.T8Timeout);
-            
+
             // Initialize GEM controller
             // TODO: Uncomment when E30GemController is available
             // _gemController = new E30GemController(config.EquipmentId);
-            
+
             // Load equipment-specific configuration
             await LoadEquipmentConfigurationAsync(cancellationToken);
-            
+
             SetState(EquipmentState.Offline);
         }
-        
+
         public virtual async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             if (IsConnected)
                 return;
-                
+
             try
             {
                 SetState(EquipmentState.Initializing);
-                
+
                 // Create HSMS connection
                 var endpoint = new IPEndPoint(IPAddress.Parse(_config!.IpAddress), _config.Port);
                 var mode = _config.IsActive ? HsmsConnection.HsmsConnectionMode.Active : HsmsConnection.HsmsConnectionMode.Passive;
-                
+
                 _connection = new HsmsConnection(endpoint, mode, _logger as ILogger<HsmsConnection>);
                 _connection.MessageReceived += OnHsmsMessageReceived;
                 _connection.StateChanged += OnConnectionStateChanged;
                 _connection.ErrorOccurred += OnConnectionError;
-                
+
                 // Set timeouts
                 _connection.T5Timeout = _config.T5Timeout;
                 _connection.T6Timeout = _config.T6Timeout;
                 _connection.T7Timeout = _config.T7Timeout;
                 _connection.T8Timeout = _config.T8Timeout;
-                
+
                 // Connect
                 await _connection.ConnectAsync(cancellationToken);
-                
+
                 // Perform HSMS selection
                 if (_config.IsActive)
                 {
                     await SelectAsync(cancellationToken);
                 }
-                
+
                 // Establish communication (S1F13/S1F14)
                 await EstablishCommunicationAsync(cancellationToken);
-                
+
                 SetState(EquipmentState.OnlineLocal);
                 _logger?.LogInformation("Equipment driver connected and online");
             }
@@ -118,16 +114,16 @@ namespace XStateNet.Semi.Drivers
                 throw;
             }
         }
-        
+
         public virtual async Task DisconnectAsync()
         {
             if (!IsConnected)
                 return;
-                
+
             try
             {
                 SetState(EquipmentState.Offline);
-                
+
                 // Deselect if needed
                 // TODO: Check HSMS session when available
                 // if (_hsmsSession?.IsSelected == true)
@@ -135,7 +131,7 @@ namespace XStateNet.Semi.Drivers
                 {
                     await DeselectAsync();
                 }
-                
+
                 // Disconnect HSMS
                 if (_connection != null)
                 {
@@ -144,7 +140,7 @@ namespace XStateNet.Semi.Drivers
                     _connection.StateChanged -= OnConnectionStateChanged;
                     _connection.ErrorOccurred -= OnConnectionError;
                 }
-                
+
                 _logger?.LogInformation("Equipment driver disconnected");
             }
             catch (Exception ex)
@@ -152,7 +148,7 @@ namespace XStateNet.Semi.Drivers
                 _logger?.LogError(ex, "Error during disconnect");
             }
         }
-        
+
         public virtual async Task<CommandResult> ExecuteCommandAsync(string command, ConcurrentDictionary<string, object> parameters, CancellationToken cancellationToken = default)
         {
             await _commandSemaphore.WaitAsync(cancellationToken);
@@ -164,17 +160,17 @@ namespace XStateNet.Semi.Drivers
                 {
                     secsParams[kvp.Key] = ConvertToSecsItem(kvp.Value);
                 }
-                
+
                 // Send S2F41 (Host Command Send)
                 var request = SecsMessageLibrary.S2F41(command, secsParams);
                 var reply = await SendMessageAsync(request, cancellationToken);
-                
+
                 // Parse S2F42 response
                 if (reply?.Stream == 2 && reply.Function == 42)
                 {
                     var list = reply.Data as SecsList;
                     var hcack = (list?.Items[0] as SecsU1)?.Value ?? 255;
-                    
+
                     return new CommandResult
                     {
                         Success = hcack == SecsMessageLibrary.ResponseCodes.HCACK_OK,
@@ -182,7 +178,7 @@ namespace XStateNet.Semi.Drivers
                         ErrorMessage = GetHcackMessage(hcack)
                     };
                 }
-                
+
                 return new CommandResult
                 {
                     Success = false,
@@ -194,17 +190,17 @@ namespace XStateNet.Semi.Drivers
                 _commandSemaphore.Release();
             }
         }
-        
+
         public virtual async Task<T> ReadConstantAsync<T>(uint ecid, CancellationToken cancellationToken = default)
         {
             // Check cache first
             if (_equipmentConstants.TryGetValue(ecid, out var cached))
                 return (T)cached;
-                
+
             // Send S2F13 (Equipment Constant Request)
             var request = SecsMessageLibrary.S2F13(ecid);
             var reply = await SendMessageAsync(request, cancellationToken);
-            
+
             if (reply?.Stream == 2 && reply.Function == 14)
             {
                 var list = reply.Data as SecsList;
@@ -215,21 +211,21 @@ namespace XStateNet.Semi.Drivers
                     return value;
                 }
             }
-            
+
             throw new InvalidOperationException($"Failed to read constant {ecid}");
         }
-        
+
         public virtual async Task<bool> WriteConstantAsync(uint ecid, object value, CancellationToken cancellationToken = default)
         {
             var ecidValues = new ConcurrentDictionary<uint, SecsItem>
             {
                 [ecid] = ConvertToSecsItem(value)
             };
-            
+
             // Send S2F15 (New Equipment Constant Send)
             var request = SecsMessageLibrary.S2F15(ecidValues);
             var reply = await SendMessageAsync(request, cancellationToken);
-            
+
             if (reply?.Stream == 2 && reply.Function == 16)
             {
                 var eac = (reply.Data as SecsU1)?.Value ?? 255;
@@ -239,20 +235,20 @@ namespace XStateNet.Semi.Drivers
                     return true;
                 }
             }
-            
+
             return false;
         }
-        
+
         public virtual async Task<T> ReadVariableAsync<T>(uint svid, CancellationToken cancellationToken = default)
         {
             // Check cache first (if variable is tracked)
             if (_statusVariables.TryGetValue(svid, out var cached))
                 return (T)cached;
-                
+
             // Send S1F3 (Selected Equipment Status Request)
             var request = SecsMessageLibrary.S1F3(svid);
             var reply = await SendMessageAsync(request, cancellationToken);
-            
+
             if (reply?.Stream == 1 && reply.Function == 4)
             {
                 var list = reply.Data as SecsList;
@@ -263,16 +259,16 @@ namespace XStateNet.Semi.Drivers
                     return value;
                 }
             }
-            
+
             throw new InvalidOperationException($"Failed to read variable {svid}");
         }
-        
+
         public virtual async Task<bool> LoadRecipeAsync(string ppid, byte[] ppbody, CancellationToken cancellationToken = default)
         {
             // Send S7F1 (Process Program Load Inquire)
             var inquire = SecsMessageLibrary.S7F1(ppid, (uint)ppbody.Length);
             var grant = await SendMessageAsync(inquire, cancellationToken);
-            
+
             if (grant?.Stream == 7 && grant.Function == 2)
             {
                 var ppgnt = (grant.Data as SecsU1)?.Value ?? 255;
@@ -281,7 +277,7 @@ namespace XStateNet.Semi.Drivers
                     // Send S7F3 (Process Program Send)
                     var send = SecsMessageLibrary.S7F3(ppid, ppbody);
                     var ack = await SendMessageAsync(send, cancellationToken);
-                    
+
                     if (ack?.Stream == 7 && ack.Function == 4)
                     {
                         var ackc7 = (ack.Data as SecsU1)?.Value ?? 255;
@@ -289,37 +285,37 @@ namespace XStateNet.Semi.Drivers
                     }
                 }
             }
-            
+
             return false;
         }
-        
+
         public virtual async Task<bool> DeleteRecipeAsync(string ppid, CancellationToken cancellationToken = default)
         {
             // Send S7F17 (Delete Process Program Send)
             var request = SecsMessageLibrary.S7F17(ppid);
             var reply = await SendMessageAsync(request, cancellationToken);
-            
+
             if (reply?.Stream == 7 && reply.Function == 18)
             {
                 var ackc7 = (reply.Data as SecsU1)?.Value ?? 255;
                 return ackc7 == SecsMessageLibrary.ResponseCodes.ACKC7_ACCEPTED;
             }
-            
+
             return false;
         }
-        
+
         public abstract Task<bool> StartProcessAsync(string ppid, ConcurrentDictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
         public abstract Task<bool> StopProcessAsync(CancellationToken cancellationToken = default);
         public abstract Task<bool> PauseProcessAsync(CancellationToken cancellationToken = default);
         public abstract Task<bool> ResumeProcessAsync(CancellationToken cancellationToken = default);
-        
+
         public virtual async Task ReportAlarmAsync(uint alarmId, AlarmState state, string? text = null)
         {
             var alcd = state == AlarmState.Set ? (byte)128 : (byte)0;
             var message = SecsMessageLibrary.S5F1(alcd, alarmId, text ?? string.Empty);
-            
+
             await SendMessageAsync(message, CancellationToken.None);
-            
+
             AlarmOccurred?.Invoke(this, new AlarmEventArgs
             {
                 AlarmId = alarmId,
@@ -328,7 +324,7 @@ namespace XStateNet.Semi.Drivers
                 Timestamp = DateTime.UtcNow
             });
         }
-        
+
         public virtual async Task ReportEventAsync(uint eventId, ConcurrentDictionary<string, object>? data = null)
         {
             var reports = new List<SecsItem>();
@@ -339,10 +335,10 @@ namespace XStateNet.Semi.Drivers
                     reports.Add(ConvertToSecsItem(kvp.Value));
                 }
             }
-            
+
             var message = SecsMessageLibrary.S6F11(eventId, reports);
             await SendMessageAsync(message, CancellationToken.None);
-            
+
             EventReported?.Invoke(this, new EventReportArgs
             {
                 EventId = eventId,
@@ -350,18 +346,18 @@ namespace XStateNet.Semi.Drivers
                 Timestamp = DateTime.UtcNow
             });
         }
-        
+
         protected virtual async Task<SecsMessage?> SendMessageAsync(SecsMessage message, CancellationToken cancellationToken)
         {
             if (_connection == null || !IsConnected)
                 throw new InvalidOperationException("Not connected");
-                
+
             var systemBytes = GetNextSystemBytes();
             message.SystemBytes = systemBytes;
-            
+
             // Encode SECS message
             var secsData = message.Encode();
-            
+
             // Create HSMS message
             var hsmsMessage = new HsmsMessage
             {
@@ -372,7 +368,7 @@ namespace XStateNet.Semi.Drivers
                 SystemBytes = systemBytes,
                 Data = secsData
             };
-            
+
             // Setup reply handler if needed
             TaskCompletionSource<SecsMessage>? replyTcs = null;
             if (message.ReplyExpected)
@@ -380,21 +376,21 @@ namespace XStateNet.Semi.Drivers
                 replyTcs = new TaskCompletionSource<SecsMessage>();
                 _pendingReplies[systemBytes] = replyTcs;
             }
-            
+
             try
             {
                 // Send message
                 await _connection.SendMessageAsync(hsmsMessage, cancellationToken);
-                
+
                 // Wait for reply if expected
                 if (replyTcs != null)
                 {
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     cts.CancelAfter(_config!.T3Timeout);
-                    
+
                     return await replyTcs.Task.WaitAsync(cts.Token);
                 }
-                
+
                 return null;
             }
             finally
@@ -405,7 +401,7 @@ namespace XStateNet.Semi.Drivers
                 }
             }
         }
-        
+
         protected virtual void OnHsmsMessageReceived(object? sender, HsmsMessage message)
         {
             Task.Run(async () =>
@@ -420,11 +416,11 @@ namespace XStateNet.Semi.Drivers
                             message.Function,
                             message.Data ?? Array.Empty<byte>(),
                             false);
-                        
+
                         tcs.SetResult(secsMessage);
                         return;
                     }
-                    
+
                     // Handle primary message
                     await HandlePrimaryMessageAsync(message);
                 }
@@ -434,10 +430,10 @@ namespace XStateNet.Semi.Drivers
                 }
             });
         }
-        
+
         protected abstract Task HandlePrimaryMessageAsync(HsmsMessage message);
         protected abstract Task LoadEquipmentConfigurationAsync(CancellationToken cancellationToken);
-        
+
         protected virtual SecsItem ConvertToSecsItem(object value)
         {
             return value switch
@@ -458,7 +454,7 @@ namespace XStateNet.Semi.Drivers
                 _ => new SecsAscii(value.ToString() ?? string.Empty)
             };
         }
-        
+
         protected virtual T ConvertFromSecsItem<T>(SecsItem item)
         {
             return item switch
@@ -479,7 +475,7 @@ namespace XStateNet.Semi.Drivers
                 _ => throw new NotSupportedException($"Cannot convert {item.GetType().Name} to {typeof(T).Name}")
             };
         }
-        
+
         private async Task SelectAsync(CancellationToken cancellationToken)
         {
             var selectReq = new HsmsMessage
@@ -487,12 +483,12 @@ namespace XStateNet.Semi.Drivers
                 MessageType = HsmsMessageType.SelectReq,
                 SystemBytes = GetNextSystemBytes()
             };
-            
+
             await _connection!.SendMessageAsync(selectReq, cancellationToken);
             // TODO: Enable HSMS session when available
             // _hsmsSession?.Enable();
         }
-        
+
         private async Task DeselectAsync()
         {
             var deselectReq = new HsmsMessage
@@ -500,38 +496,38 @@ namespace XStateNet.Semi.Drivers
                 MessageType = HsmsMessageType.DeselectReq,
                 SystemBytes = GetNextSystemBytes()
             };
-            
+
             await _connection!.SendMessageAsync(deselectReq, CancellationToken.None);
         }
-        
+
         private async Task EstablishCommunicationAsync(CancellationToken cancellationToken)
         {
             var s1f13 = SecsMessageLibrary.S1F13();
             var s1f14 = await SendMessageAsync(s1f13, cancellationToken);
-            
+
             if (s1f14?.Stream == 1 && s1f14.Function == 14)
             {
                 var list = s1f14.Data as SecsList;
                 var commack = (list?.Items[0] as SecsU1)?.Value ?? 255;
-                
+
                 if (commack != SecsMessageLibrary.ResponseCodes.COMMACK_ACCEPTED)
                 {
                     throw new InvalidOperationException("Communication not accepted by equipment");
                 }
             }
         }
-        
+
         private void OnConnectionStateChanged(object? sender, HsmsConnection.HsmsConnectionState state)
         {
             _logger?.LogInformation("HSMS connection state changed to {State}", state);
         }
-        
+
         private void OnConnectionError(object? sender, Exception ex)
         {
             _logger?.LogError(ex, "HSMS connection error");
             SetState(EquipmentState.Error);
         }
-        
+
         private void SetState(EquipmentState newState)
         {
             if (State != newState)
@@ -540,12 +536,12 @@ namespace XStateNet.Semi.Drivers
                 StateChanged?.Invoke(this, newState);
             }
         }
-        
+
         private uint GetNextSystemBytes()
         {
             return Interlocked.Increment(ref _systemBytesCounter);
         }
-        
+
         private string GetHcackMessage(byte hcack)
         {
             return hcack switch
@@ -560,12 +556,12 @@ namespace XStateNet.Semi.Drivers
                 _ => "Unknown error"
             };
         }
-        
+
         public void Dispose()
         {
             if (_disposed)
                 return;
-                
+
             _disposed = true;
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();

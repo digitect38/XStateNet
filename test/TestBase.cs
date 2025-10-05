@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using XStateNet;
-
 namespace XStateNet.Tests
 {
     /// <summary>
@@ -12,10 +7,10 @@ namespace XStateNet.Tests
     {
         // Generate unique test ID to prevent cross-test contamination
         protected readonly string TestId = Guid.NewGuid().ToString("N").Substring(0, 8);
-        
+
         // Thread-local storage to track test-specific machines
         private static readonly ThreadLocal<List<StateMachine>> _testMachines = new(() => new List<StateMachine>());
-        
+
         protected TestBase()
         {
             // Each test gets a unique ID prefix to avoid conflicts
@@ -27,15 +22,15 @@ namespace XStateNet.Tests
         {
             // Clean up all machines created by this test
             CleanupThreadMachines();
-            
+
             // Force garbage collection to clean up any lingering timers
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            
+
             GC.SuppressFinalize(this);
         }
-        
+
         /// <summary>
         /// Create a unique machine ID for this test
         /// </summary>
@@ -43,7 +38,7 @@ namespace XStateNet.Tests
         {
             return $"{baseName}_{TestId}_{Thread.CurrentThread.ManagedThreadId}";
         }
-        
+
         /// <summary>
         /// Register a state machine created by this test for cleanup
         /// </summary>
@@ -54,7 +49,7 @@ namespace XStateNet.Tests
                 _testMachines.Value.Add(machine);
             }
         }
-        
+
         private void CleanupThreadMachines()
         {
             if (_testMachines.Value != null)

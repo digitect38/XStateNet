@@ -1,10 +1,9 @@
-using System;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
-using XStateNet.Distributed.EventBus;
 
 namespace XStateNet.Distributed
 {

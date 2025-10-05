@@ -1,9 +1,6 @@
-using System;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Polly;
+using System.Net;
 using XStateNet.Orchestration;
 
 namespace XStateNet.Semi.Transport

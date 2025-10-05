@@ -1,8 +1,6 @@
-using System;
-using System.Threading;
 using System.Windows;
-using Xunit;
 using TimelineWPF;
+using Xunit;
 
 namespace XStateNet.Tests
 {

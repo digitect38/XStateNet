@@ -1,9 +1,6 @@
-using Xunit;
-using System;
 using XStateNet;
-using XStateNet.UnitTest;
 using XStateNet.Orchestration;
-using System.Collections.Generic;
+using Xunit;
 
 namespace MultipleTargetsTests
 {

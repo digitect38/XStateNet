@@ -1,8 +1,6 @@
-using System;
-using System.Threading.Tasks;
-using Xunit;
 using XStateNet.Orchestration;
 using XStateNet.Semi.Standards;
+using Xunit;
 using static SemiStandard.Tests.StateMachineTestHelpers;
 
 namespace SemiStandard.Tests;

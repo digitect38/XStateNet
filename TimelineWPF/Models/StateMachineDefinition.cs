@@ -1,5 +1,3 @@
-﻿using System.Collections.Generic;
-
 namespace TimelineWPF.Models
 {
     public class StateMachineDefinition

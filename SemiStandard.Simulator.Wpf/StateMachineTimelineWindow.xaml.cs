@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,7 +14,7 @@ namespace SemiStandard.Simulator.Wpf
         private const double LANE_HEIGHT = 50;
         private const double TITLE_WIDTH = 100;
         private const double GRID_HEIGHT = 40;
-        
+
         // State colors
         private readonly Color[] STATE_COLORS = new[]
         {
@@ -32,7 +29,7 @@ namespace SemiStandard.Simulator.Wpf
         // Simulation state
         private enum SimulationState { Stopped, Running, Paused }
         private SimulationState simulationState = SimulationState.Stopped;
-        
+
         // Timing
         private DispatcherTimer simulationTimer;
         private DateTime lastTimestamp;
@@ -40,7 +37,7 @@ namespace SemiStandard.Simulator.Wpf
         private double playbackSpeed = 1.0;
         private bool isRealtimeMode = true;
         private bool isStepDisplayMode = false;
-        
+
         // View control
         private double zoomFactor = 0.01;
         private double playbackZoomFactor = 0.01;
@@ -49,12 +46,12 @@ namespace SemiStandard.Simulator.Wpf
         private Point lastPanPoint;
         private int frameSkipCounter = 0;
         private const int FRAME_SKIP = 2; // Redraw every 2nd frame for smoother performance
-        
+
         // State machine data
         private List<TimelineItem> sm1Data = new List<TimelineItem>();
         private List<TimelineItem> sm2Data = new List<TimelineItem>();
         private List<TimelineItem> sm3Data = new List<TimelineItem>();
-        
+
         // State machine definitions
         private readonly StateMachineDefinition sm1Def = new StateMachineDefinition
         {
@@ -62,14 +59,14 @@ namespace SemiStandard.Simulator.Wpf
             States = new[] { "waiting", "pinging" },
             InitialState = "waiting"
         };
-        
+
         private readonly StateMachineDefinition sm2Def = new StateMachineDefinition
         {
             Name = "SM2 (Pong)",
             States = new[] { "waiting", "ponging" },
             InitialState = "waiting"
         };
-        
+
         private readonly StateMachineDefinition sm3Def = new StateMachineDefinition
         {
             Name = "SM3 (Pang)",
@@ -115,38 +112,38 @@ namespace SemiStandard.Simulator.Wpf
             sm1Data.Clear();
             sm2Data.Clear();
             sm3Data.Clear();
-            
+
             double currentTime = 0;
             Random random = new Random();
-            
+
             // Add initial waiting states
             var lastState1 = new TimelineItem { Time = 0, Type = ItemType.State, Name = "waiting", Duration = 0 };
             var lastState2 = new TimelineItem { Time = 0, Type = ItemType.State, Name = "waiting", Duration = 0 };
             var lastState3 = new TimelineItem { Time = 0, Type = ItemType.State, Name = "waiting", Duration = 0 };
-            
+
             sm1Data.Add(lastState1);
             sm2Data.Add(lastState2);
             sm3Data.Add(lastState3);
-            
+
             // Initial wait with jitter
             currentTime += GetJitteryDuration(1000000, 0.4, random);
-            
+
             // Generate 500 cycles
             for (int i = 0; i < 500; i++)
             {
                 double pingDuration = GetJitteryDuration(1000000, 0.4, random);
                 double pongDuration = GetJitteryDuration(1000000, 0.4, random);
                 double pangDuration = GetJitteryDuration(1000000, 0.4, random);
-                
+
                 // PING starts
                 lastState1.Duration = currentTime - lastState1.Time;
                 sm1Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Event, Name = "PING" });
                 lastState1 = new TimelineItem { Time = currentTime, Type = ItemType.State, Name = "pinging", Duration = pingDuration };
                 sm1Data.Add(lastState1);
-                
+
                 currentTime += pingDuration;
                 sm1Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Action, Name = "sendPong" });
-                
+
                 // PONG starts
                 lastState2.Duration = currentTime - lastState2.Time;
                 sm2Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Event, Name = "PONG" });
@@ -154,10 +151,10 @@ namespace SemiStandard.Simulator.Wpf
                 sm2Data.Add(lastState2);
                 lastState1 = new TimelineItem { Time = currentTime, Type = ItemType.State, Name = "waiting", Duration = 0 };
                 sm1Data.Add(lastState1);
-                
+
                 currentTime += pongDuration;
                 sm2Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Action, Name = "sendPang" });
-                
+
                 // PANG starts
                 lastState3.Duration = currentTime - lastState3.Time;
                 sm3Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Event, Name = "PANG" });
@@ -165,13 +162,13 @@ namespace SemiStandard.Simulator.Wpf
                 sm3Data.Add(lastState3);
                 lastState2 = new TimelineItem { Time = currentTime, Type = ItemType.State, Name = "waiting", Duration = 0 };
                 sm2Data.Add(lastState2);
-                
+
                 currentTime += pangDuration;
                 sm3Data.Add(new TimelineItem { Time = currentTime, Type = ItemType.Action, Name = "sendPing" });
                 lastState3 = new TimelineItem { Time = currentTime, Type = ItemType.State, Name = "waiting", Duration = 0 };
                 sm3Data.Add(lastState3);
             }
-            
+
             // Set final durations
             lastState1.Duration = currentTime - lastState1.Time;
             lastState2.Duration = currentTime - lastState2.Time;
@@ -243,10 +240,10 @@ namespace SemiStandard.Simulator.Wpf
 
             double height = LANE_HEIGHT * 3 + GRID_HEIGHT;
             canvas.Height = height;
-            
+
             // Draw lanes
             DrawLanes(canvas);
-            
+
             // Draw grid
             if (isRealtimeMode)
             {
@@ -256,10 +253,10 @@ namespace SemiStandard.Simulator.Wpf
             {
                 DrawGrid(canvas);
             }
-            
+
             // Draw objects
             DrawObjects(canvas, data, definition);
-            
+
             // Draw live line
             DrawLiveLine(canvas);
         }
@@ -267,7 +264,7 @@ namespace SemiStandard.Simulator.Wpf
         private void DrawLanes(Canvas canvas)
         {
             double width = canvas.ActualWidth;
-            
+
             for (int i = 1; i < 3; i++)
             {
                 var line = new Line
@@ -287,7 +284,7 @@ namespace SemiStandard.Simulator.Wpf
         {
             double width = canvas.ActualWidth;
             double liveLineX = width / 2;
-            
+
             // Draw red dashed line
             var liveLine = new Line
             {
@@ -300,11 +297,11 @@ namespace SemiStandard.Simulator.Wpf
                 StrokeDashArray = new DoubleCollection { 5, 5 }
             };
             canvas.Children.Add(liveLine);
-            
+
             // Draw time label
             double currentTime = isRealtimeMode ? simulationTime : viewOffset;
             string timeLabel = $"{(currentTime / 1000000):F3}s";
-            
+
             var textBlock = new TextBlock
             {
                 Text = timeLabel,
@@ -313,7 +310,7 @@ namespace SemiStandard.Simulator.Wpf
                 Padding = new Thickness(5, 2, 5, 2),
                 FontSize = 12
             };
-            
+
             Canvas.SetLeft(textBlock, liveLineX + 5);
             Canvas.SetTop(textBlock, 5);
             canvas.Children.Add(textBlock);
@@ -341,18 +338,18 @@ namespace SemiStandard.Simulator.Wpf
 
             // Debug output removed for performance
             double width = canvas.ActualWidth;
-            
+
             foreach (var item in data)
             {
                 // In real-time mode, don't render future objects
                 if (isRealtimeMode && item.Time > currentTime) continue;
-                
+
                 double x = TimeToPx(item.Time, canvas);
                 int laneIndex = GetLaneIndex(item.Type);
                 if (laneIndex == -1) continue;
-                
+
                 double y = laneIndex * LANE_HEIGHT;
-                
+
                 if (item.Type == ItemType.State)
                 {
                     Debug.WriteLine($"[DEBUG] Processing State item: '{item.Name}' at time {item.Time}, duration {item.Duration}");
@@ -380,9 +377,9 @@ namespace SemiStandard.Simulator.Wpf
                 {
                     // Culling for icons
                     if (x < -20 || x > width + 20) continue;
-                    
+
                     double yPos = y + LANE_HEIGHT / 2;
-                    
+
                     if (item.Type == ItemType.Event)
                     {
                         DrawEventIcon(canvas, item, x, yPos);
@@ -425,7 +422,7 @@ namespace SemiStandard.Simulator.Wpf
             }
 
             Debug.WriteLine($"[DEBUG] Using color: R={color.R}, G={color.G}, B={color.B} for state '{item.Name}' (stateIndex={stateIndex})");
-            
+
             if (isStepDisplayMode)
             {
                 // Step mode - draw as horizontal lines with improved visibility
@@ -508,7 +505,7 @@ namespace SemiStandard.Simulator.Wpf
                 Canvas.SetLeft(rect, x);
                 Canvas.SetTop(rect, y + 5);
                 canvas.Children.Add(rect);
-                
+
                 // Draw text centered in block
                 if (width > 30)
                 {
@@ -543,7 +540,7 @@ namespace SemiStandard.Simulator.Wpf
                 Fill = new SolidColorBrush(Color.FromRgb(251, 191, 36)) // Yellow
             };
             canvas.Children.Add(polygon);
-            
+
             DrawIconLabel(canvas, item.Name, x, y);
         }
 
@@ -559,7 +556,7 @@ namespace SemiStandard.Simulator.Wpf
             Canvas.SetLeft(gear, x - 8);
             Canvas.SetTop(gear, y - 8);
             canvas.Children.Add(gear);
-            
+
             // Center hole
             var hole = new Ellipse
             {
@@ -570,7 +567,7 @@ namespace SemiStandard.Simulator.Wpf
             Canvas.SetLeft(hole, x - 3);
             Canvas.SetTop(hole, y - 3);
             canvas.Children.Add(hole);
-            
+
             DrawIconLabel(canvas, item.Name, x, y);
         }
 
@@ -591,7 +588,7 @@ namespace SemiStandard.Simulator.Wpf
         {
             double width = canvas.ActualWidth;
             double gridY = LANE_HEIGHT * 3;
-            
+
             // Draw horizontal ruler line
             var rulerLine = new Line
             {
@@ -603,20 +600,20 @@ namespace SemiStandard.Simulator.Wpf
                 StrokeThickness = 1
             };
             canvas.Children.Add(rulerLine);
-            
+
             // Draw time markers every 1 second
             double centerTime = simulationTime;
             double gridTimeInterval = 1000000; // 1s in microseconds
-            
+
             double leftEdgeTime = centerTime - (width / 2) / zoomFactor;
             double startGridTime = Math.Floor(leftEdgeTime / gridTimeInterval) * gridTimeInterval;
             double endGridTime = centerTime + (width / 2) / zoomFactor;
-            
+
             for (double t = startGridTime; t < endGridTime; t += gridTimeInterval)
             {
                 double x = TimeToPx(t, canvas);
                 if (x < 0 || x > width) continue;
-                
+
                 var tick = new Line
                 {
                     X1 = x,
@@ -627,7 +624,7 @@ namespace SemiStandard.Simulator.Wpf
                     StrokeThickness = 1
                 };
                 canvas.Children.Add(tick);
-                
+
                 var label = new TextBlock
                 {
                     Text = $"{Math.Round(t / 1000000)}s",
@@ -644,7 +641,7 @@ namespace SemiStandard.Simulator.Wpf
         {
             double width = canvas.ActualWidth;
             double gridY = LANE_HEIGHT * 3;
-            
+
             // Draw horizontal ruler line
             var rulerLine = new Line
             {
@@ -656,41 +653,41 @@ namespace SemiStandard.Simulator.Wpf
                 StrokeThickness = 1
             };
             canvas.Children.Add(rulerLine);
-            
+
             double timePerPixel = 1 / zoomFactor;
             double centerTime = viewOffset;
-            
+
             double minGridSpacingPx = 100;
             double minTimeSpacing = minGridSpacingPx * timePerPixel;
-            
+
             double[] timeIntervals = new[]
             {
                 1.0, 2, 5, 10, 20, 50, 100, 200, 500,
                 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000,
                 1000000, 2000000, 5000000, 10000000
             };
-            
+
             double gridTimeInterval = timeIntervals.FirstOrDefault(i => i > minTimeSpacing);
             if (gridTimeInterval == 0) gridTimeInterval = timeIntervals.Last();
-            
+
             int subdivisions = 10;
             if (gridTimeInterval.ToString().StartsWith("5")) subdivisions = 5;
             else if (gridTimeInterval.ToString().StartsWith("2")) subdivisions = 2;
-            
+
             double subGridTimeInterval = gridTimeInterval / subdivisions;
-            
+
             double visibleTimeSpan = width * timePerPixel;
             int startIndex = (int)Math.Floor((centerTime - visibleTimeSpan / 2) / subGridTimeInterval);
             int endIndex = (int)Math.Ceiling((centerTime + visibleTimeSpan / 2) / subGridTimeInterval);
-            
+
             for (int i = startIndex; i <= endIndex; i++)
             {
                 double t = i * subGridTimeInterval;
                 double x = TimeToPx(t, canvas);
                 if (x < 0 || x > width) continue;
-                
+
                 bool isMainTick = Math.Abs(i % subdivisions) < 0.001;
-                
+
                 var tick = new Line
                 {
                     X1 = x,
@@ -701,7 +698,7 @@ namespace SemiStandard.Simulator.Wpf
                     StrokeThickness = 1
                 };
                 canvas.Children.Add(tick);
-                
+
                 if (isMainTick)
                 {
                     string timeLabel;
@@ -718,7 +715,7 @@ namespace SemiStandard.Simulator.Wpf
                     {
                         timeLabel = $"{Math.Round(t)}µs";
                     }
-                    
+
                     var label = new TextBlock
                     {
                         Text = timeLabel,
@@ -860,36 +857,36 @@ namespace SemiStandard.Simulator.Wpf
         private void Canvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (isRealtimeMode) return;
-            
+
             var canvas = sender as Canvas;
             Point mousePos = e.GetPosition(canvas);
-            
+
             double timeAtMouse = viewOffset + (mousePos.X - canvas.ActualWidth / 2) / zoomFactor;
-            
+
             double zoomIntensity = 0.1;
             double delta = e.Delta > 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
-            
+
             double newZoomFactor = zoomFactor * delta;
             newZoomFactor = Math.Max(0.0001, newZoomFactor);
             newZoomFactor = Math.Min(1, newZoomFactor);
-            
+
             zoomFactor = newZoomFactor;
             playbackZoomFactor = newZoomFactor;
-            
+
             viewOffset = timeAtMouse - (mousePos.X - canvas.ActualWidth / 2) / zoomFactor;
-            
+
             DrawAllCharts();
         }
 
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (isRealtimeMode) return;
-            
+
             if (simulationState == SimulationState.Running)
             {
                 PauseButton_Click(null, null);
             }
-            
+
             isPanning = true;
             lastPanPoint = e.GetPosition(sender as Canvas);
             (sender as Canvas).CaptureMouse();
@@ -898,12 +895,12 @@ namespace SemiStandard.Simulator.Wpf
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (isRealtimeMode || !isPanning) return;
-            
+
             var canvas = sender as Canvas;
             Point currentPoint = e.GetPosition(canvas);
             double dx = currentPoint.X - lastPanPoint.X;
             lastPanPoint = currentPoint;
-            
+
             viewOffset -= dx / zoomFactor;
             simulationTime = viewOffset;
             DrawAllCharts();

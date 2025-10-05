@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using NetMQ;
 using NetMQ.Sockets;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Text;
 using XStateNet.Distributed.Core;
 
 namespace XStateNet.Distributed.Transports
@@ -21,11 +16,11 @@ namespace XStateNet.Distributed.Transports
         private DealerSocket? _dealerSocket;
         private NetMQPoller? _poller;
         private NetMQBeacon? _beacon;
-        
+
         private readonly ConcurrentDictionary<string, string> _knownEndpoints = new();
         private readonly ConcurrentDictionary<string, TaskCompletionSource<StateMachineMessage>> _pendingRequests = new();
         private readonly ConcurrentBag<StateMachineMessage> _receivedMessages = new();
-        
+
         private string _address = string.Empty;
         private bool _isConnected;
         private CancellationTokenSource? _cancellationTokenSource;
@@ -73,7 +68,7 @@ namespace XStateNet.Distributed.Transports
 
                 // Start poller in background
                 _poller.RunAsync();
-                
+
                 _isConnected = true;
                 ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs { IsConnected = true });
 
@@ -81,10 +76,10 @@ namespace XStateNet.Distributed.Transports
             }
             catch (Exception ex)
             {
-                ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs 
-                { 
-                    IsConnected = false, 
-                    Exception = ex 
+                ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs
+                {
+                    IsConnected = false,
+                    Exception = ex
                 });
                 throw;
             }
@@ -99,13 +94,13 @@ namespace XStateNet.Distributed.Transports
             _cancellationTokenSource?.Cancel();
 
             StopBeacon();
-            
+
             _poller?.Stop();
             _poller?.Dispose();
-            
+
             _routerSocket?.Close();
             _routerSocket?.Dispose();
-            
+
             _dealerSocket?.Close();
             _dealerSocket?.Dispose();
 
@@ -171,14 +166,14 @@ namespace XStateNet.Distributed.Transports
         public async Task<StateMachineMessage?> ReceiveAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             var endTime = DateTime.UtcNow.Add(timeout);
-            
+
             while (DateTime.UtcNow < endTime && !cancellationToken.IsCancellationRequested)
             {
                 if (_receivedMessages.TryTake(out var message))
                 {
                     return message;
                 }
-                
+
                 await Task.Delay(10, cancellationToken);
             }
 
@@ -186,14 +181,14 @@ namespace XStateNet.Distributed.Transports
         }
 
         public async IAsyncEnumerable<StateMachineMessage> SubscribeAsync(
-            string pattern, 
+            string pattern,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             while (!cancellationToken.IsCancellationRequested && _isConnected)
             {
                 if (_receivedMessages.TryTake(out var message))
                 {
-                    if (MatchesPattern(message.EventName, pattern) || 
+                    if (MatchesPattern(message.EventName, pattern) ||
                         MatchesPattern(message.From, pattern))
                     {
                         yield return message;
@@ -204,17 +199,17 @@ namespace XStateNet.Distributed.Transports
                         _receivedMessages.Add(message);
                     }
                 }
-                
+
                 await Task.Delay(10, cancellationToken);
             }
         }
 
         public async Task<TResponse?> RequestAsync<TRequest, TResponse>(
-            string target, 
-            TRequest request, 
+            string target,
+            TRequest request,
             TimeSpan timeout,
-            CancellationToken cancellationToken = default) 
-            where TRequest : class 
+            CancellationToken cancellationToken = default)
+            where TRequest : class
             where TResponse : class
         {
             var correlationId = Guid.NewGuid().ToString();
@@ -238,9 +233,9 @@ namespace XStateNet.Distributed.Transports
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(timeout);
-                
+
                 var reply = await tcs.Task.WaitAsync(cts.Token);
-                
+
                 if (reply?.Payload != null)
                 {
                     return MessageSerializer.Deserialize<TResponse>(reply.Payload);
@@ -259,26 +254,26 @@ namespace XStateNet.Distributed.Transports
         }
 
         public async Task<IEnumerable<StateMachineEndpoint>> DiscoverAsync(
-            string query = "*", 
+            string query = "*",
             TimeSpan timeout = default,
             CancellationToken cancellationToken = default)
         {
             var endpoints = new List<StateMachineEndpoint>();
-            
+
             if (_beacon != null)
             {
                 // Send discovery request
                 _beacon.Publish($"DISCOVER:{query}");
-                
+
                 var endTime = DateTime.UtcNow.Add(timeout == default ? TimeSpan.FromSeconds(3) : timeout);
-                
+
                 while (DateTime.UtcNow < endTime && !cancellationToken.IsCancellationRequested)
                 {
                     // NetMQBeacon doesn't have ReceiveString method
                     // We'll handle discovery through regular messaging for now
                     // This is a simplified implementation
                     await Task.Delay(100, cancellationToken);
-                    
+
                     await Task.Delay(10, cancellationToken);
                 }
             }
@@ -313,18 +308,18 @@ namespace XStateNet.Distributed.Transports
             {
                 var message = new NetMQMessage();
                 e.Socket.TryReceiveMultipartMessage(ref message);
-                
+
                 if (message.FrameCount >= 2)
                 {
                     var identity = message[0].ConvertToString();
                     var data = message[1].ToByteArray();
-                    
+
                     // Remember this endpoint
                     if (!_knownEndpoints.ContainsKey(identity))
                     {
                         _knownEndpoints[identity] = identity;
                     }
-                    
+
                     ProcessReceivedMessage(data);
                 }
             }
@@ -347,7 +342,7 @@ namespace XStateNet.Distributed.Transports
             if (message != null)
             {
                 // Check if this is a response to a pending request
-                if (!string.IsNullOrEmpty(message.CorrelationId) && 
+                if (!string.IsNullOrEmpty(message.CorrelationId) &&
                     _pendingRequests.TryRemove(message.CorrelationId, out var tcs))
                 {
                     tcs.SetResult(message);
@@ -367,7 +362,7 @@ namespace XStateNet.Distributed.Transports
                 _beacon = new NetMQBeacon();
                 _beacon.Configure(9999);
                 _beacon.Subscribe("DISCOVER:");
-                
+
                 Task.Run(async () =>
                 {
                     while (_isConnected && !_cancellationTokenSource!.Token.IsCancellationRequested)

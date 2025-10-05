@@ -1,17 +1,14 @@
-using Xunit;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 namespace AdvancedFeatures;
 
 public class StateMachine_AlwaysTests : OrchestratorTestBase
 {
     private IPureStateMachine? _currentMachine;
-       
+
     [Fact]
     public async Task TestAlwaysTransition()
     {

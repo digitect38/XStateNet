@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 
 namespace XStateNet.Semi.Secs
 {
@@ -10,7 +8,7 @@ namespace XStateNet.Semi.Secs
     public static class SecsMessageLibrary
     {
         #region Stream 1 - Equipment Status
-        
+
         /// <summary>
         /// S1F1 - Are You There Request
         /// </summary>
@@ -18,7 +16,7 @@ namespace XStateNet.Semi.Secs
         {
             return new SecsMessage(1, 1, true);
         }
-        
+
         /// <summary>
         /// S1F2 - On Line Data
         /// </summary>
@@ -32,7 +30,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S1F3 - Selected Equipment Status Request
         /// </summary>
@@ -45,19 +43,19 @@ namespace XStateNet.Semi.Secs
                     Data = new SecsList() // Empty list for all SVIDs
                 };
             }
-            
+
             var items = new SecsItem[svids.Length];
             for (int i = 0; i < svids.Length; i++)
             {
                 items[i] = new SecsU4(svids[i]);
             }
-            
+
             return new SecsMessage(1, 3, true)
             {
                 Data = new SecsList(items)
             };
         }
-        
+
         /// <summary>
         /// S1F4 - Selected Equipment Status Data
         /// </summary>
@@ -68,7 +66,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsList(statusValues.ToArray())
             };
         }
-        
+
         /// <summary>
         /// S1F13 - Establish Communications Request
         /// </summary>
@@ -76,7 +74,7 @@ namespace XStateNet.Semi.Secs
         {
             return new SecsMessage(1, 13, true);
         }
-        
+
         /// <summary>
         /// S1F14 - Establish Communications Request Acknowledge
         /// </summary>
@@ -93,11 +91,11 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         #endregion
-        
+
         #region Stream 2 - Equipment Control
-        
+
         /// <summary>
         /// S2F13 - Equipment Constant Request
         /// </summary>
@@ -114,7 +112,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsList(items)
             };
         }
-        
+
         /// <summary>
         /// S2F14 - Equipment Constant Data
         /// </summary>
@@ -125,7 +123,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsList(ecValues.ToArray())
             };
         }
-        
+
         /// <summary>
         /// S2F15 - New Equipment Constant Send
         /// </summary>
@@ -139,13 +137,13 @@ namespace XStateNet.Semi.Secs
                     kvp.Value
                 ));
             }
-            
+
             return new SecsMessage(2, 15, true)
             {
                 Data = new SecsList(items.ToArray())
             };
         }
-        
+
         /// <summary>
         /// S2F16 - New Equipment Constant Acknowledge
         /// </summary>
@@ -156,7 +154,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(eac)
             };
         }
-        
+
         /// <summary>
         /// S2F41 - Host Command Send
         /// </summary>
@@ -170,7 +168,7 @@ namespace XStateNet.Semi.Secs
                     kvp.Value
                 ));
             }
-            
+
             return new SecsMessage(2, 41, true)
             {
                 Data = new SecsList(
@@ -179,14 +177,14 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S2F42 - Host Command Acknowledge
         /// </summary>
         public static SecsMessage S2F42(byte hcack = 0, ConcurrentDictionary<string, SecsItem>? parameters = null)
         {
             var items = new List<SecsItem> { new SecsU1(hcack) };
-            
+
             if (parameters != null)
             {
                 var cpList = new List<SecsItem>();
@@ -203,17 +201,17 @@ namespace XStateNet.Semi.Secs
             {
                 items.Add(new SecsList());
             }
-            
+
             return new SecsMessage(2, 42, false)
             {
                 Data = new SecsList(items.ToArray())
             };
         }
-        
+
         #endregion
-        
+
         #region Stream 5 - Exception Handling
-        
+
         /// <summary>
         /// S5F1 - Alarm Report Send
         /// </summary>
@@ -228,7 +226,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S5F2 - Alarm Report Acknowledge
         /// </summary>
@@ -239,11 +237,11 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc5)
             };
         }
-        
+
         #endregion
-        
+
         #region Stream 6 - Data Collection
-        
+
         /// <summary>
         /// S6F11 - Event Report Send
         /// </summary>
@@ -257,7 +255,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S6F12 - Event Report Acknowledge
         /// </summary>
@@ -268,7 +266,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc6)
             };
         }
-        
+
         /// <summary>
         /// S6F15 - Event Report Request
         /// </summary>
@@ -279,7 +277,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU4(ceid)
             };
         }
-        
+
         /// <summary>
         /// S6F16 - Event Report Data
         /// </summary>
@@ -293,11 +291,11 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         #endregion
-        
+
         #region Stream 7 - Process Program Management
-        
+
         /// <summary>
         /// S7F1 - Process Program Load Inquire
         /// </summary>
@@ -311,7 +309,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S7F2 - Process Program Load Grant
         /// </summary>
@@ -322,7 +320,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ppgnt)
             };
         }
-        
+
         /// <summary>
         /// S7F3 - Process Program Send
         /// </summary>
@@ -336,7 +334,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S7F4 - Process Program Acknowledge
         /// </summary>
@@ -347,7 +345,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc7)
             };
         }
-        
+
         /// <summary>
         /// S7F5 - Process Program Request
         /// </summary>
@@ -358,7 +356,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsAscii(ppid)
             };
         }
-        
+
         /// <summary>
         /// S7F6 - Process Program Data
         /// </summary>
@@ -372,7 +370,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S7F17 - Delete Process Program Send
         /// </summary>
@@ -383,13 +381,13 @@ namespace XStateNet.Semi.Secs
             {
                 items.Add(new SecsAscii(ppid));
             }
-            
+
             return new SecsMessage(7, 17, true)
             {
                 Data = new SecsList(items.ToArray())
             };
         }
-        
+
         /// <summary>
         /// S7F18 - Delete Process Program Acknowledge
         /// </summary>
@@ -400,11 +398,11 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc7)
             };
         }
-        
+
         #endregion
-        
+
         #region Stream 10 - Terminal Services
-        
+
         /// <summary>
         /// S10F1 - Terminal Request
         /// </summary>
@@ -418,7 +416,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S10F2 - Terminal Request Acknowledge
         /// </summary>
@@ -429,7 +427,7 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc10)
             };
         }
-        
+
         /// <summary>
         /// S10F3 - Terminal Display Single
         /// </summary>
@@ -443,7 +441,7 @@ namespace XStateNet.Semi.Secs
                 )
             };
         }
-        
+
         /// <summary>
         /// S10F4 - Terminal Display Single Acknowledge
         /// </summary>
@@ -454,23 +452,23 @@ namespace XStateNet.Semi.Secs
                 Data = new SecsU1(ackc10)
             };
         }
-        
+
         #endregion
-        
+
         #region Common Response Codes
-        
+
         public static class ResponseCodes
         {
             // COMMACK values for S1F14
             public const byte COMMACK_ACCEPTED = 0;
             public const byte COMMACK_DENIED = 1;
-            
+
             // EAC values for S2F16
             public const byte EAC_ACCEPTED = 0;
             public const byte EAC_DENIED_ONE_OR_MORE = 1;
             public const byte EAC_DENIED_BUSY = 2;
             public const byte EAC_DENIED_ALL_CONSTANTS = 3;
-            
+
             // HCACK values for S2F42
             public const byte HCACK_OK = 0;
             public const byte HCACK_INVALID_COMMAND = 1;
@@ -479,15 +477,15 @@ namespace XStateNet.Semi.Secs
             public const byte HCACK_INITIATED = 4;
             public const byte HCACK_REJECTED = 5;
             public const byte HCACK_INVALID_OBJECT = 6;
-            
+
             // ACKC5 values for S5F2
             public const byte ACKC5_ACCEPTED = 0;
             public const byte ACKC5_NOT_ACCEPTED = 1;
-            
+
             // ACKC6 values for S6F12
             public const byte ACKC6_ACCEPTED = 0;
             public const byte ACKC6_NOT_ACCEPTED = 1;
-            
+
             // PPGNT values for S7F2
             public const byte PPGNT_OK = 0;
             public const byte PPGNT_ALREADY_HAVE = 1;
@@ -496,7 +494,7 @@ namespace XStateNet.Semi.Secs
             public const byte PPGNT_BUSY = 4;
             public const byte PPGNT_WILL_NOT_ACCEPT = 5;
             public const byte PPGNT_OTHER_ERROR = 6;
-            
+
             // ACKC7 values for S7F4/S7F18
             public const byte ACKC7_ACCEPTED = 0;
             public const byte ACKC7_PERMISSION_NOT_GRANTED = 1;
@@ -506,13 +504,13 @@ namespace XStateNet.Semi.Secs
             public const byte ACKC7_MODE_UNSUPPORTED = 5;
             public const byte ACKC7_COMMAND_WILL_BE_PERFORMED = 6;
             public const byte ACKC7_DATA_ERROR = 7;
-            
+
             // ACKC10 values for S10F2/S10F4
             public const byte ACKC10_ACCEPTED = 0;
             public const byte ACKC10_WILL_NOT_DISPLAY = 1;
             public const byte ACKC10_TERMINAL_NOT_AVAILABLE = 2;
         }
-        
+
         #endregion
     }
 }

@@ -1,11 +1,7 @@
-using Xunit;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
-using XStateNet.UnitTest;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 namespace AdvancedFeatures;
 
@@ -56,7 +52,7 @@ public class InConditionTests : OrchestratorTestBase
 
     [Fact]
     public async Task TestInConditionWithParallelStateNotMet()
-    {        
+    {
         var stateMachineJson = InConditionStateMachineWithParallel.InConditionStateMachineScript;
 
         var actions = new Dictionary<string, Action<OrchestratedContext>>();

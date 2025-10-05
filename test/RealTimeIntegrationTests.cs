@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using XStateNet;
-using XStateNet.Orchestration;
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
+using XStateNet;
+using XStateNet.Orchestration;
+using Xunit;
 
 namespace TimelineWPF.Tests
 {

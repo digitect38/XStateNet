@@ -1,8 +1,8 @@
 using FluentAssertions;
-using XStateNet.Distributed.Core;
-using Xunit;
 using MessagePack;
 using System.Collections.Concurrent;
+using XStateNet.Distributed.Core;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests
 {
@@ -13,10 +13,10 @@ namespace XStateNet.Distributed.Tests
         {
             [Key(0)]
             public string Name { get; set; } = "";
-            
+
             [Key(1)]
             public int Value { get; set; }
-            
+
             [Key(2)]
             public List<string> Items { get; set; } = new();
         }
@@ -32,11 +32,11 @@ namespace XStateNet.Distributed.Tests
                 Value = 42,
                 Items = new List<string> { "item1", "item2", "item3" }
             };
-            
+
             // Act
             var serialized = MessageSerializer.Serialize(data);
             var deserialized = MessageSerializer.Deserialize<TestData>(serialized);
-            
+
             // Assert
             deserialized.Should().NotBeNull();
             deserialized!.Name.Should().Be("Test");
@@ -55,11 +55,11 @@ namespace XStateNet.Distributed.Tests
                 Value = 42,
                 Items = new List<string> { "item1", "item2", "item3" }
             };
-            
+
             // Act
             var serialized = MessageSerializer.Serialize(data);
             var deserialized = MessageSerializer.Deserialize<TestData>(serialized);
-            
+
             // Assert
             deserialized.Should().NotBeNull();
             deserialized!.Name.Should().Be("Test");
@@ -81,11 +81,11 @@ namespace XStateNet.Distributed.Tests
                 Priority = 5,
                 Headers = new ConcurrentDictionary<string, string> { ["key"] = "value" }
             };
-            
+
             // Act
             var serialized = MessageSerializer.SerializeMessage(message);
             var deserialized = MessageSerializer.DeserializeMessage(serialized);
-            
+
             // Assert
             deserialized.Should().NotBeNull();
             deserialized!.Id.Should().Be("msg-123");
@@ -101,7 +101,7 @@ namespace XStateNet.Distributed.Tests
         {
             // Act
             var result = MessageSerializer.Serialize<string>(null!);
-            
+
             // Assert
             result.Should().BeEmpty();
         }
@@ -112,7 +112,7 @@ namespace XStateNet.Distributed.Tests
             // Act
             var result1 = MessageSerializer.Deserialize<TestData>(null);
             var result2 = MessageSerializer.Deserialize<TestData>(Array.Empty<byte>());
-            
+
             // Assert
             result1.Should().BeNull();
             result2.Should().BeNull();
@@ -123,7 +123,7 @@ namespace XStateNet.Distributed.Tests
         {
             // Act
             var typeName = MessageSerializer.GetTypeName(typeof(TestData));
-            
+
             // Assert
             typeName.Should().Contain("XStateNet.Distributed.Tests.MessageSerializerTests+TestData");
             typeName.Should().Contain("XStateNet.Distributed.Tests");
@@ -134,10 +134,10 @@ namespace XStateNet.Distributed.Tests
         {
             // Arrange
             var typeName = MessageSerializer.GetTypeName(typeof(string));
-            
+
             // Act
             var type = MessageSerializer.GetType(typeName);
-            
+
             // Assert
             type.Should().Be(typeof(string));
         }

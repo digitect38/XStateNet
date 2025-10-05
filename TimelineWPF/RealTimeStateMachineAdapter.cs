@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using XStateNet;
 using XStateNet.Monitoring;
 
@@ -102,7 +99,7 @@ namespace TimelineWPF
                     monitor.EventReceived -= OnEventReceived;
                     monitor.ActionExecuted -= OnActionExecuted;
 
-                    if(!_monitors.TryRemove(normalizedId, out _))
+                    if (!_monitors.TryRemove(normalizedId, out _))
                     {
                         Debug.WriteLine($"[TIMELINE ADAPTER] WARNING: Failed to remove monitor for ID: {normalizedId}");
                     }
@@ -111,7 +108,7 @@ namespace TimelineWPF
                     if (_machineDisplayNames.TryGetValue(normalizedId, out var displayName))
                     {
                         _timelineProvider.RemoveStateMachine(displayName);
-                        if(!_machineDisplayNames.TryRemove(normalizedId, out _))
+                        if (!_machineDisplayNames.TryRemove(normalizedId, out _))
                         {
                             Debug.WriteLine($"[TIMELINE ADAPTER] WARNING: Failed to remove display name for ID: {normalizedId}");
                         }

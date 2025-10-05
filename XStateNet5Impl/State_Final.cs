@@ -38,8 +38,8 @@ public class FinalState : NormalState
         if (baseTask != null)
             await baseTask;
         return Task.FromResult(Task.CompletedTask);
-    }    
-    
+    }
+
     public override void PrintActiveStateTree(int depth)
     {
         Helper.WriteLine(depth * 2, $"- {Name?.Split('.').Last()}");
@@ -57,9 +57,9 @@ public class Parser_FinalState : Parser_RealState
     {
         var state = new FinalState(stateName, parentName, machineId)
         {
-        };        
+        };
 
-        ParseActionsAndService(state, stateToken);        
+        ParseActionsAndService(state, stateToken);
 
         return state;
     }

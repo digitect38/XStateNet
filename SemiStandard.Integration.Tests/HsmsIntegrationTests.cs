@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
-using Xunit.Abstractions;
+using System.Threading.Channels;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
-using System.Threading.Channels;
+using Xunit.Abstractions;
 
 namespace SemiStandard.Integration.Tests;
 
@@ -16,7 +16,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<HsmsIntegrationTests> _logger;
     private readonly IPEndPoint _testEndpoint;
-    
+
     private NonBlockingEquipmentSimulator? _simulator;
     private HsmsConnection? _hostConnection;
     private TaskCompletionSource<HsmsMessage>? _selectResponse;
@@ -47,7 +47,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
 
         // Act & Assert
         Assert.True(_hostConnection!.IsConnected);
-        
+
         _logger.LogInformation("✓ Connection and selection successful");
     }
 
@@ -69,17 +69,17 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(response);
         Assert.Equal(1, response.Stream);
         Assert.Equal(2, response.Function);
-        
+
         var responseData = response.Data as SecsList;
         Assert.NotNull(responseData);
         Assert.True(responseData.Items.Count >= 2);
-        
+
         var modelName = (responseData.Items[0] as SecsAscii)?.Value;
         var softwareRev = (responseData.Items[1] as SecsAscii)?.Value;
-        
+
         Assert.NotNull(modelName);
         Assert.NotNull(softwareRev);
-        
+
         _logger.LogInformation("✓ S1F1/F2 successful - Model: {Model}, Software: {Software}", modelName, softwareRev);
     }
 
@@ -100,15 +100,15 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(response);
         Assert.Equal(1, response.Stream);
         Assert.Equal(14, response.Function);
-        
+
         var responseData = response.Data as SecsList;
         Assert.NotNull(responseData);
         Assert.True(responseData.Items.Count > 0);
-        
+
         var commack = (responseData.Items[0] as SecsU1)?.Value;
         Assert.NotNull(commack);
         Assert.Equal(0, commack.Value); // 0 = Accepted
-        
+
         _logger.LogInformation("✓ S1F13/F14 successful - COMMACK: {COMMACK}", commack);
     }
 
@@ -130,11 +130,11 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(response);
         Assert.Equal(1, response.Stream);
         Assert.Equal(4, response.Function);
-        
+
         var responseData = response.Data as SecsList;
         Assert.NotNull(responseData);
         Assert.Equal(6, responseData.Items.Count); // Should return 6 status variables
-        
+
         _logger.LogInformation("✓ S1F3/F4 successful - Received {Count} status variables", responseData.Items.Count);
     }
 
@@ -156,11 +156,11 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(response);
         Assert.Equal(2, response.Stream);
         Assert.Equal(14, response.Function);
-        
+
         var responseData = response.Data as SecsList;
         Assert.NotNull(responseData);
         Assert.Equal(3, responseData.Items.Count); // Should return 3 equipment constants
-        
+
         _logger.LogInformation("✓ S2F13/F14 successful - Received {Count} equipment constants", responseData.Items.Count);
     }
 
@@ -175,7 +175,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         await _connectionReady.Reader.ReadAsync(cts.Token);
 
         var alarmReceived = new TaskCompletionSource<SecsMessage>();
-        
+
         // Subscribe to received messages
         _hostConnection!.MessageReceived += (sender, hsmsMsg) =>
         {
@@ -195,7 +195,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(alarm);
         Assert.Equal(5, alarm.Stream);
         Assert.Equal(1, alarm.Function);
-        
+
         _logger.LogInformation("✓ S5F1 alarm received successfully");
     }
 
@@ -210,7 +210,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         await _connectionReady.Reader.ReadAsync(cts.Token);
 
         var eventReceived = new TaskCompletionSource<SecsMessage>();
-        
+
         // Subscribe to received messages
         _hostConnection!.MessageReceived += (sender, hsmsMsg) =>
         {
@@ -235,7 +235,7 @@ public class HsmsIntegrationTests : IAsyncDisposable
         Assert.NotNull(eventMsg);
         Assert.Equal(6, eventMsg.Stream);
         Assert.Equal(11, eventMsg.Function);
-        
+
         _logger.LogInformation("✓ S6F11 event received successfully");
     }
 
@@ -286,31 +286,31 @@ public class HsmsIntegrationTests : IAsyncDisposable
     {
         // Use direct HsmsConnection without resilient wrapper
         _hostConnection = new HsmsConnection(_testEndpoint, HsmsConnection.HsmsConnectionMode.Active, null);
-        
+
         // Subscribe to handle SelectRsp
         _hostConnection.MessageReceived += OnHostMessageReceived;
-        
+
         await _hostConnection.ConnectAsync(cancellationToken);
         _logger.LogInformation("Host physical connection established");
-        
+
         // Perform selection
         var selectReq = new HsmsMessage
         {
             MessageType = HsmsMessageType.SelectReq,
             SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
         };
-        
+
         _selectSystemBytes = selectReq.SystemBytes;
         _selectResponse = new TaskCompletionSource<HsmsMessage>();
-        
+
         await _hostConnection.SendMessageAsync(selectReq, cancellationToken);
         _logger.LogInformation("SelectReq sent with SystemBytes={SystemBytes}", selectReq.SystemBytes);
-        
+
         // Wait for SelectRsp
         using var selectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         selectCts.CancelAfter(3000);
         var response = await _selectResponse.Task.WaitAsync(selectCts.Token);
-        
+
         if (response.MessageType != HsmsMessageType.SelectRsp)
         {
             throw new InvalidOperationException($"Selection failed: {response.MessageType}");
@@ -319,13 +319,13 @@ public class HsmsIntegrationTests : IAsyncDisposable
         _logger.LogInformation("Host connection selected");
         _connectionReady.Writer.TryWrite(true);
     }
-    
+
     private void OnHostMessageReceived(object? sender, HsmsMessage message)
     {
         // Handle SelectRsp
         if (_selectResponse != null && message.SystemBytes == _selectSystemBytes)
         {
-            if (message.MessageType == HsmsMessageType.SelectRsp || 
+            if (message.MessageType == HsmsMessageType.SelectRsp ||
                 message.MessageType == HsmsMessageType.RejectReq)
             {
                 _selectResponse.TrySetResult(message);

@@ -1,8 +1,5 @@
-using Xunit;
-
-using System;
-using System.Collections.Generic;
 using XStateNet;
+using Xunit;
 
 // Suppress obsolete warning - standalone error handling debug test with no inter-machine communication
 #pragma warning disable CS0618
@@ -17,22 +14,22 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
     private string? _errorMessage;
     private string? _errorType;
     private List<string> _actionLog;
-    
+
     public UnitTest_ErrorHandling_Debug()
     {
         _errorHandled = false;
         _errorMessage = null;
         _errorType = null;
         _actionLog = new List<string>();
-        
+
         _actions = new ActionMap
         {
-            ["throwError"] = new () { new ("throwError", async (sm) => {
+            ["throwError"] = new() { new ("throwError", async (sm) => {
                 _actionLog.Add("throwError");
                 Console.WriteLine("About to throw error");
                 throw new InvalidOperationException("Test error");
             }) },
-            ["handleError"] = new () { new ("handleError", async (sm) => {
+            ["handleError"] = new() { new ("handleError", async (sm) => {
                 _actionLog.Add("handleError");
                 _errorHandled = true;
                 _errorMessage = sm.ContextMap?["_errorMessage"]?.ToString();
@@ -40,10 +37,10 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
                 Console.WriteLine($"Error handled: {_errorMessage}");
             }) }
         };
-        
+
         _guards = new GuardMap();
     }
-    
+
     [Fact]
     public void TestErrorHandlingDebug()
     {
@@ -74,7 +71,7 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
             }}
         }}";
 
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, _guards);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, _guards);
         _stateMachine!.Start();
 
         Console.WriteLine($"Initial state: {_stateMachine.GetActiveStateNames()}");
@@ -116,7 +113,7 @@ public class UnitTest_ErrorHandling_Debug : IDisposable
         Assert.Contains($"{_stateMachine.machineId}.error", _stateMachine.GetActiveStateNames());
         Assert.True(_errorHandled);
     }
-    
+
     public void Dispose()
     {
         // Cleanup if needed

@@ -1,5 +1,4 @@
 using Newtonsoft.Json.Linq;
-using System.Collections.Concurrent;
 
 
 // StateBase <- RealState <- NormalState
@@ -101,7 +100,7 @@ public partial class StateMachine
     /// <param name="token"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static List<NamedAction>? ParseActions(string key, ActionMap? actionMap, JToken token) 
+    public static List<NamedAction>? ParseActions(string key, ActionMap? actionMap, JToken token)
     {
         List<NamedAction>? actions = null;
 
@@ -113,7 +112,7 @@ public partial class StateMachine
         // Handle both string and array formats
         List<string>? actionNames = null;
         var actionToken = token[key];
-        
+
         if (actionToken?.Type == JTokenType.String)
         {
             // Single action as string

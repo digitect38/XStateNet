@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.Caching;
 using Xunit;
 using Xunit.Abstractions;

@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using XStateNet;
 using XStateNet.Actors;
+using Xunit;
 
 // Suppress obsolete warning - ActorSystem-based tests use a different communication pattern
 #pragma warning disable CS0618

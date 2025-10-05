@@ -1,9 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet;
 
 namespace SemiStandard
@@ -21,7 +16,7 @@ namespace SemiStandard
         private readonly string _jsonConfig;
         private ConcurrentDictionary<string, object> _context;
         private string? _currentState;
-        
+
         public StateMachineAdapter(string jsonConfig)
         {
             _jsonConfig = jsonConfig;
@@ -30,7 +25,7 @@ namespace SemiStandard
             _conditions = new ConcurrentDictionary<string, Func<ConcurrentDictionary<string, object>, object, bool>>();
             _context = new ConcurrentDictionary<string, object>();
         }
-        
+
         public void RegisterAction(string name, Action<ConcurrentDictionary<string, object>, dynamic> action)
         {
             var namedAction = new NamedAction(name, (stateMachine) =>
@@ -49,14 +44,14 @@ namespace SemiStandard
                     action(context, eventData ?? new { });
                 }
             });
-            
+
             if (!_actionMap.ContainsKey(name))
             {
                 _actionMap[name] = new List<NamedAction>();
             }
             _actionMap[name].Add(namedAction);
         }
-        
+
         public void RegisterCondition(string name, Func<ConcurrentDictionary<string, object>, dynamic, bool> condition)
         {
             _conditions[name] = (context, @event) =>
@@ -64,7 +59,7 @@ namespace SemiStandard
                 _context = context;
                 return condition(context, @event);
             };
-            
+
             // Register as a guard in the GuardMap for XStateNet
             var namedGuard = new NamedGuard(name, (stateMachine) =>
             {
@@ -83,7 +78,7 @@ namespace SemiStandard
                 }
                 return false;
             });
-            
+
             if (!_guardMap.ContainsKey(name))
             {
                 _guardMap[name] = namedGuard;
@@ -95,13 +90,13 @@ namespace SemiStandard
                 _guardMap[name] = namedGuard;
             }
         }
-        
+
         public void RegisterActivity(string name, Action<ConcurrentDictionary<string, object>, dynamic> activity)
         {
             // Activities are treated as special actions in XStateNet
             RegisterAction(name, activity);
         }
-        
+
         public async Task StartAsync()
         {
             if (_stateMachine == null)
@@ -114,7 +109,7 @@ namespace SemiStandard
                 _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(
                     jsonConfig,
                     threadSafe: false,
-                    guidIsolate:false,
+                    guidIsolate: false,
                     _actionMap,
                     _guardMap,
                     new ServiceMap(),
@@ -142,7 +137,7 @@ namespace SemiStandard
         {
             SendAsync(machineEvent).GetAwaiter().GetResult();
         }
-        
+
         public async Task SendAsync(string eventName)
         {
             if (_stateMachine != null)
@@ -151,7 +146,7 @@ namespace SemiStandard
                 await UpdateCurrentStateAsync();
             }
         }
-        
+
         public async Task SendAsync(StateMachineEvent machineEvent)
         {
             if (_stateMachine != null)
@@ -165,7 +160,7 @@ namespace SemiStandard
                 await UpdateCurrentStateAsync();
             }
         }
-        
+
         private void UpdateCurrentState()
         {
             UpdateCurrentStateAsync().GetAwaiter().GetResult();
@@ -194,7 +189,7 @@ namespace SemiStandard
                 }
             }
         }
-        
+
         public IEnumerable<StateNode> CurrentStates
         {
             get
@@ -238,7 +233,7 @@ namespace SemiStandard
             public string Name { get; set; } = string.Empty;
         }
     }
-    
+
     /// <summary>
     /// Event class for state machine events with data
     /// </summary>
@@ -247,7 +242,7 @@ namespace SemiStandard
         public string Name { get; set; } = string.Empty;
         public object? Data { get; set; }
     }
-    
+
     /// <summary>
     /// Extension class to provide static factory method
     /// </summary>

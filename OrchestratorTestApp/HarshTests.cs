@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using XStateNet;
 using XStateNet.Orchestration;
 
 namespace OrchestratorTestApp
@@ -178,7 +177,8 @@ namespace OrchestratorTestApp
 
         private static async Task<bool> Test10KConcurrentMachines()
         {
-            using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig {
+            using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig
+            {
                 EnableLogging = false,
                 PoolSize = 16 // More event buses
             });
@@ -613,7 +613,8 @@ namespace OrchestratorTestApp
                 // Try to exhaust handles by creating many orchestrators
                 for (int i = 0; i < 100; i++)
                 {
-                    var orch = new EventBusOrchestrator(new OrchestratorConfig {
+                    var orch = new EventBusOrchestrator(new OrchestratorConfig
+                    {
                         EnableLogging = false,
                         PoolSize = 8
                     });

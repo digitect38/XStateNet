@@ -1,7 +1,6 @@
-using System;
-using System.Text;
 using MessagePack;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace XStateNet.Distributed.Core
 {

@@ -1,11 +1,3 @@
-using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.PortableExecutable;
-using System.Threading;
-using System.Threading.Tasks;
-using XStateNet;
 using Xunit;
 
 // Suppress obsolete warning - SendAsync completion tests with no inter-machine communication

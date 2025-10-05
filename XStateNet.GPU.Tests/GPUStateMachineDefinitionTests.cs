@@ -1,5 +1,3 @@
-using System;
-using Xunit;
 using XStateNet.GPU.Core;
 
 namespace XStateNet.GPU.Tests

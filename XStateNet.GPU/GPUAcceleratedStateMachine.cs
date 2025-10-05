@@ -1,12 +1,10 @@
+using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using XStateNet;
 using XStateNet.GPU.Core;
-using Newtonsoft.Json.Linq;
-using Serilog;
 
 // Suppress obsolete warning - GPU infrastructure code interfaces with legacy StateMachine
 // GPU acceleration layer requires StateMachineFactory.CreateFromScript for GPU kernel management

@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet;
-using XStateNet.Semi.Transport;
-using XStateNet.Semi.Secs;
 using System.Collections.Concurrent;
+using System.Net;
+using XStateNet.Semi.Secs;
+using XStateNet.Semi.Transport;
 
 namespace XStateNet.Semi.Testing
 {
@@ -38,7 +32,7 @@ namespace XStateNet.Semi.Testing
 
         public string ModelName { get; set; } = "XStateNet SEMI Controller";
         public string SoftwareRevision { get; set; } = "1.0.0";
-        
+
         // Events
         public event EventHandler<SecsMessage>? MessageReceived;
         public event EventHandler<SecsMessage>? MessageSent;
@@ -58,22 +52,22 @@ namespace XStateNet.Semi.Testing
         private void InitializeStateMachines()
         {
             var scriptsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "XStateScripts");
-            
+
             // Load E30 GEM State Machine
             LoadStateMachine(GEM_MACHINE, Path.Combine(scriptsPath, "E30GemStates.json"));
-            
+
             // Load E87 Carrier Management State Machine
             LoadStateMachine(CARRIER_MACHINE, Path.Combine(scriptsPath, "E87CarrierStates.json"));
-            
+
             // Load E94 Control Job State Machine
             LoadStateMachine(CONTROL_JOB_MACHINE, Path.Combine(scriptsPath, "E94ControlJobStates.json"));
-            
+
             // Load E37 HSMS Session State Machine
             LoadStateMachine(HSMS_SESSION_MACHINE, Path.Combine(scriptsPath, "E37HSMSSession.json"));
-            
+
             // Load Overall Equipment State Machine
             LoadStateMachine(EQUIPMENT_MACHINE, Path.Combine(scriptsPath, "SemiEquipmentStates.json"));
-            
+
             _logger?.LogInformation("Initialized {Count} state machines", _stateMachines.Count);
         }
 
@@ -93,11 +87,11 @@ namespace XStateNet.Semi.Testing
                 var jsonScript = File.ReadAllText(jsonPath);
                 var actions = new ActionMap();
                 var guards = new GuardMap();
-                
+
                 // Set up actions for this state machine
                 SetupActionsForMachine(name, actions);
                 SetupGuardsForMachine(name, guards);
-                
+
                 // Add generic handlers for any actions not explicitly defined
                 AddGenericActionsFromJson(jsonScript, actions);
 
@@ -112,11 +106,11 @@ namespace XStateNet.Semi.Testing
                 machine.OnTransition += (from, to, eventName) =>
                 {
                     var currentState = machine.GetActiveStateNames();
-                    _logger?.LogInformation("[{Machine}] Transition: {From} -> {To} via {Event}", name, 
+                    _logger?.LogInformation("[{Machine}] Transition: {From} -> {To} via {Event}", name,
                         from?.Name ?? "null", to?.Name ?? "null", eventName);
                     _logger?.LogInformation("[{Machine}] Current state string: '{State}'", name, currentState);
                     StateChanged?.Invoke(this, $"{name}: {currentState}");
-                    
+
                     // Handle specific state transitions
                     if (name == GEM_MACHINE && to != null)
                     {
@@ -134,11 +128,11 @@ namespace XStateNet.Semi.Testing
                         }
                     }
                 };
-                
+
                 _stateMachines[name] = machine;
                 _actions[name] = actions;
                 _guards[name] = guards;
-                
+
                 _logger?.LogInformation("Loaded state machine: {Name} from {Path}", name, jsonPath);
             }
             catch (Exception ex)
@@ -157,13 +151,13 @@ namespace XStateNet.Semi.Testing
                 // Simple regex to find action references in the JSON
                 var actionPattern = @"""(?:entry|exit|actions)""\s*:\s*""([^""]+)""";
                 var matches = System.Text.RegularExpressions.Regex.Matches(json, actionPattern);
-                
+
                 foreach (System.Text.RegularExpressions.Match match in matches)
                 {
                     if (match.Groups.Count > 1)
                     {
                         var actionName = match.Groups[1].Value;
-                        
+
                         // If action not already defined, add a generic one
                         if (!actions.ContainsKey(actionName))
                         {
@@ -177,22 +171,22 @@ namespace XStateNet.Semi.Testing
                         }
                     }
                 }
-                
+
                 // Also handle action arrays
                 var arrayPattern = @"""(?:entry|exit|actions)""\s*:\s*\[(.*?)\]";
                 var arrayMatches = System.Text.RegularExpressions.Regex.Matches(json, arrayPattern, System.Text.RegularExpressions.RegexOptions.Singleline);
-                
+
                 foreach (System.Text.RegularExpressions.Match match in arrayMatches)
                 {
                     if (match.Groups.Count > 1)
                     {
                         var actionsArray = match.Groups[1].Value;
                         var actionNames = System.Text.RegularExpressions.Regex.Matches(actionsArray, @"""([^""]+)""");
-                        
+
                         foreach (System.Text.RegularExpressions.Match actionMatch in actionNames)
                         {
                             var actionName = actionMatch.Groups[1].Value;
-                            
+
                             if (!actions.ContainsKey(actionName))
                             {
                                 actions[actionName] = new List<NamedAction>
@@ -230,7 +224,7 @@ namespace XStateNet.Semi.Testing
                             _ = EstablishCommunicationAsync();
                         })
                     };
-                    
+
                     actions["goOnline"] = new List<NamedAction>
                     {
                         new NamedAction("goOnline", (machine) =>
@@ -239,7 +233,7 @@ namespace XStateNet.Semi.Testing
                             _ = SendHostMessage(SecsMessageLibrary.S6F11(1001, new List<SecsItem>()));
                         })
                     };
-                    
+
                     actions["goOffline"] = new List<NamedAction>
                     {
                         new NamedAction("goOffline", (machine) =>
@@ -249,7 +243,7 @@ namespace XStateNet.Semi.Testing
                         })
                     };
                     break;
-                    
+
                 case CARRIER_MACHINE:
                     // E87 Carrier Management Actions
                     actions["startMapping"] = new List<NamedAction>
@@ -260,7 +254,7 @@ namespace XStateNet.Semi.Testing
                             _ = SendHostMessage(SecsMessageLibrary.S6F11(2101, new List<SecsItem>()));
                         })
                     };
-                    
+
                     actions["loadCarrier"] = new List<NamedAction>
                     {
                         new NamedAction("loadCarrier", (machine) =>
@@ -273,7 +267,7 @@ namespace XStateNet.Semi.Testing
                             }));
                         })
                     };
-                    
+
                     actions["unloadCarrier"] = new List<NamedAction>
                     {
                         new NamedAction("unloadCarrier", (machine) =>
@@ -283,7 +277,7 @@ namespace XStateNet.Semi.Testing
                         })
                     };
                     break;
-                    
+
                 case HSMS_SESSION_MACHINE:
                     // E37 HSMS Session Actions
                     actions["startT7Timer"] = new List<NamedAction>
@@ -293,7 +287,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Starting T7 timer");
                         })
                     };
-                    
+
                     actions["stopT7Timer"] = new List<NamedAction>
                     {
                         new NamedAction("stopT7Timer", (machine) =>
@@ -301,7 +295,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Stopping T7 timer");
                         })
                     };
-                    
+
                     actions["startT6Timer"] = new List<NamedAction>
                     {
                         new NamedAction("startT6Timer", (machine) =>
@@ -309,7 +303,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Starting T6 timer");
                         })
                     };
-                    
+
                     actions["sendSelectReq"] = new List<NamedAction>
                     {
                         new NamedAction("sendSelectReq", (machine) =>
@@ -317,7 +311,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Sending Select.req");
                         })
                     };
-                    
+
                     actions["sendSelectRsp"] = new List<NamedAction>
                     {
                         new NamedAction("sendSelectRsp", (machine) =>
@@ -325,7 +319,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Sending Select.rsp");
                         })
                     };
-                    
+
                     actions["attemptConnection"] = new List<NamedAction>
                     {
                         new NamedAction("attemptConnection", (machine) =>
@@ -333,7 +327,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Attempting connection");
                         })
                     };
-                    
+
                     actions["disconnect"] = new List<NamedAction>
                     {
                         new NamedAction("disconnect", (machine) =>
@@ -341,7 +335,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Disconnecting");
                         })
                     };
-                    
+
                     actions["recordSelectedEntity"] = new List<NamedAction>
                     {
                         new NamedAction("recordSelectedEntity", (machine) =>
@@ -349,7 +343,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Recording selected entity");
                         })
                     };
-                    
+
                     actions["sendSeparateRsp"] = new List<NamedAction>
                     {
                         new NamedAction("sendSeparateRsp", (machine) =>
@@ -357,7 +351,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Sending Separate.rsp");
                         })
                     };
-                    
+
                     actions["startLinktest"] = new List<NamedAction>
                     {
                         new NamedAction("startLinktest", (machine) =>
@@ -365,7 +359,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Starting linktest");
                         })
                     };
-                    
+
                     actions["stopLinktest"] = new List<NamedAction>
                     {
                         new NamedAction("stopLinktest", (machine) =>
@@ -373,7 +367,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Stopping linktest");
                         })
                     };
-                    
+
                     // Additional HSMS actions
                     actions["notifySelected"] = new List<NamedAction>
                     {
@@ -382,7 +376,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Notifying selected");
                         })
                     };
-                    
+
                     actions["notifyDeselected"] = new List<NamedAction>
                     {
                         new NamedAction("notifyDeselected", (machine) =>
@@ -391,7 +385,7 @@ namespace XStateNet.Semi.Testing
                         })
                     };
                     break;
-                    
+
                 case EQUIPMENT_MACHINE:
                     // Equipment State Machine Actions
                     actions["offlineEntry"] = new List<NamedAction>
@@ -402,7 +396,7 @@ namespace XStateNet.Semi.Testing
                             _statusVariables[1] = 4; // OFFLINE
                         })
                     };
-                    
+
                     actions["offlineExit"] = new List<NamedAction>
                     {
                         new NamedAction("offlineExit", (machine) =>
@@ -410,7 +404,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Exiting OFFLINE state");
                         })
                     };
-                    
+
                     actions["localEntry"] = new List<NamedAction>
                     {
                         new NamedAction("localEntry", (machine) =>
@@ -419,7 +413,7 @@ namespace XStateNet.Semi.Testing
                             _statusVariables[1] = 1; // ONLINE_LOCAL
                         })
                     };
-                    
+
                     actions["localExit"] = new List<NamedAction>
                     {
                         new NamedAction("localExit", (machine) =>
@@ -427,7 +421,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Exiting LOCAL state");
                         })
                     };
-                    
+
                     actions["remoteEntry"] = new List<NamedAction>
                     {
                         new NamedAction("remoteEntry", (machine) =>
@@ -436,7 +430,7 @@ namespace XStateNet.Semi.Testing
                             _statusVariables[1] = 2; // ONLINE_REMOTE
                         })
                     };
-                    
+
                     actions["remoteExit"] = new List<NamedAction>
                     {
                         new NamedAction("remoteExit", (machine) =>
@@ -444,7 +438,7 @@ namespace XStateNet.Semi.Testing
                             _logger?.LogInformation("Exiting REMOTE state");
                         })
                     };
-                    
+
                     actions["processingEntry"] = new List<NamedAction>
                     {
                         new NamedAction("processingEntry", (machine) =>
@@ -453,7 +447,7 @@ namespace XStateNet.Semi.Testing
                             _statusVariables[2] = 1; // PROCESSING
                         })
                     };
-                    
+
                     actions["processingExit"] = new List<NamedAction>
                     {
                         new NamedAction("processingExit", (machine) =>
@@ -463,7 +457,7 @@ namespace XStateNet.Semi.Testing
                         })
                     };
                     break;
-                    
+
                 case CONTROL_JOB_MACHINE:
                     // E94 Control Job Actions
                     actions["startJob"] = new List<NamedAction>
@@ -478,7 +472,7 @@ namespace XStateNet.Semi.Testing
                             }));
                         })
                     };
-                    
+
                     actions["completeJob"] = new List<NamedAction>
                     {
                         new NamedAction("completeJob", (machine) =>
@@ -499,39 +493,39 @@ namespace XStateNet.Semi.Testing
             switch (machineName)
             {
                 case GEM_MACHINE:
-                    guards["isOnlineLocal"] = new NamedGuard("isOnlineLocal", (machine) => 
+                    guards["isOnlineLocal"] = new NamedGuard("isOnlineLocal", (machine) =>
                     {
                         var controlState = _statusVariables.GetValueOrDefault((uint)1, 1);
                         return controlState.Equals(1); // ONLINE_LOCAL
                     });
-                    
-                    guards["isOnlineRemote"] = new NamedGuard("isOnlineRemote", (machine) => 
+
+                    guards["isOnlineRemote"] = new NamedGuard("isOnlineRemote", (machine) =>
                     {
                         var controlState = _statusVariables.GetValueOrDefault((uint)1, 1);
                         return controlState.Equals(2); // ONLINE_REMOTE
                     });
                     break;
-                    
+
                 case CARRIER_MACHINE:
                     guards["isCarrierPresent"] = new NamedGuard("isCarrierPresent", (machine) =>
                     {
                         // Check if carrier is physically present
                         return true; // Simulated
                     });
-                    
+
                     guards["isCarrierIDValid"] = new NamedGuard("isCarrierIDValid", (machine) =>
                     {
                         // Validate carrier ID format
                         return true; // Simulated
                     });
                     break;
-                    
+
                 case HSMS_SESSION_MACHINE:
                     guards["isPassiveMode"] = new NamedGuard("isPassiveMode", (machine) =>
                     {
                         return true; // Equipment is in passive mode
                     });
-                    
+
                     guards["isActiveMode"] = new NamedGuard("isActiveMode", (machine) =>
                     {
                         return false; // Equipment is not in active mode
@@ -549,12 +543,12 @@ namespace XStateNet.Semi.Testing
             _statusVariables[1] = 1;  // Control State (1=ONLINE_LOCAL)
             _statusVariables[2] = 0;  // Process State (0=IDLE)
             _statusVariables[3] = 0;  // Alarm State (0=NO_ALARMS)
-            
+
             // Equipment Constants (SEMI E5)
             _equipmentConstants[1] = ModelName;           // Equipment Model
             _equipmentConstants[2] = SoftwareRevision;    // Software Revision
             _equipmentConstants[3] = 300;                 // Max concurrent jobs
-            
+
             _logger?.LogInformation("Initialized {SVCount} status variables and {ECCount} equipment constants",
                 _statusVariables.Count, _equipmentConstants.Count);
         }
@@ -566,30 +560,30 @@ namespace XStateNet.Semi.Testing
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(XStateEquipmentController));
-                
+
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            
+
             // Start connection
             _connection = new HsmsConnection(_endpoint, HsmsConnection.HsmsConnectionMode.Passive, null);
             _connection.MessageReceived += OnHsmsMessageReceived;
             _connection.StateChanged += OnConnectionStateChanged;
             _connection.ErrorOccurred += OnConnectionError;
-            
+
             await _connection.ConnectAsync(_cancellationTokenSource.Token);
-            
+
             // Start all state machines
             foreach (var (name, machine) in _stateMachines)
             {
                 machine.Start();
                 _logger?.LogInformation("Started state machine: {Name}", name);
             }
-            
+
             // Send initial state to GEM machine
             if (_stateMachines.TryGetValue(GEM_MACHINE, out var gemMachine))
             {
                 await gemMachine.SendAsync("ENABLE");
             }
-            
+
             _logger?.LogInformation("XState Equipment Controller started on {Endpoint}", _endpoint);
         }
 
@@ -606,16 +600,16 @@ namespace XStateNet.Semi.Testing
                     await HandleControlMessage(hsmsMessage);
                     return;
                 }
-                
+
                 // Decode SECS message
                 var secsMessage = DecodeSecsMessage(hsmsMessage);
                 if (secsMessage == null) return;
-                
+
                 MessageReceived?.Invoke(this, secsMessage);
-                
+
                 // Route message to appropriate state machine
                 await RouteMessageToStateMachine(secsMessage);
-                
+
                 // Generate response
                 var response = await GenerateResponse(secsMessage);
                 if (response != null)
@@ -635,7 +629,7 @@ namespace XStateNet.Semi.Testing
         private async Task RouteMessageToStateMachine(SecsMessage message)
         {
             var sxfy = $"S{message.Stream}F{message.Function}";
-            
+
             switch (sxfy)
             {
                 case "S1F13": // Establish Communication Request
@@ -643,7 +637,7 @@ namespace XStateNet.Semi.Testing
                     {
                         _logger?.LogInformation("Routing S1F13 to GEM state machine");
                         await gemMachine.SendAsync("RECEIVE_S1F13");
-                        
+
                         // Also send confirmation that we should transition
                         Task.Run(async () =>
                         {
@@ -652,25 +646,25 @@ namespace XStateNet.Semi.Testing
                         });
                     }
                     break;
-                    
+
                 case "S1F17": // Request Online
                     if (_stateMachines.TryGetValue(GEM_MACHINE, out var gem))
                     {
                         await gem.SendAsync("GO_ONLINE");
                     }
                     break;
-                    
+
                 case "S2F41": // Host Command
                     await HandleHostCommand(message);
                     break;
-                    
+
                 case "S3F17": // Carrier Action Request
                     if (_stateMachines.TryGetValue(CARRIER_MACHINE, out var carrier))
                     {
                         await carrier.SendAsync("CARRIER_ACTION");
                     }
                     break;
-                    
+
                 case "S14F1": // Control Job Request
                     if (_stateMachines.TryGetValue(CONTROL_JOB_MACHINE, out var controlJob))
                     {
@@ -691,7 +685,7 @@ namespace XStateNet.Semi.Testing
             {
                 var command = (items.Items[0] as SecsAscii)?.Value;
                 _logger?.LogInformation("Received host command: {Command}", command);
-                
+
                 switch (command?.ToUpper())
                 {
                     case "START":
@@ -700,7 +694,7 @@ namespace XStateNet.Semi.Testing
                             await equipment.SendAsync("START_PROCESSING");
                         }
                         break;
-                        
+
                     case "STOP":
                         if (_stateMachines.TryGetValue(EQUIPMENT_MACHINE, out var equip))
                         {
@@ -717,7 +711,7 @@ namespace XStateNet.Semi.Testing
         private async Task<SecsMessage?> GenerateResponse(SecsMessage message)
         {
             var sxfy = $"S{message.Stream}F{message.Function}";
-            
+
             return sxfy switch
             {
                 "S1F1" => SecsMessageLibrary.S1F2(ModelName, SoftwareRevision),
@@ -735,7 +729,7 @@ namespace XStateNet.Semi.Testing
         private async Task HandleControlMessage(HsmsMessage message)
         {
             HsmsMessage? response = null;
-            
+
             switch (message.MessageType)
             {
                 case HsmsMessageType.SelectReq:
@@ -744,27 +738,27 @@ namespace XStateNet.Semi.Testing
                         MessageType = HsmsMessageType.SelectRsp,
                         SystemBytes = message.SystemBytes
                     };
-                    
+
                     // Update HSMS session state machine
                     if (_stateMachines.TryGetValue(HSMS_SESSION_MACHINE, out var hsmsSession))
                     {
                         await hsmsSession.SendAsync("SELECT");
                     }
                     break;
-                    
+
                 case HsmsMessageType.DeselectReq:
                     response = new HsmsMessage
                     {
                         MessageType = HsmsMessageType.DeselectRsp,
                         SystemBytes = message.SystemBytes
                     };
-                    
+
                     if (_stateMachines.TryGetValue(HSMS_SESSION_MACHINE, out var hsms))
                     {
                         await hsms.SendAsync("DESELECT");
                     }
                     break;
-                    
+
                 case HsmsMessageType.LinktestReq:
                     response = new HsmsMessage
                     {
@@ -773,7 +767,7 @@ namespace XStateNet.Semi.Testing
                     };
                     break;
             }
-            
+
             if (response != null && _connection != null)
             {
                 await _connection.SendMessageAsync(response, CancellationToken.None);
@@ -800,10 +794,10 @@ namespace XStateNet.Semi.Testing
                 _logger?.LogWarning("Cannot send message - not connected");
                 return;
             }
-            
+
             var hsmsMessage = EncodeSecsMessage(message);
             await _connection.SendMessageAsync(hsmsMessage, CancellationToken.None);
-            
+
             MessageSent?.Invoke(this, message);
             _logger?.LogDebug("Sent {SxFy} to host", message.SxFy);
         }
@@ -834,13 +828,13 @@ namespace XStateNet.Semi.Testing
                 {
                     SystemBytes = hsmsMessage.SystemBytes
                 };
-                
+
                 if (hsmsMessage.Data != null && hsmsMessage.Data.Length > 0)
                 {
                     using var reader = new System.IO.BinaryReader(new System.IO.MemoryStream(hsmsMessage.Data));
                     message.Data = SecsItem.Decode(reader);
                 }
-                
+
                 return message;
             }
             catch (Exception ex)
@@ -853,7 +847,7 @@ namespace XStateNet.Semi.Testing
         private void OnConnectionStateChanged(object? sender, HsmsConnection.HsmsConnectionState state)
         {
             _logger?.LogInformation("HSMS connection state changed to: {State}", state);
-            
+
             // Update HSMS session state machine
             if (_stateMachines.TryGetValue(HSMS_SESSION_MACHINE, out var hsmsSession))
             {
@@ -879,8 +873,8 @@ namespace XStateNet.Semi.Testing
         /// </summary>
         public string? GetMachineState(string machineName)
         {
-            return _stateMachines.TryGetValue(machineName, out var machine) 
-                ? machine.GetActiveStateNames() 
+            return _stateMachines.TryGetValue(machineName, out var machine)
+                ? machine.GetActiveStateNames()
                 : null;
         }
 
@@ -900,15 +894,15 @@ namespace XStateNet.Semi.Testing
         public void Dispose()
         {
             if (_disposed) return;
-            
+
             _disposed = true;
             _cancellationTokenSource?.Cancel();
-            
+
             foreach (var machine in _stateMachines.Values)
             {
                 machine.Stop();
             }
-            
+
             _connection?.Dispose();
             _cancellationTokenSource?.Dispose();
         }

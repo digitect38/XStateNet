@@ -1,14 +1,10 @@
-using System;
+using Microsoft.IdentityModel.Tokens;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.IdentityModel.Tokens;
 
 namespace XStateNet.Distributed.Security
 {

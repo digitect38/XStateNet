@@ -1,10 +1,5 @@
-using Xunit;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using XStateNet;
-using Newtonsoft.Json.Linq;
-using System.Threading;
+using Xunit;
 
 // Suppress obsolete warning - standalone invoke error test with no inter-machine communication
 #pragma warning disable CS0618
@@ -53,7 +48,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
         stateMachine.Start();
 
         // Act
@@ -106,7 +101,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
         stateMachine.Start();
 
         // Act
@@ -164,7 +159,7 @@ public class UnitTest_InvokeOnError
             }
         }";
 
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, null, services);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, null, services);
         stateMachine.Start();
 
         // Act

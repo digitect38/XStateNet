@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-using Xunit;
 using ILGPU;
 using ILGPU.Runtime;
 using XStateNet.GPU.Core;

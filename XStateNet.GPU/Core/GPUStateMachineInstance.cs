@@ -1,6 +1,6 @@
+using ILGPU;
 using System;
 using System.Runtime.InteropServices;
-using ILGPU;
 
 namespace XStateNet.GPU.Core
 {

@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
+using System.Collections.Concurrent;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
-using System.Collections.Concurrent;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.Orchestration
 {
@@ -155,13 +150,13 @@ namespace XStateNet.Distributed.Tests.Orchestration
 
             // Setup RequestAsync to return StateSnapshot
             _eventBusMock.Setup(x => x.RequestAsync<DistributedStateMachineOrchestrator.StateSnapshot>(
-                It.IsAny<string>(), 
-                It.IsAny<string>(), 
+                It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<object>(),
                 It.IsAny<TimeSpan>()))
-                .ReturnsAsync(new DistributedStateMachineOrchestrator.StateSnapshot 
-                { 
-                    CurrentState = "running", 
+                .ReturnsAsync(new DistributedStateMachineOrchestrator.StateSnapshot
+                {
+                    CurrentState = "running",
                     Context = new ConcurrentDictionary<string, object>()
                 });
 
@@ -380,9 +375,9 @@ namespace XStateNet.Distributed.Tests.Orchestration
                 Id = "test-saga",
                 Steps = new List<SagaDefinitionStep>
                 {
-                    new SagaDefinitionStep 
-                    { 
-                        StepId = "payment", 
+                    new SagaDefinitionStep
+                    {
+                        StepId = "payment",
                         MachineId = "payment-service",
                         Action = "CHARGE",
                         CompensationAction = "REFUND"
@@ -452,19 +447,19 @@ namespace XStateNet.Distributed.Tests.Orchestration
             // Arrange
             var machines = new[]
             {
-                new StateMachineInfo 
-                { 
-                    MachineId = "m1", 
+                new StateMachineInfo
+                {
+                    MachineId = "m1",
                     Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process,validate" }
                 },
-                new StateMachineInfo 
-                { 
-                    MachineId = "m2", 
+                new StateMachineInfo
+                {
+                    MachineId = "m2",
                     Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process" }
                 },
-                new StateMachineInfo 
-                { 
-                    MachineId = "m3", 
+                new StateMachineInfo
+                {
+                    MachineId = "m3",
                     Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "notify" }
                 }
             };
@@ -494,8 +489,8 @@ namespace XStateNet.Distributed.Tests.Orchestration
 
             var machines = new[]
             {
-                new StateMachineInfo 
-                { 
+                new StateMachineInfo
+                {
                     MachineId = "m1",
                     Metadata = new ConcurrentDictionary<string, object> { ["capabilities"] = "process" }
                 }

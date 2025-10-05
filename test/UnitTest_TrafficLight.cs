@@ -1,12 +1,6 @@
-using Xunit;
-
 using XStateNet;
 using XStateNet.UnitTest;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Transactions;
+using Xunit;
 
 // Suppress obsolete warning - standalone traffic light test with no inter-machine communication
 // For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
@@ -26,10 +20,10 @@ public class TrafficMachine : IDisposable
     ActionMap _actions2;
     GuardMap _guards;
 
-    
+
     public TrafficMachine()
     {
-        _actions1 = new ()
+        _actions1 = new()
         {
             ["logEntryRed"] = [new("logEntryRed", (sm) => StateMachine.Log("...Entering red"))],
             ["logExitRed"] = [new("logExitRed", (sm) => StateMachine.Log("...Exiting red"))],
@@ -68,7 +62,7 @@ public class TrafficMachine : IDisposable
         tranActions = new List<string>();
         exitActions = new List<string>();
 
-        _actions2 = new ()
+        _actions2 = new()
         {
             ["logEntryRed"] = [new("logEntryRed", (sm) => entryActions.Add("Entering red"))],
             ["logExitRed"] = [new("logExitRed", (sm) => exitActions.Add("Exiting red"))],
@@ -105,12 +99,12 @@ public class TrafficMachine : IDisposable
 
         _guards = new GuardMap
         {
-            ["isReady"] = new ("isReady", IsReady)
+            ["isReady"] = new("isReady", IsReady)
         };
 
     }
 
-    Func<StateMachine, bool> IsReady = (sm) => 
+    Func<StateMachine, bool> IsReady = (sm) =>
     {
         object? res;
         if (sm.ContextMap != null && sm.ContextMap.TryGetValue("isReady", out res))
@@ -143,7 +137,7 @@ public class TrafficMachine : IDisposable
     public void TestTransitionRedToGreen()
     {
         _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(json, false, false, _actions1, _guards).Start();
-        if(_stateMachine.ContextMap != null)
+        if (_stateMachine.ContextMap != null)
             _stateMachine!.ContextMap!["isReady"] = true;
         _stateMachine!.Send("TIMER");
         var currentState = _stateMachine!.GetActiveStateNames();
@@ -232,7 +226,7 @@ public class TrafficMachine : IDisposable
         var currentState = await _stateMachine!.SendAsync("IMPLICIT_TARGET");
         Assert.Contains("yellow", currentState);
     }
-    
+
 
     const string json = @"{
       id: 'trafficLight',
@@ -360,8 +354,8 @@ public class TrafficMachine : IDisposable
         }
       }
     }";
-    
-    
+
+
     public void Dispose()
     {
         // Cleanup if needed

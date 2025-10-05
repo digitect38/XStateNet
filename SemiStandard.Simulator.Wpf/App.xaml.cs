@@ -1,8 +1,4 @@
-﻿using System;
-using System.Configuration;
-using System.Data;
 using System.Windows;
-using System.Diagnostics;
 
 namespace SemiStandard.Simulator.Wpf;
 
@@ -16,10 +12,10 @@ public partial class App : Application
         base.OnStartup(e);
         Logger.Log("[APP] Application starting...");
         Logger.Log($"[APP] Log file: {Logger.GetLogFilePath()}");
-        
+
         // Set shutdown mode to only shutdown when the main window closes
         ShutdownMode = ShutdownMode.OnMainWindowClose;
-        
+
         try
         {
             // Check command line arguments
@@ -65,24 +61,24 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error starting application: {ex.Message}", "Startup Error", 
+            MessageBox.Show($"Error starting application: {ex.Message}", "Startup Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
         }
     }
-    
+
     private void ShowSelectionDialog()
     {
         Logger.Log("[APP] ShowSelectionDialog called");
         // Prevent auto-shutdown while dialog is open
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         Logger.Log("[APP] ShutdownMode set to OnExplicitShutdown");
-        
+
         var selectionWindow = new SimulatorSelectionWindow();
         Logger.Log("[APP] Showing selection dialog...");
         bool? result = selectionWindow.ShowDialog();
         Logger.Log($"[APP] Dialog result: {result}");
-        
+
         if (result == true)
         {
             // User made a selection
@@ -103,7 +99,7 @@ public partial class App : Application
                 realisticWindow.Show();
                 Logger.Log("[APP] Realistic SimulatorWindow shown");
             }
-            
+
             // Switch back to normal shutdown mode
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             Logger.Log("[APP] ShutdownMode set back to OnMainWindowClose");

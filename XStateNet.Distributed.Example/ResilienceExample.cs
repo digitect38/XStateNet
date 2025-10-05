@@ -1,9 +1,6 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using XStateNet.Distributed.Resilience;
-using XStateNet.Distributed.Channels;
 using Microsoft.Extensions.Logging;
+using XStateNet.Distributed.Channels;
+using XStateNet.Distributed.Resilience;
 
 namespace XStateNet.Distributed.Examples
 {

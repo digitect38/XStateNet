@@ -1,11 +1,7 @@
-using Xunit;
 using FluentAssertions;
-using XStateNet;
-using XStateNet.Semi;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Collections.Concurrent;
+using XStateNet;
+using Xunit;
 
 // Suppress obsolete warning - SemiIntegratedMachineTests is infrastructure code for testing legacy SEMI integration
 // Tests verify backward compatibility with StateMachineFactory.CreateFromScript
@@ -18,10 +14,10 @@ namespace SemiStandard.Tests
         private StateMachine? _stateMachine;
         private ActionMap _actions;
         private GuardMap _guards;
-        
+
         // Context variables
         private ConcurrentDictionary<string, object?> _context;
-        
+
         public SemiIntegratedMachineTests()
         {
             _context = new ConcurrentDictionary<string, object?>
@@ -49,7 +45,7 @@ namespace SemiStandard.Tests
                 ["performance"] = 0.0,
                 ["quality"] = 0.0
             };
-            
+
             InitializeActions();
             InitializeGuards();
 
@@ -59,25 +55,25 @@ namespace SemiStandard.Tests
             // Set desired log level
             Logger.CurrentLevel = Logger.LogLevel.Warning;
         }
-        
+
         private void InitializeActions()
         {
             _actions = new ActionMap
             {
                 // Equipment Control Actions
-                ["setSystemStartTime"] = [new("setSystemStartTime", async (sm) => 
+                ["setSystemStartTime"] = [new("setSystemStartTime", async (sm) =>
                 {
                     sm.ContextMap!["systemStartTime"] = DateTime.Now.ToString("o");
                 })],
-                
-                ["setEquipmentIdle"] = [new("setEquipmentIdle", async (sm) => 
+
+                ["setEquipmentIdle"] = [new("setEquipmentIdle", async (sm) =>
                 {
                     sm.ContextMap!["equipmentState"] = "IDLE";
                     sm.ContextMap!["equipmentReady"] = true;
                     sm.ContextMap!["communicationState"] = "COMMUNICATING";
                 })],
-                
-                ["setEquipmentFault"] = [new("setEquipmentFault", async (sm) => 
+
+                ["setEquipmentFault"] = [new("setEquipmentFault", async (sm) =>
                 {
                     // Only set to FAULT if not already EMERGENCY_STOP
                                         if ((string?)sm.ContextMap!["equipmentState"] != "EMERGENCY_STOP")
@@ -87,46 +83,46 @@ namespace SemiStandard.Tests
                     sm.ContextMap!["equipmentReady"] = false;
                     sm.ContextMap!["totalErrors"] = (int)(sm.ContextMap!["totalErrors"] ?? 0) + 1;
                 })],
-                
-                ["setEquipmentProductive"] = [new("setEquipmentProductive", async (sm) => 
+
+                ["setEquipmentProductive"] = [new("setEquipmentProductive", async (sm) =>
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE";
                 })],
-                
-                ["setProductiveStandby"] = [new("setProductiveStandby", async (sm) => 
+
+                ["setProductiveStandby"] = [new("setProductiveStandby", async (sm) =>
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE_STANDBY";
                 })],
-                
-                ["setProductiveRun"] = [new("setProductiveRun", async (sm) => 
+
+                ["setProductiveRun"] = [new("setProductiveRun", async (sm) =>
                 {
                     sm.ContextMap!["equipmentState"] = "PRODUCTIVE_RUN";
                     sm.ContextMap!["processActive"] = true;
                 })],
-                
-                ["incrementProcessed"] = [new("incrementProcessed", async (sm) => 
+
+                ["incrementProcessed"] = [new("incrementProcessed", async (sm) =>
                 {
                     sm.ContextMap!["totalProcessed"] = (int)(sm.ContextMap!["totalProcessed"] ?? 0) + 1;
                     sm.ContextMap!["processActive"] = false;
                 })],
-                
-                ["setEquipmentOff"] = [new("setEquipmentOff", async (sm) => 
+
+                ["setEquipmentOff"] = [new("setEquipmentOff", async (sm) =>
                 {
                     sm.ContextMap!["communicationState"] = "NOT_COMMUNICATING";
                     sm.ContextMap!["equipmentState"] = "OFF";
                     sm.ContextMap!["equipmentReady"] = false;
                 })],
-                
+
                 // Carrier Management Actions
-                ["setCarrierUnavailable"] = [new("setCarrierUnavailable", async (sm) => 
+                ["setCarrierUnavailable"] = [new("setCarrierUnavailable", async (sm) =>
                 {
                     sm.ContextMap!["carrierAvailable"] = false;
                 })],
-                
-                ["addCarrier"] = [new("addCarrier", async (sm) => 
+
+                ["addCarrier"] = [new("addCarrier", async (sm) =>
                 {
                     var carriers = sm.ContextMap!["activeCarriers"] as List<object>;
-                    carriers?.Add(new 
+                    carriers?.Add(new
                     {
                         id = $"FOUP_{DateTime.Now.Ticks}",
                         loadPort = "LP1",
@@ -134,22 +130,22 @@ namespace SemiStandard.Tests
                         status = "WAITING"
                     });
                 })],
-                
-                ["setCarrierAvailable"] = [new("setCarrierAvailable", async (sm) => 
+
+                ["setCarrierAvailable"] = [new("setCarrierAvailable", async (sm) =>
                 {
                     sm.ContextMap!["carrierAvailable"] = true;
                 })],
-                
+
                 // Substrate Tracking Actions
-                ["setSubstrateUnavailable"] = [new("setSubstrateUnavailable", async (sm) => 
+                ["setSubstrateUnavailable"] = [new("setSubstrateUnavailable", async (sm) =>
                 {
                     sm.ContextMap!["substrateReady"] = false;
                 })],
-                
-                ["addSubstrate"] = [new("addSubstrate", async (sm) => 
+
+                ["addSubstrate"] = [new("addSubstrate", async (sm) =>
                 {
                     var substrates = sm.ContextMap!["activeSubstrates"] as List<object>;
-                    substrates?.Add(new 
+                    substrates?.Add(new
                     {
                         id = $"WAFER_{DateTime.Now.Ticks}",
                         location = "SOURCE",
@@ -157,22 +153,22 @@ namespace SemiStandard.Tests
                         startTime = DateTime.Now.ToString("o")
                     });
                 })],
-                
-                ["setSubstrateReady"] = [new("setSubstrateReady", async (sm) => 
+
+                ["setSubstrateReady"] = [new("setSubstrateReady", async (sm) =>
                 {
                     sm.ContextMap!["substrateReady"] = true;
                 })],
-                
+
                 // Recipe Management Actions
-                ["setRecipeUnverified"] = [new("setRecipeUnverified", async (sm) => 
+                ["setRecipeUnverified"] = [new("setRecipeUnverified", async (sm) =>
                 {
                     sm.ContextMap!["recipeVerified"] = false;
                 })],
-                
-                ["addRecipe"] = [new("addRecipe", async (sm) => 
+
+                ["addRecipe"] = [new("addRecipe", async (sm) =>
                 {
                     var recipes = sm.ContextMap!["activeRecipes"] as List<object>;
-                    recipes?.Add(new 
+                    recipes?.Add(new
                     {
                         id = $"RCP_{DateTime.Now.Ticks}",
                         name = "DefaultRecipe",
@@ -180,17 +176,17 @@ namespace SemiStandard.Tests
                         status = "UNVERIFIED"
                     });
                 })],
-                
-                ["setRecipeVerified"] = [new("setRecipeVerified", async (sm) => 
+
+                ["setRecipeVerified"] = [new("setRecipeVerified", async (sm) =>
                 {
                     sm.ContextMap!["recipeVerified"] = true;
                 })],
-                
+
                 // Control Job Actions
-                ["addJob"] = [new("addJob", async (sm) => 
+                ["addJob"] = [new("addJob", async (sm) =>
                 {
                     var jobs = sm.ContextMap!["activeJobs"] as List<object>;
-                    jobs?.Add(new 
+                    jobs?.Add(new
                     {
                         id = $"JOB_{DateTime.Now.Ticks}",
                         name = "DefaultJob",
@@ -200,12 +196,12 @@ namespace SemiStandard.Tests
                         totalCount = 0
                     });
                 })],
-                
+
                 // Process Job Actions
-                ["addProcess"] = [new("addProcess", async (sm) => 
+                ["addProcess"] = [new("addProcess", async (sm) =>
                 {
                     var processes = sm.ContextMap!["activeProcesses"] as List<object>;
-                    processes?.Add(new 
+                    processes?.Add(new
                     {
                         id = $"PROC_{DateTime.Now.Ticks}",
                         name = "DefaultProcess",
@@ -214,9 +210,9 @@ namespace SemiStandard.Tests
                         totalSteps = 1
                     });
                 })],
-                
+
                 // Performance Monitoring Actions
-                ["updateMetrics"] = [new("updateMetrics", async (sm) => 
+                ["updateMetrics"] = [new("updateMetrics", async (sm) =>
                 {
                     if (sm.ContextMap!["systemStartTime"] is string startTimeString)
                     {
@@ -225,9 +221,9 @@ namespace SemiStandard.Tests
                         sm.ContextMap!["systemUptime"] = (int)uptime;
                     }
                 })],
-                
+
                 // Emergency Stop Actions
-                ["emergencyStop"] = [new("emergencyStop", async (sm) => 
+                ["emergencyStop"] = [new("emergencyStop", async (sm) =>
                 {
                     sm.ContextMap!["equipmentState"] = "EMERGENCY_STOP";
                     sm.ContextMap!["equipmentReady"] = false;
@@ -236,9 +232,9 @@ namespace SemiStandard.Tests
                     sm.ContextMap!["substrateReady"] = false;
                     sm.ContextMap!["recipeVerified"] = false;
                 })],
-                
+
                 // System Reset Actions
-                ["systemReset"] = [new("systemReset", async (sm) => 
+                ["systemReset"] = [new("systemReset", async (sm) =>
                 {
                     sm.ContextMap!["equipmentReady"] = false;
                     sm.ContextMap!["processActive"] = false;
@@ -255,7 +251,7 @@ namespace SemiStandard.Tests
                 })]
             };
         }
-        
+
         private void InitializeGuards()
         {
             _guards = new GuardMap
@@ -266,21 +262,21 @@ namespace SemiStandard.Tests
                 ["canStartProcess"] = new("canStartProcess", (sm) =>
                     (bool)(sm.ContextMap!["carrierAvailable"] ?? false) &&
                     (bool)(sm.ContextMap!["recipeVerified"] ?? false)),
-                
+
                 ["isProcessActive"] = new("isProcessActive", (sm) =>
                     (bool)(sm.ContextMap!["processActive"] ?? false)),
-                
+
                 ["isCarrierAvailable"] = new("isCarrierAvailable", (sm) =>
                     (bool)(sm.ContextMap!["carrierAvailable"] ?? false)),
-                
+
                 ["canStartJob"] = new("canStartJob", (sm) =>
                     (bool)(sm.ContextMap!["equipmentReady"] ?? false) &&
                     (bool)(sm.ContextMap!["carrierAvailable"] ?? false)),
-                
+
                 ["canStartRecipeProcess"] = new("canStartRecipeProcess", (sm) =>
                     (bool)(sm.ContextMap!["processActive"] ?? false)),
-                
-                ["isOeeAlert"] = new("isOeeAlert", (sm) => 
+
+                ["isOeeAlert"] = new("isOeeAlert", (sm) =>
                 {
                     var availability = (double)(sm.ContextMap!["availability"] ?? 0.0);
                     var performance = (double)(sm.ContextMap!["performance"] ?? 0.0);
@@ -290,7 +286,7 @@ namespace SemiStandard.Tests
                 })
             };
         }
-        
+
         [Fact]
         public async Task TestInitialState()
         {
@@ -309,7 +305,7 @@ namespace SemiStandard.Tests
             currentState.Should().Contain($"{machineId}.recipeManagement.NO_RECIPE");
             currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
         }
-        
+
         [Fact]
         public async Task TestEquipmentInitialization()
         {
@@ -319,14 +315,14 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             var currentState = await _stateMachine!.SendAsync("INIT_COMPLETE");
 
             _stateMachine.ContextMap!["equipmentState"].Should().Be("IDLE");
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
             _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
         }
-        
+
         [Fact]
         public async Task TestCarrierArrival()
         {
@@ -336,15 +332,15 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             await _stateMachine!.SendAsync("CARRIER_DETECTED");
             await _stateMachine!.SendAsync("CARRIER_ARRIVED");
-            
+
             List<object?>? carriers = _stateMachine.ContextMap!["activeCarriers"] as List<object?>;
             carriers?.Count.Should().BeGreaterThan(0);
         }
-        
+
         [Fact]
         public async Task TestProductionStart()
         {
@@ -361,7 +357,7 @@ namespace SemiStandard.Tests
 
             currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE");
         }
-        
+
         [Fact]
         public async Task TestEmergencyStop()
         {
@@ -380,7 +376,7 @@ namespace SemiStandard.Tests
 
             // Check that equipment moved to FAULT state
             currentState.Should().Contain($"{machineId}.equipment.FAULT");
-            
+
             // Check that the emergency stop actions were executed
             // Note: equipmentState will be "FAULT" because the FAULT state's entry action sets it
             var equipmentState = _stateMachine.ContextMap!["equipmentState"] as string;
@@ -388,7 +384,7 @@ namespace SemiStandard.Tests
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
             ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
-        
+
         [Fact]
         public async Task TestSystemReset()
         {
@@ -421,7 +417,7 @@ namespace SemiStandard.Tests
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeFalse();
             ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
-        
+
         [Fact]
         public async Task TestCarrierManagementWorkflow()
         {
@@ -463,7 +459,7 @@ namespace SemiStandard.Tests
             currentState.Should().Contain($"{machineId}.carrierManagement.READY_FOR_PROCESSING");
             ((bool)(_stateMachine.ContextMap!["carrierAvailable"] ?? false)).Should().BeTrue();
         }
-        
+
         [Fact]
         public async Task TestSubstrateTrackingWorkflow()
         {
@@ -506,7 +502,7 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("SUBSTRATE_DEPARTED");
             currentState.Should().Contain($"{machineId}.substrateTracking.NO_SUBSTRATES");
         }
-        
+
         [Fact]
         public async Task TestControlJobWorkflow()
         {
@@ -550,7 +546,7 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("REMOVE_JOB");
             currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
         }
-        
+
         [Fact]
         public async Task TestRecipeManagementWorkflow()
         {
@@ -589,7 +585,7 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("RECIPE_PROCESS_COMPLETE");
             currentState.Should().Contain($"{machineId}.recipeManagement.VERIFIED");
         }
-        
+
         [Fact]
         public async Task TestProcessJobWorkflow()
         {
@@ -639,10 +635,10 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("VERIFY_PROCESS_OK");
             currentState.Should().Contain($"{machineId}.processJob.PROCESS_COMPLETED");
         }
-        
+
         [Fact]
         public async Task TestParallelStateCoordination()
-        {            
+        {
             _stateMachine = XStateNet.StateMachineFactory.CreateFromScript(semiIntegratedScript, threadSafe: false, guidIsolate: false, _actions, _guards);
             foreach (var kvp in _context)
             {
@@ -694,7 +690,7 @@ namespace SemiStandard.Tests
             currentState.Should().Contain($"{machineId}.controlJob.NO_JOBS");
             currentState.Should().Contain($"{machineId}.processJob.PROCESS_ABORTING");
         }
-        
+
         [Fact]
         public async Task TestProductionCycle()
         {
@@ -742,7 +738,7 @@ namespace SemiStandard.Tests
             _stateMachine.ContextMap!["totalProcessed"].Should().Be(1);
             ((bool)(_stateMachine.ContextMap!["processActive"] ?? false)).Should().BeFalse();
         }
-        
+
         [Fact]
         public async Task TestFaultRecovery()
         {
@@ -774,7 +770,7 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("START_PRODUCTION");
             currentState.Should().Contain($"{machineId}.equipment.PRODUCTIVE");
         }
-        
+
         [Fact]
         public async Task TestPerformanceMonitoring()
         {
@@ -812,7 +808,7 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("ANALYSIS_COMPLETE");
             currentState.Should().Contain($"{machineId}.performanceMonitoring.MONITORING");
         }
-        
+
         [Fact]
         public async Task TestE10StateTracking()
         {
@@ -837,7 +833,7 @@ namespace SemiStandard.Tests
 
             await _stateMachine!.SendAsync("START_PRODUCTION");
             stateHistory.Add(("PRODUCTIVE", DateTime.Now));
-            
+
             // Engineering time
             var currentState = await _stateMachine!.SendAsync("STARTUP_FAIL");
             currentState.Should().Contain($"{machineId}.equipment.FAULT");
@@ -852,14 +848,14 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("ENTER_SETUP");
             currentState.Should().Contain($"{machineId}.equipment.SETUP");
             stateHistory.Add(("SETUP", DateTime.Now));
-            
+
             // Verify we can track all E10 state categories
-            stateHistory.Any(s  => s.state == "PRODUCTIVE").Should().BeTrue();
-            stateHistory.Any(s  => s.state == "IDLE").Should().BeTrue();
-            stateHistory.Any(s  => s.state == "ENGINEERING").Should().BeTrue();
-            stateHistory.Any(s  => s.state == "SETUP").Should().BeTrue();
+            stateHistory.Any(s => s.state == "PRODUCTIVE").Should().BeTrue();
+            stateHistory.Any(s => s.state == "IDLE").Should().BeTrue();
+            stateHistory.Any(s => s.state == "ENGINEERING").Should().BeTrue();
+            stateHistory.Any(s => s.state == "SETUP").Should().BeTrue();
         }
-        
+
         [Fact]
         public async Task TestE84LoadPortHandshake()
         {
@@ -870,7 +866,7 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
             // Simulate E84 handshake sequence
@@ -888,11 +884,11 @@ namespace SemiStandard.Tests
 
             // L_REQ signal - Load request from host
             await _stateMachine!.SendAsync("PROCEED_WITH_CARRIER");
-            
+
             // U_REQ signal - Unload request would trigger carrier departure
             // This tests the bidirectional handshake of E84
         }
-        
+
         [Fact]
         public async Task TestE142SubstrateMapping()
         {
@@ -906,7 +902,7 @@ namespace SemiStandard.Tests
             _stateMachine.ContextMap!["slotMap"] = new ConcurrentDictionary<int, string>
             {
                 [1] = "PRESENT",
-                [2] = "PRESENT", 
+                [2] = "PRESENT",
                 [3] = "ABSENT",
                 [4] = "PRESENT",
                 [5] = "DOUBLE_SLOT", // Error condition
@@ -917,7 +913,7 @@ namespace SemiStandard.Tests
                 [10] = "ABSENT"
             };
             _stateMachine!.Start();
-            
+
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
             // Carrier with substrates arrives
@@ -930,22 +926,22 @@ namespace SemiStandard.Tests
             // Slot map verification - E142 standard
             var currentState = await _stateMachine!.SendAsync("SLOT_MAP_READ");
             currentState.Should().Contain("SLOT_MAP_VERIFICATION.VERIFYING_SLOT_MAP");
-            
+
             // Check slot map for errors
             var slotMap = _stateMachine.ContextMap!["slotMap"] as ConcurrentDictionary<int, string>;
             slotMap.Should().NotBeNull();
-            
+
             // Verify error detection
             var hasDoubleSlot = slotMap.Any(s => s.Value == "DOUBLE_SLOT");
             var hasCrossSlot = slotMap.Any(s => s.Value == "CROSS_SLOT");
             hasDoubleSlot.Should().BeTrue("Should detect double-slotted wafer");
             hasCrossSlot.Should().BeTrue("Should detect cross-slotted wafer");
-            
+
             // Count valid substrates
             var validSubstrates = slotMap.Count(s => s.Value == "PRESENT");
             validSubstrates.Should().Be(6);
         }
-        
+
         [Fact]
         public async Task TestCommunicationStates()
         {
@@ -956,10 +952,10 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             // Initial state - not communicating
             _stateMachine.ContextMap!["communicationState"].Should().Be("NOT_COMMUNICATING");
-            
+
             // Establish communication
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
@@ -967,20 +963,20 @@ namespace SemiStandard.Tests
             // Communication should persist through state changes
             await _stateMachine!.SendAsync("START_PRODUCTION");
             _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
-            
+
             // Verify communication state tracking works
             // Since equipment has complex nested states, let's just verify the key states
             ((bool)(_stateMachine.ContextMap!["equipmentReady"] ?? false)).Should().BeTrue();
-            
+
             // Manually set communication state to test tracking
             _stateMachine.ContextMap!["communicationState"] = "DISABLED";
             _stateMachine.ContextMap!["communicationState"].Should().Be("DISABLED");
-            
+
             // Reset and verify
             _stateMachine.ContextMap!["communicationState"] = "COMMUNICATING";
             _stateMachine.ContextMap!["communicationState"].Should().Be("COMMUNICATING");
         }
-        
+
         [Fact]
         public async Task TestModuleProcessTracking()
         {
@@ -990,7 +986,7 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            
+
             // Add module tracking context
             _stateMachine.ContextMap!["processModules"] = new List<object>
             {
@@ -998,7 +994,7 @@ namespace SemiStandard.Tests
                 new { id = "PM2", status = "IDLE", substrateId = "" },
                 new { id = "PM3", status = "IDLE", substrateId = "" }
             };
-            
+
             _stateMachine!.Start();
             await _stateMachine!.SendAsync("INIT_COMPLETE");
 
@@ -1012,13 +1008,13 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("START_SUBSTRATE_PROCESS");
 
             currentState.Should().Contain("substrateTracking.SUBSTRATE_PROCESSING.IN_PROCESS");
-            
+
             // Verify module tracking capability exists
             var modules = _stateMachine.ContextMap!["processModules"] as List<object>;
             modules.Should().NotBeNull();
             modules!.Count.Should().Be(3);
         }
-        
+
         [Fact]
         public async Task TestDataAcquisition()
         {
@@ -1028,13 +1024,13 @@ namespace SemiStandard.Tests
             {
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
-            
+
             // Add data collection context
             var dataPoints = new List<(string parameter, object value, DateTime timestamp)>();
             _stateMachine.ContextMap!["dataCollection"] = dataPoints;
-            
+
             _stateMachine!.Start();
-            
+
             // Collect data on state changes
             await _stateMachine!.SendAsync("INIT_COMPLETE");
             dataPoints.Add(("EquipmentState", "IDLE", DateTime.Now));
@@ -1054,18 +1050,18 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("PROCESS_COMPLETE");
             dataPoints.Add(("ProcessActive", false, DateTime.Now));
             dataPoints.Add(("TotalProcessed", _stateMachine.ContextMap!["totalProcessed"] ?? (object)0!, DateTime.Now));
-            
+
             // Verify data collection
             dataPoints.Count.Should().BeGreaterThan(0);
-            dataPoints.Any(d  => d.parameter == "EquipmentState").Should().BeTrue();
-            dataPoints.Any(d  => d.parameter == "ProcessActive").Should().BeTrue();
-            dataPoints.Any(d  => d.parameter == "TotalProcessed").Should().BeTrue();
-            
+            dataPoints.Any(d => d.parameter == "EquipmentState").Should().BeTrue();
+            dataPoints.Any(d => d.parameter == "ProcessActive").Should().BeTrue();
+            dataPoints.Any(d => d.parameter == "TotalProcessed").Should().BeTrue();
+
             // Verify we can track state changes over time
             var stateChanges = dataPoints.Where(d => d.parameter == "EquipmentState").ToList();
             stateChanges.Count.Should().BeGreaterThanOrEqualTo(2);
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_Equipment()
         {
@@ -1076,9 +1072,9 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             var visitedStates = new HashSet<string>();
-            
+
             // INIT -> IDLE
             _stateMachine.GetActiveStateNames().Should().Contain("equipment.INIT");
             visitedStates.Add("INIT");
@@ -1161,7 +1157,7 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("PAUSE");
             currentState = await _stateMachine!.SendAsync("RESUME");
             currentState.Should().Contain("PRODUCTIVE.PRODUCTIVE_RUN");
-            
+
             // Verify we visited all major equipment states
             visitedStates.Should().Contain("INIT");
             visitedStates.Should().Contain("IDLE");
@@ -1175,7 +1171,7 @@ namespace SemiStandard.Tests
             visitedStates.Should().Contain("PRODUCTIVE.PRODUCTIVE_RUN");
             visitedStates.Should().Contain("PRODUCTIVE.PAUSE");
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_CarrierManagement()
         {
@@ -1214,7 +1210,7 @@ namespace SemiStandard.Tests
 
             currentState.Should().Contain("ID_VERIFICATION.READING_ID");
             visitedStates.Add("ID_VERIFICATION.READING_ID");
-            
+
             // Test ID_READ_FAIL path
             currentState = await _stateMachine!.SendAsync("ID_READ_FAIL");
             currentState.Should().Contain("ID_VERIFICATION.ID_FAILED");
@@ -1289,11 +1285,11 @@ namespace SemiStandard.Tests
 
             currentState = await _stateMachine!.SendAsync("REMOVE_CARRIER");
             currentState.Should().Contain("carrierManagement.NO_CARRIERS");
-            
+
             // Verify all carrier states visited (12 unique states)
             visitedStates.Count.Should().Be(12);
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_SubstrateTracking()
         {
@@ -1304,9 +1300,9 @@ namespace SemiStandard.Tests
                 _stateMachine.ContextMap![kvp.Key] = kvp.Value;
             }
             _stateMachine!.Start();
-            
+
             var visitedStates = new HashSet<string>();
-            
+
             // NO_SUBSTRATES
             _stateMachine.GetActiveStateNames().Should().Contain("substrateTracking.NO_SUBSTRATES");
             visitedStates.Add("NO_SUBSTRATES");
@@ -1372,10 +1368,10 @@ namespace SemiStandard.Tests
 
             currentState = await _stateMachine!.SendAsync("SUBSTRATE_MOVE_TO_DESTINATION");
             currentState.Should().Contain("substrateTracking.SUBSTRATE_AT_DESTINATION");
-            
+
             visitedStates.Count.Should().Be(8);
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_ControlJob()
         {
@@ -1387,48 +1383,48 @@ namespace SemiStandard.Tests
             }
             _stateMachine!.Start();
             _stateMachine!.Send("INIT_COMPLETE");
-            
+
             var visitedStates = new HashSet<string>();
-            
+
             // NO_JOBS
             _stateMachine.GetActiveStateNames().Should().Contain("controlJob.NO_JOBS");
             visitedStates.Add("NO_JOBS");
-            
+
             var currentState = await _stateMachine!.SendAsync("CREATE_JOB");
             currentState.Should().Contain("controlJob.JOB_QUEUED");
             visitedStates.Add("JOB_QUEUED");
-            
+
             // Test DELETE_JOB from QUEUED
             currentState = await _stateMachine!.SendAsync("DELETE_JOB");
             currentState.Should().Contain("controlJob.NO_JOBS");
-            
+
             // Test DESELECT_JOB
             await _stateMachine!.SendAsync("CREATE_JOB");
             currentState = await _stateMachine!.SendAsync("SELECT_JOB");
             currentState.Should().Contain("controlJob.JOB_SELECTED");
             visitedStates.Add("JOB_SELECTED");
-            
+
             currentState = await _stateMachine!.SendAsync("DESELECT_JOB");
             currentState.Should().Contain("controlJob.JOB_QUEUED");
-            
+
             // Test job execution with all substates
             _stateMachine!.Send("SELECT_JOB");
             _stateMachine.ContextMap!["carrierAvailable"] = true;
             currentState = await _stateMachine!.SendAsync("START_JOB");
             currentState.Should().Contain("JOB_EXECUTING.ACTIVE");
             visitedStates.Add("JOB_EXECUTING.ACTIVE");
-            
+
             // Test ABORT_JOB
             currentState = await _stateMachine!.SendAsync("ABORT_JOB");
             currentState.Should().Contain("JOB_EXECUTING.ABORTING");
             visitedStates.Add("JOB_EXECUTING.ABORTING");
-            
+
             currentState = await _stateMachine!.SendAsync("JOB_ABORTED");
             currentState.Should().Contain("controlJob.JOB_COMPLETED");
             visitedStates.Add("JOB_COMPLETED");
-            
+
             _stateMachine!.Send("REMOVE_JOB");
-            
+
             // Test STOP_JOB path
             await _stateMachine!.SendAsync("CREATE_JOB");
             await _stateMachine!.SendAsync("SELECT_JOB");
@@ -1436,14 +1432,14 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("PAUSE_JOB");
             currentState.Should().Contain("JOB_EXECUTING.PAUSED");
             visitedStates.Add("JOB_EXECUTING.PAUSED");
-            
+
             currentState = await _stateMachine!.SendAsync("STOP_JOB");
             currentState.Should().Contain("JOB_EXECUTING.STOPPING");
             visitedStates.Add("JOB_EXECUTING.STOPPING");
-            
+
             currentState = await _stateMachine!.SendAsync("JOB_STOPPED");
             currentState.Should().Contain("controlJob.JOB_COMPLETED");
-            
+
             // Test RESUME_JOB
             await _stateMachine!.SendAsync("REMOVE_JOB");
             await _stateMachine!.SendAsync("CREATE_JOB");
@@ -1452,14 +1448,14 @@ namespace SemiStandard.Tests
             await _stateMachine!.SendAsync("PAUSE_JOB");
             currentState = await _stateMachine!.SendAsync("RESUME_JOB");
             currentState.Should().Contain("JOB_EXECUTING.ACTIVE");
-            
+
             // Test SUBSTRATE_COMPLETED (internal transition)
             currentState = await _stateMachine!.SendAsync("SUBSTRATE_COMPLETED");
             currentState.Should().Contain("JOB_EXECUTING.ACTIVE");
-            
+
             visitedStates.Count.Should().Be(8);
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_ProcessJob()
         {
@@ -1471,41 +1467,41 @@ namespace SemiStandard.Tests
             }
             _stateMachine!.Start();
             _stateMachine!.Send("INIT_COMPLETE");
-            
+
             var visitedStates = new HashSet<string>();
             string currentState;
 
             // NO_PROCESS
             _stateMachine.GetActiveStateNames().Should().Contain("processJob.NO_PROCESS");
             visitedStates.Add("NO_PROCESS");
-            
+
             currentState = await _stateMachine!.SendAsync("CREATE_PROCESS");
             currentState.Should().Contain("processJob.SETTING_UP");
             visitedStates.Add("SETTING_UP");
-            
+
             // Test SETUP_FAILED path
             currentState = await _stateMachine!.SendAsync("SETUP_FAILED");
             currentState.Should().Contain("processJob.PROCESS_ABORTING");
             visitedStates.Add("PROCESS_ABORTING");
-            
+
             currentState = await _stateMachine!.SendAsync("ABORT_COMPLETE");
             currentState.Should().Contain("processJob.PROCESS_ABORTED");
             visitedStates.Add("PROCESS_ABORTED");
-            
+
             _stateMachine!.Send("REMOVE_PROCESS");
-            
+
             // Test normal setup and abort from waiting
             await _stateMachine!.SendAsync("CREATE_PROCESS");
             currentState = await _stateMachine!.SendAsync("SETUP_COMPLETE");
             currentState.Should().Contain("processJob.WAITING_FOR_START");
             visitedStates.Add("WAITING_FOR_START");
-            
+
             currentState = await _stateMachine!.SendAsync("ABORT_PROCESS");
             currentState.Should().Contain("processJob.PROCESS_ABORTING");
-            
+
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
-            
+
             // Test processing flow with all substates
             _stateMachine!.Send("CREATE_PROCESS");
             _stateMachine!.Send("SETUP_COMPLETE");
@@ -1514,49 +1510,49 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("START_PROCESS");
             currentState.Should().Contain("PROCESSING.EXECUTING");
             visitedStates.Add("PROCESSING.EXECUTING");
-            
+
             // Test PAUSE_FAILED path
             currentState = await _stateMachine!.SendAsync("PAUSE_PROCESS");
             currentState.Should().Contain("PROCESSING.PAUSING");
             visitedStates.Add("PROCESSING.PAUSING");
-            
+
             currentState = await _stateMachine!.SendAsync("PAUSE_FAILED");
             currentState.Should().Contain("PROCESSING.EXECUTING");
-            
+
             // Test successful pause
             await _stateMachine!.SendAsync("PAUSE_PROCESS");
             currentState = await _stateMachine!.SendAsync("PROCESS_PAUSED");
             currentState.Should().Contain("PROCESSING.PAUSED");
             visitedStates.Add("PROCESSING.PAUSED");
-            
+
             // Test RESUME_FAILED path
             currentState = await _stateMachine!.SendAsync("RESUME_PROCESS");
             currentState.Should().Contain("PROCESSING.RESUMING");
             visitedStates.Add("PROCESSING.RESUMING");
-            
+
             currentState = await _stateMachine!.SendAsync("RESUME_FAILED");
             currentState.Should().Contain("PROCESSING.PAUSED");
-            
+
             // Test successful resume
             await _stateMachine!.SendAsync("RESUME_PROCESS");
             currentState = await _stateMachine!.SendAsync("PROCESS_RESUMED");
             currentState.Should().Contain("PROCESSING.EXECUTING");
-            
+
             // Test STEP_COMPLETE and NEXT_STEP
             currentState = await _stateMachine!.SendAsync("STEP_COMPLETE");
             currentState.Should().Contain("PROCESSING.NEXT_STEP");
             visitedStates.Add("PROCESSING.NEXT_STEP");
-            
+
             currentState = await _stateMachine!.SendAsync("CONTINUE_PROCESS");
             currentState.Should().Contain("PROCESSING.EXECUTING");
-            
+
             // Test PROCESS_ERROR path
             currentState = await _stateMachine!.SendAsync("PROCESS_ERROR");
             currentState.Should().Contain("processJob.PROCESS_ABORTING");
-            
+
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
-            
+
             // Test normal completion with verification
             await _stateMachine!.SendAsync("CREATE_PROCESS");
             await _stateMachine!.SendAsync("SETUP_COMPLETE");
@@ -1564,14 +1560,14 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("PROCESS_COMPLETE");
             currentState.Should().Contain("processJob.PROCESS_COMPLETE");
             visitedStates.Add("PROCESS_COMPLETE");
-            
+
             // Test VERIFY_PROCESS_FAIL
             currentState = await _stateMachine!.SendAsync("VERIFY_PROCESS_FAIL");
             currentState.Should().Contain("processJob.PROCESS_ABORTING");
-            
+
             _stateMachine!.Send("ABORT_COMPLETE");
             _stateMachine!.Send("REMOVE_PROCESS");
-            
+
             // Test successful verification
             await _stateMachine!.SendAsync("CREATE_PROCESS");
             await _stateMachine!.SendAsync("SETUP_COMPLETE");
@@ -1580,10 +1576,10 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("VERIFY_PROCESS_OK");
             currentState.Should().Contain("processJob.PROCESS_COMPLETED");
             visitedStates.Add("PROCESS_COMPLETED");
-            
+
             visitedStates.Count.Should().Be(12);
         }
-        
+
         [Fact]
         public async Task TestFullStateVisitingCoverage_RecipeManagement()
         {
@@ -1597,49 +1593,49 @@ namespace SemiStandard.Tests
 
             var visitedStates = new HashSet<string>();
             string currentState;
-            
+
             // NO_RECIPE
             _stateMachine.GetActiveStateNames().Should().Contain("recipeManagement.NO_RECIPE");
             visitedStates.Add("NO_RECIPE");
-            
+
             currentState = await _stateMachine!.SendAsync("LOAD_RECIPE");
             currentState.Should().Contain("recipeManagement.UNVERIFIED");
             visitedStates.Add("UNVERIFIED");
-            
+
             currentState = await _stateMachine!.SendAsync("VERIFY_RECIPE");
             currentState.Should().Contain("recipeManagement.VERIFYING");
             visitedStates.Add("VERIFYING");
-            
+
             // Test VERIFICATION_FAIL path
             currentState = await _stateMachine!.SendAsync("VERIFICATION_FAIL");
             currentState.Should().Contain("recipeManagement.VERIFICATION_FAILED");
             visitedStates.Add("VERIFICATION_FAILED");
-            
+
             // Test RETRY_VERIFICATION
             currentState = await _stateMachine!.SendAsync("RETRY_VERIFICATION");
             currentState.Should().Contain("recipeManagement.VERIFYING");
-            
+
             // Test EDIT_RECIPE from VERIFICATION_FAILED
             await _stateMachine!.SendAsync("VERIFICATION_FAIL");
             currentState = await _stateMachine!.SendAsync("EDIT_RECIPE");
             currentState.Should().Contain("recipeManagement.EDITING");
             visitedStates.Add("EDITING");
-            
+
             // Test CANCEL_EDIT (requires going to VERIFIED first)
             await _stateMachine!.SendAsync("SAVE_RECIPE");
             await _stateMachine!.SendAsync("VERIFY_RECIPE");
             currentState = await _stateMachine!.SendAsync("VERIFICATION_PASS");
             currentState.Should().Contain("recipeManagement.VERIFIED");
             visitedStates.Add("VERIFIED");
-            
+
             await _stateMachine!.SendAsync("EDIT_RECIPE");
             currentState = await _stateMachine!.SendAsync("CANCEL_EDIT");
             currentState.Should().Contain("recipeManagement.VERIFIED");
-            
+
             // Test DELETE_RECIPE
             currentState = await _stateMachine!.SendAsync("DELETE_RECIPE");
             currentState.Should().Contain("recipeManagement.NO_RECIPE");
-            
+
             // Test SELECTED and ACTIVE states
             await _stateMachine!.SendAsync("LOAD_RECIPE");
             await _stateMachine!.SendAsync("VERIFY_RECIPE");
@@ -1647,31 +1643,31 @@ namespace SemiStandard.Tests
             currentState = await _stateMachine!.SendAsync("SELECT_RECIPE");
             currentState.Should().Contain("recipeManagement.SELECTED");
             visitedStates.Add("SELECTED");
-            
+
             // Test DESELECT_RECIPE
             currentState = await _stateMachine!.SendAsync("DESELECT_RECIPE");
             currentState.Should().Contain("recipeManagement.VERIFIED");
-            
+
             // Test START_RECIPE_PROCESS
             await _stateMachine!.SendAsync("SELECT_RECIPE");
             _stateMachine.ContextMap!["processActive"] = true;
             currentState = await _stateMachine!.SendAsync("START_RECIPE_PROCESS");
             currentState.Should().Contain("recipeManagement.ACTIVE");
             visitedStates.Add("ACTIVE");
-            
+
             // Test RECIPE_PROCESS_ABORT
             currentState = await _stateMachine!.SendAsync("RECIPE_PROCESS_ABORT");
             currentState.Should().Contain("recipeManagement.VERIFIED");
-            
+
             // Test RECIPE_PROCESS_COMPLETE
             await _stateMachine!.SendAsync("SELECT_RECIPE");
             await _stateMachine!.SendAsync("START_RECIPE_PROCESS");
             currentState = await _stateMachine!.SendAsync("RECIPE_PROCESS_COMPLETE");
             currentState.Should().Contain("recipeManagement.VERIFIED");
-            
+
             visitedStates.Count.Should().Be(8);
         }
-        
+
         [Fact]
         public async Task TestSystemLevelTransitions()
         {
@@ -1728,7 +1724,7 @@ namespace SemiStandard.Tests
             _stateMachine.ContextMap!["totalProcessed"].Should().Be(0);
             _stateMachine.ContextMap!["totalErrors"].Should().Be(0);
         }
-        
+
         // The SEMI Integrated State Machine Script
         const string semiIntegratedScript = @"
         {
@@ -2301,12 +2297,13 @@ namespace SemiStandard.Tests
                 }
             }
         }";
-    
+
 
         public void Dispose()
         {
             // Cleanup if needed
-        }}
+        }
+    }
 }
 
 

@@ -1,11 +1,6 @@
-using Xunit;
-
 using XStateNet;
 using XStateNet.UnitTest;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 // Suppress obsolete warning - intra-machine ping-pong test (single machine with internal states)
 #pragma warning disable CS0618
@@ -21,17 +16,17 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
 
     public IntraMachinePingPongStateMachinesTests()
     {
-        _actions = new ()
+        _actions = new()
         {
-            ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", async (sm) => send_to_b(sm)) },
-            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", async (sm) => _pingPongStateMachine.Send("to_a")) }
+            ["sendToB"] = new List<NamedAction> { new NamedAction("sendToB", (sm) => send_to_b(sm)) },
+            ["sendToA"] = new List<NamedAction> { new NamedAction("sendToA", (sm) => _pingPongStateMachine.Send("to_a")) }
         };
 
-        _guards = new ();
+        _guards = new();
 
         var stateMachineJson = PingPongMachine.PingPongStateMachineScript;
 
-        _pingPongStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe:false, false, _actions, _guards).Start();
+        _pingPongStateMachine = (StateMachine)StateMachineFactory.CreateFromScript(stateMachineJson, threadSafe: false, false, _actions, _guards).Start();
     }
 
     Action<StateMachine> send_to_b = (sm) => sm.Send("to_b");
@@ -50,7 +45,7 @@ public class IntraMachinePingPongStateMachinesTests : IDisposable
         await Task.Delay(1100);
         _pingPongStateMachine.GetActiveStateNames().AssertEquivalence("#pingPongMachine.A.a;#pingPongMachine.B.a");
     }
-    
+
     public void Dispose()
     {
         // Cleanup if needed

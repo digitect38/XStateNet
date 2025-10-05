@@ -1,9 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using XStateNet.Semi.Secs;
 
 namespace XStateNet.Semi.Drivers
 {
@@ -18,109 +13,109 @@ namespace XStateNet.Semi.Drivers
         string ModelName { get; }
         string SoftwareRevision { get; }
         string Manufacturer { get; }
-        
+
         /// <summary>
         /// Connection state
         /// </summary>
         bool IsConnected { get; }
         EquipmentState State { get; }
-        
+
         /// <summary>
         /// Initialize the equipment driver
         /// </summary>
         Task InitializeAsync(EquipmentConfiguration config, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Connect to the equipment
         /// </summary>
         Task ConnectAsync(CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Disconnect from the equipment
         /// </summary>
         Task DisconnectAsync();
-        
+
         /// <summary>
         /// Execute a remote command
         /// </summary>
         Task<CommandResult> ExecuteCommandAsync(string command, ConcurrentDictionary<string, object> parameters, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Read equipment constant value
         /// </summary>
         Task<T> ReadConstantAsync<T>(uint ecid, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Write equipment constant value
         /// </summary>
         Task<bool> WriteConstantAsync(uint ecid, object value, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Read status variable value
         /// </summary>
         Task<T> ReadVariableAsync<T>(uint svid, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Load a process program/recipe
         /// </summary>
         Task<bool> LoadRecipeAsync(string ppid, byte[] ppbody, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Delete a process program/recipe
         /// </summary>
         Task<bool> DeleteRecipeAsync(string ppid, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Start process execution
         /// </summary>
         Task<bool> StartProcessAsync(string ppid, ConcurrentDictionary<string, object>? parameters = null, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Stop process execution
         /// </summary>
         Task<bool> StopProcessAsync(CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Pause process execution
         /// </summary>
         Task<bool> PauseProcessAsync(CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Resume process execution
         /// </summary>
         Task<bool> ResumeProcessAsync(CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Report an alarm
         /// </summary>
         Task ReportAlarmAsync(uint alarmId, AlarmState state, string? text = null);
-        
+
         /// <summary>
         /// Report an event
         /// </summary>
         Task ReportEventAsync(uint eventId, ConcurrentDictionary<string, object>? data = null);
-        
+
         /// <summary>
         /// Equipment state changed event
         /// </summary>
         event EventHandler<EquipmentState>? StateChanged;
-        
+
         /// <summary>
         /// Alarm occurred event
         /// </summary>
         event EventHandler<AlarmEventArgs>? AlarmOccurred;
-        
+
         /// <summary>
         /// Event reported event
         /// </summary>
         event EventHandler<EventReportArgs>? EventReported;
-        
+
         /// <summary>
         /// Variable changed event
         /// </summary>
         event EventHandler<VariableChangedArgs>? VariableChanged;
     }
-    
+
     /// <summary>
     /// Equipment states following SEMI E58 model
     /// </summary>
@@ -142,7 +137,7 @@ namespace XStateNet.Semi.Drivers
         Error,
         Maintenance
     }
-    
+
     /// <summary>
     /// Alarm states
     /// </summary>
@@ -151,7 +146,7 @@ namespace XStateNet.Semi.Drivers
         Set,
         Clear
     }
-    
+
     /// <summary>
     /// Equipment configuration
     /// </summary>
@@ -170,7 +165,7 @@ namespace XStateNet.Semi.Drivers
         public int RetryDelay { get; set; } = 1000;
         public ConcurrentDictionary<string, object> CustomSettings { get; set; } = new();
     }
-    
+
     /// <summary>
     /// Command execution result
     /// </summary>
@@ -181,7 +176,7 @@ namespace XStateNet.Semi.Drivers
         public ConcurrentDictionary<string, object>? ReturnData { get; set; }
         public int ErrorCode { get; set; }
     }
-    
+
     /// <summary>
     /// Alarm event arguments
     /// </summary>
@@ -192,7 +187,7 @@ namespace XStateNet.Semi.Drivers
         public string? Text { get; set; }
         public DateTime Timestamp { get; set; }
     }
-    
+
     /// <summary>
     /// Event report arguments
     /// </summary>
@@ -202,7 +197,7 @@ namespace XStateNet.Semi.Drivers
         public ConcurrentDictionary<string, object>? Data { get; set; }
         public DateTime Timestamp { get; set; }
     }
-    
+
     /// <summary>
     /// Variable changed arguments
     /// </summary>

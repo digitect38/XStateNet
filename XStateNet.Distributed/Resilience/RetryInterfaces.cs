@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace XStateNet.Distributed.Resilience
 {
     public interface IRetryPolicy
@@ -57,4 +51,3 @@ namespace XStateNet.Distributed.Resilience
         EqualJitter
     }
 }
-    

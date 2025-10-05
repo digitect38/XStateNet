@@ -1,26 +1,21 @@
-using System;
-using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using Microsoft.Extensions.Logging;
-using OxyPlot;
-using OxyPlot.Axes;
-using OxyPlot.Series;
 using XStateNet;
+using XStateNet.Semi.Secs;
 using XStateNet.Semi.Testing;
 using XStateNet.Semi.Transport;
-using XStateNet.Semi.Secs;
-using System.Collections.Concurrent;
 
 namespace SemiStandard.Simulator.Wpf
 {
@@ -33,29 +28,29 @@ namespace SemiStandard.Simulator.Wpf
         private readonly DispatcherTimer _clockTimer;
         private DispatcherTimer? _schedulerTimer;
         private CancellationTokenSource? _cts;
-        
+
         // Observable collections for UI binding
         private readonly ObservableCollection<CarrierViewModel> _carriers = new();
         private readonly ObservableCollection<EventViewModel> _events = new();
         private readonly ObservableCollection<AlarmViewModel> _alarms = new();
         private readonly ObservableCollection<TimelineEntry> _timeline = new();
         private readonly ObservableCollection<StateTransitionViewModel> _stateTransitions = new();
-        
+
         // XState machine definitions
         private readonly ConcurrentDictionary<string, string> _xStateScripts = new();
-        
+
         // State-time tracking
         private UmlTimingDiagramWindow? _umlTimingWindow;
         private TimelineWPF.TimelineWindow? _timelineWindow;
         private StateMachineTimelineWindow? _debugTimelineWindow;
         private readonly ConcurrentDictionary<string, ConcurrentBag<(string fromState, string toState, DateTime timestamp)>> _stateHistory = new();
-        
+
         // Charts
         private PlotModel _temperaturePlotModel = null!;
         private PlotModel _pressurePlotModel = null!;
         private LineSeries _temperatureSeries = null!;
         private LineSeries _pressureSeries = null!;
-        
+
         // Statistics
         private int _totalProcessed = 0;
         private int _totalFailed = 0;
@@ -87,7 +82,7 @@ namespace SemiStandard.Simulator.Wpf
         private ConcurrentDictionary<string, StateMachine> _stateMachines = new();
 
         // State color mapping
-        private readonly ConcurrentDictionary<string, Brush> _stateColors = 
+        private readonly ConcurrentDictionary<string, Brush> _stateColors =
             new ConcurrentDictionary<string, Brush>(
                 new Dictionary<string, Brush>
                 {
@@ -119,51 +114,51 @@ namespace SemiStandard.Simulator.Wpf
                     { "INIT_COMPLETE", Brushes.YellowGreen },
                     { "SYSTEM_READY", Brushes.Chartreuse }
                 });
-        
+
         // Wafer slot visualization
         private readonly List<Ellipse> _waferSlots = new();
         private double? _lastTemp = null;
         private double? _lastPressure = null;
-        
+
         public RealisticSimulatorWindow()
         {
             Logger.Log("[REALISTIC] RealisticSimulatorWindow constructor");
             InitializeComponent();
             Logger.Log("[REALISTIC] Window initialized");
-            
+
             // Set up timers
             _updateTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(100)
             };
             _updateTimer.Tick += UpdateTimer_Tick;
-            
+
             _clockTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
             _clockTimer.Tick += ClockTimer_Tick;
             _clockTimer.Start();
-            
+
             // Initialize XState scripts
             InitializeXStateScripts();
-            
+
             // Bind collections
             CarrierListBox.ItemsSource = _carriers;
             EventsItemsControl.ItemsSource = _events;
             AlarmsItemsControl.ItemsSource = _alarms;
             TimelineItemsControl.ItemsSource = _timeline;
             StateLogItemsControl.ItemsSource = _stateTransitions;
-            
+
             // Start state monitoring
             InitializeStateMonitoring();
-            
+
             // Initialize charts
             InitializeCharts();
-            
+
             // Initialize wafer map
             InitializeWaferMap();
-            
+
             // Set up logger
             var loggerFactory = LoggerFactory.Create(builder =>
             {
@@ -171,18 +166,18 @@ namespace SemiStandard.Simulator.Wpf
                 builder.SetMinimumLevel(LogLevel.Information);
             });
             _logger = loggerFactory.CreateLogger<RealisticSimulatorWindow>();
-            
+
             Logger.Log("[REALISTIC] Window setup complete");
-            
+
             // Auto-start simulator after window loads
-            Loaded += async (s, e) => 
+            Loaded += async (s, e) =>
             {
                 Logger.Log("[REALISTIC] Window loaded, auto-starting simulator...");
                 await Task.Delay(500); // Small delay for UI to render
                 await StartSimulator();
             };
         }
-        
+
         private void InitializeCharts()
         {
             // Temperature chart
@@ -191,8 +186,8 @@ namespace SemiStandard.Simulator.Wpf
                 Title = "Temperature (°C)",
                 Background = OxyColors.Transparent
             };
-            var tempXAxis = new DateTimeAxis 
-            { 
+            var tempXAxis = new DateTimeAxis
+            {
                 Position = AxisPosition.Bottom,
                 StringFormat = "HH:mm:ss",
                 Title = "Time",
@@ -203,8 +198,8 @@ namespace SemiStandard.Simulator.Wpf
                 MinorGridlineColor = OxyColors.LightGray
             };
             _temperaturePlotModel.Axes.Add(tempXAxis);
-            var tempYAxis = new LinearAxis 
-            { 
+            var tempYAxis = new LinearAxis
+            {
                 Position = AxisPosition.Left,
                 Title = "Temperature (°C)",
                 MajorGridlineStyle = LineStyle.Solid,
@@ -224,15 +219,15 @@ namespace SemiStandard.Simulator.Wpf
             };
             _temperaturePlotModel.Series.Add(_temperatureSeries);
             TemperaturePlot.Model = _temperaturePlotModel;
-            
+
             // Pressure chart
             _pressurePlotModel = new PlotModel
             {
                 Title = "Pressure (hPa)",
                 Background = OxyColors.Transparent
             };
-            var pressureXAxis = new DateTimeAxis 
-            { 
+            var pressureXAxis = new DateTimeAxis
+            {
                 Position = AxisPosition.Bottom,
                 StringFormat = "HH:mm:ss",
                 Title = "Time",
@@ -243,8 +238,8 @@ namespace SemiStandard.Simulator.Wpf
                 MinorGridlineColor = OxyColors.LightGray
             };
             _pressurePlotModel.Axes.Add(pressureXAxis);
-            var pressureYAxis = new LinearAxis 
-            { 
+            var pressureYAxis = new LinearAxis
+            {
                 Position = AxisPosition.Left,
                 Title = "Pressure (hPa)",
                 MajorGridlineStyle = LineStyle.Solid,
@@ -265,12 +260,12 @@ namespace SemiStandard.Simulator.Wpf
             _pressurePlotModel.Series.Add(_pressureSeries);
             PressurePlot.Model = _pressurePlotModel;
         }
-        
+
         private void InitializeWaferMap()
         {
             WaferSlotGrid.Children.Clear();
             _waferSlots.Clear();
-            
+
             // Create 5x5 grid for 25 wafer slots
             for (int row = 0; row < 5; row++)
             {
@@ -280,7 +275,7 @@ namespace SemiStandard.Simulator.Wpf
             {
                 WaferSlotGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             }
-            
+
             // Create wafer slot indicators
             for (int i = 0; i < 25; i++)
             {
@@ -293,15 +288,15 @@ namespace SemiStandard.Simulator.Wpf
                     StrokeThickness = 2,
                     Margin = new Thickness(2)
                 };
-                
+
                 int row = i / 5;
                 int col = i % 5;
                 Grid.SetRow(slot, row);
                 Grid.SetColumn(slot, col);
-                
+
                 WaferSlotGrid.Children.Add(slot);
                 _waferSlots.Add(slot);
-                
+
                 // Add slot number
                 var label = new TextBlock
                 {
@@ -316,7 +311,7 @@ namespace SemiStandard.Simulator.Wpf
                 WaferSlotGrid.Children.Add(label);
             }
         }
-        
+
         private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (_simulator == null)
@@ -328,7 +323,7 @@ namespace SemiStandard.Simulator.Wpf
                 await StopSimulator();
             }
         }
-        
+
         private async Task StartSimulator()
         {
             try
@@ -336,79 +331,79 @@ namespace SemiStandard.Simulator.Wpf
                 Logger.Log("[REALISTIC] Starting simulator...");
                 ConnectButton.IsEnabled = false;
                 ConnectButton.Content = "CONNECTING...";
-                
+
                 var endpoint = new IPEndPoint(IPAddress.Loopback, 5556);
-                
+
                 // Create and start simulator
                 Logger.Log("[REALISTIC] Creating RealisticEquipmentSimulator on port 5556");
                 _simulator = new RealisticEquipmentSimulator(endpoint, null);
                 _simulator.MessageReceived += OnSimulatorMessageReceived;
                 _simulator.MessageSent += OnSimulatorMessageSent;
                 Logger.Log("[REALISTIC] Simulator created");
-                
+
                 _cts = new CancellationTokenSource();
                 Logger.Log("[REALISTIC] Starting simulator async task");
                 _ = Task.Run(() => _simulator.StartAsync(_cts.Token));
-                
+
                 await Task.Delay(1000);
                 Logger.Log("[REALISTIC] Simulator started");
-                
+
                 // Connect host
                 Logger.Log("[REALISTIC] Creating host connection");
                 _hostConnection = new ResilientHsmsConnection(
                     endpoint,
                     HsmsConnection.HsmsConnectionMode.Active,
                     null);
-                
+
                 _hostConnection.MessageReceived += OnHostMessageReceived;
                 Logger.Log("[REALISTIC] Connecting to host...");
                 await _hostConnection.ConnectAsync();
                 Logger.Log("[REALISTIC] Host connected");
-                
+
                 // Wait for selection
                 await Task.Delay(1000);
-                
+
                 // Establish communication
                 Logger.Log("[REALISTIC] Sending S1F13 (Establish Communications Request)");
                 var s1f13 = SecsMessageLibrary.S1F13();
                 await SendHostMessage(s1f13);
                 Logger.Log("[REALISTIC] Communications established");
-                
+
                 _startTime = DateTime.Now;
                 _updateTimer.Start();
-                
+
                 ConnectButton.Content = "DISCONNECT";
                 ConnectButton.IsEnabled = true;
                 ConnectionStatusText.Text = "Connected";
                 EquipmentStateText.Text = "LOCAL";
-                
+
                 Logger.Log("[REALISTIC] System fully initialized and ready");
                 AddTimelineEntry("System connected and initialized");
-                
+
                 // Generate some test events
                 GenerateTestEvents();
-                
+
                 // Generate test alarms
                 GenerateTestAlarms();
-                
+
                 // Initialize chart with some data points
                 InitializeChartData();
-                
+
                 // Initialize carriers and recipes
                 InitializeCarriersAndRecipes();
-                
+
                 // Initialize scheduler with test lots
                 InitializeScheduler();
-                
+
                 // Start scheduler update timer
                 _schedulerTimer = new DispatcherTimer();
                 _schedulerTimer.Interval = TimeSpan.FromSeconds(5);
                 _schedulerTimer.Tick += (s, e) => UpdateSchedulerDisplay();
                 _schedulerTimer.Start();
-                
+
                 // Initialize wafer display but don't start processing
                 InitializeWaferDisplay();
-                
+
                 // Enable controls
                 EnableControls(true);
             }
@@ -416,27 +411,27 @@ namespace SemiStandard.Simulator.Wpf
             {
                 Logger.Log($"[REALISTIC] ERROR: Failed to start simulator - {ex.Message}");
                 _logger?.LogError(ex, "Failed to start simulator");
-                MessageBox.Show($"Failed to start simulator: {ex.Message}", "Error", 
+                MessageBox.Show($"Failed to start simulator: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 ConnectButton.Content = "CONNECT";
                 ConnectButton.IsEnabled = true;
             }
         }
-        
+
         private async Task StopSimulator()
         {
             try
             {
                 ConnectButton.IsEnabled = false;
                 _updateTimer.Stop();
-                
+
                 if (_hostConnection != null)
                 {
                     await _hostConnection.DisconnectAsync();
                     _hostConnection.Dispose();
                     _hostConnection = null;
                 }
-                
+
                 if (_simulator != null)
                 {
                     _cts?.Cancel();
@@ -444,13 +439,13 @@ namespace SemiStandard.Simulator.Wpf
                     _simulator.Dispose();
                     _simulator = null;
                 }
-                
+
                 ConnectionStatusText.Text = "Disconnected";
                 EquipmentStateText.Text = "OFFLINE";
                 ProcessStateText.Text = "IDLE";
                 ConnectButton.Content = "CONNECT";
                 ConnectButton.IsEnabled = true;
-                
+
                 EnableControls(false);
                 AddTimelineEntry("System disconnected");
             }
@@ -459,7 +454,7 @@ namespace SemiStandard.Simulator.Wpf
                 _logger?.LogError(ex, "Error stopping simulator");
             }
         }
-        
+
         private void EnableControls(bool enabled)
         {
             InitButton.IsEnabled = enabled;
@@ -473,60 +468,60 @@ namespace SemiStandard.Simulator.Wpf
             MapButton.IsEnabled = enabled;
             LoadRecipeButton.IsEnabled = enabled;
         }
-        
+
         private async void InitButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("INIT");
             AddTimelineEntry("Equipment initialization started");
         }
-        
+
         private async void RemoteButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("REMOTE");
             EquipmentStateText.Text = "REMOTE";
             AddTimelineEntry("Equipment set to REMOTE mode");
         }
-        
+
         private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("START");
-            
+
             // Get next lot from scheduler
             var nextLot = _scheduler.GetNextLot();
             if (nextLot != null)
             {
                 Logger.Log($"[SCHEDULER] Starting lot {nextLot.LotId} with priority {nextLot.Priority}");
                 AddTimelineEntry($"Processing lot {nextLot.LotId} (Priority: {nextLot.Priority})");
-                
+
                 // Update lot state
                 _scheduler.UpdateLotState(nextLot.LotId, LotState.Processing);
-                
+
                 // Update UI with lot info
                 CurrentWaferIdText.Text = $"Lot: {nextLot.LotId}";
-                
+
                 // Add event for lot start
                 var lotStartEvent = new EventViewModel
                 {
                     EventId = 9002,
                     EventName = "Lot Processing Started",
                     Data = $"Lot {nextLot.LotId} - Recipe: {nextLot.RecipeId} - Priority: {nextLot.Priority}",
-                    Background = nextLot.Priority >= LotPriority.HotLot ? 
-                        new SolidColorBrush(Color.FromArgb(40, 255, 100, 0)) : 
+                    Background = nextLot.Priority >= LotPriority.HotLot ?
+                        new SolidColorBrush(Color.FromArgb(40, 255, 100, 0)) :
                         new SolidColorBrush(Color.FromArgb(20, 0, 255, 0))
                 };
                 _events.Insert(0, lotStartEvent);
                 if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
             }
-            
+
             // Start actual wafer processing if not already running
             if (!_isProcessing)
             {
                 StartWaferProcessingSimulation();
             }
-            
+
             ProcessStateText.Text = "PROCESSING";
             AddTimelineEntry("Processing started");
-            
+
             // Add start event
             var startEvent = new EventViewModel
             {
@@ -537,7 +532,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             _events.Insert(0, startEvent);
             if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
-            
+
             // Add synchronized state transition
             if (_currentStates["ProcessManager"] == "IDLE")
             {
@@ -547,22 +542,22 @@ namespace SemiStandard.Simulator.Wpf
             {
                 AddStateTransition("EquipmentController", "ONLINE", "PROCESSING", "PROCESS_START", "", "Operator initiated");
             }
-            
+
             // Update scheduler display
             UpdateSchedulerDisplay();
         }
-        
+
         private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("STOP");
-            
+
             // Stop wafer processing
             _isProcessing = false;
-            
+
             ProcessStateText.Text = "IDLE";
             CurrentWaferStatusText.Text = "Status: Stopped";
             AddTimelineEntry("Processing stopped");
-            
+
             // Add stop event
             var stopEvent = new EventViewModel
             {
@@ -573,7 +568,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             _events.Insert(0, stopEvent);
             if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
-            
+
             // Add synchronized state transitions for stop
             if (_currentStates["EquipmentController"] == "PROCESSING")
             {
@@ -584,37 +579,37 @@ namespace SemiStandard.Simulator.Wpf
                 AddStateTransition("ProcessManager", "EXECUTING", "IDLE", "STOP_PROCESS", "", "Processing stopped");
             }
         }
-        
+
         private async void PauseButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("PAUSE");
-            
+
             // Pause processing
             _isProcessing = false;
-            
+
             ProcessStateText.Text = "PAUSED";
             CurrentWaferStatusText.Text = "Status: Paused";
             AddTimelineEntry("Processing paused");
         }
-        
+
         private async void ResumeButton_Click(object sender, RoutedEventArgs e)
         {
             await SendHostCommand("RESUME");
-            
+
             // Resume processing
             _isProcessing = true;
             _processingStartTime = DateTime.Now; // Reset timer for current wafer
-            
+
             ProcessStateText.Text = "PROCESSING";
             CurrentWaferStatusText.Text = "Status: Active";
             AddTimelineEntry("Processing resumed");
         }
-        
+
         private async void LoadCarrierButton_Click(object sender, RoutedEventArgs e)
         {
             string carrierId = CarrierIdTextBox.Text;
             int loadPort = LoadPortComboBox.SelectedIndex + 1;
-            
+
             // Add lot to scheduler
             var priority = _random.NextDouble() switch
             {
@@ -623,11 +618,11 @@ namespace SemiStandard.Simulator.Wpf
                 > 0.5 => LotPriority.Rush,
                 _ => LotPriority.Normal
             };
-            
+
             var newLot = new Lot
             {
                 LotId = carrierId,
-                RecipeId = RecipeComboBox.SelectedItem is ComboBoxItem item ? 
+                RecipeId = RecipeComboBox.SelectedItem is ComboBoxItem item ?
                     item.Content.ToString()?.Split('-')[0].Trim() ?? "ASML-193nm-DUV" : "ASML-193nm-DUV",
                 Priority = priority,
                 DueDate = DateTime.Now.AddHours(4 + _random.Next(20)),
@@ -636,7 +631,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             _scheduler.AddLot(newLot);
             UpdateSchedulerDisplay();
-            
+
             // Add carrier load event
             var loadEvent = new EventViewModel
             {
@@ -648,15 +643,15 @@ namespace SemiStandard.Simulator.Wpf
             _events.Insert(0, loadEvent);
             if (_events.Count > 100) _events.RemoveAt(_events.Count - 1);
             Logger.Log($"[REALISTIC] Carrier load event added for {carrierId}");
-            
+
             // Add synchronized state transition for carrier load
             if (_currentStates["TransportHandler"] == "READY")
             {
                 AddStateTransition("TransportHandler", "READY", "MOVING", "CARRIER_ARRIVE", "carrierDetected", $"Carrier {carrierId} at LP{loadPort}");
             }
-            
+
             await SendCarrierAction(carrierId, "LOAD", loadPort);
-            
+
             var carrier = new CarrierViewModel
             {
                 CarrierId = carrierId,
@@ -665,9 +660,9 @@ namespace SemiStandard.Simulator.Wpf
                 StatusText = "25 wafers"
             };
             _carriers.Add(carrier);
-            
+
             AddTimelineEntry($"Carrier {carrierId} loaded to LP{loadPort}");
-            
+
             // Auto-increment carrier ID
             if (carrierId.StartsWith("LOT"))
             {
@@ -675,60 +670,60 @@ namespace SemiStandard.Simulator.Wpf
                 CarrierIdTextBox.Text = $"LOT{num + 1:D3}";
             }
         }
-        
+
         private async void UnloadCarrierButton_Click(object sender, RoutedEventArgs e)
         {
             string carrierId = CarrierIdTextBox.Text;
             await SendCarrierAction(carrierId, "UNLOAD", 0);
-            
+
             var carrier = _carriers.FirstOrDefault(c => c.CarrierId == carrierId);
             if (carrier != null)
             {
                 _carriers.Remove(carrier);
             }
-            
+
             AddTimelineEntry($"Carrier {carrierId} unloaded");
         }
-        
+
         private async void MapButton_Click(object sender, RoutedEventArgs e)
         {
             string carrierId = CarrierIdTextBox.Text;
             await SendCarrierAction(carrierId, "MAP", 0);
-            
+
             var carrier = _carriers.FirstOrDefault(c => c.CarrierId == carrierId);
             if (carrier != null)
             {
                 carrier.State = "Mapped";
             }
-            
+
             AddTimelineEntry($"Carrier {carrierId} mapped");
         }
-        
+
         private async void LoadRecipeButton_Click(object sender, RoutedEventArgs e)
         {
             if (RecipeComboBox.SelectedItem is ComboBoxItem item)
             {
                 string recipeText = item.Content.ToString() ?? "";
                 string recipeId = recipeText.Split('-')[0].Trim();
-                
+
                 await SendRecipeLoad(recipeId);
                 CurrentRecipeText.Text = $"Current: {recipeId}";
                 AddTimelineEntry($"Recipe {recipeId} loaded");
             }
         }
-        
+
         private void ClearEventsButton_Click(object sender, RoutedEventArgs e)
         {
             _events.Clear();
         }
-        
+
         private void ClearStateLogButton_Click(object sender, RoutedEventArgs e)
         {
             _stateTransitions.Clear();
             _totalTransitions = 0;
             TotalTransitionsText.Text = "0";
         }
-        
+
         private void ExportStateLogButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -736,7 +731,7 @@ namespace SemiStandard.Simulator.Wpf
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var filename = $"StateLog_{timestamp}.csv";
                 var path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), filename);
-                
+
                 using (var writer = new System.IO.StreamWriter(path))
                 {
                     writer.WriteLine("Timestamp,StateMachine,FromState,ToState,Event,Context");
@@ -745,7 +740,7 @@ namespace SemiStandard.Simulator.Wpf
                         writer.WriteLine($"{transition.Timestamp},{transition.StateMachine},{transition.FromState},{transition.ToState},{transition.Event},{transition.Context}");
                     }
                 }
-                
+
                 Logger.Log($"[STATE_LOG] Exported to {path}");
                 AddTimelineEntry($"State log exported to {filename}");
             }
@@ -754,12 +749,12 @@ namespace SemiStandard.Simulator.Wpf
                 Logger.Log($"[STATE_LOG] Export failed: {ex.Message}");
             }
         }
-        
+
         private void FilterCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             UpdateStateLogVisibility();
         }
-        
+
         private void SelectAllButton_Click(object sender, RoutedEventArgs e)
         {
             FilterEquipmentController.IsChecked = true;
@@ -768,7 +763,7 @@ namespace SemiStandard.Simulator.Wpf
             FilterRecipeExecutor.IsChecked = true;
             UpdateStateLogVisibility();
         }
-        
+
         private void SelectNoneButton_Click(object sender, RoutedEventArgs e)
         {
             FilterEquipmentController.IsChecked = false;
@@ -777,7 +772,7 @@ namespace SemiStandard.Simulator.Wpf
             FilterRecipeExecutor.IsChecked = false;
             UpdateStateLogVisibility();
         }
-        
+
         private void InitializeXStateScripts()
         {
             // Create real XStateNet state machines instead of just storing scripts
@@ -796,18 +791,18 @@ namespace SemiStandard.Simulator.Wpf
                         {
                             _currentStates[machineName] = toState;
                         }
-                        
+
                         // Add the transition to the visual log
                         AddStateTransition(machineName, fromState, toState, eventName, "", "");
                     });
                 });
-            
+
             // Start all state machines
             foreach (var machine in _stateMachines.Values)
             {
                 machine.Start();
             }
-            
+
             // Initialize current states - the actual states will be set via OnTransition callback
             foreach (var kvp in _stateMachines)
             {
@@ -816,9 +811,9 @@ namespace SemiStandard.Simulator.Wpf
                     _currentStates[kvp.Key] = "Initializing...";
                 }
             }
-            
+
             return; // The old script definitions are no longer needed
-            
+
             // OLD CODE BELOW (kept for reference but not executed)
             _xStateScripts["EquipmentController"] = @"{
   id: 'EquipmentController',
@@ -1005,8 +1000,8 @@ namespace SemiStandard.Simulator.Wpf
   }
 }";
         }
-        
-        
+
+
         private void ShowTimelineButton_Click(object sender, RoutedEventArgs e)
         {
             // Check if window already exists
@@ -1090,35 +1085,35 @@ namespace SemiStandard.Simulator.Wpf
                 {
                     Owner = this
                 };
-                
+
                 // Populate with historical state transitions from all state machines
                 foreach (var kvp in _stateHistory)
                 {
                     var machineName = kvp.Key;
                     var history = kvp.Value;
-                    
+
                     foreach (var (fromState, toState, timestamp) in history)
                     {
                         _umlTimingWindow.AddStateTransition(machineName, fromState, toState, timestamp);
                     }
                 }
-                
+
                 // Also add current states
                 foreach (var kvp in _currentStates)
                 {
                     _umlTimingWindow.SetCurrentState(kvp.Key, kvp.Value);
                 }
-                
+
                 // Remove from tracking when closed
                 _umlTimingWindow.Closed += (s, args) =>
                 {
                     _umlTimingWindow = null;
                 };
-                
+
                 _umlTimingWindow.Show();
             }
         }
-        
+
         private void StateMachineName_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (sender is TextBlock textBlock && textBlock.DataContext is StateTransitionViewModel transition)
@@ -1134,16 +1129,16 @@ namespace SemiStandard.Simulator.Wpf
                 }
                 else
                 {
-                    MessageBox.Show($"No XState script found for {machineName}", "Script Not Found", 
+                    MessageBox.Show($"No XState script found for {machineName}", "Script Not Found",
                                   MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
         }
-        
+
         private void UpdateStateLogVisibility()
         {
             if (_stateTransitions == null) return;
-            
+
             foreach (var transition in _stateTransitions)
             {
                 bool shouldShow = transition.StateMachine switch
@@ -1154,17 +1149,17 @@ namespace SemiStandard.Simulator.Wpf
                     "RecipeExecutor" => FilterRecipeExecutor?.IsChecked ?? true,
                     _ => true
                 };
-                
+
                 transition.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
             }
         }
-        
+
         private void ClearAlarmsButton_Click(object sender, RoutedEventArgs e)
         {
             _alarms.Clear();
             UpdateAlarmCount();
         }
-        
+
         private void AddLotButton_Click(object sender, RoutedEventArgs e)
         {
             // Generate a new lot
@@ -1173,13 +1168,13 @@ namespace SemiStandard.Simulator.Wpf
             Logger.Log("[UI] Added new lot via UI button");
             AddTimelineEntry("New lot added to scheduler queue");
         }
-        
+
         private void UpdateSchedulerPanel(List<Lot> scheduledQueue, ConcurrentDictionary<string, object> metrics)
         {
             // Update lot queue display
             var lotViewModels = new ObservableCollection<LotViewModel>();
             int position = 1;
-            
+
             foreach (var lot in scheduledQueue.Take(10)) // Show top 10 lots
             {
                 var vm = new LotViewModel
@@ -1199,19 +1194,19 @@ namespace SemiStandard.Simulator.Wpf
                 };
                 lotViewModels.Add(vm);
             }
-            
+
             SchedulerItemsControl.ItemsSource = lotViewModels;
-            
+
             // Update metrics
             SchedulerWaitingText.Text = $"Waiting: {metrics["WaitingLots"]}";
             SchedulerProcessingText.Text = $"Processing: {metrics["ProcessingLots"]}";
             SchedulerCompletedText.Text = $"Completed: {metrics["CompletedLots"]}";
         }
-        
+
         private void InitializeStateMonitoring()
         {
             Logger.Log("[STATE_LOG] Initializing state monitoring");
-            
+
             // Start uptime timer
             _stateLogTimer = new DispatcherTimer();
             _stateLogTimer.Interval = TimeSpan.FromSeconds(1);
@@ -1221,31 +1216,31 @@ namespace SemiStandard.Simulator.Wpf
                 UptimeText.Text = uptime.ToString(@"hh\:mm\:ss");
             };
             _stateLogTimer.Start();
-            
+
             // Generate some demo state transitions
             GenerateDemoStateTransitions();
         }
-        
+
         private Brush GetStateColor(string stateName)
         {
             if (_stateColors.TryGetValue(stateName.ToUpper(), out var color))
                 return color;
-            
+
             // Generate a consistent color based on state name hash if not in dictionary
             var hash = stateName.GetHashCode();
             var hue = (hash & 0xFF) / 255.0 * 360;
             var saturation = 0.7 + ((hash >> 8) & 0xFF) / 255.0 * 0.3;
             var lightness = 0.5 + ((hash >> 16) & 0xFF) / 255.0 * 0.3;
-            
+
             // Convert HSL to RGB
             var rgb = HslToRgb(hue, saturation, lightness);
             return new SolidColorBrush(Color.FromRgb(rgb.Item1, rgb.Item2, rgb.Item3));
         }
-        
+
         private (byte, byte, byte) HslToRgb(double h, double s, double l)
         {
             double r, g, b;
-            
+
             if (s == 0)
             {
                 r = g = b = l;
@@ -1258,10 +1253,10 @@ namespace SemiStandard.Simulator.Wpf
                 g = HueToRgb(p, q, h / 360);
                 b = HueToRgb(p, q, h / 360 - 1.0 / 3.0);
             }
-            
+
             return ((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
         }
-        
+
         private double HueToRgb(double p, double q, double t)
         {
             if (t < 0) t += 1;
@@ -1271,7 +1266,7 @@ namespace SemiStandard.Simulator.Wpf
             if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
             return p;
         }
-        
+
         private void AddStateTransition(string stateMachine, string fromState, string toState, string eventName, string guard = "", string context = "")
         {
             Dispatcher.Invoke(() =>
@@ -1285,7 +1280,7 @@ namespace SemiStandard.Simulator.Wpf
                     "RecipeExecutor" => FilterRecipeExecutor?.IsChecked ?? true,
                     _ => true
                 };
-                
+
                 // Skip adding this transition if the state machine is not checked
                 if (!shouldShow)
                 {
@@ -1300,7 +1295,7 @@ namespace SemiStandard.Simulator.Wpf
                     }
                     return;
                 }
-                
+
                 // Update current state tracking
                 if (_currentStates.ContainsKey(stateMachine))
                 {
@@ -1316,7 +1311,7 @@ namespace SemiStandard.Simulator.Wpf
                 {
                     _currentStates[stateMachine] = toState;
                 }
-                
+
                 var transition = new StateTransitionViewModel
                 {
                     Timestamp = DateTime.Now.ToString("HH:mm:ss.fff"),
@@ -1340,17 +1335,17 @@ namespace SemiStandard.Simulator.Wpf
                     ToStateColor = GetStateColor(toState),
                     Visibility = Visibility.Visible
                 };
-                
+
                 _stateTransitions.Insert(0, transition);
-                
+
                 // Track state history for time chart
                 if (!_stateHistory.ContainsKey(stateMachine))
                 {
                     _stateHistory[stateMachine] = new ConcurrentBag<(string, string, DateTime)>();
                 }
                 _stateHistory[stateMachine].Add((fromState, toState, DateTime.Now));
-                
-                
+
+
                 // Also update UML timing diagram if it's open
                 if (_umlTimingWindow != null && _umlTimingWindow.IsLoaded)
                 {
@@ -1358,22 +1353,22 @@ namespace SemiStandard.Simulator.Wpf
                 }
                 if (_stateTransitions.Count > 500) // Keep only last 500 transitions
                     _stateTransitions.RemoveAt(_stateTransitions.Count - 1);
-                
+
                 _totalTransitions++;
                 TotalTransitionsText.Text = _totalTransitions.ToString();
-                
+
                 // Update active states count
                 var activeStates = _stateTransitions.Take(10)
                     .Select(t => t.ToState)
                     .Distinct()
                     .Count();
                 ActiveStatesText.Text = activeStates.ToString();
-                
+
                 // Calculate event rate
                 var recentTransitions = _stateTransitions.Take(10).Count();
                 var timeSpan = 10.0; // Last 10 seconds
                 EventRateText.Text = (recentTransitions / timeSpan).ToString("F1");
-                
+
                 // Auto-scroll if enabled
                 if (AutoScrollCheckBox?.IsChecked == true)
                 {
@@ -1381,7 +1376,7 @@ namespace SemiStandard.Simulator.Wpf
                 }
             });
         }
-        
+
         private async void GenerateDemoStateTransitions()
         {
             // Use real XStateNet state machines to trigger transitions
@@ -1390,7 +1385,7 @@ namespace SemiStandard.Simulator.Wpf
                 // State machines not initialized yet
                 return;
             }
-            
+
             // Initial state machine setup using real state machines
             await _stateMachines["EquipmentController"]?.SendAsync("POWER_ON");
             await _stateMachines["TransportHandler"]?.SendAsync("INIT_COMPLETE");
@@ -1398,7 +1393,7 @@ namespace SemiStandard.Simulator.Wpf
             await _stateMachines["ProcessManager"]?.SendAsync("SYSTEM_READY");
             await Task.Delay(100);
             await _stateMachines["EquipmentController"]?.SendAsync("INIT_SUCCESS");
-            
+
             // Initialize SEMI standard state machines using real events
             await _stateMachines["E30GEM"]?.SendAsync("ENABLE_COMMAND");
             await _stateMachines["E87Carrier"]?.SendAsync("CARRIER_DETECTED");
@@ -1407,7 +1402,7 @@ namespace SemiStandard.Simulator.Wpf
             await _stateMachines["ProcessControl"]?.SendAsync("START_REQUEST");
             await _stateMachines["MaterialHandling"]?.SendAsync("LOAD_START");
             await _stateMachines["AlarmManager"]?.SendAsync("WARNING_DETECTED");
-            
+
             // Simulate periodic state changes
             var stateTimer = new DispatcherTimer();
             stateTimer.Interval = TimeSpan.FromMilliseconds(800); // More frequent state changes
@@ -1417,7 +1412,7 @@ namespace SemiStandard.Simulator.Wpf
                 {
                     // Define valid transitions based on current states
                     var possibleTransitions = new List<(string, string, string, string, string, string)>();
-                    
+
                     // Check current states and add valid transitions for main state machines
                     if (_currentStates["ProcessManager"] == "IDLE")
                         possibleTransitions.Add(("ProcessManager", "IDLE", "SETUP", "START_PROCESS", "isLotReady", $"Lot:{_scheduler.GetAllLots().FirstOrDefault(l => l.State == LotState.Processing)?.LotId ?? "N/A"}"));
@@ -1431,7 +1426,7 @@ namespace SemiStandard.Simulator.Wpf
                         possibleTransitions.Add(("TransportHandler", "READY", "MOVING", "WAFER_TRANSFER", "waferPresent", $"Slot:{_currentProcessingSlot + 1}"));
                     if (_currentStates["EquipmentController"] == "ONLINE")
                         possibleTransitions.Add(("EquipmentController", "ONLINE", "PROCESSING", "WAFER_IN", "vacuumOK", $"Pressure:{_lastPressure:F2}hPa"));
-                    
+
                     // Add transitions for SEMI standard state machines
                     if (_currentStates.ContainsKey("E30GEM"))
                     {
@@ -1442,7 +1437,7 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["E30GEM"] == "executing")
                             possibleTransitions.Add(("E30GEM", "executing", "selected", "PROCESS_COMPLETE", "", ""));
                     }
-                    
+
                     if (_currentStates.ContainsKey("E87Carrier"))
                     {
                         if (_currentStates["E87Carrier"] == "Present")
@@ -1452,17 +1447,17 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["E87Carrier"] == "Processing")
                             possibleTransitions.Add(("E87Carrier", "Processing", "Mapped", "CARRIER_COMPLETE", "", ""));
                     }
-                    
+
                     if (_currentStates.ContainsKey("E94ControlJob"))
                     {
                         if (_currentStates["E94ControlJob"] == "Created")
-                            possibleTransitions.Add(("E94ControlJob", "Created", "Running", "CJ_START", "", $"JobID:CJ-{_random.Next(1000,9999)}"));
+                            possibleTransitions.Add(("E94ControlJob", "Created", "Running", "CJ_START", "", $"JobID:CJ-{_random.Next(1000, 9999)}"));
                         else if (_currentStates["E94ControlJob"] == "Running")
                             possibleTransitions.Add(("E94ControlJob", "Running", "Complete", "CJ_COMPLETE", "", ""));
                         else if (_currentStates["E94ControlJob"] == "Complete")
                             possibleTransitions.Add(("E94ControlJob", "Complete", "Created", "NEW_JOB", "", ""));
                     }
-                    
+
                     if (_currentStates.ContainsKey("ProcessControl"))
                     {
                         if (_currentStates["ProcessControl"] == "STARTING")
@@ -1474,11 +1469,11 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["ProcessControl"] == "IDLE")
                             possibleTransitions.Add(("ProcessControl", "IDLE", "STARTING", "START_REQUEST", "", ""));
                     }
-                    
+
                     if (_currentStates.ContainsKey("MaterialHandling"))
                     {
                         if (_currentStates["MaterialHandling"] == "LOADING")
-                            possibleTransitions.Add(("MaterialHandling", "LOADING", "LOADED", "LOAD_COMPLETE", "", $"Material:W{_random.Next(100,999)}"));
+                            possibleTransitions.Add(("MaterialHandling", "LOADING", "LOADED", "LOAD_COMPLETE", "", $"Material:W{_random.Next(100, 999)}"));
                         else if (_currentStates["MaterialHandling"] == "LOADED")
                             possibleTransitions.Add(("MaterialHandling", "LOADED", "UNLOADING", "UNLOAD_START", "", ""));
                         else if (_currentStates["MaterialHandling"] == "UNLOADING")
@@ -1486,7 +1481,7 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["MaterialHandling"] == "NO_MATERIAL")
                             possibleTransitions.Add(("MaterialHandling", "NO_MATERIAL", "LOADING", "LOAD_START", "", ""));
                     }
-                    
+
                     if (possibleTransitions.Count > 0)
                     {
                         // Generate 1-2 transitions per tick when processing
@@ -1496,7 +1491,7 @@ namespace SemiStandard.Simulator.Wpf
                             var index = _random.Next(possibleTransitions.Count);
                             var transition = possibleTransitions[index];
                             AddStateTransition(transition.Item1, transition.Item2, transition.Item3, transition.Item4, transition.Item5, transition.Item6);
-                            
+
                             // Remove the used transition to avoid duplicates in same tick
                             possibleTransitions.RemoveAt(index);
                         }
@@ -1506,7 +1501,7 @@ namespace SemiStandard.Simulator.Wpf
                 {
                     // Define valid idle transitions based on current states
                     var possibleIdleTransitions = new List<(string, string, string, string, string, string)>();
-                    
+
                     // Main state machines idle transitions
                     if (_currentStates["EquipmentController"] == "PROCESSING")
                         possibleIdleTransitions.Add(("EquipmentController", "PROCESSING", "ONLINE", "PROCESS_COMPLETE", "", ""));
@@ -1516,14 +1511,14 @@ namespace SemiStandard.Simulator.Wpf
                         possibleIdleTransitions.Add(("TransportHandler", "MOVING", "READY", "TRANSFER_COMPLETE", "", ""));
                     if (_currentStates["RecipeExecutor"] == "EXECUTING")
                         possibleIdleTransitions.Add(("RecipeExecutor", "EXECUTING", "WAITING", "RECIPE_DONE", "", ""));
-                    
+
                     // SEMI standard state machines idle transitions
                     if (_currentStates.ContainsKey("E30GEM") && _currentStates["E30GEM"] == "selected")
                         possibleIdleTransitions.Add(("E30GEM", "selected", "enabled", "HOST_DESELECT", "", ""));
-                    
+
                     if (_currentStates.ContainsKey("E87Carrier") && _currentStates["E87Carrier"] == "Mapped")
                         possibleIdleTransitions.Add(("E87Carrier", "Mapped", "Present", "CARRIER_UNMAPPED", "", ""));
-                    
+
                     if (_currentStates.ContainsKey("E37HSMSSession"))
                     {
                         if (_currentStates["E37HSMSSession"] == "Connected")
@@ -1533,7 +1528,7 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["E37HSMSSession"] == "Active")
                             possibleIdleTransitions.Add(("E37HSMSSession", "Active", "Selected", "DEACTIVATE", "", ""));
                     }
-                    
+
                     if (_currentStates.ContainsKey("AlarmManager"))
                     {
                         if (_currentStates["AlarmManager"] == "WARNING")
@@ -1545,7 +1540,7 @@ namespace SemiStandard.Simulator.Wpf
                         else if (_currentStates["AlarmManager"] == "NO_ALARM" && _random.Next(5) == 0)
                             possibleIdleTransitions.Add(("AlarmManager", "NO_ALARM", "WARNING", "WARNING_DETECTED", "", "Temp exceeds limit"));
                     }
-                    
+
                     if (possibleIdleTransitions.Count > 0 && _random.Next(3) == 0) // 33% chance of transition when idle
                     {
                         var transition = possibleIdleTransitions[_random.Next(possibleIdleTransitions.Count)];
@@ -1555,7 +1550,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             stateTimer.Start();
         }
-        
+
         private void UpdateTimer_Tick(object? sender, EventArgs e)
         {
             // Update statistics
@@ -1563,52 +1558,52 @@ namespace SemiStandard.Simulator.Wpf
             {
                 TotalProcessedText.Text = _totalProcessed.ToString();
                 TotalFailedText.Text = _totalFailed.ToString();
-                
-                double yield = _totalProcessed > 0 ? 
+
+                double yield = _totalProcessed > 0 ?
                     (double)_totalProcessed / (_totalProcessed + _totalFailed) * 100 : 0;
                 YieldText.Text = $"{yield:F1}%";
-                
+
                 var elapsed = DateTime.Now - _startTime;
-                double throughput = elapsed.TotalHours > 0 ? 
+                double throughput = elapsed.TotalHours > 0 ?
                     _totalProcessed / elapsed.TotalHours : 0;
                 ThroughputText.Text = $"{throughput:F0} WPH";
             }
-            
+
             // Update message count
             MessageCountText.Text = $"Messages: {_messageCount}";
-            
+
             // Generate periodic events (every 10 ticks = 1 second)
             _eventCounter++;
             if (_eventCounter % 10 == 0)
             {
                 GeneratePeriodicEvent();
             }
-            
+
             // Generate occasional alarms (every 10 seconds with 30% chance)
             if (_eventCounter % 100 == 0 && _random.NextDouble() > 0.7)
             {
                 GenerateRandomAlarm();
             }
-            
+
             // Update wafer processing simulation
             UpdateWaferProcessing();
-            
+
             // Generate and add chart data synchronized with processing state
             double baseTemp = 22.5;  // Room temperature when idle
             double processingTemp = 185.0;  // Photolithography processing temperature
             double basePressure = 1013.0;  // Atmospheric pressure when idle
             double processingPressure = 0.1;  // Vacuum pressure during processing (in hPa)
-            
+
             // Calculate temperature and pressure based on processing state
             double targetTemp = baseTemp;
             double targetPressure = basePressure;
-            
+
             if (_isProcessing && _currentProcessingSlot >= 0)
             {
                 // During processing, use process conditions
                 var elapsed = (DateTime.Now - _processingStartTime).TotalSeconds;
                 double waferProgress = (elapsed % 3.0) / 3.0; // Progress within current wafer (3 sec per wafer)
-                
+
                 // Temperature profile for photolithography
                 if (waferProgress < 0.2)
                 {
@@ -1636,41 +1631,41 @@ namespace SemiStandard.Simulator.Wpf
                 targetTemp = baseTemp + Math.Sin(DateTime.Now.Ticks / 10000000.0) * 0.5;
                 targetPressure = basePressure + Math.Cos(DateTime.Now.Ticks / 10000000.0) * 2;
             }
-            
+
             // Smooth transition using exponential moving average
             if (!_lastTemp.HasValue) _lastTemp = targetTemp;
             if (!_lastPressure.HasValue) _lastPressure = targetPressure;
-            
+
             double smoothingFactor = 0.15; // How quickly to respond to changes
             double currentTemp = _lastTemp.Value + (targetTemp - _lastTemp.Value) * smoothingFactor;
             double currentPressure = _lastPressure.Value + (targetPressure - _lastPressure.Value) * smoothingFactor;
-            
+
             // Add small random noise for realism
             currentTemp += (_random.NextDouble() - 0.5) * 0.3;
             currentPressure += (_random.NextDouble() - 0.5) * 0.05;
-            
+
             _lastTemp = currentTemp;
             _lastPressure = currentPressure;
-            
+
             AddTemperaturePoint(currentTemp);
             AddPressurePoint(currentPressure);
-            
+
             // Update charts with less frequent refresh for better performance
             if (_eventCounter % 5 == 0) // Update every 500ms instead of 100ms
             {
                 _temperaturePlotModel.InvalidatePlot(true);
                 _pressurePlotModel.InvalidatePlot(true);
             }
-            
+
             // Update current values display in the UI
             // Note: Temperature and pressure values are displayed in the charts
         }
-        
+
         private void ClockTimer_Tick(object? sender, EventArgs e)
         {
             TimeText.Text = DateTime.Now.ToString("HH:mm:ss");
         }
-        
+
         private void OnSimulatorMessageReceived(object? sender, SecsMessage message)
         {
             Dispatcher.Invoke(() =>
@@ -1679,7 +1674,7 @@ namespace SemiStandard.Simulator.Wpf
                 LastMessageText.Text = $"Last: RX {message.SxFy}";
             });
         }
-        
+
         private void OnSimulatorMessageSent(object? sender, SecsMessage message)
         {
             Dispatcher.Invoke(() =>
@@ -1688,7 +1683,7 @@ namespace SemiStandard.Simulator.Wpf
                 LastMessageText.Text = $"Last: TX {message.SxFy}";
             });
         }
-        
+
         private void OnHostMessageReceived(object? sender, HsmsMessage hsmsMessage)
         {
             // Decode to SECS message
@@ -1697,7 +1692,7 @@ namespace SemiStandard.Simulator.Wpf
                 hsmsMessage.Function,
                 hsmsMessage.Data ?? Array.Empty<byte>(),
                 false);
-            
+
             Dispatcher.Invoke(() =>
             {
                 // Handle events
@@ -1712,7 +1707,7 @@ namespace SemiStandard.Simulator.Wpf
                 }
             });
         }
-        
+
         private void HandleEventReport(SecsMessage message)
         {
             Logger.Log($"[REALISTIC] HandleEventReport called with S{message.Stream}F{message.Function}");
@@ -1722,13 +1717,13 @@ namespace SemiStandard.Simulator.Wpf
                 string eventName = "Event";
                 Logger.Log($"[REALISTIC] Processing event ID: {eventId}");
                 var data = new ConcurrentDictionary<string, string>();
-                
+
                 // Parse event data
                 for (int i = 1; i < list.Items.Count - 1; i += 2)
                 {
                     var key = (list.Items[i] as SecsAscii)?.Value ?? "";
                     var value = GetItemValue(list.Items[i + 1]);
-                    
+
                     if (key == "WAFER_START" || key == "WAFER_COMPLETE")
                     {
                         eventName = key;
@@ -1766,10 +1761,10 @@ namespace SemiStandard.Simulator.Wpf
                             _totalFailed = failed;
                         }
                     }
-                    
+
                     data[key] = value;
                 }
-                
+
                 // Add to events list
                 var eventVm = new EventViewModel
                 {
@@ -1778,14 +1773,14 @@ namespace SemiStandard.Simulator.Wpf
                     Data = string.Join(", ", data.Select(kvp => $"{kvp.Key}: {kvp.Value}")),
                     Background = new SolidColorBrush(Color.FromArgb(20, 0, 150, 200))
                 };
-                
+
                 Logger.Log($"[REALISTIC] Adding event to UI: {eventName} (ID: {eventId})");
                 _events.Insert(0, eventVm);
                 if (_events.Count > 100) _events.RemoveAt(_events.Count - 1);
                 Logger.Log($"[REALISTIC] Total events in list: {_events.Count}");
             }
         }
-        
+
         private void HandleAlarmReport(SecsMessage message)
         {
             if (message.Data is SecsList list && list.Items.Count >= 3)
@@ -1793,7 +1788,7 @@ namespace SemiStandard.Simulator.Wpf
                 var alarmSet = (list.Items[0] as SecsU1)?.Value == 1;
                 var alarmId = (list.Items[1] as SecsU4)?.Value ?? 0;
                 var alarmText = (list.Items[2] as SecsAscii)?.Value ?? "";
-                
+
                 if (alarmSet)
                 {
                     var alarm = new AlarmViewModel
@@ -1817,24 +1812,24 @@ namespace SemiStandard.Simulator.Wpf
                         alarm.Background = new SolidColorBrush(Color.FromArgb(30, 0, 255, 0));
                     }
                 }
-                
+
                 UpdateAlarmCount();
             }
         }
-        
+
         private void UpdateAlarmCount()
         {
             int activeCount = _alarms.Count(a => a.Icon == "Alert");
             AlarmCountText.Text = $"({activeCount} Active)";
             AlarmCountText.Foreground = activeCount > 0 ? Brushes.Red : Brushes.Gray;
         }
-        
+
         private void UpdateWaferStatus(string waferId, bool complete)
         {
             if (!string.IsNullOrEmpty(waferId))
             {
                 CurrentWaferIdText.Text = waferId;
-                
+
                 // Extract slot number
                 if (waferId.Contains("_W"))
                 {
@@ -1842,7 +1837,7 @@ namespace SemiStandard.Simulator.Wpf
                     if (int.TryParse(slotStr, out int slot) && slot > 0 && slot <= 25)
                     {
                         CurrentWaferSlotText.Text = $"Slot: {slot}";
-                        
+
                         // Update visual
                         var slotVisual = _waferSlots[slot - 1];
                         if (complete)
@@ -1861,18 +1856,18 @@ namespace SemiStandard.Simulator.Wpf
                 }
             }
         }
-        
+
         private void AddTemperaturePoint(double temperature)
         {
             var now = DateTimeAxis.ToDouble(DateTime.Now);
             _temperatureSeries.Points.Add(new DataPoint(now, temperature));
-            
+
             // Keep only last 300 points (5 minutes of data at 1 update per second)
             while (_temperatureSeries.Points.Count > 300)
             {
                 _temperatureSeries.Points.RemoveAt(0);
             }
-            
+
             // Update axes
             if (_temperaturePlotModel.Axes.Count >= 2)
             {
@@ -1885,7 +1880,7 @@ namespace SemiStandard.Simulator.Wpf
                     xAxis.Minimum = DateTimeAxis.ToDouble(minTime);
                     xAxis.Maximum = DateTimeAxis.ToDouble(maxTime);
                 }
-                
+
                 // Auto-scale Y-axis based on visible data
                 var yAxis = _temperaturePlotModel.Axes[1] as LinearAxis;
                 if (yAxis != null && _temperatureSeries.Points.Count > 0)
@@ -1897,25 +1892,25 @@ namespace SemiStandard.Simulator.Wpf
                         double maxTemp = visiblePoints.Max(p => p.Y);
                         double padding = (maxTemp - minTemp) * 0.1; // 10% padding
                         if (padding < 0.5) padding = 0.5; // Minimum padding
-                        
+
                         yAxis.Minimum = minTemp - padding;
                         yAxis.Maximum = maxTemp + padding;
                     }
                 }
             }
         }
-        
+
         private void AddPressurePoint(double pressure)
         {
             var now = DateTimeAxis.ToDouble(DateTime.Now);
             _pressureSeries.Points.Add(new DataPoint(now, pressure));
-            
+
             // Keep only last 300 points (5 minutes of data at 1 update per second)
             while (_pressureSeries.Points.Count > 300)
             {
                 _pressureSeries.Points.RemoveAt(0);
             }
-            
+
             // Update axes
             if (_pressurePlotModel.Axes.Count >= 2)
             {
@@ -1928,7 +1923,7 @@ namespace SemiStandard.Simulator.Wpf
                     xAxis.Minimum = DateTimeAxis.ToDouble(minTime);
                     xAxis.Maximum = DateTimeAxis.ToDouble(maxTime);
                 }
-                
+
                 // Auto-scale Y-axis based on visible data
                 var yAxis = _pressurePlotModel.Axes[1] as LinearAxis;
                 if (yAxis != null && _pressureSeries.Points.Count > 0)
@@ -1940,18 +1935,18 @@ namespace SemiStandard.Simulator.Wpf
                         double maxPressure = visiblePoints.Max(p => p.Y);
                         double padding = (maxPressure - minPressure) * 0.1; // 10% padding
                         if (padding < 1) padding = 1; // Minimum padding for pressure
-                        
+
                         yAxis.Minimum = minPressure - padding;
                         yAxis.Maximum = maxPressure + padding;
                     }
                 }
             }
         }
-        
+
         private void GenerateTestEvents()
         {
             Logger.Log("[REALISTIC] Generating test events");
-            
+
             // Add some test events to demonstrate functionality
             Dispatcher.Invoke(() =>
             {
@@ -1964,7 +1959,7 @@ namespace SemiStandard.Simulator.Wpf
                     Background = new SolidColorBrush(Color.FromArgb(20, 0, 255, 0))
                 };
                 _events.Add(onlineEvent);
-                
+
                 // Add load port ready event
                 var loadPortEvent = new EventViewModel
                 {
@@ -1974,7 +1969,7 @@ namespace SemiStandard.Simulator.Wpf
                     Background = new SolidColorBrush(Color.FromArgb(20, 0, 150, 200))
                 };
                 _events.Add(loadPortEvent);
-                
+
                 // Add process chamber event
                 var chamberEvent = new EventViewModel
                 {
@@ -1984,15 +1979,15 @@ namespace SemiStandard.Simulator.Wpf
                     Background = new SolidColorBrush(Color.FromArgb(20, 100, 100, 255))
                 };
                 _events.Add(chamberEvent);
-                
+
                 Logger.Log($"[REALISTIC] Added {_events.Count} test events to display");
             });
         }
-        
+
         private void GenerateTestAlarms()
         {
             Logger.Log("[REALISTIC] Generating test alarms");
-            
+
             Dispatcher.Invoke(() =>
             {
                 // Add a warning alarm
@@ -2006,7 +2001,7 @@ namespace SemiStandard.Simulator.Wpf
                     Background = new SolidColorBrush(Color.FromArgb(30, 255, 165, 0))
                 };
                 _alarms.Add(warningAlarm);
-                
+
                 // Add info alarm
                 var infoAlarm = new AlarmViewModel
                 {
@@ -2018,16 +2013,16 @@ namespace SemiStandard.Simulator.Wpf
                     Background = new SolidColorBrush(Color.FromArgb(30, 0, 100, 255))
                 };
                 _alarms.Add(infoAlarm);
-                
+
                 UpdateAlarmCount();
                 Logger.Log($"[REALISTIC] Added {_alarms.Count} test alarms");
             });
         }
-        
+
         private void InitializeCarriersAndRecipes()
         {
             Logger.Log("[REALISTIC] Initializing carriers and recipes");
-            
+
             Dispatcher.Invoke(() =>
             {
                 // Initialize recipe combo box if empty
@@ -2039,22 +2034,22 @@ namespace SemiStandard.Simulator.Wpf
                     RecipeComboBox.Items.Add(new ComboBoxItem { Content = "ASML-ArF-Immersion - 193nm Immersion" });
                     RecipeComboBox.Items.Add(new ComboBoxItem { Content = "ASML-KrF-248nm - Krypton Fluoride" });
                     RecipeComboBox.SelectedIndex = 0;
-                    
+
                     // Set current recipe display
                     if (CurrentRecipeText != null)
                     {
                         CurrentRecipeText.Text = "Current: ASML-193nm-DUV";
                     }
-                    
+
                     Logger.Log("[REALISTIC] Recipes loaded");
                 }
-                
+
                 // Initialize carrier ID field
                 if (CarrierIdTextBox != null)
                 {
                     CarrierIdTextBox.Text = "LOT001";
                 }
-                
+
                 // Initialize load port combo box
                 if (LoadPortComboBox != null && LoadPortComboBox.Items.Count == 0)
                 {
@@ -2064,12 +2059,12 @@ namespace SemiStandard.Simulator.Wpf
                     LoadPortComboBox.Items.Add(new ComboBoxItem { Content = "Load Port 3" });
                     LoadPortComboBox.SelectedIndex = 0;
                 }
-                
+
                 // Auto-load first carrier after a delay
                 Task.Run(async () =>
                 {
                     await Task.Delay(1500);
-                    
+
                     Dispatcher.Invoke(() =>
                     {
                         // Create initial carrier
@@ -2081,7 +2076,7 @@ namespace SemiStandard.Simulator.Wpf
                             StatusText = "25 wafers"
                         };
                         _carriers.Add(carrier);
-                        
+
                         // Add event for carrier load
                         var loadEvent = new EventViewModel
                         {
@@ -2092,45 +2087,45 @@ namespace SemiStandard.Simulator.Wpf
                         };
                         _events.Insert(0, loadEvent);
                         if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
-                        
+
                         // Add timeline entry
                         AddTimelineEntry("Carrier LOT001 loaded with recipe ASML-193nm-DUV");
-                        
+
                         // Update carrier ID for next one
                         if (CarrierIdTextBox != null)
                         {
                             CarrierIdTextBox.Text = "LOT002";
                         }
-                        
+
                         Logger.Log("[REALISTIC] Initial carrier LOT001 loaded");
                     });
                 });
             });
         }
-        
+
         private void InitializeScheduler()
         {
             Logger.Log("[SCHEDULER] Initializing manufacturing scheduler");
-            
+
             // Generate some test lots
             _scheduler.GenerateTestLots(5);
-            
+
             // Display scheduler metrics
             UpdateSchedulerDisplay();
-            
+
             Logger.Log("[SCHEDULER] Scheduler initialized with test lots");
         }
-        
+
         private void UpdateSchedulerDisplay()
         {
             Dispatcher.Invoke(() =>
             {
                 var metrics = _scheduler.GetSchedulerMetrics();
                 var scheduledQueue = _scheduler.GetScheduledQueue();
-                
+
                 // Update scheduler panel UI
                 UpdateSchedulerPanel(scheduledQueue, metrics);
-                
+
                 // Update metrics display
                 if (metrics.ContainsKey("WaitingLots"))
                 {
@@ -2140,23 +2135,23 @@ namespace SemiStandard.Simulator.Wpf
                     var hotLots = metrics["HotLots"];
                     var overdueLots = metrics["OverdueLots"];
                     var avgWaitTime = metrics["AverageWaitTime"];
-                    
+
                     // Update alarm display with scheduler metrics
                     var schedulerAlarm = new AlarmViewModel
                     {
                         AlarmId = 7000,
                         AlarmText = $"Scheduler: Waiting: {waitingLots} | Processing: {processingLots} | Hot: {hotLots} | Overdue: {overdueLots}",
                         Severity = overdueLots.ToString() != "0" ? "WARNING" : "INFO",
-                        Background = overdueLots.ToString() != "0" ? 
+                        Background = overdueLots.ToString() != "0" ?
                             new SolidColorBrush(Color.FromArgb(40, 255, 200, 0)) :
                             new SolidColorBrush(Color.FromArgb(20, 0, 200, 255))
                     };
-                    
+
                     // Remove old scheduler status and add new one
                     var oldSchedulerAlarm = _alarms.FirstOrDefault(a => a.AlarmId == 7000);
                     if (oldSchedulerAlarm != null) _alarms.Remove(oldSchedulerAlarm);
                     _alarms.Insert(0, schedulerAlarm);
-                    
+
                     // Show next 3 lots in queue as events
                     int lotIndex = 0;
                     foreach (var lot in scheduledQueue.Take(3))
@@ -2170,7 +2165,7 @@ namespace SemiStandard.Simulator.Wpf
                                 new SolidColorBrush(Color.FromArgb(30, 255, 100, 0)) :
                                 new SolidColorBrush(Color.FromArgb(20, 100, 100, 255))
                         };
-                        
+
                         // Update or add queue event
                         var existingEvent = _events.FirstOrDefault(e => e.EventId == (uint)(8000 + lotIndex));
                         if (existingEvent != null)
@@ -2184,18 +2179,18 @@ namespace SemiStandard.Simulator.Wpf
                         }
                         lotIndex++;
                     }
-                    
+
                     Logger.Log($"[SCHEDULER] Waiting: {waitingLots}, Processing: {processingLots}, Hot: {hotLots}, Overdue: {overdueLots}, Avg Wait: {avgWaitTime:F1} min");
                 }
             });
         }
-        
+
         private void InitializeWaferDisplay()
         {
             Logger.Log("[REALISTIC] Initializing wafer display");
             _isProcessing = false; // Don't start processing yet
             _currentProcessingSlot = -1;
-            
+
             // Initialize all wafers as waiting
             Dispatcher.Invoke(() =>
             {
@@ -2209,14 +2204,14 @@ namespace SemiStandard.Simulator.Wpf
                 ProcessStateText.Text = "IDLE";
             });
         }
-        
+
         private void StartWaferProcessingSimulation()
         {
             Logger.Log("[REALISTIC] Starting wafer processing simulation");
             _isProcessing = true;
             _currentProcessingSlot = 0;
             _processingStartTime = DateTime.Now;
-            
+
             // Update display to show processing started
             Dispatcher.Invoke(() =>
             {
@@ -2225,23 +2220,23 @@ namespace SemiStandard.Simulator.Wpf
                 ProcessStateText.Text = "PROCESSING";
             });
         }
-        
+
         private void UpdateWaferProcessing()
         {
             if (!_isProcessing || _currentProcessingSlot < 0)
                 return;
-                
+
             var elapsed = (DateTime.Now - _processingStartTime).TotalSeconds;
-            
+
             // Each wafer takes 3 seconds to process
             const double processingTimePerWafer = 3.0;
-            
+
             Dispatcher.Invoke(() =>
             {
                 // Calculate current progress
                 double progress = (elapsed % processingTimePerWafer) / processingTimePerWafer * 100;
                 WaferProgressBar.Value = progress;
-                
+
                 // Check if current wafer is complete
                 if (elapsed >= processingTimePerWafer)
                 {
@@ -2249,7 +2244,7 @@ namespace SemiStandard.Simulator.Wpf
                     if (_currentProcessingSlot < _waferSlots.Count)
                     {
                         _waferSlots[_currentProcessingSlot].Fill = Brushes.LightGreen;
-                        
+
                         // Add completion event
                         var completeEvent = new EventViewModel
                         {
@@ -2260,7 +2255,7 @@ namespace SemiStandard.Simulator.Wpf
                         };
                         _events.Insert(0, completeEvent);
                         if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
-                        
+
                         // Add synchronized state transition for wafer completion
                         if (_currentStates["RecipeExecutor"] == "EXECUTING")
                         {
@@ -2270,7 +2265,7 @@ namespace SemiStandard.Simulator.Wpf
                         {
                             AddStateTransition("TransportHandler", "MOVING", "READY", "TRANSFER_COMPLETE", "", $"Wafer {_currentProcessingSlot + 1} processed");
                         }
-                        
+
                         // Update statistics
                         _totalProcessed++;
                         if (_random.NextDouble() > 0.98) // 2% failure rate
@@ -2278,7 +2273,7 @@ namespace SemiStandard.Simulator.Wpf
                             _totalFailed++;
                             _waferSlots[_currentProcessingSlot].Fill = Brushes.LightCoral;
                         }
-                        
+
                         // Update carrier progress
                         if (_carriers.Count > 0)
                         {
@@ -2289,23 +2284,23 @@ namespace SemiStandard.Simulator.Wpf
                             currentCarrier.State = processedInCarrier == 25 ? "Complete" : "Processing";
                         }
                     }
-                    
+
                     // Move to next wafer
                     _currentProcessingSlot++;
                     _processingStartTime = DateTime.Now;
-                    
+
                     // Check if all wafers are processed
                     if (_currentProcessingSlot >= 25)
                     {
                         // Reset for continuous simulation
                         _currentProcessingSlot = 0;
-                        
+
                         // Reset all wafers to waiting state
                         for (int i = 0; i < _waferSlots.Count; i++)
                         {
                             _waferSlots[i].Fill = Brushes.LightGray;
                         }
-                        
+
                         AddTimelineEntry("Batch processing complete, starting new batch");
                     }
                     else
@@ -2321,38 +2316,38 @@ namespace SemiStandard.Simulator.Wpf
                     CurrentWaferIdText.Text = $"W{_currentProcessingSlot + 1:D3}";
                     CurrentWaferSlotText.Text = $"Slot: {_currentProcessingSlot + 1}";
                     CurrentWaferStatusText.Text = $"Status: Processing ({progress:F0}%)";
-                    
+
                     // Animate processing wafer with pulsing effect
                     double opacity = 0.5 + 0.5 * Math.Sin(elapsed * Math.PI);
                     _waferSlots[_currentProcessingSlot].Opacity = opacity;
                 }
             });
         }
-        
+
         private void InitializeChartData()
         {
             Logger.Log("[REALISTIC] Initializing chart data");
-            
+
             // Add initial data points to make charts visible
             var now = DateTime.Now;
             for (int i = -20; i <= 0; i++)
             {
                 var time = now.AddSeconds(i);
                 var timeDouble = DateTimeAxis.ToDouble(time);
-                
+
                 // Add temperature points
                 double temp = 22.5 + Math.Sin(i * 0.1) * 0.3;
                 _temperatureSeries.Points.Add(new DataPoint(timeDouble, temp));
-                
+
                 // Add pressure points  
                 double pressure = 1013 + Math.Cos(i * 0.1) * 3;
                 _pressureSeries.Points.Add(new DataPoint(timeDouble, pressure));
             }
-            
+
             _temperaturePlotModel.InvalidatePlot(true);
             _pressurePlotModel.InvalidatePlot(true);
         }
-        
+
         private void GeneratePeriodicEvent()
         {
             var eventTypes = new[]
@@ -2364,9 +2359,9 @@ namespace SemiStandard.Simulator.Wpf
                 ("Sensor Reading", $"Value: {_random.Next(100, 200)}"),
                 ("System Health", "All systems operational")
             };
-            
+
             var selectedEvent = eventTypes[_random.Next(eventTypes.Length)];
-            
+
             Dispatcher.Invoke(() =>
             {
                 var periodicEvent = new EventViewModel
@@ -2376,12 +2371,12 @@ namespace SemiStandard.Simulator.Wpf
                     Data = selectedEvent.Item2,
                     Background = new SolidColorBrush(Color.FromArgb(10, 100, 100, 100))
                 };
-                
+
                 _events.Insert(0, periodicEvent);
                 if (_events.Count > 50) _events.RemoveAt(_events.Count - 1);
             });
         }
-        
+
         private void GenerateRandomAlarm()
         {
             var alarmTypes = new[]
@@ -2392,9 +2387,9 @@ namespace SemiStandard.Simulator.Wpf
                 ("Process deviation alert", "ERROR", Brushes.Red),
                 ("Vacuum level optimal", "INFO", Brushes.Green)
             };
-            
+
             var selectedAlarm = alarmTypes[_random.Next(alarmTypes.Length)];
-            
+
             Dispatcher.Invoke(() =>
             {
                 var alarm = new AlarmViewModel
@@ -2404,20 +2399,20 @@ namespace SemiStandard.Simulator.Wpf
                     Severity = selectedAlarm.Item2,
                     Icon = selectedAlarm.Item2 == "ERROR" ? "Error" : selectedAlarm.Item2 == "INFO" ? "Info" : "Alert",
                     IconColor = selectedAlarm.Item3,
-                    Background = new SolidColorBrush(Color.FromArgb(30, 
+                    Background = new SolidColorBrush(Color.FromArgb(30,
                         selectedAlarm.Item3 == Brushes.Red ? (byte)255 : (byte)100,
                         selectedAlarm.Item3 == Brushes.Green ? (byte)255 : (byte)100,
                         selectedAlarm.Item3 == Brushes.Blue ? (byte)255 : (byte)0))
                 };
-                
+
                 _alarms.Insert(0, alarm);
                 if (_alarms.Count > 20) _alarms.RemoveAt(_alarms.Count - 1);
-                
+
                 UpdateAlarmCount();
                 AddTimelineEntry($"ALARM: {selectedAlarm.Item1}");
             });
         }
-        
+
         private void AddTimelineEntry(string message)
         {
             var entry = new TimelineEntry
@@ -2425,19 +2420,19 @@ namespace SemiStandard.Simulator.Wpf
                 Timestamp = DateTime.Now.ToString("HH:mm:ss"),
                 Message = message
             };
-            
+
             _timeline.Insert(0, entry);
             if (_timeline.Count > 50) _timeline.RemoveAt(_timeline.Count - 1);
         }
-        
+
         private async Task<SecsMessage?> SendHostMessage(SecsMessage message)
         {
             if (_hostConnection == null) return null;
-            
+
             try
             {
                 message.SystemBytes = (uint)Random.Shared.Next(1, 65536);
-                
+
                 var hsmsMessage = new HsmsMessage
                 {
                     Stream = message.Stream,
@@ -2446,7 +2441,7 @@ namespace SemiStandard.Simulator.Wpf
                     SystemBytes = message.SystemBytes,
                     Data = message.Encode()
                 };
-                
+
                 await _hostConnection.SendMessageAsync(hsmsMessage);
                 return message;
             }
@@ -2456,7 +2451,7 @@ namespace SemiStandard.Simulator.Wpf
                 return null;
             }
         }
-        
+
         private async Task SendHostCommand(string command)
         {
             var message = new SecsMessage(2, 41, true)
@@ -2468,7 +2463,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             await SendHostMessage(message);
         }
-        
+
         private async Task SendCarrierAction(string carrierId, string action, int loadPort)
         {
             var message = new SecsMessage(3, 17, true)
@@ -2481,7 +2476,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             await SendHostMessage(message);
         }
-        
+
         private async Task SendRecipeLoad(string recipeId)
         {
             var message = new SecsMessage(7, 1, true)
@@ -2493,7 +2488,7 @@ namespace SemiStandard.Simulator.Wpf
             };
             await SendHostMessage(message);
         }
-        
+
         private string GetItemValue(SecsItem item)
         {
             return item switch
@@ -2505,22 +2500,22 @@ namespace SemiStandard.Simulator.Wpf
                 _ => item.ToString() ?? ""
             };
         }
-        
+
         protected override void OnClosing(CancelEventArgs e)
         {
             _ = StopSimulator();
             base.OnClosing(e);
         }
     }
-    
+
     // View Models
     public class CarrierViewModel : INotifyPropertyChanged
     {
         private string _state = "";
-        
+
         public string CarrierId { get; set; } = "";
         public string LoadPort { get; set; } = "";
-        
+
         public string State
         {
             get => _state;
@@ -2530,17 +2525,17 @@ namespace SemiStandard.Simulator.Wpf
                 OnPropertyChanged();
             }
         }
-        
+
         public string StatusText { get; set; } = "";
-        
+
         public event PropertyChangedEventHandler? PropertyChanged;
-        
+
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-    
+
     public class EventViewModel
     {
         public uint EventId { get; set; }
@@ -2548,7 +2543,7 @@ namespace SemiStandard.Simulator.Wpf
         public string Data { get; set; } = "";
         public Brush Background { get; set; } = Brushes.Transparent;
     }
-    
+
     public class AlarmViewModel
     {
         public uint AlarmId { get; set; }
@@ -2559,7 +2554,7 @@ namespace SemiStandard.Simulator.Wpf
         public Brush IconColor { get; set; } = Brushes.Red;
         public Brush Background { get; set; } = Brushes.Transparent;
     }
-    
+
     public class LotViewModel
     {
         public int QueuePosition { get; set; }
@@ -2569,11 +2564,11 @@ namespace SemiStandard.Simulator.Wpf
         public double Score { get; set; }
         public Brush PriorityColor { get; set; } = Brushes.Gray;
     }
-    
+
     public class StateTransitionViewModel : INotifyPropertyChanged
     {
         private Visibility _visibility = Visibility.Visible;
-        
+
         public string Timestamp { get; set; } = "";
         public string StateMachine { get; set; } = "";
         public string FromState { get; set; } = "";
@@ -2587,7 +2582,7 @@ namespace SemiStandard.Simulator.Wpf
         public Brush MachineColor { get; set; } = Brushes.Black;
         public Brush FromStateColor { get; set; } = Brushes.White;
         public Brush ToStateColor { get; set; } = Brushes.White;
-        
+
         public Visibility Visibility
         {
             get => _visibility;
@@ -2597,15 +2592,15 @@ namespace SemiStandard.Simulator.Wpf
                 OnPropertyChanged();
             }
         }
-        
+
         public event PropertyChangedEventHandler? PropertyChanged;
-        
+
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-    
+
     public class TimelineEntry
     {
         public string Timestamp { get; set; } = "";

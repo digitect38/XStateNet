@@ -1,14 +1,13 @@
-using System;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
-using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Channels;
-using XStateNet.Distributed.StateMachines;
-using XStateNet.Distributed.Monitoring;
-using XStateNet.Distributed.Security;
 using XStateNet.Distributed.Metrics;
+using XStateNet.Distributed.Monitoring;
+using XStateNet.Distributed.Resilience;
+using XStateNet.Distributed.Security;
+using XStateNet.Distributed.StateMachines;
 using XStateNet.Distributed.Telemetry;
 
 namespace XStateNet.Distributed.Extensions
@@ -125,7 +124,8 @@ namespace XStateNet.Distributed.Extensions
         public static IServiceCollection AddTimeoutProtectedStateMachine(
             this IServiceCollection services,
             Func<IServiceProvider, IStateMachine> stateMachineFactory,
-            string stateMachineName = "Default")
+            string stateMachineName = "Default",
+            bool registerWithOrchestrator = false)
         {
             services.AddSingleton<TimeoutProtectedStateMachine>(sp =>
             {
@@ -136,9 +136,42 @@ namespace XStateNet.Distributed.Extensions
                     .GetSection($"StateMachines:{stateMachineName}:TimeoutProtection")
                     .Get<TimeoutProtectedStateMachineOptions>() ?? new TimeoutProtectedStateMachineOptions();
                 var logger = sp.GetService<ILogger<TimeoutProtectedStateMachine>>();
+                var orchestrator = registerWithOrchestrator ? sp.GetService<XStateNet.Orchestration.EventBusOrchestrator>() : null;
 
                 return new TimeoutProtectedStateMachine(
+                    stateMachine, timeoutProtection, dlq, options, logger, orchestrator);
+            });
+
+            return services;
+        }
+
+        /// <summary>
+        /// Add a timeout-protected state machine that participates in orchestrated communication
+        /// </summary>
+        public static IServiceCollection AddOrchestratedTimeoutProtectedStateMachine(
+            this IServiceCollection services,
+            Func<IServiceProvider, IStateMachine> stateMachineFactory,
+            string stateMachineName = "Default",
+            int? channelGroupId = null)
+        {
+            services.AddSingleton<TimeoutProtectedStateMachine>(sp =>
+            {
+                var stateMachine = stateMachineFactory(sp);
+                var timeoutProtection = sp.GetRequiredService<ITimeoutProtection>();
+                var dlq = sp.GetService<IDeadLetterQueue>();
+                var options = sp.GetRequiredService<IConfiguration>()
+                    .GetSection($"StateMachines:{stateMachineName}:TimeoutProtection")
+                    .Get<TimeoutProtectedStateMachineOptions>() ?? new TimeoutProtectedStateMachineOptions();
+                var logger = sp.GetService<ILogger<TimeoutProtectedStateMachine>>();
+                var orchestrator = sp.GetRequiredService<XStateNet.Orchestration.EventBusOrchestrator>();
+
+                var protectedMachine = new TimeoutProtectedStateMachine(
                     stateMachine, timeoutProtection, dlq, options, logger);
+
+                // Register with orchestrator explicitly with optional channel group
+                protectedMachine.RegisterWithOrchestrator(orchestrator, channelGroupId);
+
+                return protectedMachine;
             });
 
             return services;

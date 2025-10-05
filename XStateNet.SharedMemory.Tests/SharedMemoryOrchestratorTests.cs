@@ -1,10 +1,7 @@
-using System;
 using System.Diagnostics;
-using System.Threading.Tasks;
+using XStateNet.Orchestration;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet.SharedMemory;
-using XStateNet.Orchestration;
 
 namespace XStateNet.SharedMemory.Tests
 {

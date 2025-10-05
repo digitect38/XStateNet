@@ -1,10 +1,7 @@
-using Xunit;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 namespace ComplexMachine;
 
@@ -19,11 +16,13 @@ public class AtmStateMachineTests : OrchestratorTestBase
         // Define actions
         var actions = new Dictionary<string, Action<OrchestratedContext>>
         {
-            ["logEntry"] = (ctx) => {
+            ["logEntry"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 // Log entry
             },
-            ["logExit"] = (ctx) => {
+            ["logExit"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 // Log exit
             }
@@ -182,7 +181,7 @@ public class AtmStateMachineTests : OrchestratorTestBase
 
     [Fact]
     public async Task TestBalanceCheck()
-    {        
+    {
         var stateMachine = await CreateStateMachine("atm");
         await SendEventAsync("TEST", stateMachine, "CARD_INSERTED");
         await Task.Delay(100);

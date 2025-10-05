@@ -1,12 +1,9 @@
 using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using XStateNet.Distributed.Core;
-using XStateNet.Distributed.Transports;
-using XStateNet.Distributed.Tests.TestHelpers;
-using Xunit;
 using System.Collections.Concurrent;
+using XStateNet.Distributed.Core;
+using XStateNet.Distributed.Tests.TestHelpers;
+using XStateNet.Distributed.Transports;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests
 {
@@ -31,10 +28,10 @@ namespace XStateNet.Distributed.Tests
         {
             // Arrange
             using var transport = new InMemoryTransport();
-            
+
             // Act
             await transport.ConnectAsync("local://test-node");
-            
+
             // Assert
             transport.IsConnected.Should().BeTrue();
             transport.Type.Should().Be(TransportType.InMemory);
@@ -46,10 +43,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var sender = new InMemoryTransport();
             using var receiver = new InMemoryTransport();
-            
+
             await sender.ConnectAsync("local://sender");
             await receiver.ConnectAsync("local://receiver");
-            
+
             var message = new StateMachineMessage
             {
                 From = "local://sender",
@@ -57,11 +54,11 @@ namespace XStateNet.Distributed.Tests
                 EventName = "TEST_EVENT",
                 Payload = MessageSerializer.Serialize("test payload")
             };
-            
+
             // Act
             var sendResult = await sender.SendAsync(message);
             var receivedMessage = await receiver.ReceiveAsync(TimeSpan.FromSeconds(1));
-            
+
             // Assert
             sendResult.Should().BeTrue();
             receivedMessage.Should().NotBeNull();
@@ -159,13 +156,13 @@ namespace XStateNet.Distributed.Tests
 
             // Wait for server to be ready
             await serverReady.Task;
-            
+
             // Act
             var response = await client.RequestAsync<string, string>(
                 "local://server",
                 "request data",
                 TimeSpan.FromSeconds(2));
-            
+
             // Assert
             response.Should().Be("response data");
         }
@@ -176,28 +173,28 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var transport1 = new InMemoryTransport();
             using var transport2 = new InMemoryTransport();
-            
+
             await transport1.ConnectAsync("local://node1");
             await transport2.ConnectAsync("local://node2");
-            
-            
+
+
             await transport1.RegisterAsync(new StateMachineEndpoint
             {
                 Id = "node1",
                 Address = "local://node1",
                 Metadata = new ConcurrentDictionary<string, string> { ["type"] = "test" }
             });
-            
+
             await transport2.RegisterAsync(new StateMachineEndpoint
             {
                 Id = "node2",
                 Address = "local://node2",
                 Metadata = new ConcurrentDictionary<string, string> { ["type"] = "test" }
             });
-            
+
             // Act
             var endpoints = await transport1.DiscoverAsync("*");
-            
+
             // Assert
             endpoints.Should().HaveCountGreaterThanOrEqualTo(2);
             endpoints.Should().Contain(e => e.Id == "node1");
@@ -211,10 +208,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var transport = new InMemoryTransport();
             await transport.ConnectAsync("local://test");
-            
+
             // Act
             var health = await transport.GetHealthAsync();
-            
+
             // Assert
             health.Should().NotBeNull();
             health.IsHealthy.Should().BeTrue();
@@ -228,10 +225,10 @@ namespace XStateNet.Distributed.Tests
             // Arrange
             using var transport = new InMemoryTransport();
             await transport.ConnectAsync("local://test");
-            
+
             // Act
             await transport.DisconnectAsync();
-            
+
             // Assert
             transport.IsConnected.Should().BeFalse();
         }

@@ -1,22 +1,14 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
 using Microsoft.Extensions.Logging;
-using XStateNet;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.EventBus.Optimized;
 using XStateNet.Distributed.PubSub;
 using XStateNet.Distributed.PubSub.Optimized;
-using XStateNet.Distributed.Tests.Helpers;
 using XStateNet.Distributed.Testing;
-using RabbitMQ.Client;
+using XStateNet.Distributed.Tests.Helpers;
+using Xunit;
+using Xunit.Abstractions;
 
 // Suppress obsolete warning - comprehensive PubSub tests use event bus patterns
 #pragma warning disable CS0618

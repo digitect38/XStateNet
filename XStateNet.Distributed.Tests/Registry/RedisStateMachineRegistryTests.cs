@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using StackExchange.Redis;
-using Xunit;
 using XStateNet.Distributed.Registry;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.Registry
 {
@@ -184,15 +180,15 @@ namespace XStateNet.Distributed.Tests.Registry
             var now = DateTime.UtcNow;
             var machines = new[]
             {
-                new StateMachineInfo 
-                { 
-                    MachineId = "active-1", 
-                    LastHeartbeat = now.AddSeconds(-10) 
+                new StateMachineInfo
+                {
+                    MachineId = "active-1",
+                    LastHeartbeat = now.AddSeconds(-10)
                 },
-                new StateMachineInfo 
-                { 
-                    MachineId = "inactive-1", 
-                    LastHeartbeat = now.AddMinutes(-5) 
+                new StateMachineInfo
+                {
+                    MachineId = "inactive-1",
+                    LastHeartbeat = now.AddMinutes(-5)
                 }
             };
 
@@ -241,8 +237,8 @@ namespace XStateNet.Distributed.Tests.Registry
         {
             // Arrange
             var machineId = "test-machine-1";
-            var info = new StateMachineInfo 
-            { 
+            var info = new StateMachineInfo
+            {
                 MachineId = machineId,
                 Status = MachineStatus.Running
             };

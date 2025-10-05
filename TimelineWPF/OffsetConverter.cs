@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 using System.Windows.Data;
 
@@ -9,7 +8,7 @@ namespace TimelineWPF
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is double d)
-                return d + 10; // ÇÊ¿ä¿¡ µû¶ó ¿ÀÇÁ¼Â Á¶Á¤
+                return d + 10; // í•„ìš”ì— ë”°ë¼ ì˜¤í”„ì…‹ ì¡°ì •
             return value;
         }
 

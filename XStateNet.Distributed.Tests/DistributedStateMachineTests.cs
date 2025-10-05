@@ -1,8 +1,5 @@
-using System.Diagnostics;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using XStateNet;
-using XStateNet.Distributed;
+using System.Diagnostics;
 using Xunit;
 
 // Suppress obsolete warning - distributed state machine tests use DistributedStateMachine wrapper
@@ -13,7 +10,7 @@ namespace XStateNet.Distributed.Tests
     public class DistributedStateMachineTests : IDisposable
     {
         private readonly List<DistributedStateMachine> _machines = new();
-        
+
         [Fact]
         public void CreateFromScript_Should_CreateDistributedMachine()
         {
@@ -35,11 +32,11 @@ namespace XStateNet.Distributed.Tests
                     }
                 }
             }";
-            
+
             // Act
             var machine = new DistributedStateMachine(StateMachineFactory.CreateFromScript(json, guidIsolate: true), "test-machine", "local://test");
             _machines.Add(machine);
-            
+
             // Assert
             machine.Should().NotBeNull();
             machine.StateMachine.Should().NotBeNull();
@@ -63,10 +60,10 @@ namespace XStateNet.Distributed.Tests
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             // Act
             machine.Start();
-            
+
             // Assert
             // Note: StateMachines doesn't have a Started property in this implementation
             // We can verify it doesn't throw
@@ -90,15 +87,15 @@ namespace XStateNet.Distributed.Tests
                 }
             }";
             var baseMachine = StateMachineFactory.CreateFromScript(json, guidIsolate: true);
-            
+
             var machine = new DistributedStateMachine(
                 baseMachine,
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             machine.Start();
-            
+
             // Act
             await machine.SendAsync("START");
 
@@ -124,13 +121,13 @@ namespace XStateNet.Distributed.Tests
                 }
             }";
             var baseMachine1 = StateMachineFactory.CreateFromScript(json1, guidIsolate: true);
-            
+
             var machine1 = new DistributedStateMachine(
                 baseMachine1,
                 "machine1",
                 "local://machine1");
             _machines.Add(machine1);
-            
+
             var machine2Id = "machine2_" + Guid.NewGuid().ToString("N");
             var json2 = @"
             {
@@ -146,16 +143,16 @@ namespace XStateNet.Distributed.Tests
                 }
             }";
             var baseMachine2 = StateMachineFactory.CreateFromScript(json2, guidIsolate: true);
-            
+
             var machine2 = new DistributedStateMachine(
                 baseMachine2,
                 "machine2",
                 "local://machine2");
             _machines.Add(machine2);
-            
+
             machine1.Start();
             machine2.Start();
-            
+
             // Act
             await machine2.SendToMachineAsync("machine1", "REMOTE_EVENT");
 
@@ -164,7 +161,7 @@ namespace XStateNet.Distributed.Tests
             var timeout = TimeSpan.FromMilliseconds(500);
             var targetState = "running";
 
-			while (!machine1.StateMachine.GetActiveStateNames().Contains(targetState) && sw.Elapsed < timeout)
+            while (!machine1.StateMachine.GetActiveStateNames().Contains(targetState) && sw.Elapsed < timeout)
             {
                 await Task.Yield();
             }
@@ -191,9 +188,9 @@ namespace XStateNet.Distributed.Tests
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             machine.Start();
-            
+
             // Act & Assert (should not throw)
             Func<Task> act = async () => await machine.SendAsync("remoteMachine@EVENT");
             await act.Should().NotThrowAsync();
@@ -217,12 +214,12 @@ namespace XStateNet.Distributed.Tests
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             machine.Start();
-            
+
             // Act
             var endpoints = await machine.DiscoverMachinesAsync();
-            
+
             // Assert
             endpoints.Should().NotBeNull();
             // The actual results depend on transport implementation
@@ -246,12 +243,12 @@ namespace XStateNet.Distributed.Tests
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             machine.Start();
-            
+
             // Act
             var health = await machine.GetHealthAsync();
-            
+
             // Assert
             health.Should().NotBeNull();
             health!.IsHealthy.Should().BeTrue();
@@ -275,12 +272,12 @@ namespace XStateNet.Distributed.Tests
                 "test-machine",
                 "local://test");
             _machines.Add(machine);
-            
+
             machine.Start();
-            
+
             // Act
             machine.Stop();
-            
+
             // Assert
             // Verify stop doesn't throw
         }

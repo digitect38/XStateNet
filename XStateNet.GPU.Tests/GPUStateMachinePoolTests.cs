@@ -1,8 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
-using XStateNet.GPU;
 using XStateNet.GPU.Core;
 
 namespace XStateNet.GPU.Tests

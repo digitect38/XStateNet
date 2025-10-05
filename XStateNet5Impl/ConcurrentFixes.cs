@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace XStateNet;
 
@@ -17,7 +14,7 @@ public static class ConcurrentFixes
     {
         private readonly List<(CompoundState state, Transition transition, string eventName)> _list = new();
         private readonly ReaderWriterLockSlim _lock = new();
-        
+
         public void Add((CompoundState state, Transition transition, string eventName) item)
         {
             _lock.EnterWriteLock();
@@ -30,7 +27,7 @@ public static class ConcurrentFixes
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public List<(CompoundState state, Transition transition, string eventName)> ToList()
         {
             _lock.EnterReadLock();
@@ -43,7 +40,7 @@ public static class ConcurrentFixes
                 _lock.ExitReadLock();
             }
         }
-        
+
         public void Clear()
         {
             _lock.EnterWriteLock();
@@ -57,27 +54,27 @@ public static class ConcurrentFixes
             }
         }
     }
-    
+
     /// <summary>
     /// Thread-safe wrapper for BuildTransitionList in parallel states
     /// </summary>
     public static void SafeBuildTransitionList(
         ParallelState parallelState,
-        string eventName, 
+        string eventName,
         List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // Use thread-safe collection for parallel processing
         var concurrentList = new ConcurrentBag<(CompoundState state, Transition transition, string eventName)>();
-        
+
         // Parent first (single-threaded)
         var parentTransitions = new List<(CompoundState state, Transition transition, string eventName)>();
         parallelState.BuildTransitionListBase(eventName, parentTransitions);
-        
+
         foreach (var item in parentTransitions)
         {
             concurrentList.Add(item);
         }
-        
+
         // Children in parallel (multi-threaded)
         Parallel.ForEach(parallelState.SubStateNames, subStateName =>
         {
@@ -86,14 +83,14 @@ public static class ConcurrentFixes
             {
                 var localList = new List<(CompoundState state, Transition transition, string eventName)>();
                 subState.BuildTransitionList(eventName, localList);
-                
+
                 foreach (var item in localList)
                 {
                     concurrentList.Add(item);
                 }
             }
         });
-        
+
         // Add all to the final list
         transitionList.AddRange(concurrentList);
     }
@@ -105,7 +102,7 @@ public static class ConcurrentFixes
 public static class ThreadSafeExtensions
 {
     private static readonly ConcurrentDictionary<object, ReaderWriterLockSlim> _locks = new();
-    
+
     /// <summary>
     /// Get or create a lock for an object
     /// </summary>
@@ -113,7 +110,7 @@ public static class ThreadSafeExtensions
     {
         return _locks.GetOrAdd(obj, _ => new ReaderWriterLockSlim());
     }
-    
+
     /// <summary>
     /// Thread-safe property setter
     /// </summary>
@@ -130,7 +127,7 @@ public static class ThreadSafeExtensions
             lockObj.ExitWriteLock();
         }
     }
-    
+
     /// <summary>
     /// Thread-safe property getter
     /// </summary>

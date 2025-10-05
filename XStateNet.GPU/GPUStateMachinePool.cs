@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ILGPU;
 using ILGPU.Runtime;
-using ILGPU.Runtime.Cuda;
-using ILGPU.Runtime.OpenCL;
 using ILGPU.Runtime.CPU;
+using System;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using XStateNet.GPU.Core;
 
 namespace XStateNet.GPU

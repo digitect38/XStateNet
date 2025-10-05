@@ -1,5 +1,3 @@
-using System;
-
 namespace XStateNet.GPU.Tests
 {
     public enum TestPriority

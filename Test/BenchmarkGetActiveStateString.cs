@@ -1,7 +1,5 @@
-using System;
 using System.Diagnostics;
 using Xunit;
-using XStateNet;
 
 // Suppress obsolete warning - benchmark test with no inter-machine communication
 #pragma warning disable CS0618

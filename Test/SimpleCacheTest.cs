@@ -1,8 +1,7 @@
-using System;
+using XStateNet.Semi.Secs;
+using XStateNet.Semi.Transport;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet.Semi.Transport;
-using XStateNet.Semi.Secs;
 
 namespace XStateNet.Tests
 {

@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace XStateNet.GPU.Tests
 {
     [CollectionDefinition("TimingSensitive")]

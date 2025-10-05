@@ -1,6 +1,4 @@
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
-using System.Diagnostics;
 namespace XStateNet;
 
 /// <summary>
@@ -69,14 +67,14 @@ public class NormalState : CompoundState
             {
                 var initialCount = transitionList.Count;
                 GetState(activeStateName)?.BuildTransitionList(eventName, transitionList);
-                
+
                 // If child added an onError transition, don't add parent's onError
                 if (transitionList.Count > initialCount)
                 {
                     return;
                 }
             }
-            
+
             // Only add parent's onError if no child handled it
             base.BuildTransitionList(eventName, transitionList);
         }
@@ -121,7 +119,7 @@ public class NormalState : CompoundState
     {
 
         string? nextActiveStateName = InitialStateName;
-        var childHistoryType =  historyType;
+        var childHistoryType = historyType;
 
         // Check if this state has history enabled and should restore last active state
         if (HistorySubState != null && LastActiveStateName != null && targetHistoryState == null)
@@ -333,7 +331,7 @@ public class NormalState : CompoundState
 
     }
 }
- 
+
 /// <summary>
 /// 
 /// </summary>
@@ -353,7 +351,7 @@ public class Parser_NormalState : Parser_RealState
         var initial = stateToken["initial"];
 
         var state = new NormalState(stateName, parentName, machineId)
-        {            
+        {
             InitialStateName = (initial != null) ? PerformanceOptimizations.BuildPath(stateName, initial.ToString()) : null,
         };
 

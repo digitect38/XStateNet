@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace XStateNet.Semi;
 
@@ -15,7 +12,7 @@ public class SemiVariableCollection
     private readonly ConcurrentDictionary<int, AlarmDefinition> _alarms = new();
     private readonly ConcurrentDictionary<int, EquipmentConstant> _equipmentConstants = new();
     private readonly object _updateLock = new();
-    
+
     /// <summary>
     /// Register a status variable
     /// </summary>
@@ -27,7 +24,7 @@ public class SemiVariableCollection
         };
         _statusVariables[svid] = sv;
     }
-    
+
     /// <summary>
     /// Update status variable value
     /// </summary>
@@ -42,7 +39,7 @@ public class SemiVariableCollection
             }
         }
     }
-    
+
     /// <summary>
     /// Get status variable value
     /// </summary>
@@ -50,7 +47,7 @@ public class SemiVariableCollection
     {
         return _statusVariables.TryGetValue(svid, out var sv) ? sv.Value : null;
     }
-    
+
     /// <summary>
     /// Register collection event
     /// </summary>
@@ -60,7 +57,7 @@ public class SemiVariableCollection
         ce.LinkedReports.AddRange(linkedReports);
         _collectionEvents[ceid] = ce;
     }
-    
+
     /// <summary>
     /// Register alarm
     /// </summary>
@@ -68,7 +65,7 @@ public class SemiVariableCollection
     {
         _alarms[alid] = new AlarmDefinition(alid, text, severity);
     }
-    
+
     /// <summary>
     /// Set or clear an alarm
     /// </summary>
@@ -92,7 +89,7 @@ public class SemiVariableCollection
         }
         return false;
     }
-    
+
     /// <summary>
     /// Get all active alarms
     /// </summary>
@@ -100,11 +97,11 @@ public class SemiVariableCollection
     {
         return _alarms.Values.Where(a => a.Set);
     }
-    
+
     /// <summary>
     /// Register equipment constant
     /// </summary>
-    public void RegisterEquipmentConstant(int ecid, string name, Type dataType, object defaultValue, 
+    public void RegisterEquipmentConstant(int ecid, string name, Type dataType, object defaultValue,
         object? minValue = null, object? maxValue = null)
     {
         var ec = new EquipmentConstant(ecid, name, dataType)
@@ -116,7 +113,7 @@ public class SemiVariableCollection
         };
         _equipmentConstants[ecid] = ec;
     }
-    
+
     /// <summary>
     /// Update equipment constant
     /// </summary>
@@ -129,7 +126,7 @@ public class SemiVariableCollection
                 return false;
             if (ec.MaxValue != null && Comparer<object>.Default.Compare(value, ec.MaxValue) > 0)
                 return false;
-                
+
             lock (_updateLock)
             {
                 ec.Value = value;
@@ -139,7 +136,7 @@ public class SemiVariableCollection
         }
         return false;
     }
-    
+
     /// <summary>
     /// Initialize standard SEMI variables
     /// </summary>
@@ -154,7 +151,7 @@ public class SemiVariableCollection
         RegisterStatusVariable(6, "PreviousControlState", typeof(int), 0);
         RegisterStatusVariable(7, "PPExecName", typeof(string), "");
         RegisterStatusVariable(8, "MaterialStatus", typeof(int), 0); // 0=None, 1=WaitingForMaterial, 2=InProcess, 3=Processed
-        
+
         // Standard CEIDs
         RegisterCollectionEvent(1, "EquipmentOffline");
         RegisterCollectionEvent(2, "EquipmentLocal");
@@ -166,7 +163,7 @@ public class SemiVariableCollection
         RegisterCollectionEvent(8, "MaterialRemoved");
         RegisterCollectionEvent(9, "MaterialProcessed");
         RegisterCollectionEvent(10, "MaterialLost");
-        
+
         // Standard ALIDs
         RegisterAlarm(1000, "Emergency Stop Activated", AlarmSeverity.Critical);
         RegisterAlarm(1001, "Safety Door Open", AlarmSeverity.Error);
@@ -174,7 +171,7 @@ public class SemiVariableCollection
         RegisterAlarm(2001, "Process Recipe Not Found", AlarmSeverity.Error);
         RegisterAlarm(3000, "Temperature Out of Range", AlarmSeverity.Warning);
         RegisterAlarm(3001, "Pressure Out of Range", AlarmSeverity.Warning);
-        
+
         // Standard ECIDs
         RegisterEquipmentConstant(1, "CommunicationTimeout", typeof(int), 120, 10, 600); // seconds
         RegisterEquipmentConstant(2, "DefaultRecipeId", typeof(string), "DEFAULT");
@@ -194,7 +191,7 @@ public class StatusVariable
     public Type DataType { get; set; }
     public object? Value { get; set; }
     public DateTime LastUpdate { get; set; }
-    
+
     public StatusVariable(int id, string name, Type dataType)
     {
         Id = id;
@@ -217,7 +214,7 @@ public class EquipmentConstant
     public object? MinValue { get; set; }
     public object? MaxValue { get; set; }
     public DateTime LastUpdate { get; set; }
-    
+
     public EquipmentConstant(int id, string name, Type dataType)
     {
         Id = id;

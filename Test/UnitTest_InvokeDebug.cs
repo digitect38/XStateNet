@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 using XStateNet;
+using Xunit;
 
 // Suppress obsolete warning - standalone invoke debug test with no inter-machine communication
 #pragma warning disable CS0618
@@ -37,7 +32,8 @@ namespace XStateV5_Test.AdvancedFeatures
 
             _services = new ServiceMap
             {
-                ["quickService"] = new NamedService("quickService", async (sm, ct) => {
+                ["quickService"] = new NamedService("quickService", async (sm, ct) =>
+                {
                     _eventLog.Add("service:started");
                     await Task.Delay(50, ct);
                     _eventLog.Add("service:completed");
@@ -82,10 +78,11 @@ namespace XStateV5_Test.AdvancedFeatures
                 }
             }";
 
-            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, null, _services);
+            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, null, _services);
 
             // Add debug logging
-            _stateMachine.OnTransition += (from, to, evt) => {
+            _stateMachine.OnTransition += (from, to, evt) =>
+            {
                 _eventLog.Add($"transition:{from?.Name ?? "null"}->{to?.Name ?? "null"}:{evt}");
             };
 
@@ -145,7 +142,7 @@ namespace XStateV5_Test.AdvancedFeatures
                 }
             }";
 
-            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,_actions, null, _services);
+            _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, _actions, null, _services);
             _stateMachine.Start();
 
             // Act

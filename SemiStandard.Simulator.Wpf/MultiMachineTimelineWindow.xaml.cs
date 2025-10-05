@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,16 +15,16 @@ namespace SemiStandard.Simulator.Wpf
         private readonly ConcurrentDictionary<string, string> _currentMachineStates = new();
         private readonly ConcurrentDictionary<string, DateTime> _lastMachineStateChangeTimes = new();
         private readonly ConcurrentDictionary<string, Color> _stateColorCache = new();
-        
+
         private DispatcherTimer _continuousUpdateTimer;
         private DateTime _sessionStartTime = DateTime.Now;
         private const int MAX_TRANSITION_HISTORY = 2000;
         private const double PIXELS_PER_SECOND = 50;
-        
+
         public MultiMachineTimelineWindow()
         {
             InitializeComponent();
-            
+
             // Setup continuous update timer
             _continuousUpdateTimer = new DispatcherTimer
             {
@@ -36,7 +33,7 @@ namespace SemiStandard.Simulator.Wpf
             _continuousUpdateTimer.Tick += ContinuousUpdateTimer_Tick;
             _continuousUpdateTimer.Start();
         }
-        
+
         public void AddStateTransition(string machineName, string fromState, string toState, DateTime timestamp)
         {
             var lockObj = _transitionLocks.GetOrAdd(machineName, _ => new object());
@@ -65,32 +62,32 @@ namespace SemiStandard.Simulator.Wpf
             // Update display
             UpdateTimeline();
         }
-        
+
         private void ContinuousUpdateTimer_Tick(object? sender, EventArgs e)
         {
             UpdateTimeline();
         }
-        
+
         private void UpdateTimeline()
         {
             TimelineCanvas.Children.Clear();
-            
+
             if (_machineTransitions.Count == 0) return;
-            
+
             var currentTime = DateTime.Now;
             var allTransitions = _machineTransitions.SelectMany(kvp => kvp.Value).ToList();
             if (allTransitions.Count == 0) return;
-            
+
             // Calculate time range
             var minTime = allTransitions.Min(t => t.Timestamp);
             var maxTime = currentTime;
             var timeSpan = maxTime - minTime;
             if (timeSpan.TotalSeconds < 1) timeSpan = TimeSpan.FromSeconds(10);
-            
+
             // Build machine-state hierarchy
             var machineStateMap = new ConcurrentDictionary<string, List<string>>();
             var stateYPositions = new ConcurrentDictionary<string, double>();
-            
+
             foreach (var machine in _machineTransitions.Keys.OrderBy(k => k))
             {
                 var states = _machineTransitions[machine]
@@ -99,10 +96,10 @@ namespace SemiStandard.Simulator.Wpf
                     .Distinct()
                     .OrderBy(s => s)
                     .ToList();
-                
+
                 machineStateMap[machine] = states;
             }
-            
+
             // Canvas dimensions
             double leftMargin = 280;  // Space for machine.state names
             double rightMargin = 50;
@@ -111,13 +108,13 @@ namespace SemiStandard.Simulator.Wpf
             double stateHeight = 25;  // Height per state row
             double machineSpacing = 30; // Spacing between machines
             double canvasWidth = Math.Max(2000, leftMargin + rightMargin + (timeSpan.TotalSeconds * PIXELS_PER_SECOND));
-            
+
             // Calculate canvas height
             double currentY = topMargin;
             foreach (var machine in machineStateMap.Keys.OrderBy(k => k))
             {
                 if (currentY > topMargin) currentY += machineSpacing;
-                
+
                 foreach (var state in machineStateMap[machine])
                 {
                     var key = $"{machine}.{state}";
@@ -125,57 +122,59 @@ namespace SemiStandard.Simulator.Wpf
                     currentY += stateHeight;
                 }
             }
-            
+
             double canvasHeight = currentY + bottomMargin;
             TimelineCanvas.Width = canvasWidth;
             TimelineCanvas.Height = canvasHeight;
-            
+
             double plotWidth = canvasWidth - leftMargin - rightMargin;
-            
+
             // Draw background grid
             DrawBackgroundGrid(canvasWidth, canvasHeight, leftMargin, topMargin, bottomMargin, minTime, maxTime, plotWidth);
-            
+
             // Draw state labels and guide lines
             DrawStateLabels(machineStateMap, stateYPositions, leftMargin, canvasWidth, rightMargin, stateHeight, machineSpacing);
-            
+
             // Draw state transitions for each machine
             DrawStateTransitions(stateYPositions, leftMargin, minTime, timeSpan, plotWidth, currentTime);
-            
+
             // Draw current time indicator
             DrawCurrentTimeIndicator(leftMargin, plotWidth, topMargin, canvasHeight - bottomMargin, currentTime, minTime, timeSpan);
-            
+
             // Update status
             MachineCountText.Text = $"{_machineTransitions.Count} Machines";
             LastUpdateText.Text = $"Last Update: {currentTime:HH:mm:ss}";
-            
+
             // Auto-scroll
             if (AutoScrollCheck?.IsChecked == true)
             {
                 TimelineScroller.ScrollToRightEnd();
             }
         }
-        
-        private void DrawBackgroundGrid(double canvasWidth, double canvasHeight, double leftMargin, 
+
+        private void DrawBackgroundGrid(double canvasWidth, double canvasHeight, double leftMargin,
             double topMargin, double bottomMargin, DateTime minTime, DateTime maxTime, double plotWidth)
         {
             // Vertical time grid lines (every 10 seconds)
             var timeSpan = maxTime - minTime;
             var secondsPerLine = Math.Max(10, (int)(timeSpan.TotalSeconds / 20));
-            
+
             for (int i = 0; i <= timeSpan.TotalSeconds; i += secondsPerLine)
             {
                 double x = leftMargin + (i / timeSpan.TotalSeconds) * plotWidth;
-                
+
                 var gridLine = new Line
                 {
-                    X1 = x, Y1 = topMargin,
-                    X2 = x, Y2 = canvasHeight - bottomMargin,
+                    X1 = x,
+                    Y1 = topMargin,
+                    X2 = x,
+                    Y2 = canvasHeight - bottomMargin,
                     Stroke = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
                     StrokeThickness = 0.5,
                     StrokeDashArray = new DoubleCollection { 2, 4 }
                 };
                 TimelineCanvas.Children.Add(gridLine);
-                
+
                 // Time label
                 var time = minTime.AddSeconds(i);
                 var timeLabel = new TextBlock
@@ -189,9 +188,9 @@ namespace SemiStandard.Simulator.Wpf
                 TimelineCanvas.Children.Add(timeLabel);
             }
         }
-        
-        private void DrawStateLabels(ConcurrentDictionary<string, List<string>> machineStateMap, 
-            ConcurrentDictionary<string, double> stateYPositions, double leftMargin, double canvasWidth, 
+
+        private void DrawStateLabels(ConcurrentDictionary<string, List<string>> machineStateMap,
+            ConcurrentDictionary<string, double> stateYPositions, double leftMargin, double canvasWidth,
             double rightMargin, double stateHeight, double machineSpacing)
         {
             // Create a fixed background panel for labels that doesn't scroll
@@ -207,9 +206,9 @@ namespace SemiStandard.Simulator.Wpf
             Canvas.SetTop(labelBackground, 0);
             Canvas.SetZIndex(labelBackground, 1);
             TimelineCanvas.Children.Add(labelBackground);
-            
+
             string lastMachine = "";
-            
+
             foreach (var machine in machineStateMap.Keys.OrderBy(k => k))
             {
                 // Draw machine separator
@@ -227,15 +226,15 @@ namespace SemiStandard.Simulator.Wpf
                     };
                     TimelineCanvas.Children.Add(separatorLine);
                 }
-                
+
                 // Draw machine name
                 if (machineStateMap[machine].Count > 0)
                 {
                     var firstStateY = stateYPositions[$"{machine}.{machineStateMap[machine].First()}"];
-                    
+
                     // Truncate machine name if too long
                     string displayName = machine.Length > 20 ? machine.Substring(0, 17) + "..." : machine;
-                    
+
                     var machineLabel = new TextBlock
                     {
                         Text = displayName,
@@ -249,18 +248,18 @@ namespace SemiStandard.Simulator.Wpf
                     Canvas.SetZIndex(machineLabel, 2);
                     TimelineCanvas.Children.Add(machineLabel);
                 }
-                
+
                 // Draw state labels
                 foreach (var state in machineStateMap[machine])
                 {
                     var key = $"{machine}.{state}";
                     if (!stateYPositions.ContainsKey(key)) continue;
-                    
+
                     double y = stateYPositions[key];
-                    
+
                     // Truncate state name if too long
                     string displayState = state.Length > 15 ? state.Substring(0, 12) + "..." : state;
-                    
+
                     // State label with clipping
                     var stateLabel = new TextBlock
                     {
@@ -277,7 +276,7 @@ namespace SemiStandard.Simulator.Wpf
                     stateLabel.MaxWidth = leftMargin - 150;
                     Canvas.SetZIndex(stateLabel, 2);
                     TimelineCanvas.Children.Add(stateLabel);
-                    
+
                     // Horizontal guide line
                     var guideLine = new Line
                     {
@@ -290,10 +289,10 @@ namespace SemiStandard.Simulator.Wpf
                     };
                     TimelineCanvas.Children.Add(guideLine);
                 }
-                
+
                 lastMachine = machine;
             }
-            
+
             // Add vertical separator line between labels and timeline
             var verticalSeparator = new Line
             {
@@ -307,7 +306,7 @@ namespace SemiStandard.Simulator.Wpf
             Canvas.SetZIndex(verticalSeparator, 3);
             TimelineCanvas.Children.Add(verticalSeparator);
         }
-        
+
         private void DrawStateTransitions(ConcurrentDictionary<string, double> stateYPositions, double leftMargin,
             DateTime minTime, TimeSpan timeSpan, double plotWidth, DateTime currentTime)
         {
@@ -315,16 +314,16 @@ namespace SemiStandard.Simulator.Wpf
             {
                 var machineName = machineKvp.Key;
                 var transitions = machineKvp.Value.OrderBy(t => t.Timestamp).ToList();
-                
+
                 if (transitions.Count == 0) continue;
-                
+
                 string currentState = "";
                 DateTime lastTime = minTime;
-                
+
                 foreach (var transition in transitions)
                 {
                     double x = leftMargin + ((transition.Timestamp - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-                    
+
                     if (!string.IsNullOrEmpty(currentState))
                     {
                         var currentKey = $"{machineName}.{currentState}";
@@ -332,7 +331,7 @@ namespace SemiStandard.Simulator.Wpf
                         {
                             double stateY = stateYPositions[currentKey];
                             double lastX = leftMargin + ((lastTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-                            
+
                             // Draw state line
                             var stateLine = new Line
                             {
@@ -345,7 +344,7 @@ namespace SemiStandard.Simulator.Wpf
                                 SnapsToDevicePixels = true
                             };
                             TimelineCanvas.Children.Add(stateLine);
-                            
+
                             // Draw vertical transition line
                             var newKey = $"{machineName}.{transition.ToState}";
                             if (stateYPositions.ContainsKey(newKey) && newKey != currentKey)
@@ -366,11 +365,11 @@ namespace SemiStandard.Simulator.Wpf
                             }
                         }
                     }
-                    
+
                     currentState = transition.ToState;
                     lastTime = transition.Timestamp;
                 }
-                
+
                 // Extend current state to now
                 if (!string.IsNullOrEmpty(currentState) && _lastMachineStateChangeTimes.ContainsKey(machineName))
                 {
@@ -380,7 +379,7 @@ namespace SemiStandard.Simulator.Wpf
                         double stateY = stateYPositions[currentKey];
                         double lastX = leftMargin + ((lastTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
                         double nowX = leftMargin + ((currentTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-                        
+
                         // Draw active state line
                         var currentStateLine = new Line
                         {
@@ -394,7 +393,7 @@ namespace SemiStandard.Simulator.Wpf
                             SnapsToDevicePixels = true
                         };
                         TimelineCanvas.Children.Add(currentStateLine);
-                        
+
                         // Add active indicator
                         var activeDot = new Ellipse
                         {
@@ -409,12 +408,12 @@ namespace SemiStandard.Simulator.Wpf
                 }
             }
         }
-        
+
         private void DrawCurrentTimeIndicator(double leftMargin, double plotWidth, double topMargin,
             double bottomY, DateTime currentTime, DateTime minTime, TimeSpan timeSpan)
         {
             double nowX = leftMargin + ((currentTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-            
+
             // Current time line
             var currentTimeLine = new Line
             {
@@ -427,7 +426,7 @@ namespace SemiStandard.Simulator.Wpf
                 StrokeDashArray = new DoubleCollection { 4, 2 }
             };
             TimelineCanvas.Children.Add(currentTimeLine);
-            
+
             // Current time label
             var currentTimeLabel = new TextBlock
             {
@@ -440,7 +439,7 @@ namespace SemiStandard.Simulator.Wpf
             Canvas.SetTop(currentTimeLabel, topMargin - 15);
             TimelineCanvas.Children.Add(currentTimeLabel);
         }
-        
+
         private void TrimOldData(string machineName)
         {
             if (!_machineTransitions.TryGetValue(machineName, out var transitions))
@@ -456,12 +455,12 @@ namespace SemiStandard.Simulator.Wpf
                 }
             }
         }
-        
+
         private Color GetStateColor(string stateName)
         {
             if (_stateColorCache.ContainsKey(stateName))
                 return _stateColorCache[stateName];
-            
+
             var color = stateName switch
             {
                 "OFFLINE" => Color.FromRgb(180, 50, 50),
@@ -481,28 +480,28 @@ namespace SemiStandard.Simulator.Wpf
                 "COMPLETE" => Color.FromRgb(50, 205, 50),
                 _ => Color.FromRgb(138, 43, 226)
             };
-            
+
             _stateColorCache[stateName] = color;
             return color;
         }
-        
+
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             UpdateTimeline();
             StatusText.Text = "Refreshed";
         }
-        
+
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
         }
-        
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
             _continuousUpdateTimer?.Stop();
         }
-        
+
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
@@ -511,7 +510,7 @@ namespace SemiStandard.Simulator.Wpf
                 Close();
             }
         }
-        
+
         private class StateTransition
         {
             public string MachineName { get; set; } = "";

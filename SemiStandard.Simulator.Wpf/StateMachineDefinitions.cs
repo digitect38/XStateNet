@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using XStateNet;
 
 namespace SemiStandard.Simulator.Wpf
@@ -390,12 +388,12 @@ namespace SemiStandard.Simulator.Wpf
 
                 // Create actions for state transitions
                 var actions = new ActionMap();
-                
+
                 // Add a generic state change logger (removed since we use OnTransition delegate)
 
                 // Create the state machine
-                var machine = XStateNet.StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions);
-                
+                var machine = XStateNet.StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions);
+
                 // Subscribe to state changes
                 machine.OnTransition += (fromState, toState, eventName) =>
                 {

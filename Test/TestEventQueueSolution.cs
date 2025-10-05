@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using XStateNet;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet;
 
 // Suppress obsolete warning - event queue solution test with no inter-machine communication
 #pragma warning disable CS0618

@@ -1,5 +1,3 @@
-using System;
-
 namespace XStateNet.Tests.TestInfrastructure
 {
     /// <summary>

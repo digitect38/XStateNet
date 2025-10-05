@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace XStateNet.Semi.Secs
@@ -16,19 +13,19 @@ namespace XStateNet.Semi.Secs
         public bool ReplyExpected { get; set; } = true;
         public SecsItem? Data { get; set; }
         public uint SystemBytes { get; set; }
-        
+
         /// <summary>
         /// Common message identifier (e.g., "S1F1", "S2F41")
         /// </summary>
         public string SxFy => $"S{Stream}F{Function}";
-        
+
         public SecsMessage(byte stream, byte function, bool replyExpected = true)
         {
             Stream = stream;
             Function = function;
             ReplyExpected = replyExpected;
         }
-        
+
         /// <summary>
         /// Encode the message to SECS-II binary format
         /// </summary>
@@ -36,32 +33,32 @@ namespace XStateNet.Semi.Secs
         {
             using var ms = new MemoryStream();
             using var writer = new BinaryWriter(ms);
-            
+
             if (Data != null)
             {
                 Data.Encode(writer);
             }
-            
+
             return ms.ToArray();
         }
-        
+
         /// <summary>
         /// Decode a message from SECS-II binary format
         /// </summary>
         public static SecsMessage Decode(byte stream, byte function, byte[] data, bool replyExpected = true)
         {
             var message = new SecsMessage(stream, function, replyExpected);
-            
+
             if (data != null && data.Length > 0)
             {
                 using var ms = new MemoryStream(data);
                 using var reader = new BinaryReader(ms);
                 message.Data = SecsItem.Decode(reader);
             }
-            
+
             return message;
         }
-        
+
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -77,7 +74,7 @@ namespace XStateNet.Semi.Secs
             return sb.ToString();
         }
     }
-    
+
     /// <summary>
     /// Base class for SECS-II data items
     /// </summary>
@@ -85,17 +82,17 @@ namespace XStateNet.Semi.Secs
     {
         public abstract SecsFormat Format { get; }
         public abstract int Length { get; }
-        
+
         /// <summary>
         /// Encode this item to binary format
         /// </summary>
         public abstract void Encode(BinaryWriter writer);
-        
+
         /// <summary>
         /// Convert to SML (SECS Message Language) format
         /// </summary>
         public abstract string ToSml(int indent = 0);
-        
+
         /// <summary>
         /// Decode a SECS item from binary stream
         /// </summary>
@@ -103,11 +100,11 @@ namespace XStateNet.Semi.Secs
         {
             if (reader.BaseStream.Position >= reader.BaseStream.Length)
                 throw new EndOfStreamException("Unexpected end of SECS data");
-                
+
             var formatByte = reader.ReadByte();
             var format = (SecsFormat)(formatByte & 0xFC);
             var lengthBytes = formatByte & 0x03;
-            
+
             int length = 0;
             switch (lengthBytes)
             {
@@ -121,7 +118,7 @@ namespace XStateNet.Semi.Secs
                     length = (reader.ReadByte() << 16) | (reader.ReadByte() << 8) | reader.ReadByte();
                     break;
             }
-            
+
             return format switch
             {
                 SecsFormat.List => DecodeList(reader, length),
@@ -141,7 +138,7 @@ namespace XStateNet.Semi.Secs
                 _ => throw new NotSupportedException($"Unsupported SECS format: {format}")
             };
         }
-        
+
         private static SecsList DecodeList(BinaryReader reader, int count)
         {
             var items = new List<SecsItem>();
@@ -151,30 +148,30 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsList(items);
         }
-        
+
         private static SecsItem DecodeI1(BinaryReader reader, int length)
         {
             if (length == 1)
                 return new SecsI1((sbyte)reader.ReadByte());
-            
+
             var array = new sbyte[length];
             for (int i = 0; i < length; i++)
                 array[i] = (sbyte)reader.ReadByte();
             return new SecsI1Array(array);
         }
-        
+
         private static SecsItem DecodeI2(BinaryReader reader, int length)
         {
             var count = length / 2;
             if (count == 1)
                 return new SecsI2((short)((reader.ReadByte() << 8) | reader.ReadByte()));
-            
+
             var array = new short[count];
             for (int i = 0; i < count; i++)
                 array[i] = (short)((reader.ReadByte() << 8) | reader.ReadByte());
             return new SecsI2Array(array);
         }
-        
+
         private static SecsItem DecodeI4(BinaryReader reader, int length)
         {
             var count = length / 4;
@@ -183,7 +180,7 @@ namespace XStateNet.Semi.Secs
                 var bytes = reader.ReadBytes(4);
                 return new SecsI4((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
             }
-            
+
             var array = new int[count];
             for (int i = 0; i < count; i++)
             {
@@ -192,7 +189,7 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsI4Array(array);
         }
-        
+
         private static SecsItem DecodeI8(BinaryReader reader, int length)
         {
             var count = length / 8;
@@ -204,7 +201,7 @@ namespace XStateNet.Semi.Secs
                     value = (value << 8) | bytes[i];
                 return new SecsI8(value);
             }
-            
+
             var array = new long[count];
             for (int i = 0; i < count; i++)
             {
@@ -216,27 +213,27 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsI8Array(array);
         }
-        
+
         private static SecsItem DecodeU1(BinaryReader reader, int length)
         {
             if (length == 1)
                 return new SecsU1(reader.ReadByte());
-            
+
             return new SecsU1Array(reader.ReadBytes(length));
         }
-        
+
         private static SecsItem DecodeU2(BinaryReader reader, int length)
         {
             var count = length / 2;
             if (count == 1)
                 return new SecsU2((ushort)((reader.ReadByte() << 8) | reader.ReadByte()));
-            
+
             var array = new ushort[count];
             for (int i = 0; i < count; i++)
                 array[i] = (ushort)((reader.ReadByte() << 8) | reader.ReadByte());
             return new SecsU2Array(array);
         }
-        
+
         private static SecsItem DecodeU4(BinaryReader reader, int length)
         {
             var count = length / 4;
@@ -245,7 +242,7 @@ namespace XStateNet.Semi.Secs
                 var bytes = reader.ReadBytes(4);
                 return new SecsU4((uint)((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]));
             }
-            
+
             var array = new uint[count];
             for (int i = 0; i < count; i++)
             {
@@ -254,7 +251,7 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsU4Array(array);
         }
-        
+
         private static SecsItem DecodeU8(BinaryReader reader, int length)
         {
             var count = length / 8;
@@ -266,7 +263,7 @@ namespace XStateNet.Semi.Secs
                     value = (value << 8) | bytes[i];
                 return new SecsU8(value);
             }
-            
+
             var array = new ulong[count];
             for (int i = 0; i < count; i++)
             {
@@ -278,7 +275,7 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsU8Array(array);
         }
-        
+
         private static SecsItem DecodeF4(BinaryReader reader, int length)
         {
             var count = length / 4;
@@ -289,7 +286,7 @@ namespace XStateNet.Semi.Secs
                     Array.Reverse(bytes);
                 return new SecsF4(BitConverter.ToSingle(bytes, 0));
             }
-            
+
             var array = new float[count];
             for (int i = 0; i < count; i++)
             {
@@ -300,7 +297,7 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsF4Array(array);
         }
-        
+
         private static SecsItem DecodeF8(BinaryReader reader, int length)
         {
             var count = length / 8;
@@ -311,7 +308,7 @@ namespace XStateNet.Semi.Secs
                     Array.Reverse(bytes);
                 return new SecsF8(BitConverter.ToDouble(bytes, 0));
             }
-            
+
             var array = new double[count];
             for (int i = 0; i < count; i++)
             {
@@ -322,11 +319,11 @@ namespace XStateNet.Semi.Secs
             }
             return new SecsF8Array(array);
         }
-        
+
         protected void WriteHeader(BinaryWriter writer, SecsFormat format, int length)
         {
             byte formatByte = (byte)format;
-            
+
             if (length <= 255)
             {
                 formatByte |= 1;
@@ -350,7 +347,7 @@ namespace XStateNet.Semi.Secs
             }
         }
     }
-    
+
     /// <summary>
     /// SECS-II data formats
     /// </summary>

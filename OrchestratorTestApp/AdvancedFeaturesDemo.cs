@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using XStateNet;
-using XStateNet.Debugging;
-using XStateNet.Visualization;
-using XStateNet.Profiling;
 using XStateNet.Configuration;
+using XStateNet.Debugging;
 using XStateNet.Orchestration;
-using System.IO;
+using XStateNet.Profiling;
+using XStateNet.Visualization;
 
 namespace OrchestratorTestApp
 {

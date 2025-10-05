@@ -1,4 +1,3 @@
-using System;
 using System.Text.RegularExpressions;
 
 namespace XStateNet;
@@ -114,7 +113,8 @@ public static class StateMachineFactory
         DelayMap? delayCallbacks = null,
         ActivityMap? activityCallbacks = null)
     {
-        if (guidIsolate) { 
+        if (guidIsolate)
+        {
             jsonScript = MachineIdIsolatedScript(jsonScript);
         }
         StateMachine.ParseStateMachine(sm, jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks, activityCallbacks);
@@ -141,7 +141,7 @@ public static class StateMachineFactory
         sm.EnableThreadSafety = threadSafe;
         return sm;
     }
-    
+
     /// <summary>
     /// Create a thread-safe state machine from script
     /// </summary>
@@ -158,7 +158,8 @@ public static class StateMachineFactory
         )
     {
         //var sm = StateMachine.CreateFromScript(jsonScript, guidIsolate, actionCallbacks, guardCallbacks, serviceCallbacks, delayCallbacks);
-        if (guidIsolate) { 
+        if (guidIsolate)
+        {
             jsonScript = MachineIdIsolatedScript(jsonScript);
         }
         var sm = new StateMachine() { };

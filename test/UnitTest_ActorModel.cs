@@ -1,9 +1,5 @@
-using Xunit;
-
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet;
+using Xunit;
 
 // Suppress obsolete warning - ActorSystem-based tests use a different communication pattern
 // For standard inter-machine tests, use OrchestratorTestBase with EventBusOrchestrator
@@ -15,25 +11,25 @@ public class UnitTest_ActorModel : IDisposable
 {
     private ActionMap _actions;
     private GuardMap _guards;
-    
+
     public UnitTest_ActorModel()
     {
         // Clear actor system for each test
         ActorSystem.Instance.StopAllActors().GetAwaiter().GetResult();
-        
+
         _actions = new ActionMap
         {
             ["log"] = new List<NamedAction> { new NamedAction("log", async (sm) => Console.WriteLine($"Action in {sm.machineId}")) }
         };
-        
+
         _guards = new GuardMap();
     }
-    
+
     public void Dispose()
     {
         ActorSystem.Instance.StopAllActors().GetAwaiter().GetResult();
     }
-    
+
     [Fact]
     public async Task TestBasicActorCreation()
     {
@@ -54,25 +50,25 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards);
         var actor = ActorSystem.Instance.Spawn("actor1", id => new StateMachineActor(id, stateMachine));
-        
+
         Assert.Equal("actor1", actor.Id);
         Assert.Equal(ActorStatus.Idle, actor.Status);
-        
+
         await actor.StartAsync();
         Assert.Equal(ActorStatus.Running, actor.Status);
-        
+
         await actor.SendAsync("WORK");
         //await actor.Machine.WaitForStateWithActionsAsync("working", 1000);
         await actor.Machine.WaitForStateAsync("working", 1000);
         Assert.Contains($"{actor.Machine.machineId}.working", actor.Machine.GetActiveStateNames().ToString());
-        
+
         await actor.StopAsync();
         Assert.Equal(ActorStatus.Stopped, actor.Status);
     }
-    
+
     [Fact]
     public async Task TestActorCommunication()
     {
@@ -113,10 +109,10 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         var pingReceived = false;
         var pongReceived = false;
-        
+
         var pingActions = new ActionMap
         {
             ["sendPing"] = new List<NamedAction> { new NamedAction("sendPing", async (sm) => {
@@ -139,7 +135,7 @@ public class UnitTest_ActorModel : IDisposable
 
         var pingActor = ActorSystem.Instance.Spawn("pingActor", id => new StateMachineActor(id, pingMachine));
         var pongActor = ActorSystem.Instance.Spawn("pongActor", id => new StateMachineActor(id, pongMachine));
-        
+
         await pingActor.StartAsync();
         await pongActor.StartAsync();
 
@@ -153,7 +149,7 @@ public class UnitTest_ActorModel : IDisposable
         Assert.Contains($"{pingActor.Machine.machineId}.waiting", pingActor.Machine.GetActiveStateNames());
         Assert.Contains($"{pongActor.Machine.machineId}.waiting", pongActor.Machine.GetActiveStateNames());
     }
-    
+
     [Fact]
     public async Task TestChildActorSpawning()
     {
@@ -177,7 +173,7 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
+
         uniqueId = $"child_{Guid.NewGuid():N}";
 
         string childScript = @"
@@ -201,7 +197,7 @@ public class UnitTest_ActorModel : IDisposable
 
         var parentActor = ActorSystem.Instance.Spawn($"parent_{testId}", id => new StateMachineActor(id, parentMachine));
         await parentActor.StartAsync();
-        
+
         // Spawn child actor
         var childActor = parentActor.SpawnChild("child1", childMachine);
         await childActor.StartAsync();
@@ -209,7 +205,7 @@ public class UnitTest_ActorModel : IDisposable
         Assert.Equal($"parent_{testId}.child1", childActor.Id);
         Assert.Equal(ActorStatus.Running, childActor.Status);
         Assert.Contains($"{childActor.Machine.machineId}.active", childActor.Machine.GetActiveStateNames());
-        
+
         await childActor.SendAsync("STOP");
 
         // Wait for the state to actually change with a timeout
@@ -230,7 +226,7 @@ public class UnitTest_ActorModel : IDisposable
 
         Assert.Contains($"{childActor.Machine.machineId}.stopped", childActor.Machine.GetActiveStateNames());
     }
-    
+
     [Fact]
     public async Task TestActorErrorHandling()
     {
@@ -255,14 +251,14 @@ public class UnitTest_ActorModel : IDisposable
 
         var errorActions = new ActionMap
         {
-            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", async (sm) => {
+            ["throwError"] = new List<NamedAction> { new NamedAction("throwError", (sm) => {
                 throw new InvalidOperationException("Test error");
             }) }
         };
-        
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,errorActions, _guards);
+
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, errorActions, _guards);
         var actor = ActorSystem.Instance.Spawn("errorActor", id => new StateMachineActor(id, stateMachine));
-        
+
         await actor.StartAsync();
         await actor.SendAsync("CAUSE_ERROR");
         await actor.Machine.WaitForStateWithActionsAsync("error", 1000);
@@ -270,7 +266,7 @@ public class UnitTest_ActorModel : IDisposable
         // Actor should handle the error and set status appropriately
         Assert.Equal(ActorStatus.Error, actor.Status);
     }
-    
+
     [Fact]
     public async Task TestActorMessageQueuing()
     {
@@ -278,7 +274,7 @@ public class UnitTest_ActorModel : IDisposable
 
         var countingActions = new ActionMap
         {
-            ["count"] = new List<NamedAction> { new NamedAction("count", async (sm) => {
+            ["count"] = new List<NamedAction> { new NamedAction("count", (sm) => {
                 Interlocked.Increment(ref messageCount);
             }) }
         };
@@ -300,7 +296,7 @@ public class UnitTest_ActorModel : IDisposable
             }
         }";
 
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,countingActions, _guards);
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, countingActions, _guards);
         var actor = ActorSystem.Instance.Spawn(uniqueId, id => new StateMachineActor(id, stateMachine));
 
         await actor.StartAsync();
@@ -316,15 +312,15 @@ public class UnitTest_ActorModel : IDisposable
 
         Assert.Equal(10, messageCount);
     }
-    
+
     [Fact]
     public async Task TestActorDataPassing()
     {
         object? receivedData = null;
-        
+
         var dataActions = new ActionMap
         {
-            ["storeData"] = new List<NamedAction> { new NamedAction("storeData", async (sm) => {
+            ["storeData"] = new List<NamedAction> { new NamedAction("storeData", (sm) => {
                 receivedData = sm.ContextMap?["_eventData"];
             }) }
         };
@@ -348,12 +344,12 @@ public class UnitTest_ActorModel : IDisposable
                 }
             }
         }";
-        
-        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,dataActions, _guards);
+
+        var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, dataActions, _guards);
         var actor = ActorSystem.Instance.Spawn("dataActor", id => new StateMachineActor(id, stateMachine));
-        
+
         await actor.StartAsync();
-        
+
         var testData = new { Name = "Test", Value = 123 };
         await actor.SendAsync("RECEIVE_DATA", testData);
         await actor.Machine.WaitForStateWithActionsAsync("received", 1000);

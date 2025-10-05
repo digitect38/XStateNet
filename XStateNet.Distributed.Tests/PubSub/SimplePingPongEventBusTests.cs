@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
+using XStateNet.Distributed.EventBus.Optimized;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet;
-using XStateNet.Distributed.EventBus.Optimized;
-using XStateNet.Distributed.Tests.TestInfrastructure;
 
 // Suppress obsolete warning - these tests are specifically testing the OptimizedInMemoryEventBus
 // infrastructure itself, not demonstrating application patterns. Machines communicate via
@@ -80,7 +74,7 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             var pingMachine = StateMachineFactory.CreateFromScript(pingJson, true, false);
             var pongMachine = StateMachineFactory.CreateFromScript(pongJson, true, false);
- 
+
             // Subscribe ping machine to events
             var pingSubscription = await _eventBus.SubscribeToMachineAsync("ping", async evt =>
             {

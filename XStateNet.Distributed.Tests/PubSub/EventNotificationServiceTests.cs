@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 using Microsoft.Extensions.Logging;
-using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
-using System.Diagnostics;
 using XStateNet.Distributed.Tests.TestInfrastructure;
+using Xunit;
 
 // Suppress obsolete warning - event notification service tests
 #pragma warning disable CS0618
@@ -175,7 +169,7 @@ namespace XStateNet.Distributed.Tests.PubSub
         {
             // Arrange
             var machineId = "test-machine" + Guid.NewGuid().ToString("N");
-            var machine = CreateTestStateMachine(machineId  );
+            var machine = CreateTestStateMachine(machineId);
             var service = new EventNotificationService(machine, _eventBus, machineId,
                 _loggerFactory.CreateLogger<EventNotificationService>());
 

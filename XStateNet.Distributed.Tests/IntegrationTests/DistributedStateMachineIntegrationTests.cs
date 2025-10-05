@@ -1,16 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Xunit;
-using XStateNet.Distributed;
+using System.Collections.Concurrent;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
-using XStateNet.Distributed.Transports;
-using System.Collections.Concurrent;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.IntegrationTests
 {
@@ -54,7 +48,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
         {
             if (_eventBus != null)
                 await _eventBus.DisconnectAsync();
-            
+
             _serviceProvider?.Dispose();
         }
 
@@ -191,7 +185,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
                 NodeId = "node-1",
                 Status = MachineStatus.Running
             });
-            
+
             await _registry!.RegisterAsync("worker-2", new StateMachineInfo
             {
                 MachineId = "worker-2",
@@ -208,7 +202,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
                     resetEvent.Signal();
                 }
             });
-            
+
             await _eventBus!.SubscribeToMachineAsync("worker-2", evt =>
             {
                 if (evt.EventName == "WORK")
@@ -243,7 +237,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
             };
 
             // Act - Deploy
-            var deployResult = await _orchestrator!.DeployStateMachineAsync(definition, 
+            var deployResult = await _orchestrator!.DeployStateMachineAsync(definition,
                 new DeploymentOptions { AutoStart = true });
 
             Assert.True(deployResult.Success);
@@ -376,8 +370,8 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
                 Id = "payment-saga",
                 Steps = new List<SagaDefinitionStep>
                 {
-                    new SagaDefinitionStep 
-                    { 
+                    new SagaDefinitionStep
+                    {
                         StepId = "charge",
                         MachineId = "payment-service",
                         Action = "CHARGE",
@@ -461,7 +455,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
 
             // Wait for heartbeat to expire
             await Task.Delay(TimeSpan.FromSeconds(2));
-            
+
             var expiredMachines = await _registry.GetActiveAsync(TimeSpan.FromSeconds(1));
             Assert.DoesNotContain(expiredMachines, m => m.MachineId == machineId);
         }
@@ -485,13 +479,13 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
             info.RegisteredAt = DateTime.UtcNow;
             info.LastHeartbeat = DateTime.UtcNow;
             _machines[machineId] = info;
-            
-            MachineRegistered?.Invoke(this, new StateMachineRegisteredEventArgs 
-            { 
-                MachineId = machineId, 
-                Info = info 
+
+            MachineRegistered?.Invoke(this, new StateMachineRegisteredEventArgs
+            {
+                MachineId = machineId,
+                Info = info
             });
-            
+
             return Task.FromResult(true);
         }
 
@@ -499,9 +493,9 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
         {
             if (_machines.TryRemove(machineId, out _))
             {
-                MachineUnregistered?.Invoke(this, new StateMachineUnregisteredEventArgs 
-                { 
-                    MachineId = machineId 
+                MachineUnregistered?.Invoke(this, new StateMachineUnregisteredEventArgs
+                {
+                    MachineId = machineId
                 });
                 return Task.FromResult(true);
             }
@@ -542,7 +536,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
                 info.Status = status;
                 if (currentState != null)
                     info.CurrentState = currentState;
-                
+
                 StatusChanged?.Invoke(this, new StateMachineStatusChangedEventArgs
                 {
                     MachineId = machineId,
@@ -560,7 +554,7 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
                 "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
                     .Replace("\\*", ".*")
                     .Replace("\\?", ".") + "$");
-            
+
             return Task.FromResult(_machines.Values.Where(m => regex.IsMatch(m.MachineId)));
         }
 
@@ -589,9 +583,9 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
         public Task ConnectAsync()
         {
             _connected = true;
-            Connected?.Invoke(this, new EventBusConnectedEventArgs 
-            { 
-                Endpoint = "memory://localhost" 
+            Connected?.Invoke(this, new EventBusConnectedEventArgs
+            {
+                Endpoint = "memory://localhost"
             });
             return Task.CompletedTask;
         }
@@ -599,9 +593,9 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
         public Task DisconnectAsync()
         {
             _connected = false;
-            Disconnected?.Invoke(this, new EventBusDisconnectedEventArgs 
-            { 
-                Reason = "Manual disconnect" 
+            Disconnected?.Invoke(this, new EventBusDisconnectedEventArgs
+            {
+                Reason = "Manual disconnect"
             });
             return Task.CompletedTask;
         }

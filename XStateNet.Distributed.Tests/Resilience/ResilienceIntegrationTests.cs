@@ -1,17 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Microsoft.Extensions.Logging;
 using MessagePack;
-using XStateNet.Orchestration;
-using XStateNet.Distributed.Resilience;
-using XStateNet.Distributed.Channels;
-using XStateNet.Distributed.StateMachines;
+using Microsoft.Extensions.Logging;
 using System.Threading.Channels;
-
+using XStateNet.Distributed.Channels;
+using XStateNet.Distributed.Resilience;
+using XStateNet.Orchestration;
+using Xunit;
 using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
 
 namespace XStateNet.Distributed.Tests.Resilience

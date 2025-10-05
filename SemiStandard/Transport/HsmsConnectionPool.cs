@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Net;
 
 namespace XStateNet.Semi.Transport
 {
@@ -19,7 +14,7 @@ namespace XStateNet.Semi.Transport
         private readonly Timer _cleanupTimer;
         private readonly object _statsLock = new();
         private bool _disposed;
-        
+
         // Pool configuration
         public int MinConnectionsPerEndpoint { get; set; } = 1;
         public int MaxConnectionsPerEndpoint { get; set; } = 10;
@@ -27,16 +22,16 @@ namespace XStateNet.Semi.Transport
         public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
         public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(1);
         public bool EnableStatistics { get; set; } = true;
-        
+
         // Statistics
         public PoolStatistics Statistics { get; private set; } = new();
-        
+
         public HsmsConnectionPool(ILogger<HsmsConnectionPool>? logger = null)
         {
             _logger = logger;
             _cleanupTimer = new Timer(CleanupIdleConnections, null, CleanupInterval, CleanupInterval);
         }
-        
+
         /// <summary>
         /// Get or create a connection from the pool
         /// </summary>
@@ -47,13 +42,13 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(HsmsConnectionPool));
-                
+
             var key = GetPoolKey(endpoint, mode);
             var pool = _pools.GetOrAdd(key, k => new ConnectionPoolEntry(endpoint, mode, this));
-            
+
             return await pool.GetConnectionAsync(cancellationToken);
         }
-        
+
         /// <summary>
         /// Return a connection to the pool
         /// </summary>
@@ -64,7 +59,7 @@ namespace XStateNet.Semi.Transport
                 connection.Dispose();
                 return;
             }
-            
+
             var key = GetPoolKey(connection.Endpoint, connection.Mode);
             if (_pools.TryGetValue(key, out var pool))
             {
@@ -75,7 +70,7 @@ namespace XStateNet.Semi.Transport
                 connection.Dispose();
             }
         }
-        
+
         /// <summary>
         /// Clean up idle connections periodically
         /// </summary>
@@ -85,18 +80,18 @@ namespace XStateNet.Semi.Transport
             {
                 var now = DateTime.UtcNow;
                 var removedCount = 0;
-                
+
                 foreach (var pool in _pools.Values)
                 {
                     removedCount += pool.CleanupIdleConnections(now, IdleTimeout);
                 }
-                
+
                 if (removedCount > 0)
                 {
                     _logger?.LogInformation("Cleaned up {Count} idle connections", removedCount);
                     Statistics.AddIdleCleaned(removedCount);
                 }
-                
+
                 // Remove empty pools
                 var emptyPools = _pools.Where(kvp => kvp.Value.IsEmpty).Select(kvp => kvp.Key).ToList();
                 foreach (var key in emptyPools)
@@ -112,28 +107,28 @@ namespace XStateNet.Semi.Transport
                 _logger?.LogError(ex, "Error during cleanup");
             }
         }
-        
+
         private string GetPoolKey(IPEndPoint endpoint, HsmsConnection.HsmsConnectionMode mode)
         {
             return $"{endpoint.Address}:{endpoint.Port}:{mode}";
         }
-        
+
         public void Dispose()
         {
             if (_disposed)
                 return;
-                
+
             _disposed = true;
             _cleanupTimer?.Dispose();
-            
+
             foreach (var pool in _pools.Values)
             {
                 pool.Dispose();
             }
-            
+
             _pools.Clear();
         }
-        
+
         /// <summary>
         /// Individual connection pool for a specific endpoint
         /// </summary>
@@ -148,9 +143,9 @@ namespace XStateNet.Semi.Transport
             private readonly object _lock = new();
             private int _totalConnections;
             private bool _disposed;
-            
+
             public bool IsEmpty => _totalConnections == 0;
-            
+
             public ConnectionPoolEntry(IPEndPoint endpoint, HsmsConnection.HsmsConnectionMode mode, HsmsConnectionPool parent)
             {
                 _endpoint = endpoint;
@@ -158,7 +153,7 @@ namespace XStateNet.Semi.Transport
                 _parent = parent;
                 _connectionSemaphore = new SemaphoreSlim(parent.MaxConnectionsPerEndpoint);
             }
-            
+
             public async Task<PooledConnection> GetConnectionAsync(CancellationToken cancellationToken)
             {
                 // Try to get an existing connection
@@ -170,7 +165,7 @@ namespace XStateNet.Semi.Transport
                         {
                             _inUse.Add(existing);
                         }
-                        
+
                         existing.LastUsedTime = DateTime.UtcNow;
                         _parent.Statistics.IncrementReused();
                         return existing;
@@ -181,7 +176,7 @@ namespace XStateNet.Semi.Transport
                         Interlocked.Decrement(ref _totalConnections);
                     }
                 }
-                
+
                 // Create new connection if under limit
                 if (_totalConnections < _parent.MaxConnectionsPerEndpoint)
                 {
@@ -192,12 +187,12 @@ namespace XStateNet.Semi.Transport
                         {
                             var connection = await CreateConnectionAsync(cancellationToken);
                             var pooled = new PooledConnection(connection, _endpoint, _mode, _parent);
-                            
+
                             lock (_lock)
                             {
                                 _inUse.Add(pooled);
                             }
-                            
+
                             Interlocked.Increment(ref _totalConnections);
                             _parent.Statistics.IncrementCreated();
                             return pooled;
@@ -208,7 +203,7 @@ namespace XStateNet.Semi.Transport
                         _connectionSemaphore.Release();
                     }
                 }
-                
+
                 // Wait for available connection
                 var waitStart = DateTime.UtcNow;
                 while (DateTime.UtcNow - waitStart < _parent.ConnectionTimeout)
@@ -221,7 +216,7 @@ namespace XStateNet.Semi.Transport
                             {
                                 _inUse.Add(available);
                             }
-                            
+
                             available.LastUsedTime = DateTime.UtcNow;
                             _parent.Statistics.IncrementReused();
                             return available;
@@ -232,20 +227,20 @@ namespace XStateNet.Semi.Transport
                             Interlocked.Decrement(ref _totalConnections);
                         }
                     }
-                    
+
                     await Task.Delay(100, cancellationToken);
                 }
-                
+
                 throw new TimeoutException($"Could not obtain connection within {_parent.ConnectionTimeout}");
             }
-            
+
             public void ReturnConnection(PooledConnection connection)
             {
                 lock (_lock)
                 {
                     _inUse.Remove(connection);
                 }
-                
+
                 if (connection.IsHealthy && !_disposed)
                 {
                     connection.LastUsedTime = DateTime.UtcNow;
@@ -258,12 +253,12 @@ namespace XStateNet.Semi.Transport
                     Interlocked.Decrement(ref _totalConnections);
                 }
             }
-            
+
             public int CleanupIdleConnections(DateTime now, TimeSpan idleTimeout)
             {
                 var removed = 0;
                 var toRemove = new List<PooledConnection>();
-                
+
                 // Check available connections
                 var temp = new List<PooledConnection>();
                 while (_available.TryTake(out var connection))
@@ -278,20 +273,20 @@ namespace XStateNet.Semi.Transport
                         temp.Add(connection);
                     }
                 }
-                
+
                 // Return healthy connections
                 foreach (var connection in temp)
                 {
                     _available.Add(connection);
                 }
-                
+
                 // Dispose idle connections
                 foreach (var connection in toRemove)
                 {
                     connection.Dispose();
                     Interlocked.Decrement(ref _totalConnections);
                 }
-                
+
                 // Ensure minimum connections
                 while (_totalConnections < _parent.MinConnectionsPerEndpoint && !_disposed)
                 {
@@ -309,27 +304,27 @@ namespace XStateNet.Semi.Transport
                             // Ignore errors during background creation
                         }
                     });
-                    
+
                     Interlocked.Increment(ref _totalConnections); // Optimistic increment
                 }
-                
+
                 return removed;
             }
-            
+
             private async Task<ResilientHsmsConnection> CreateConnectionAsync(CancellationToken cancellationToken)
             {
                 var connection = new ResilientHsmsConnection(_endpoint, _mode, null);
                 await connection.ConnectAsync(cancellationToken);
                 return connection;
             }
-            
+
             public void Dispose()
             {
                 if (_disposed)
                     return;
-                    
+
                 _disposed = true;
-                
+
                 lock (_lock)
                 {
                     foreach (var connection in _inUse)
@@ -338,16 +333,16 @@ namespace XStateNet.Semi.Transport
                     }
                     _inUse.Clear();
                 }
-                
+
                 while (_available.TryTake(out var connection))
                 {
                     connection.Dispose();
                 }
-                
+
                 _connectionSemaphore?.Dispose();
             }
         }
-        
+
         /// <summary>
         /// Pool statistics
         /// </summary>
@@ -364,8 +359,8 @@ namespace XStateNet.Semi.Transport
             public int IdleConnectionsCleaned => _idleConnectionsCleaned;
 
             public int ActiveConnections => ConnectionsCreated - IdleConnectionsCleaned;
-            public double ReuseRate => (ConnectionsCreated + ConnectionsReused) > 0 
-                ? (double)ConnectionsReused / (ConnectionsCreated + ConnectionsReused) 
+            public double ReuseRate => (ConnectionsCreated + ConnectionsReused) > 0
+                ? (double)ConnectionsReused / (ConnectionsCreated + ConnectionsReused)
                 : 0;
 
             internal void IncrementCreated() => Interlocked.Increment(ref _connectionsCreated);
@@ -374,7 +369,7 @@ namespace XStateNet.Semi.Transport
             internal void AddIdleCleaned(int count) => Interlocked.Add(ref _idleConnectionsCleaned, count);
         }
     }
-    
+
     /// <summary>
     /// Wrapper for pooled connections
     /// </summary>
@@ -382,14 +377,14 @@ namespace XStateNet.Semi.Transport
     {
         private readonly HsmsConnectionPool _pool;
         private bool _disposed;
-        
+
         public ResilientHsmsConnection Connection { get; }
         public IPEndPoint Endpoint { get; }
         public HsmsConnection.HsmsConnectionMode Mode { get; }
         public DateTime CreatedTime { get; }
         public DateTime LastUsedTime { get; set; }
         public bool IsHealthy => Connection.IsConnected && Connection.Health != ConnectionHealth.Critical;
-        
+
         internal PooledConnection(
             ResilientHsmsConnection connection,
             IPEndPoint endpoint,
@@ -403,7 +398,7 @@ namespace XStateNet.Semi.Transport
             CreatedTime = DateTime.UtcNow;
             LastUsedTime = DateTime.UtcNow;
         }
-        
+
         /// <summary>
         /// Return connection to pool when disposed
         /// </summary>
@@ -411,9 +406,9 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 return;
-                
+
             _disposed = true;
-            
+
             if (_pool != null && IsHealthy)
             {
                 _pool.ReturnConnection(this);

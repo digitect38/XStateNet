@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using StackExchange.Redis;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace XStateNet.Distributed.Registry
 {
@@ -22,7 +18,7 @@ namespace XStateNet.Distributed.Registry
         private readonly TimeSpan _defaultHeartbeatTtl;
         private readonly ConcurrentDictionary<string, List<Action<RegistryChangeEvent>>> _changeHandlers = new();
         private readonly object _handlersLock = new();
-        
+
         // Redis keys
         private string MachinesKey => $"{_keyPrefix}:machines";
         private string HeartbeatKey(string machineId) => $"{_keyPrefix}:heartbeat:{machineId}";
@@ -30,12 +26,12 @@ namespace XStateNet.Distributed.Registry
         private string MetadataKey(string machineId) => $"{_keyPrefix}:metadata:{machineId}";
         private string GroupsKey => $"{_keyPrefix}:groups";
         private string GroupMembersKey(string groupName) => $"{_keyPrefix}:group:{groupName}";
-        
+
         // Events
         public event EventHandler<StateMachineRegisteredEventArgs>? MachineRegistered;
         public event EventHandler<StateMachineUnregisteredEventArgs>? MachineUnregistered;
         public event EventHandler<StateMachineStatusChangedEventArgs>? StatusChanged;
-        
+
         public RedisStateMachineRegistry(
             IConnectionMultiplexer redis,
             string keyPrefix = "xstatenet",
@@ -48,49 +44,49 @@ namespace XStateNet.Distributed.Registry
             _keyPrefix = keyPrefix;
             _defaultHeartbeatTtl = heartbeatTtl ?? TimeSpan.FromSeconds(30);
             _logger = logger;
-            
+
             SubscribeToRedisEvents();
         }
-        
+
         public async Task<bool> RegisterAsync(string machineId, StateMachineInfo info)
         {
             try
             {
                 if (string.IsNullOrEmpty(machineId))
                     throw new ArgumentException("Machine ID cannot be empty", nameof(machineId));
-                
+
                 info.MachineId = machineId;
                 info.RegisteredAt = DateTime.UtcNow;
                 info.LastHeartbeat = DateTime.UtcNow;
-                
+
                 var json = JsonSerializer.Serialize(info);
-                
+
                 // Store machine info
                 var transaction = _db.CreateTransaction();
-                
+
                 // Add to machines hash
                 var hashTask = transaction.HashSetAsync(MachinesKey, machineId, json);
-                
+
                 // Set initial heartbeat
                 var heartbeatTask = transaction.StringSetAsync(
-                    HeartbeatKey(machineId), 
-                    DateTime.UtcNow.Ticks, 
+                    HeartbeatKey(machineId),
+                    DateTime.UtcNow.Ticks,
                     _defaultHeartbeatTtl);
-                
+
                 // Set initial status
                 var statusTask = transaction.StringSetAsync(
-                    StatusKey(machineId), 
+                    StatusKey(machineId),
                     info.Status.ToString());
-                
+
                 // Store metadata
                 if (info.Metadata?.Any() == true)
                 {
                     var metadataJson = JsonSerializer.Serialize(info.Metadata);
                     _ = transaction.StringSetAsync(MetadataKey(machineId), metadataJson);
                 }
-                
+
                 var committed = await transaction.ExecuteAsync();
-                
+
                 if (committed)
                 {
                     // Publish registration event
@@ -100,17 +96,17 @@ namespace XStateNet.Distributed.Registry
                         MachineId = machineId,
                         MachineInfo = info
                     });
-                    
-                    MachineRegistered?.Invoke(this, new StateMachineRegisteredEventArgs 
-                    { 
-                        MachineId = machineId, 
-                        Info = info 
+
+                    MachineRegistered?.Invoke(this, new StateMachineRegisteredEventArgs
+                    {
+                        MachineId = machineId,
+                        Info = info
                     });
-                    
-                    _logger?.LogInformation("Registered state machine {MachineId} on node {NodeId}", 
+
+                    _logger?.LogInformation("Registered state machine {MachineId} on node {NodeId}",
                         machineId, info.NodeId);
                 }
-                
+
                 return committed;
             }
             catch (Exception ex)
@@ -119,7 +115,7 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task<bool> UnregisterAsync(string machineId)
         {
             try
@@ -127,26 +123,26 @@ namespace XStateNet.Distributed.Registry
                 var info = await GetAsync(machineId);
                 if (info == null)
                     return false;
-                
+
                 var transaction = _db.CreateTransaction();
-                
+
                 // Remove from machines hash
                 _ = transaction.HashDeleteAsync(MachinesKey, machineId);
-                
+
                 // Remove heartbeat
                 _ = transaction.KeyDeleteAsync(HeartbeatKey(machineId));
-                
+
                 // Remove status
                 _ = transaction.KeyDeleteAsync(StatusKey(machineId));
-                
+
                 // Remove metadata
                 _ = transaction.KeyDeleteAsync(MetadataKey(machineId));
-                
+
                 // Remove from any groups
                 await RemoveFromAllGroupsAsync(machineId);
-                
+
                 var committed = await transaction.ExecuteAsync();
-                
+
                 if (committed)
                 {
                     // Publish unregistration event
@@ -155,16 +151,16 @@ namespace XStateNet.Distributed.Registry
                         Type = RegistryChangeType.Unregistered,
                         MachineId = machineId
                     });
-                    
-                    MachineUnregistered?.Invoke(this, new StateMachineUnregisteredEventArgs 
-                    { 
-                        MachineId = machineId, 
-                        Reason = "Explicit unregistration" 
+
+                    MachineUnregistered?.Invoke(this, new StateMachineUnregisteredEventArgs
+                    {
+                        MachineId = machineId,
+                        Reason = "Explicit unregistration"
                     });
-                    
+
                     _logger?.LogInformation("Unregistered state machine {MachineId}", machineId);
                 }
-                
+
                 return committed;
             }
             catch (Exception ex)
@@ -173,32 +169,32 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task<StateMachineInfo?> GetAsync(string machineId)
         {
             try
             {
                 var json = await _db.HashGetAsync(MachinesKey, machineId);
-                
+
                 if (!json.HasValue)
                     return null;
-                
+
                 var info = JsonSerializer.Deserialize<StateMachineInfo>(json!);
-                
+
                 // Update with latest heartbeat
                 var heartbeat = await _db.StringGetAsync(HeartbeatKey(machineId));
                 if (heartbeat.HasValue && long.TryParse(heartbeat, out var ticks))
                 {
                     info!.LastHeartbeat = new DateTime(ticks, DateTimeKind.Utc);
                 }
-                
+
                 // Update with latest status
                 var status = await _db.StringGetAsync(StatusKey(machineId));
                 if (status.HasValue && Enum.TryParse<MachineStatus>(status, out var machineStatus))
                 {
                     info!.Status = machineStatus;
                 }
-                
+
                 return info;
             }
             catch (Exception ex)
@@ -207,14 +203,14 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task<IEnumerable<StateMachineInfo>> GetAllAsync()
         {
             try
             {
                 var entries = await _db.HashGetAllAsync(MachinesKey);
                 var machines = new List<StateMachineInfo>();
-                
+
                 foreach (var entry in entries)
                 {
                     try
@@ -223,14 +219,14 @@ namespace XStateNet.Distributed.Registry
                         if (info != null)
                         {
                             info.MachineId = entry.Name!;
-                            
+
                             // Update with latest heartbeat
                             var heartbeat = await _db.StringGetAsync(HeartbeatKey(info.MachineId));
                             if (heartbeat.HasValue && long.TryParse(heartbeat, out var ticks))
                             {
                                 info.LastHeartbeat = new DateTime(ticks, DateTimeKind.Utc);
                             }
-                            
+
                             machines.Add(info);
                         }
                     }
@@ -239,7 +235,7 @@ namespace XStateNet.Distributed.Registry
                         _logger?.LogWarning(ex, "Failed to deserialize machine info for {MachineId}", entry.Name);
                     }
                 }
-                
+
                 return machines;
             }
             catch (Exception ex)
@@ -248,25 +244,25 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task<IEnumerable<StateMachineInfo>> GetActiveAsync(TimeSpan heartbeatThreshold)
         {
             var allMachines = await GetAllAsync();
             var threshold = DateTime.UtcNow - heartbeatThreshold;
-            
+
             return allMachines.Where(m => m.LastHeartbeat > threshold);
         }
-        
+
         public async Task UpdateHeartbeatAsync(string machineId)
         {
             try
             {
                 var now = DateTime.UtcNow;
                 await _db.StringSetAsync(
-                    HeartbeatKey(machineId), 
-                    now.Ticks, 
+                    HeartbeatKey(machineId),
+                    now.Ticks,
                     _defaultHeartbeatTtl);
-                
+
                 // Update last heartbeat in machine info
                 var json = await _db.HashGetAsync(MachinesKey, machineId);
                 if (json.HasValue)
@@ -278,7 +274,7 @@ namespace XStateNet.Distributed.Registry
                         await _db.HashSetAsync(MachinesKey, machineId, JsonSerializer.Serialize(info));
                     }
                 }
-                
+
                 _logger?.LogDebug("Updated heartbeat for state machine {MachineId}", machineId);
             }
             catch (Exception ex)
@@ -287,18 +283,18 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task UpdateStatusAsync(string machineId, MachineStatus status, string? currentState = null)
         {
             try
             {
                 var oldStatusStr = await _db.StringGetAsync(StatusKey(machineId));
-                var oldStatus = oldStatusStr.HasValue && Enum.TryParse<MachineStatus>(oldStatusStr, out var s) 
-                    ? s 
+                var oldStatus = oldStatusStr.HasValue && Enum.TryParse<MachineStatus>(oldStatusStr, out var s)
+                    ? s
                     : MachineStatus.Stopped;
-                
+
                 await _db.StringSetAsync(StatusKey(machineId), status.ToString());
-                
+
                 // Update machine info
                 var json = await _db.HashGetAsync(MachinesKey, machineId);
                 if (json.HasValue)
@@ -309,11 +305,11 @@ namespace XStateNet.Distributed.Registry
                         info.Status = status;
                         if (currentState != null)
                             info.CurrentState = currentState;
-                        
+
                         await _db.HashSetAsync(MachinesKey, machineId, JsonSerializer.Serialize(info));
                     }
                 }
-                
+
                 // Publish status change event
                 await PublishEventAsync(new RegistryChangeEvent
                 {
@@ -321,7 +317,7 @@ namespace XStateNet.Distributed.Registry
                     MachineId = machineId,
                     MachineInfo = await GetAsync(machineId)
                 });
-                
+
                 StatusChanged?.Invoke(this, new StateMachineStatusChangedEventArgs
                 {
                     MachineId = machineId,
@@ -329,8 +325,8 @@ namespace XStateNet.Distributed.Registry
                     NewStatus = status,
                     CurrentState = currentState
                 });
-                
-                _logger?.LogInformation("Updated status for state machine {MachineId}: {OldStatus} -> {NewStatus}", 
+
+                _logger?.LogInformation("Updated status for state machine {MachineId}: {OldStatus} -> {NewStatus}",
                     machineId, oldStatus, status);
             }
             catch (Exception ex)
@@ -339,23 +335,23 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task<IEnumerable<StateMachineInfo>> FindByPatternAsync(string pattern)
         {
             try
             {
                 var allMachines = await GetAllAsync();
-                
+
                 // Support wildcards: * for any characters, ? for single character
                 var regex = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
                     .Replace("\\*", ".*")
                     .Replace("\\?", ".") + "$";
-                
-                var regexObj = new System.Text.RegularExpressions.Regex(regex, 
+
+                var regexObj = new System.Text.RegularExpressions.Regex(regex,
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                
-                return allMachines.Where(m => 
-                    regexObj.IsMatch(m.MachineId) || 
+
+                return allMachines.Where(m =>
+                    regexObj.IsMatch(m.MachineId) ||
                     m.Tags.Any(t => regexObj.IsMatch(t.Value)));
             }
             catch (Exception ex)
@@ -364,25 +360,25 @@ namespace XStateNet.Distributed.Registry
                 throw;
             }
         }
-        
+
         public async Task SubscribeToChangesAsync(Action<RegistryChangeEvent> handler)
         {
             if (handler == null)
                 throw new ArgumentNullException(nameof(handler));
-            
+
             var subscriberId = Guid.NewGuid().ToString();
-            
+
             lock (_handlersLock)
             {
                 if (!_changeHandlers.ContainsKey(subscriberId))
                     _changeHandlers[subscriberId] = new List<Action<RegistryChangeEvent>>();
-                
+
                 _changeHandlers[subscriberId].Add(handler);
             }
-            
+
             await Task.CompletedTask;
         }
-        
+
         private void SubscribeToRedisEvents()
         {
             // Subscribe to registry events channel
@@ -401,7 +397,7 @@ namespace XStateNet.Distributed.Registry
                     _logger?.LogError(ex, "Failed to process Redis event");
                 }
             });
-            
+
             // Subscribe to Redis keyspace notifications for expired keys (heartbeat timeout)
             _subscriber.Subscribe(RedisChannel.Literal("__keyevent@0__:expired"), async (channel, key) =>
             {
@@ -410,28 +406,28 @@ namespace XStateNet.Distributed.Registry
                 {
                     var machineId = keyStr.Substring($"{_keyPrefix}:heartbeat:".Length);
                     _logger?.LogWarning("Heartbeat expired for state machine {MachineId}", machineId);
-                    
+
                     // Update status to unhealthy
                     await UpdateStatusAsync(machineId, MachineStatus.Unhealthy);
                 }
             });
         }
-        
+
         private async Task PublishEventAsync(RegistryChangeEvent evt)
         {
             var json = JsonSerializer.Serialize(evt);
             await _subscriber.PublishAsync(RedisChannel.Literal($"{_keyPrefix}:events"), json);
         }
-        
+
         private void NotifyChangeHandlers(RegistryChangeEvent evt)
         {
             List<Action<RegistryChangeEvent>> handlers;
-            
+
             lock (_handlersLock)
             {
                 handlers = _changeHandlers.Values.SelectMany(h => h).ToList();
             }
-            
+
             foreach (var handler in handlers)
             {
                 try
@@ -444,17 +440,17 @@ namespace XStateNet.Distributed.Registry
                 }
             }
         }
-        
+
         private async Task RemoveFromAllGroupsAsync(string machineId)
         {
             var groups = await _db.HashGetAllAsync(GroupsKey);
-            
+
             foreach (var group in groups)
             {
                 await _db.SetRemoveAsync(GroupMembersKey(group.Name!), machineId);
             }
         }
-        
+
         public void Dispose()
         {
             _redis?.Dispose();

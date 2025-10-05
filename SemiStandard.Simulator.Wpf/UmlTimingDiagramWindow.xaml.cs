@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,7 +20,7 @@ public partial class UmlTimingDiagramWindow : Window
     private double _laneHeight = 80;
     private double _currentTimePosition = 0;
     private double _elapsedSeconds = 0;
-    
+
     private class SwimmingLane
     {
         public string MachineName { get; set; } = "";
@@ -35,7 +32,7 @@ public partial class UmlTimingDiagramWindow : Window
         public ConcurrentDictionary<string, double> StateYLevels { get; set; } = new();
         public string[] PossibleStates { get; set; } = Array.Empty<string>();
     }
-    
+
     private class StateSegment
     {
         public string State { get; set; } = "";
@@ -45,7 +42,7 @@ public partial class UmlTimingDiagramWindow : Window
         public double EndX { get; set; }
         public double YLevel { get; set; }
     }
-    
+
     private class StateTransition
     {
         public string MachineName { get; set; } = "";
@@ -53,23 +50,23 @@ public partial class UmlTimingDiagramWindow : Window
         public string ToState { get; set; } = "";
         public DateTime Timestamp { get; set; }
     }
-    
+
     public UmlTimingDiagramWindow(ConcurrentDictionary<string, StateMachine>? stateMachines = null)
     {
         InitializeComponent();
-        
+
         System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Constructor called with stateMachines: {stateMachines?.Count ?? 0} machines");
-        
+
         _startTime = DateTime.Now;
         _updateTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(100)
         };
         _updateTimer.Tick += UpdateTimer_Tick;
-        
+
         InitializeDiagram();
         SetupEventHandlers();
-        
+
         // Connect to real state machines if provided, otherwise generate sample data
         if (stateMachines != null && stateMachines.Count > 0)
         {
@@ -81,22 +78,22 @@ public partial class UmlTimingDiagramWindow : Window
             System.Diagnostics.Debug.WriteLine("[UML_TIMING] No state machines provided - using sample data");
             GenerateSampleData();
         }
-        
+
         DrawAllWaveforms();
-        
+
         _updateTimer.Start();
     }
-    
+
     private ConcurrentDictionary<string, string[]> GetStateMachineStates()
     {
         var stateMachineDefinitions = new ConcurrentDictionary<string, string[]>();
         var scripts = StateMachineDefinitions.GetStateMachineScripts();
-        
+
         foreach (var kvp in scripts)
         {
             var machineName = kvp.Key;
             var scriptJson = kvp.Value;
-            
+
             try
             {
                 // Parse the XState script to extract state names
@@ -109,22 +106,22 @@ public partial class UmlTimingDiagramWindow : Window
                 stateMachineDefinitions[machineName] = new[] { "Unknown" };
             }
         }
-        
+
         return stateMachineDefinitions;
     }
-    
+
     private string[] ExtractStatesFromScript(string scriptJson)
     {
         try
         {
             // Convert single quotes to double quotes for valid JSON
             var validJson = scriptJson.Replace('\'', '"');
-            
+
             using var doc = JsonDocument.Parse(validJson);
             var root = doc.RootElement;
-            
+
             var states = new List<string>();
-            
+
             if (root.TryGetProperty("states", out var statesElement))
             {
                 foreach (var state in statesElement.EnumerateObject())
@@ -132,7 +129,7 @@ public partial class UmlTimingDiagramWindow : Window
                     states.Add(state.Name);
                 }
             }
-            
+
             System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Extracted {states.Count} states: {string.Join(", ", states)}");
             return states.ToArray();
         }
@@ -142,18 +139,18 @@ public partial class UmlTimingDiagramWindow : Window
             return new[] { "Unknown" };
         }
     }
-    
+
     private void InitializeDiagram()
     {
         // Get state machine definitions from StateMachineDefinitions class
         var stateMachineDefinitions = GetStateMachineStates();
-        
+
         double yPos = 10;
         foreach (var kvp in stateMachineDefinitions)
         {
             var machineName = kvp.Key;
             var states = kvp.Value;
-            
+
             var lane = new SwimmingLane
             {
                 MachineName = machineName,
@@ -161,19 +158,19 @@ public partial class UmlTimingDiagramWindow : Window
                 YPosition = yPos,
                 PossibleStates = states
             };
-            
+
             // Calculate Y levels for each state (evenly distributed in lane height)
             double stateSpacing = (_laneHeight - 20) / (states.Length + 1);
             for (int i = 0; i < states.Length; i++)
             {
                 lane.StateYLevels[states[i]] = yPos + 15 + (i * stateSpacing);
             }
-            
+
             // Create header in fixed lane area
             var header = CreateLaneHeader(machineName, yPos, states);
             LaneHeaderCanvas.Children.Add(header);
             lane.HeaderControl = header;
-            
+
             // Create a dedicated canvas for this lane's waveform
             var laneCanvas = new Canvas
             {
@@ -184,9 +181,9 @@ public partial class UmlTimingDiagramWindow : Window
             Canvas.SetTop(laneCanvas, yPos);
             DiagramCanvas.Children.Add(laneCanvas);
             lane.LaneCanvas = laneCanvas;
-            
+
             _lanes[machineName] = lane;
-            
+
             // Create initial segment for each lane
             var initialSegment = new StateSegment
             {
@@ -197,27 +194,27 @@ public partial class UmlTimingDiagramWindow : Window
                 EndTime = null
             };
             lane.Segments.Add(initialSegment);
-            
+
             yPos += _laneHeight;
         }
-        
+
         // Set canvas sizes (11 machines * 80px = 880px + margins)
         DiagramCanvas.Height = yPos + 20;
         LaneHeaderCanvas.Height = yPos + 20;
-        
+
         // Log the total height for debugging
         System.Diagnostics.Debug.WriteLine($"Total canvas height: {DiagramCanvas.Height}px for {_lanes.Count} state machines");
         DiagramCanvas.Width = _timeWindowSeconds * _pixelsPerSecond;
         TimeAxisCanvas.Width = DiagramCanvas.Width;
-        
+
         // Draw initial grid and axis
         DrawGrid();
         DrawTimeAxis();
         DrawAllWaveforms();
-        
+
         UpdateStatusBar();
     }
-    
+
     private Border CreateLaneHeader(string machineName, double yPosition, string[] states)
     {
         var border = new Border
@@ -238,9 +235,9 @@ public partial class UmlTimingDiagramWindow : Window
             BorderThickness = new Thickness(0, 0, 2, 1),
             Margin = new Thickness(5, yPosition, 0, 0)
         };
-        
+
         var grid = new Grid();
-        
+
         // Machine name at top
         var nameText = new TextBlock
         {
@@ -253,12 +250,12 @@ public partial class UmlTimingDiagramWindow : Window
             Margin = new Thickness(10, 5, 0, 0)
         };
         grid.Children.Add(nameText);
-        
+
         // State levels on the right side
         for (int i = 0; i < states.Length; i++)
         {
             double yLevel = 15 + (i * ((_laneHeight - 20) / (states.Length + 1)));
-            
+
             var stateLabel = new TextBlock
             {
                 Text = states[i],
@@ -268,7 +265,7 @@ public partial class UmlTimingDiagramWindow : Window
                 Margin = new Thickness(0, yLevel - 5, 10, 0)
             };
             grid.Children.Add(stateLabel);
-            
+
             // Draw a small line indicator
             var line = new Line
             {
@@ -282,7 +279,7 @@ public partial class UmlTimingDiagramWindow : Window
             };
             grid.Children.Add(line);
         }
-        
+
         // Current state indicator at bottom
         var currentStateText = new TextBlock
         {
@@ -296,11 +293,11 @@ public partial class UmlTimingDiagramWindow : Window
             Tag = $"{machineName}_CurrentState"
         };
         grid.Children.Add(currentStateText);
-        
+
         border.Child = grid;
         return border;
     }
-    
+
     private void DrawGrid()
     {
         if (!ShowGridCheck.IsChecked == true)
@@ -314,7 +311,7 @@ public partial class UmlTimingDiagramWindow : Window
             }
             return;
         }
-        
+
         // Clear existing grid lines first
         var existingGridLines = DiagramCanvas.Children.OfType<Line>()
             .Where(l => l.Tag?.ToString() == "GridLine").ToList();
@@ -322,7 +319,7 @@ public partial class UmlTimingDiagramWindow : Window
         {
             DiagramCanvas.Children.Remove(line);
         }
-        
+
         // Vertical grid lines (time markers) - every 5 seconds
         for (double x = 0; x <= DiagramCanvas.Width; x += _pixelsPerSecond * 5)
         {
@@ -339,7 +336,7 @@ public partial class UmlTimingDiagramWindow : Window
             };
             DiagramCanvas.Children.Add(line);
         }
-        
+
         // Horizontal grid lines (lane separators)
         foreach (var lane in _lanes.Values)
         {
@@ -356,17 +353,17 @@ public partial class UmlTimingDiagramWindow : Window
             DiagramCanvas.Children.Add(line);
         }
     }
-    
+
     private void DrawTimeAxis()
     {
         TimeAxisCanvas.Children.Clear();
         TimeAxisCanvas.Width = DiagramCanvas.Width;
-        
+
         // Draw time markers
         for (double x = 0; x <= DiagramCanvas.Width; x += _pixelsPerSecond * 5) // Every 5 seconds
         {
             var time = x / _pixelsPerSecond;
-            
+
             // Major tick
             var tick = new Line
             {
@@ -378,7 +375,7 @@ public partial class UmlTimingDiagramWindow : Window
                 StrokeThickness = 1
             };
             TimeAxisCanvas.Children.Add(tick);
-            
+
             // Time label
             var label = new TextBlock
             {
@@ -389,7 +386,7 @@ public partial class UmlTimingDiagramWindow : Window
             };
             TimeAxisCanvas.Children.Add(label);
         }
-        
+
         // Draw minor ticks (every second)
         for (double x = 0; x <= DiagramCanvas.Width; x += _pixelsPerSecond)
         {
@@ -407,7 +404,7 @@ public partial class UmlTimingDiagramWindow : Window
                 TimeAxisCanvas.Children.Add(minorTick);
             }
         }
-        
+
         // Current time indicator (red line)
         var currentTimeLine = new Line
         {
@@ -420,7 +417,7 @@ public partial class UmlTimingDiagramWindow : Window
             Tag = "CurrentTime"
         };
         TimeAxisCanvas.Children.Add(currentTimeLine);
-        
+
         // Add current time label
         var currentTimeLabel = new Border
         {
@@ -438,35 +435,35 @@ public partial class UmlTimingDiagramWindow : Window
         };
         TimeAxisCanvas.Children.Add(currentTimeLabel);
     }
-    
+
     private void DrawAllWaveforms()
     {
         foreach (var lane in _lanes.Values)
         {
             DrawLaneWaveform(lane);
         }
-        
+
         // Draw current time line across all lanes
         DrawCurrentTimeLine();
     }
-    
+
     private void DrawLaneWaveform(SwimmingLane lane)
     {
         lane.LaneCanvas.Children.Clear();
-        
+
         if (lane.Segments.Count == 0) return;
-        
+
         // Draw the waveform using lines
         for (int i = 0; i < lane.Segments.Count; i++)
         {
             var segment = lane.Segments[i];
             double startX = segment.StartX;
-            double endX = segment.EndTime.HasValue 
-                ? segment.EndX 
+            double endX = segment.EndTime.HasValue
+                ? segment.EndX
                 : _currentTimePosition;
-            
+
             double y = segment.YLevel;
-            
+
             // Horizontal line for state duration
             var horizontalLine = new Line
             {
@@ -480,7 +477,7 @@ public partial class UmlTimingDiagramWindow : Window
                 StrokeEndLineCap = PenLineCap.Round
             };
             lane.LaneCanvas.Children.Add(horizontalLine);
-            
+
             // Add state label if there's enough space
             if (endX - startX > 30)
             {
@@ -494,7 +491,7 @@ public partial class UmlTimingDiagramWindow : Window
                 };
                 lane.LaneCanvas.Children.Add(stateLabel);
             }
-            
+
             // Draw vertical transition line to next state
             if (i < lane.Segments.Count - 1)
             {
@@ -510,7 +507,7 @@ public partial class UmlTimingDiagramWindow : Window
                     StrokeDashArray = new DoubleCollection { 2, 1 }
                 };
                 lane.LaneCanvas.Children.Add(transitionLine);
-                
+
                 // Add transition marker (small circle)
                 var marker = new Ellipse
                 {
@@ -522,7 +519,7 @@ public partial class UmlTimingDiagramWindow : Window
                 lane.LaneCanvas.Children.Add(marker);
             }
         }
-        
+
         // Highlight current state
         if (lane.Segments.Count > 0)
         {
@@ -542,7 +539,7 @@ public partial class UmlTimingDiagramWindow : Window
             }
         }
     }
-    
+
     private void DrawCurrentTimeLine()
     {
         // Remove old current time line
@@ -552,7 +549,7 @@ public partial class UmlTimingDiagramWindow : Window
         {
             DiagramCanvas.Children.Remove(line);
         }
-        
+
         // Draw new current time line
         var currentLine = new Line
         {
@@ -567,19 +564,19 @@ public partial class UmlTimingDiagramWindow : Window
         };
         DiagramCanvas.Children.Add(currentLine);
     }
-    
+
     private void UpdateTimer_Tick(object? sender, EventArgs e)
     {
         _elapsedSeconds += 0.1;
         _currentTimePosition = _elapsedSeconds * _pixelsPerSecond;
-        
+
         // Auto-scroll if enabled
-        if (AutoScrollCheck.IsChecked == true && 
+        if (AutoScrollCheck.IsChecked == true &&
             _currentTimePosition > DiagramScroller.HorizontalOffset + DiagramScroller.ViewportWidth - 200)
         {
             DiagramScroller.ScrollToHorizontalOffset(_currentTimePosition - DiagramScroller.ViewportWidth + 200);
         }
-        
+
         // Extend canvas if needed
         if (_currentTimePosition > DiagramCanvas.Width - 100)
         {
@@ -591,37 +588,37 @@ public partial class UmlTimingDiagramWindow : Window
             }
             DrawGrid();
         }
-        
+
         // Disabled - we get real state changes from the simulator
         // if (_elapsedSeconds > 2 && Random.Shared.Next(100) < 5) // 5% chance per tick
         // {
         //     GenerateRandomStateChange();
         // }
-        
+
         DrawTimeAxis();
         DrawAllWaveforms();
         DrawCurrentTimeLine();
         UpdateStatusBar();
     }
-    
+
     private void GenerateRandomStateChange()
     {
         var lanesList = _lanes.Values.ToList();
         var lane = lanesList[Random.Shared.Next(lanesList.Count)];
-        
+
         // Get current state
         var currentSegment = lane.Segments.LastOrDefault();
         if (currentSegment != null && !currentSegment.EndTime.HasValue)
         {
             var currentStateIndex = Array.IndexOf(lane.PossibleStates, currentSegment.State);
-            var newStateIndex = (currentStateIndex + 1 + Random.Shared.Next(lane.PossibleStates.Length - 1)) 
+            var newStateIndex = (currentStateIndex + 1 + Random.Shared.Next(lane.PossibleStates.Length - 1))
                                 % lane.PossibleStates.Length;
             var newState = lane.PossibleStates[newStateIndex];
-            
+
             // End current segment
             currentSegment.EndTime = DateTime.Now;
             currentSegment.EndX = _currentTimePosition;
-            
+
             // Start new segment
             var newSegment = new StateSegment
             {
@@ -633,10 +630,10 @@ public partial class UmlTimingDiagramWindow : Window
             };
             lane.Segments.Add(newSegment);
             lane.CurrentState = newState;
-            
+
             // Update header
             UpdateLaneHeader(lane);
-            
+
             // Record transition
             _transitions.Add(new StateTransition
             {
@@ -647,19 +644,19 @@ public partial class UmlTimingDiagramWindow : Window
             });
         }
     }
-    
+
     private void ConnectToStateMachines(ConcurrentDictionary<string, StateMachine> stateMachines)
     {
         System.Diagnostics.Debug.WriteLine($"[UML_TIMING] ConnectToStateMachines called with {stateMachines.Count} machines");
         System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Available lanes: {string.Join(", ", _lanes.Keys)}");
-        
+
         foreach (var kvp in stateMachines)
         {
             var machineName = kvp.Key;
             var machine = kvp.Value;
-            
+
             System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Processing machine: {machineName}");
-            
+
             if (_lanes.TryGetValue(machineName, out var lane))
             {
                 System.Diagnostics.Debug.WriteLine($"[UML_TIMING] Found lane for {machineName}");
@@ -667,7 +664,7 @@ public partial class UmlTimingDiagramWindow : Window
                 var currentStateName = machine.GetActiveStateNames();
                 lane.CurrentState = currentStateName;
                 UpdateLaneHeader(lane);
-                
+
                 // Create initial segment for current state
                 if (!lane.StateYLevels.ContainsKey(currentStateName))
                 {
@@ -675,7 +672,7 @@ public partial class UmlTimingDiagramWindow : Window
                     var states = lane.PossibleStates.ToList();
                     states.Add(currentStateName);
                     lane.PossibleStates = states.ToArray();
-                    
+
                     // Recalculate Y levels
                     double stateSpacing = (_laneHeight - 20) / (states.Count + 1);
                     for (int i = 0; i < states.Count; i++)
@@ -683,7 +680,7 @@ public partial class UmlTimingDiagramWindow : Window
                         lane.StateYLevels[states[i]] = lane.YPosition + 15 + (i * stateSpacing);
                     }
                 }
-                
+
                 var initialSegment = new StateSegment
                 {
                     State = currentStateName,
@@ -693,14 +690,14 @@ public partial class UmlTimingDiagramWindow : Window
                     EndTime = null
                 };
                 lane.Segments.Add(initialSegment);
-                
+
                 // Subscribe to state machine transitions
                 machine.OnTransition += (fromState, toState, eventName) =>
                 {
-                    
+
                     // Add transition to timing diagram
                     var currentStateName = machine.GetActiveStateNames();
-                    
+
                     // Use Dispatcher.Invoke to ensure UI updates happen on UI thread
                     Dispatcher.Invoke(() =>
                     {
@@ -711,18 +708,18 @@ public partial class UmlTimingDiagramWindow : Window
             }
         }
     }
-    
+
     private void GenerateSampleData()
     {
         var now = DateTime.Now;
-        
+
         // Generate initial state history for each lane
         foreach (var lane in _lanes.Values)
         {
             var states = lane.PossibleStates;
             var currentState = states[0];
             var time = now.AddSeconds(-50);
-            
+
             // Create initial segment
             var segment = new StateSegment
             {
@@ -732,20 +729,20 @@ public partial class UmlTimingDiagramWindow : Window
                 YLevel = lane.StateYLevels[currentState]
             };
             lane.Segments.Add(segment);
-            
+
             // Generate some historical transitions
             for (int i = 0; i < 5; i++)
             {
                 time = time.AddSeconds(Random.Shared.Next(5, 15));
                 if (time >= now) break;
-                
+
                 var newStateIndex = Random.Shared.Next(states.Length);
                 var newState = states[newStateIndex];
-                
+
                 // End current segment
                 segment.EndTime = time;
                 segment.EndX = (time - _startTime).TotalSeconds * _pixelsPerSecond;
-                
+
                 // Create new segment
                 segment = new StateSegment
                 {
@@ -755,7 +752,7 @@ public partial class UmlTimingDiagramWindow : Window
                     YLevel = lane.StateYLevels[newState]
                 };
                 lane.Segments.Add(segment);
-                
+
                 // Record transition
                 _transitions.Add(new StateTransition
                 {
@@ -764,15 +761,15 @@ public partial class UmlTimingDiagramWindow : Window
                     ToState = newState,
                     Timestamp = time
                 });
-                
+
                 currentState = newState;
             }
-            
+
             lane.CurrentState = currentState;
             UpdateLaneHeader(lane);
         }
     }
-    
+
     private void UpdateLaneHeader(SwimmingLane lane)
     {
         if (lane.HeaderControl?.Child is Grid grid)
@@ -785,7 +782,7 @@ public partial class UmlTimingDiagramWindow : Window
             }
         }
     }
-    
+
     private Brush GetMachineBrush(string machineName)
     {
         return machineName switch
@@ -804,7 +801,7 @@ public partial class UmlTimingDiagramWindow : Window
             _ => new SolidColorBrush(Color.FromRgb(180, 180, 180))
         };
     }
-    
+
     private void SetupEventHandlers()
     {
         ZoomSlider.ValueChanged += (s, e) =>
@@ -814,20 +811,20 @@ public partial class UmlTimingDiagramWindow : Window
             DiagramScale.ScaleY = scale;
             ZoomText.Text = $"{scale * 100:0}%";
         };
-        
+
         ShowGridCheck.Checked += (s, e) => DrawGrid();
         ShowGridCheck.Unchecked += (s, e) => DrawGrid();
     }
-    
+
     private void DiagramScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
     {
         // Sync lane headers with vertical scroll
         LaneHeaderScroller.ScrollToVerticalOffset(e.VerticalOffset);
-        
+
         // Sync time axis with horizontal scroll  
         TimeAxisScroller.ScrollToHorizontalOffset(e.HorizontalOffset);
     }
-    
+
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         // Clear all data
@@ -835,15 +832,15 @@ public partial class UmlTimingDiagramWindow : Window
         {
             lane.Segments.Clear();
             lane.LaneCanvas.Children.Clear();
-            
+
             // Re-initialize with initial segment at current state
             var initialSegment = new StateSegment
             {
                 State = lane.CurrentState,
                 StartTime = DateTime.Now,
                 StartX = 0,
-                YLevel = lane.StateYLevels.ContainsKey(lane.CurrentState) 
-                    ? lane.StateYLevels[lane.CurrentState] 
+                YLevel = lane.StateYLevels.ContainsKey(lane.CurrentState)
+                    ? lane.StateYLevels[lane.CurrentState]
                     : lane.StateYLevels.Values.First(),
                 EndTime = null
             };
@@ -852,39 +849,39 @@ public partial class UmlTimingDiagramWindow : Window
         _transitions.Clear();
         _elapsedSeconds = 0;
         _currentTimePosition = 0;
-        
+
         // Clear and redraw grid, axis and waveforms
         DrawGrid();
         DrawTimeAxis();
         DrawAllWaveforms();
         UpdateStatusBar();
-        
+
         StatusText.Text = "Diagram refreshed";
     }
-    
+
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         _updateTimer.Stop();
         Close();
     }
-    
+
     private void UpdateStatusBar()
     {
         TimeRangeText.Text = $"Time: 0s - {_elapsedSeconds:0.0}s";
         MachineCountText.Text = $"{_lanes.Count} State Machines";
         LastUpdateText.Text = $"Last Update: {DateTime.Now:HH:mm:ss.f}";
-        
+
         // Show total transitions
         StatusText.Text = $"Total Transitions: {_transitions.Count}";
     }
-    
+
     // Public method to add state transitions from external sources
     public void AddStateTransition(string machineName, string fromState, string toState, DateTime timestamp)
     {
         Dispatcher.Invoke(() =>
         {
             if (!_lanes.TryGetValue(machineName, out var lane)) return;
-            
+
             // Find and end the current segment
             var currentSegment = lane.Segments.LastOrDefault(s => !s.EndTime.HasValue);
             if (currentSegment != null)
@@ -892,7 +889,7 @@ public partial class UmlTimingDiagramWindow : Window
                 currentSegment.EndTime = timestamp;
                 currentSegment.EndX = (timestamp - _startTime).TotalSeconds * _pixelsPerSecond;
             }
-            
+
             // Create new segment
             if (!lane.StateYLevels.ContainsKey(toState))
             {
@@ -900,7 +897,7 @@ public partial class UmlTimingDiagramWindow : Window
                 var states = lane.PossibleStates.ToList();
                 states.Add(toState);
                 lane.PossibleStates = states.ToArray();
-                
+
                 // Recalculate Y levels
                 double stateSpacing = (_laneHeight - 20) / (states.Count + 1);
                 for (int i = 0; i < states.Count; i++)
@@ -908,7 +905,7 @@ public partial class UmlTimingDiagramWindow : Window
                     lane.StateYLevels[states[i]] = lane.YPosition + 15 + (i * stateSpacing);
                 }
             }
-            
+
             var newSegment = new StateSegment
             {
                 State = toState,
@@ -920,7 +917,7 @@ public partial class UmlTimingDiagramWindow : Window
             lane.Segments.Add(newSegment);
             lane.CurrentState = toState;
             UpdateLaneHeader(lane);
-            
+
             // Record transition
             _transitions.Add(new StateTransition
             {
@@ -929,21 +926,21 @@ public partial class UmlTimingDiagramWindow : Window
                 ToState = toState,
                 Timestamp = timestamp
             });
-            
+
             DrawLaneWaveform(lane);
         });
     }
-    
+
     // Public method to set the current state without transition
     public void SetCurrentState(string machineName, string state)
     {
         Dispatcher.Invoke(() =>
         {
             if (!_lanes.TryGetValue(machineName, out var lane)) return;
-            
+
             lane.CurrentState = state;
             UpdateLaneHeader(lane);
-            
+
             // If no segments exist, create initial segment
             if (lane.Segments.Count == 0)
             {
@@ -953,7 +950,7 @@ public partial class UmlTimingDiagramWindow : Window
                     var states = lane.PossibleStates.ToList();
                     states.Add(state);
                     lane.PossibleStates = states.ToArray();
-                    
+
                     // Recalculate Y levels
                     double stateSpacing = (_laneHeight - 20) / (states.Count + 1);
                     for (int i = 0; i < states.Count; i++)
@@ -961,7 +958,7 @@ public partial class UmlTimingDiagramWindow : Window
                         lane.StateYLevels[states[i]] = lane.YPosition + 15 + (i * stateSpacing);
                     }
                 }
-                
+
                 var segment = new StateSegment
                 {
                     State = state,

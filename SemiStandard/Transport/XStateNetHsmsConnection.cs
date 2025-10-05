@@ -1,14 +1,8 @@
-using System;
+using Microsoft.Extensions.Logging;
 using System.Buffers;
-using System.IO;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
-using XStateNet;
-using System.Collections.Generic;
 
 namespace XStateNet.Semi.Transport
 {
@@ -34,27 +28,27 @@ namespace XStateNet.Semi.Transport
         private TaskCompletionSource<bool>? _connectTcs;
         private TaskCompletionSource<bool>? _disconnectTcs;
         private Exception? _lastError;
-        
+
         // HSMS connection parameters (in milliseconds)
         public int T3Timeout { get; set; } = 45000;  // Reply timeout
         public int T5Timeout { get; set; } = 10000;  // Connect separation timeout
         public int T6Timeout { get; set; } = 5000;   // Control transaction timeout
         public int T7Timeout { get; set; } = 10000;  // Not selected timeout
         public int T8Timeout { get; set; } = 5000;   // Network intercharacter timeout
-        
+
         public bool IsConnected => _tcpClient?.Connected ?? false;
         public HsmsConnectionState State => GetCurrentState();
-        
+
         public event EventHandler<HsmsMessage>? MessageReceived;
         public event EventHandler<HsmsConnectionState>? StateChanged;
         public event EventHandler<Exception>? ErrorOccurred;
-        
+
         public enum HsmsConnectionMode
         {
             Active,  // Initiates connection (typically Host)
             Passive  // Accepts connection (typically Equipment)
         }
-        
+
         public enum HsmsConnectionState
         {
             NotConnected,
@@ -64,17 +58,17 @@ namespace XStateNet.Semi.Transport
             Disconnecting,
             Error
         }
-        
+
         public XStateNetHsmsConnection(IPEndPoint endpoint, HsmsConnectionMode mode, ILogger<XStateNetHsmsConnection>? logger = null)
         {
             _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
             _mode = mode;
             _logger = logger;
-            
+
             // Create state machine
             _stateMachine = CreateStateMachine();
             _stateMachine.Start();
-            
+
             // Add mode to log context for identification
             if (_logger != null)
             {
@@ -84,7 +78,7 @@ namespace XStateNet.Semi.Transport
                 }
             }
         }
-        
+
         private StateMachine CreateStateMachine()
         {
             var config = @"{
@@ -164,9 +158,9 @@ namespace XStateNet.Semi.Transport
                     }
                 }
             }";
-            
+
             var actionMap = new ActionMap();
-            
+
             actionMap["doConnect"] = new List<NamedAction>
             {
                 new NamedAction("doConnect", async (sm) =>
@@ -174,7 +168,7 @@ namespace XStateNet.Semi.Transport
                     try
                     {
                         _cancellationTokenSource = new CancellationTokenSource();
-                        
+
                         if (_mode == HsmsConnectionMode.Active)
                         {
                             await ConnectActiveAsync(_cancellationTokenSource.Token);
@@ -183,7 +177,7 @@ namespace XStateNet.Semi.Transport
                         {
                             await ConnectPassiveAsync(_cancellationTokenSource.Token);
                         }
-                        
+
                         _ = Task.Run(async () => await sm.SendAsync("CONNECTED"));
                         _connectTcs?.TrySetResult(true);
                     }
@@ -196,7 +190,7 @@ namespace XStateNet.Semi.Transport
                     }
                 })
             };
-            
+
             actionMap["startReceiving"] = new List<NamedAction>
             {
                 new NamedAction("startReceiving", (sm) =>
@@ -205,7 +199,7 @@ namespace XStateNet.Semi.Transport
                     _logger?.LogInformation("Started receive loop");
                 })
             };
-            
+
             actionMap["doDisconnect"] = new List<NamedAction>
             {
                 new NamedAction("doDisconnect", async (sm) =>
@@ -213,7 +207,7 @@ namespace XStateNet.Semi.Transport
                     try
                     {
                         _cancellationTokenSource?.Cancel();
-                        
+
                         if (_receiveTask != null)
                         {
                             try
@@ -222,10 +216,10 @@ namespace XStateNet.Semi.Transport
                             }
                             catch { }
                         }
-                        
+
                         _stream?.Close();
                         _tcpClient?.Close();
-                        
+
                         _ = Task.Run(async () => await sm.SendAsync("DISCONNECTED"));
                         _disconnectTcs?.TrySetResult(true);
                     }
@@ -236,7 +230,7 @@ namespace XStateNet.Semi.Transport
                     }
                 })
             };
-            
+
             actionMap["incrementRetry"] = new List<NamedAction>
             {
                 new NamedAction("incrementRetry", (sm) =>
@@ -246,7 +240,7 @@ namespace XStateNet.Semi.Transport
                     _logger?.LogWarning("Connection retry #{RetryCount}", retryCount + 1);
                 })
             };
-            
+
             actionMap["resetRetry"] = new List<NamedAction>
             {
                 new NamedAction("resetRetry", (sm) =>
@@ -254,7 +248,7 @@ namespace XStateNet.Semi.Transport
                     sm.ContextMap["retryCount"] = 0;
                 })
             };
-            
+
             actionMap["reportError"] = new List<NamedAction>
             {
                 new NamedAction("reportError", (sm) =>
@@ -262,7 +256,7 @@ namespace XStateNet.Semi.Transport
                     ErrorOccurred?.Invoke(this, _lastError ?? new Exception("Connection failed"));
                 })
             };
-            
+
             actionMap["handleError"] = new List<NamedAction>
             {
                 new NamedAction("handleError", (sm) =>
@@ -271,7 +265,7 @@ namespace XStateNet.Semi.Transport
                     ErrorOccurred?.Invoke(this, _lastError ?? new Exception("Connection error"));
                 })
             };
-            
+
             actionMap["timeoutNotSelected"] = new List<NamedAction>
             {
                 new NamedAction("timeoutNotSelected", (sm) =>
@@ -280,9 +274,9 @@ namespace XStateNet.Semi.Transport
                     _logger?.LogError(_lastError.Message);
                 })
             };
-            
+
             var guardMap = new GuardMap();
-            
+
             guardMap["shouldRetry"] = new NamedGuard("shouldRetry", (sm) =>
             {
                 var retryCount = (int)(sm.ContextMap["retryCount"] ?? 0);

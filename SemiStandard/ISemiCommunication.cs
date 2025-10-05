@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace XStateNet.Semi;
 
@@ -14,27 +11,27 @@ public interface ISemiCommunication
     /// Send a SECS message
     /// </summary>
     Task<LegacySecsMessage?> SendMessage(int stream, int function, object data);
-    
+
     /// <summary>
     /// Handle incoming SECS message
     /// </summary>
     void RegisterMessageHandler(int stream, int function, Func<LegacySecsMessage, Task<LegacySecsMessage?>> handler);
-    
+
     /// <summary>
     /// Report collection event
     /// </summary>
     Task ReportEvent(int ceid, ConcurrentDictionary<int, object>? variables = null);
-    
+
     /// <summary>
     /// Set alarm
     /// </summary>
     Task SetAlarm(int alid, bool set = true);
-    
+
     /// <summary>
     /// Update status variable
     /// </summary>
     void UpdateStatusVariable(int svid, object value);
-    
+
     /// <summary>
     /// Get status variable value
     /// </summary>
@@ -51,7 +48,7 @@ public class LegacySecsMessage
     public bool ReplyExpected { get; set; }
     public object? Data { get; set; }
     public int TransactionId { get; set; }
-    
+
     public LegacySecsMessage(int stream, int function, bool replyExpected = false)
     {
         Stream = stream;
@@ -69,7 +66,7 @@ public class CollectionEvent
     public string Name { get; set; }
     public bool Enabled { get; set; }
     public List<int> LinkedReports { get; set; }
-    
+
     public CollectionEvent(int id, string name)
     {
         Id = id;
@@ -90,7 +87,7 @@ public class AlarmDefinition
     public bool Set { get; set; }
     public DateTime? SetTime { get; set; }
     public DateTime? ClearTime { get; set; }
-    
+
     public AlarmDefinition(int id, string text, AlarmSeverity severity = AlarmSeverity.Warning)
     {
         Id = id;

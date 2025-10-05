@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-
 namespace XStateNet.Distributed.Resilience
 {
     public class TimeoutSettings

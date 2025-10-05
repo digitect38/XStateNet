@@ -48,16 +48,8 @@
 // [v] Implement top down transition algorithm for full transition --> this is the solution for the above issue
 // [ ] Implement single action expression (not an array, embraced using square bracket) for entry, exit, transition
 /////////////////////////////////////////////////////////////////////////
-using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Xml.Linq;
-using System.Threading;
 using Newtonsoft.Json.Linq;
+using System.Collections.Concurrent;
 
 
 namespace XStateNet;
@@ -169,7 +161,7 @@ public partial class StateMachine : IStateMachine
 
     private static readonly ConcurrentDictionary<string, StateMachine> _instanceMap = new();
     private readonly ConcurrentDictionary<string, StateNode?> _stateCache = new();
-    
+
     /// <summary>
     /// Clear all static state for test isolation - should only be used in tests
     /// </summary>
@@ -400,13 +392,13 @@ public partial class StateMachine : IStateMachine
     {
         if (StateMap == null)
             throw new InvalidOperationException("StateMap is not initialized");
-        
+
         if (state == null)
             throw new ArgumentNullException(nameof(state));
-        
+
         if (string.IsNullOrWhiteSpace(state.Name))
             throw new ArgumentException("State name cannot be null or empty");
-        
+
         StateMap[state.Name] = state;
     }
 
@@ -428,7 +420,7 @@ public partial class StateMachine : IStateMachine
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Warning, () => "State machine is already RUNNING!");
                 return this;
             }
-            
+
             // Initialize components based on thread safety setting
             if (EnableThreadSafety)
             {
@@ -440,9 +432,9 @@ public partial class StateMachine : IStateMachine
             {
                 transitionExecutor = new TransitionExecutor(machineId);
             }
-            
+
             serviceInvoker = new ServiceInvoker(machineId);
-            
+
             var list = GetEntryList(machineId!);
             string entry = list.ToCsvString(this, false, " -> ");
 
@@ -480,7 +472,7 @@ public partial class StateMachine : IStateMachine
         Start();
         return await Task.FromResult(GetActiveStateNames());
     }
-    
+
     /// <summary>
     ///
     /// </summary>
@@ -506,7 +498,7 @@ public partial class StateMachine : IStateMachine
         if (eventName == "RESET")
         {
             Reset();
-            return GetActiveStateNames(); 
+            return GetActiveStateNames();
         }
 
         // Use write lock to ensure atomic transitions
@@ -537,7 +529,7 @@ public partial class StateMachine : IStateMachine
 
         return GetActiveStateNames();
     }
-    
+
     /// <summary>
     /// Sends an event asynchronously and returns the new state after transition
     /// </summary>
@@ -607,7 +599,7 @@ public partial class StateMachine : IStateMachine
             }
         });
     }
-    
+
     /// <summary>
     /// Sends an event in a fire-and-forget manner without waiting for completion
     /// </summary>
@@ -878,47 +870,48 @@ public partial class StateMachine : IStateMachine
             RootState?.BuildTransitionList(eventName, transitionList);
 
 
-        //step 1:  build transition list
+            //step 1:  build transition list
 
-        if (Logger.CurrentLevel >= Logger.LogLevel.Debug)
-        {
-            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***** Transition list *****");
-            foreach (var t in transitionList)
+            if (Logger.CurrentLevel >= Logger.LogLevel.Debug)
             {
-                var key = PerformanceOptimizations.GetTransitionKey(t.transition?.SourceName, t.transition?.TargetName);
-                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $"Transition : {key}, event = {t.@event}");
-            }
-            PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***************************");
-        };
-
-        //step 2:  perform transitions
-        // For transitions from the same state with the same event (like guarded transitions),
-        // only execute the first matching one
-
-        // Use pooled HashSet to reduce allocations
-        var executedTransitions = PerformanceOptimizations.RentTransitionHashSet();
-        try
-        {
-            foreach (var (state, transition, @event) in transitionList)
-            {
-                var key = (transition?.SourceName, @event);
-
-                // Skip if we've already executed a transition from this state for this event
-                if (executedTransitions.Contains(key))
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***** Transition list *****");
+                foreach (var t in transitionList)
                 {
-                    Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
-                    continue;
+                    var key = PerformanceOptimizations.GetTransitionKey(t.transition?.SourceName, t.transition?.TargetName);
+                    PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $"Transition : {key}, event = {t.@event}");
                 }
-
-                transitionExecutor.Execute(transition, @event);
-                executedTransitions.Add(key);
+                PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***************************");
             }
-        }
-        finally
-        {
-            // Return the HashSet to the pool
-            PerformanceOptimizations.ReturnTransitionHashSet(executedTransitions);
-        }
+            ;
+
+            //step 2:  perform transitions
+            // For transitions from the same state with the same event (like guarded transitions),
+            // only execute the first matching one
+
+            // Use pooled HashSet to reduce allocations
+            var executedTransitions = PerformanceOptimizations.RentTransitionHashSet();
+            try
+            {
+                foreach (var (state, transition, @event) in transitionList)
+                {
+                    var key = (transition?.SourceName, @event);
+
+                    // Skip if we've already executed a transition from this state for this event
+                    if (executedTransitions.Contains(key))
+                    {
+                        Logger.Debug($"Skipping transition from {transition?.SourceName} on {@event} - already executed");
+                        continue;
+                    }
+
+                    transitionExecutor.Execute(transition, @event);
+                    executedTransitions.Add(key);
+                }
+            }
+            finally
+            {
+                // Return the HashSet to the pool
+                PerformanceOptimizations.ReturnTransitionHashSet(executedTransitions);
+            }
         }
         finally
         {
@@ -957,7 +950,8 @@ public partial class StateMachine : IStateMachine
                     PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => $"Transition : {key}, event = {t.@event}");
                 }
                 PerformanceOptimizations.LogOptimized(Logger.LogLevel.Debug, () => "***************************");
-            };
+            }
+            ;
 
             //step 2:  perform transitions
             // For transitions from the same state with the same event (like guarded transitions),
@@ -1037,11 +1031,11 @@ public partial class StateMachine : IStateMachine
         // Optimized with HashSet for O(1) lookups instead of O(n) LINQ Except
         var targetSet = new HashSet<string>(target_cat);
         var sourceSet = new HashSet<string>(source_cat);
-        
+
         // Use pooled lists to reduce allocations
         var source_exit = PerformanceOptimizations.RentStringList();
         var target_entry = PerformanceOptimizations.RentStringList();
-        
+
         try
         {
             // Build exit path - states in source but not in target
@@ -1050,7 +1044,7 @@ public partial class StateMachine : IStateMachine
                 if (!targetSet.Contains(state))
                     source_exit.Add(state);
             }
-            
+
             // Build entry path - states in target but not in source
             foreach (var state in target_cat)
             {
@@ -1064,7 +1058,7 @@ public partial class StateMachine : IStateMachine
             // Create new lists to return (since we need to return ownership)
             var exitResult = new List<string>(source_exit);
             var entryResult = new List<string>(target_entry);
-            
+
             return (exitResult, entryResult);
         }
         finally
@@ -1085,16 +1079,16 @@ public partial class StateMachine : IStateMachine
     {
         if (string.IsNullOrWhiteSpace(stateName))
             throw new ArgumentNullException(nameof(stateName), "State name cannot be null or empty");
-        
+
         // Try to get from cache first
         if (_stateCache.TryGetValue(stateName, out var cachedState) && cachedState != null)
         {
             return cachedState;
         }
-        
+
         if (StateMap == null)
             throw new InvalidOperationException("StateMap is not initialized");
-        
+
         if (!StateMap.TryGetValue(stateName, out var state) || state == null)
         {
             throw new ArgumentException($"State '{stateName}' not found in StateMap");
@@ -1112,15 +1106,15 @@ public partial class StateMachine : IStateMachine
     /// <returns></returns>
     public HistoryState? GetStateAsHistory(string stateName)
     {
-        if (StateMap == null) 
+        if (StateMap == null)
             throw new InvalidOperationException("StateMap is not initialized");
-        
+
         if (string.IsNullOrWhiteSpace(stateName))
             throw new ArgumentNullException(nameof(stateName), "State name cannot be null or empty");
-        
+
         if (StateMap.TryGetValue(stateName, out var state))
             return state as HistoryState;
-        
+
         return null;
     }
 
@@ -1560,21 +1554,21 @@ public partial class StateMachine : IStateMachine
             // For external self-transitions, we should exit and re-enter the same state
             var selfTransitionExitPath = new List<string> { srcStateName };
             var selfTransitionEntryPath = new List<string> { srcStateName };
-            
+
             PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- Self-transition actualExitPath: {selfTransitionExitPath.ToCsvString(this, false, " -> ")}");
             PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- Self-transition actualEntryPath: {selfTransitionEntryPath.ToCsvString(this, false, " -> ")}");
-            
+
             return (selfTransitionExitPath, selfTransitionEntryPath);
         }
-        
+
         // Optimized with HashSet for O(1) lookups instead of O(n) LINQ Except
         var fullEntrySet = new HashSet<string>(fullEntryPath);
         var fullExitSet = new HashSet<string>(fullExitPath);
-        
+
         // Use pooled lists to reduce allocations
         var actualExitPath = PerformanceOptimizations.RentStringList();
         var actualEntryPath = PerformanceOptimizations.RentStringList();
-        
+
         try
         {
             // Build actual exit path - states to exit (in full exit path but not in full entry path)
@@ -1583,21 +1577,21 @@ public partial class StateMachine : IStateMachine
                 if (!fullEntrySet.Contains(state))
                     actualExitPath.Add(state);
             }
-            
+
             // Build actual entry path - states to enter (in full entry path but not in full exit path)
             foreach (var state in fullEntryPath)
             {
                 if (!fullExitSet.Contains(state))
                     actualEntryPath.Add(state);
             }
-            
+
             PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualExitPath: {actualExitPath.ToCsvString(this, false, " -> ")}");
             PerformanceOptimizations.LogOptimized(Logger.LogLevel.Trace, () => $">>> -- actualEntryPath: {actualEntryPath.ToCsvString(this, false, " -> ")}");
 
             // Create new lists to return (since we need to return ownership)
             var exitResult = new List<string>(actualExitPath);
             var entryResult = new List<string>(actualEntryPath);
-            
+
             return (exitResult, entryResult);
         }
         finally
@@ -1625,7 +1619,7 @@ public partial class StateMachine : IStateMachine
                 // Unwrap AggregateException from async operations
                 var ex = aggEx.InnerException ?? aggEx;
                 // Store error context
-                if(ContextMap is not null)
+                if (ContextMap is not null)
                 {
                     ContextMap["_error"] = ex;
                     ContextMap["_lastError"] = ex;  // For backward compatibility
@@ -1639,7 +1633,7 @@ public partial class StateMachine : IStateMachine
             catch (Exception ex)
             {
                 // Store error context
-                if(ContextMap is not null)
+                if (ContextMap is not null)
                 {
                     ContextMap["_error"] = ex;
                     ContextMap["_lastError"] = ex;  // For backward compatibility
@@ -1672,7 +1666,7 @@ public partial class StateMachine : IStateMachine
                 // Unwrap AggregateException from async operations
                 var ex = aggEx.InnerException ?? aggEx;
                 // Store error context
-                if(ContextMap is not null)
+                if (ContextMap is not null)
                 {
                     ContextMap["_error"] = ex;
                     ContextMap["_lastError"] = ex;  // For backward compatibility
@@ -1686,7 +1680,7 @@ public partial class StateMachine : IStateMachine
             catch (Exception ex)
             {
                 // Store error context
-                if(ContextMap is not null)
+                if (ContextMap is not null)
                 {
                     ContextMap["_error"] = ex;
                     ContextMap["_lastError"] = ex;  // For backward compatibility
@@ -1713,10 +1707,10 @@ public partial class StateMachine : IStateMachine
     {
         if (string.IsNullOrWhiteSpace(statePath))
             throw new ArgumentNullException(nameof(statePath));
-        
+
         CompoundState? state = null;
         ICollection<string> list = new List<string>();
-        
+
         var stateNode = GetState(statePath);
 
         if (stateNode is CompoundState realState)
@@ -1730,7 +1724,7 @@ public partial class StateMachine : IStateMachine
             {
                 throw new InvalidOperationException("History state must be a child of NormalState");
             }
-            
+
             state = normalParent.LastActiveState;
             state?.GetTargetSubStateCollection(list, singleBranchPath, historyState.HistoryType);
         }
@@ -1752,7 +1746,7 @@ public partial class StateMachine : IStateMachine
     /// <exception cref="Exception"></exception>
     public ICollection<string>? GetSuperStateCollection(string? statePath)
     {
-        if (statePath == null) 
+        if (statePath == null)
             return null;
 
         CompoundState? state = null;
@@ -1809,7 +1803,7 @@ public partial class StateMachine : IStateMachine
             {
                 if (firstExit != null)
                     await TransitUp(firstExit.ToState(this) as CompoundState);
-                
+
                 if (transition.Actions != null)
                 {
                     foreach (var action in transition.Actions)
@@ -1826,7 +1820,7 @@ public partial class StateMachine : IStateMachine
                         }
                     }
                 }
-                
+
                 if (firstEntry != null)
                     await TransitDown(firstEntry.ToState(this) as CompoundState, toState);
             }
@@ -1866,7 +1860,7 @@ public partial class StateMachine : IStateMachine
 
         if (firstExit != null)
             await TransitUp(firstExit.ToState(this) as CompoundState);
-        
+
         if (firstEntry != null)
             await TransitDown(firstEntry.ToState(this) as CompoundState, toState);
     }
@@ -1885,7 +1879,7 @@ public partial class StateMachine : IStateMachine
     /// </summary>
     public void PrintCurrentStatesString()
     {
-        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => $">> Current States: {GetActiveStateNames()}");        
+        PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => $">> Current States: {GetActiveStateNames()}");
     }
 
     /// <summary>
@@ -1897,7 +1891,7 @@ public partial class StateMachine : IStateMachine
         RootState?.PrintActiveStateTree(0);
         PerformanceOptimizations.LogOptimized(Logger.LogLevel.Info, () => "==========================");
     }
-    
+
     /// <summary>
     /// Stop the state machine execution
     /// </summary>
@@ -1929,15 +1923,15 @@ public partial class StateMachine : IStateMachine
                 Logger.Debug("State machine is already stopped");
                 return;
             }
-            
+
             Interlocked.Exchange(ref machineStateInt, (int)MachineState.Stopped);
-            
+
             // Clean up all active states and their timers
             if (RootState != null)
             {
                 CleanupStateTimers(RootState);
             }
-            
+
             // Cancel any invoke services
             serviceInvoker?.CancelAllServices();
 
@@ -2111,7 +2105,7 @@ public partial class StateMachine : IStateMachine
     private void CleanupStateTimers(StateNode? state)
     {
         if (state == null) return;
-        
+
         if (state is RealState realState)
         {
             try
@@ -2123,7 +2117,7 @@ public partial class StateMachine : IStateMachine
                 // Ignore errors during cleanup
             }
         }
-        
+
         // Recursively clean up child states
         if (state is CompoundState compoundState && compoundState.SubStateNames != null)
         {
@@ -2144,7 +2138,7 @@ public partial class StateMachine : IStateMachine
             }
         }
     }
-    
+
     /// <summary>
     /// Pause the state machine
     /// </summary>
@@ -2158,7 +2152,7 @@ public partial class StateMachine : IStateMachine
                 Logger.Warning("Can only pause a running state machine");
                 return;
             }
-            
+
             Interlocked.Exchange(ref machineStateInt, (int)MachineState.Paused);
             Logger.Info("State machine paused");
         }
@@ -2167,7 +2161,7 @@ public partial class StateMachine : IStateMachine
             _stateLock.ExitWriteLock();
         }
     }
-    
+
     /// <summary>
     /// Resume the state machine from paused state
     /// </summary>
@@ -2181,7 +2175,7 @@ public partial class StateMachine : IStateMachine
                 Logger.Warning("Can only resume a paused state machine");
                 return;
             }
-            
+
             Interlocked.Exchange(ref machineStateInt, (int)MachineState.Running);
             Logger.Info("State machine resumed");
         }
@@ -2190,9 +2184,9 @@ public partial class StateMachine : IStateMachine
             _stateLock.ExitWriteLock();
         }
     }
-    
+
     private int _disposedInt = 0; // 0 = false, 1 = true - Use Interlocked for thread-safe access
-    
+
     /// <summary>
     /// Dispose of state machine resources
     /// </summary>
@@ -2201,7 +2195,7 @@ public partial class StateMachine : IStateMachine
         Dispose(true);
         GC.SuppressFinalize(this);
     }
-    
+
     protected virtual void Dispose(bool disposing)
     {
         if (Interlocked.CompareExchange(ref _disposedInt, 0, 0) == 1) return;

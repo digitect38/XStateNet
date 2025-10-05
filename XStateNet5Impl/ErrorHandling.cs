@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace XStateNet;
 
@@ -11,7 +8,7 @@ namespace XStateNet;
 public class OnErrorTransition : Transition
 {
     public string? ErrorType { get; set; }
-    
+
     public OnErrorTransition(string? machineId) : base(machineId) { }
 }
 
@@ -25,7 +22,7 @@ public class StateErrorContext
     public string? EventName { get; set; }
     public DateTime Timestamp { get; set; }
     public ConcurrentDictionary<string, object> AdditionalData { get; set; }
-    
+
     public StateErrorContext(Exception exception, string? sourceState = null, string? eventName = null)
     {
         Exception = exception;
@@ -43,22 +40,22 @@ public class ErrorHandler : StateObject
 {
     private readonly ConcurrentStack<StateErrorContext> _errorStack = new();
     private readonly ConcurrentBag<StateErrorContext> _errorHistory = new();
-    
+
     public ErrorHandler(string? machineId) : base(machineId) { }
-    
+
     /// <summary>
     /// Handles an error in the state machine
     /// </summary>
     public async void HandleError(Exception exception, CompoundState? currentState, string? eventName = null)
     {
         if (StateMachine == null) return;
-        
+
         var errorContext = new StateErrorContext(exception, currentState?.Name, eventName);
         _errorStack.Push(errorContext);
         _errorHistory.Add(errorContext);
-        
+
         Logger.Error($"Error in state '{currentState?.Name}': {exception.Message}");
-        
+
         // Store error context in machine context
         if (StateMachine.ContextMap != null)
         {
@@ -66,27 +63,27 @@ public class ErrorHandler : StateObject
             StateMachine.ContextMap["_errorMessage"] = exception.Message;
             StateMachine.ContextMap["_errorType"] = exception.GetType().Name;
         }
-        
+
         // Try to find and execute onError transition
         var handled = TryHandleErrorTransition(currentState, exception);
-        
+
         if (!handled)
         {
             // If no specific error handler, try generic onError event
             await StateMachine.SendAsync("onError");
         }
     }
-    
+
     /// <summary>
     /// Tries to handle error with onError transition
     /// </summary>
     private bool TryHandleErrorTransition(CompoundState? currentState, Exception exception)
     {
         if (currentState == null || StateMachine == null) return false;
-        
+
         // Look for onError transitions in current state's OnTransitionMap
         List<OnErrorTransition>? errorTransitions = null;
-        
+
         if (currentState.OnTransitionMap != null && currentState.OnTransitionMap.ContainsKey("onError"))
         {
             // Use thread-safe GetTransitions method
@@ -96,7 +93,7 @@ public class ErrorHandler : StateObject
                 .Where(t => t.ErrorType == null || t.ErrorType == exception.GetType().Name)
                 .ToList();
         }
-        
+
         if (errorTransitions == null || errorTransitions.Count == 0)
         {
             // Try parent state
@@ -106,7 +103,7 @@ public class ErrorHandler : StateObject
             }
             return false;
         }
-        
+
         // Execute first matching error transition
         var transition = errorTransitions.First();
         bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine);
@@ -122,10 +119,10 @@ public class ErrorHandler : StateObject
             executor.Execute(transition, $"error:{exception.GetType().Name}");
             return true;
         }
-        
+
         return false;
     }
-    
+
     /// <summary>
     /// Gets the last error
     /// </summary>
@@ -134,7 +131,7 @@ public class ErrorHandler : StateObject
         _errorStack.TryPeek(out var result);
         return result;
     }
-    
+
     /// <summary>
     /// Clears the error stack
     /// </summary>
@@ -142,7 +139,7 @@ public class ErrorHandler : StateObject
     {
         _errorStack.Clear();
     }
-    
+
     /// <summary>
     /// Gets error history
     /// </summary>
@@ -150,7 +147,7 @@ public class ErrorHandler : StateObject
     {
         return _errorHistory.ToList().AsReadOnly();
     }
-    
+
     /// <summary>
     /// Wraps an action with error handling
     /// </summary>
@@ -165,7 +162,7 @@ public class ErrorHandler : StateObject
             HandleError(ex, currentState, eventName);
         }
     }
-    
+
     /// <summary>
     /// Wraps an action with error handling (synchronous)
     /// </summary>

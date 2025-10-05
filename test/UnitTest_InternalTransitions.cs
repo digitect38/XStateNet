@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Reflection.PortableExecutable;
-using System.Threading.Tasks;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
@@ -41,15 +37,18 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     {
         return new Dictionary<string, Action<OrchestratedContext>>
         {
-            ["entryAction"] = (ctx) => {
+            ["entryAction"] = (ctx) =>
+            {
                 _entryCount++;
                 _actionLog.Add("entry");
             },
-            ["exitAction"] = (ctx) => {
+            ["exitAction"] = (ctx) =>
+            {
                 _exitCount++;
                 _actionLog.Add("exit");
             },
-            ["incrementCounter"] = (ctx) => {
+            ["incrementCounter"] = (ctx) =>
+            {
                 _actionCount++;
                 var underlying = GetUnderlying();
                 if (underlying?.ContextMap != null)
@@ -63,7 +62,8 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
                     _actionLog.Add($"increment:{underlying.ContextMap["counter"]}");
                 }
             },
-            ["updateValue"] = (ctx) => {
+            ["updateValue"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 if (underlying?.ContextMap != null)
                 {
@@ -71,14 +71,16 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
                     _actionLog.Add("update");
                 }
             },
-            ["log"] = (ctx) => {
+            ["log"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 if (underlying != null)
                 {
                     _actionLog.Add($"log:{underlying.GetActiveStateNames()}");
                 }
             },
-            ["incrementInternal"] = (ctx) => {
+            ["incrementInternal"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 if (underlying?.ContextMap != null)
                 {
@@ -89,7 +91,8 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
                     underlying.ContextMap["internalCount"] = internalCount + 1;
                 }
             },
-            ["incrementExternal"] = (ctx) => {
+            ["incrementExternal"] = (ctx) =>
+            {
                 var underlying = GetUnderlying();
                 if (underlying?.ContextMap != null)
                 {
@@ -107,7 +110,8 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
     {
         return new Dictionary<string, Func<StateMachine, bool>>
         {
-            ["lessThanFive"] = (sm) => {
+            ["lessThanFive"] = (sm) =>
+            {
                 var currentValue = sm.ContextMap?["counter"];
                 int counter = currentValue is Newtonsoft.Json.Linq.JValue jval
                     ? jval.ToObject<int>()
@@ -537,7 +541,7 @@ public class UnitTest_InternalTransitions : OrchestratorTestBase
             await SendEventAsync("TEST", _currentMachine.Id, "EXTERNAL");
             await Task.Delay(100);
             await SendEventAsync("TEST", _currentMachine.Id, "EXTERNAL");
-            await Task.Delay(100);  
+            await Task.Delay(100);
 
             Assert.Equal(initialEntries + 2, _entryCount); // Re-entered twice
             Assert.Equal(initialExits + 2, _exitCount); // Exited twice

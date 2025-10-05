@@ -1,11 +1,6 @@
-using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
-using XStateNet.GPU;
 using XStateNet.GPU.Core;
+using Xunit.Abstractions;
 
 namespace XStateNet.GPU.Tests
 {
@@ -71,7 +66,7 @@ namespace XStateNet.GPU.Tests
 
             int[] instanceCounts = { 100, 500, 1000, 5000, 10000, 50000 };
             var results = new (int instances, double eventsPerSec, double latency)[instanceCounts.Length];
-            
+
 
             for (int idx = 0; idx < instanceCounts.Length; idx++)
             {
@@ -109,7 +104,7 @@ namespace XStateNet.GPU.Tests
             for (int i = 1; i < results.Length; i++)
             {
                 Assert.True(results[i].eventsPerSec > results[i - 1].eventsPerSec * 0.6,
-                    $"Poor scalability from {results[i-1].instances} to {results[i].instances} instances");
+                    $"Poor scalability from {results[i - 1].instances} to {results[i].instances} instances");
             }
         }
 

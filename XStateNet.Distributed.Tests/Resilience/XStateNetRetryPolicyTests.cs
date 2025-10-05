@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 using XStateNet.Distributed.Resilience;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.Resilience
 {
@@ -145,7 +140,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
 
             // print delays for debugging
-            
+
             _output.WriteLine($"Delays: [{string.Join(", ", delays)}]ms");
             Assert.Equal(3, delays.Count);
 

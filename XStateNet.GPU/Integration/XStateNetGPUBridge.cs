@@ -1,11 +1,10 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using XStateNet;
 using XStateNet.GPU.Core;
-using Newtonsoft.Json;
 
 // Suppress obsolete warning - GPU bridge infrastructure interfaces with legacy StateMachine
 // GPU acceleration requires StateMachineFactory.CreateFromScript for parallel instance management

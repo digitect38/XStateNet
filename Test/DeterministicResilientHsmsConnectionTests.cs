@@ -1,11 +1,6 @@
-using System;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
+using XStateNet.Tests.TestInfrastructure;
 using Xunit;
 using Xunit.Abstractions;
-using Microsoft.Extensions.Logging;
-using XStateNet.Tests.TestInfrastructure;
 
 namespace XStateNet.Tests
 {

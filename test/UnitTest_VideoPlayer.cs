@@ -1,12 +1,5 @@
-using Xunit;
-
 using XStateNet;
-using XStateNet.UnitTest;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using Xunit;
 
 // Suppress obsolete warning - standalone video player test with no inter-machine communication
 // For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
@@ -79,7 +72,7 @@ namespace VideoPlayerStateMachineTests
                 })
             };
 
-            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe:false, false, actions, guards, services).Start();
+            _stateMachine = (StateMachine)StateMachineFactory.CreateFromScript(jsonScript, threadSafe: false, false, actions, guards, services).Start();
 
             // Initially, the service should not have been invoked
             Assert.False(_serviceInvoked);

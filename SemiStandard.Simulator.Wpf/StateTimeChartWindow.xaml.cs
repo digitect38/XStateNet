@@ -1,9 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,52 +17,52 @@ namespace SemiStandard.Simulator.Wpf
         private readonly ConcurrentDictionary<string, StateTimeData> _stateTimeData = new();
         private readonly ObservableCollection<StateBreakdownItem> _stateBreakdownItems = new();
         private readonly List<StateTransitionEvent> _stateTransitions = new();
-        
-        
+
+
         private DateTime? _lastStateChangeTime = null;
         private string _currentState = "";
         private DateTime _sessionStartTime = DateTime.Now;
-        
+
         // Performance optimization fields
         private DateTime _lastUpdateTime = DateTime.MinValue;
         private const double UPDATE_THROTTLE_SECONDS = 0.5; // Update at most every 500ms
         private const int MAX_TRANSITION_HISTORY = 1000; // Keep only last 1000 transitions
         private const double MAX_TIME_WINDOW_HOURS = 24; // Show only last 24 hours
-        
+
         // Continuous timeline update timer
         private DispatcherTimer _continuousUpdateTimer;
-        
+
         public StateTimeChartWindow(string machineName)
         {
             InitializeComponent();
             _machineName = machineName;
             MachineNameText.Text = machineName;
-            
+
             StateBreakdownList.ItemsSource = _stateBreakdownItems;
             DataContext = this;
-            
+
             // Setup continuous update timer for timeline (before initializing view)
             _continuousUpdateTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(250) // Update every 250ms to reduce jitter
             };
             _continuousUpdateTimer.Tick += ContinuousUpdateTimer_Tick;
-            
+
             // Initialize timeline view by default
             InitializeTimelineView();
-            
+
             // Subscribe to combo box changes
             ChartTypeCombo.SelectionChanged += ChartTypeCombo_SelectionChanged;
-            
+
             // Add sample data for additional state machines
             GenerateSampleStateTransitions();
         }
-        
+
         private void GenerateSampleStateTransitions()
         {
             // Add some sample transitions to demonstrate multiple state tracking
             var now = DateTime.Now;
-            
+
             // Process Control State Machine
             AddStateTransition("IDLE", "STARTING", now.AddSeconds(-30));
             AddStateTransition("STARTING", "PROCESSING", now.AddSeconds(-25));
@@ -73,21 +70,21 @@ namespace SemiStandard.Simulator.Wpf
             AddStateTransition("PAUSED", "PROCESSING", now.AddSeconds(-10));
             AddStateTransition("PROCESSING", "COMPLETING", now.AddSeconds(-5));
             AddStateTransition("COMPLETING", "IDLE", now.AddSeconds(-2));
-            
+
             // Material Handling State Machine
             AddStateTransition("NO_MATERIAL", "LOADING", now.AddSeconds(-28));
             AddStateTransition("LOADING", "MATERIAL_READY", now.AddSeconds(-24));
             AddStateTransition("MATERIAL_READY", "MATERIAL_IN_PROCESS", now.AddSeconds(-20));
             AddStateTransition("MATERIAL_IN_PROCESS", "UNLOADING", now.AddSeconds(-8));
             AddStateTransition("UNLOADING", "NO_MATERIAL", now.AddSeconds(-3));
-            
+
             // Alarm State Machine
             AddStateTransition("NO_ALARM", "WARNING", now.AddSeconds(-22));
             AddStateTransition("WARNING", "ALARM_ACTIVE", now.AddSeconds(-18));
             AddStateTransition("ALARM_ACTIVE", "ALARM_CLEARING", now.AddSeconds(-12));
             AddStateTransition("ALARM_CLEARING", "NO_ALARM", now.AddSeconds(-7));
         }
-        
+
         private void InitializeTimelineView()
         {
             // Show timeline view by default
@@ -96,7 +93,7 @@ namespace SemiStandard.Simulator.Wpf
             UpdateTimeline();
             _continuousUpdateTimer?.Start(); // Start continuous updates if timer is initialized
         }
-        
+
         private void ContinuousUpdateTimer_Tick(object? sender, EventArgs e)
         {
             // Update timeline continuously for smooth movement
@@ -105,13 +102,13 @@ namespace SemiStandard.Simulator.Wpf
                 UpdateTimelineContinuous();
             }
         }
-        
+
         private void InitializeSimpleCharts()
         {
             // Initialize simple chart view
             UpdateSimpleCharts();
         }
-        
+
         public void AddStateTransition(string fromState, string toState, DateTime timestamp)
         {
             // Track the transition event for timeline
@@ -121,15 +118,15 @@ namespace SemiStandard.Simulator.Wpf
                 ToState = toState,
                 Timestamp = timestamp
             });
-            
+
             // Trim old data for performance
             TrimOldData();
-            
+
             // Update time spent in the previous state
             if (_lastStateChangeTime.HasValue && !string.IsNullOrEmpty(_currentState))
             {
                 var timeSpent = (timestamp - _lastStateChangeTime.Value).TotalSeconds;
-                
+
                 if (!_stateTimeData.ContainsKey(_currentState))
                 {
                     _stateTimeData[_currentState] = new StateTimeData
@@ -140,48 +137,48 @@ namespace SemiStandard.Simulator.Wpf
                         Color = GetStateColor(_currentState)
                     };
                 }
-                
+
                 _stateTimeData[_currentState].TotalSeconds += timeSpent;
                 _stateTimeData[_currentState].TransitionCount++;
             }
-            
+
             // Update current state
             _currentState = toState;
             _lastStateChangeTime = timestamp;
             CurrentStateText.Text = toState;
-            
+
             // Update charts and statistics
             UpdateSimpleCharts();
             UpdateStatistics();
         }
-        
+
         private void UpdateSimpleCharts()
         {
             try
             {
                 if (SimpleChartPanel == null) return;
-                
+
                 // Clear existing chart elements (keep title)
                 var elementsToRemove = SimpleChartPanel.Children.OfType<FrameworkElement>()
                     .Where(e => e.Tag?.ToString() == "chart_element").ToList();
-                
+
                 foreach (var element in elementsToRemove)
                 {
                     SimpleChartPanel.Children.Remove(element);
                 }
-                
+
                 if (_stateTimeData.Count == 0) return;
-                
+
                 double totalTime = _stateTimeData.Values.Sum(s => s.TotalSeconds);
                 if (totalTime <= 0) return;
-                
+
                 // Create simple bar visualization
                 foreach (var stateData in _stateTimeData.Values.OrderByDescending(s => s.TotalSeconds))
                 {
                     if (stateData.TotalSeconds <= 0) continue;
-                    
+
                     var percentage = (stateData.TotalSeconds / totalTime) * 100;
-                    
+
                     // State info container
                     var stateContainer = new Border
                     {
@@ -191,15 +188,15 @@ namespace SemiStandard.Simulator.Wpf
                         CornerRadius = new CornerRadius(5),
                         Tag = "chart_element"
                     };
-                    
+
                     var statePanel = new StackPanel();
-                    
+
                     // State name and time
                     var headerPanel = new StackPanel
                     {
                         Orientation = Orientation.Horizontal
                     };
-                    
+
                     var stateNameText = new TextBlock
                     {
                         Text = stateData.StateName,
@@ -208,17 +205,17 @@ namespace SemiStandard.Simulator.Wpf
                         Foreground = new SolidColorBrush(stateData.Color),
                         Margin = new Thickness(0, 0, 20, 0)
                     };
-                    
+
                     var timeText = new TextBlock
                     {
                         Text = $"{stateData.TotalSeconds:F1}s ({percentage:F1}%)",
                         Foreground = Brushes.White,
                         FontSize = 12
                     };
-                    
+
                     headerPanel.Children.Add(stateNameText);
                     headerPanel.Children.Add(timeText);
-                    
+
                     // Progress bar
                     var progressBorder = new Border
                     {
@@ -227,7 +224,7 @@ namespace SemiStandard.Simulator.Wpf
                         Margin = new Thickness(0, 5, 0, 0),
                         CornerRadius = new CornerRadius(4)
                     };
-                    
+
                     var progressBar = new Border
                     {
                         Background = new SolidColorBrush(stateData.Color),
@@ -236,18 +233,18 @@ namespace SemiStandard.Simulator.Wpf
                         HorizontalAlignment = HorizontalAlignment.Left,
                         CornerRadius = new CornerRadius(4)
                     };
-                    
+
                     var progressGrid = new Grid();
                     progressGrid.Children.Add(progressBorder);
                     progressGrid.Children.Add(progressBar);
-                    
+
                     statePanel.Children.Add(headerPanel);
                     statePanel.Children.Add(progressGrid);
                     stateContainer.Child = statePanel;
-                    
+
                     SimpleChartPanel.Children.Add(stateContainer);
                 }
-                
+
                 // Update Timeline (if visible)
                 if (TimelineContainer?.Visibility == Visibility.Visible)
                 {
@@ -259,19 +256,19 @@ namespace SemiStandard.Simulator.Wpf
                 System.Diagnostics.Debug.WriteLine($"Error updating simple charts: {ex.Message}");
             }
         }
-        
+
         private void UpdateTimelineContinuous()
         {
             // Lightweight update for continuous movement - no throttling
             UpdateTimelineCore(false);
         }
-        
+
         private void UpdateTimeline()
         {
             // Full update with throttling for data changes
             UpdateTimelineCore(true);
         }
-        
+
         private void UpdateTimelineCore(bool throttle)
         {
             // Performance throttling - only for non-continuous updates
@@ -284,30 +281,30 @@ namespace SemiStandard.Simulator.Wpf
                 }
                 _lastUpdateTime = now;
             }
-            
+
             TimelineCanvas.Children.Clear();
             if (StateHeaderCanvas != null)
                 StateHeaderCanvas.Children.Clear();
-            
+
             if (_stateTransitions.Count == 0) return;
-            
+
             // Get all unique states
             var allStates = _stateTransitions.SelectMany(t => new[] { t.FromState, t.ToState })
                 .Where(s => !string.IsNullOrEmpty(s))
                 .Distinct()
                 .OrderBy(s => s)
                 .ToList();
-            
+
             if (allStates.Count == 0) return;
-            
+
             // Calculate time range - use current time as max for continuous movement
             var currentTime = DateTime.Now;
             var minTime = _stateTransitions.Min(t => t.Timestamp);
             var maxTime = currentTime; // Always use current time for continuous movement
             var timeSpan = maxTime - minTime;
-            
+
             if (timeSpan.TotalSeconds < 1) timeSpan = TimeSpan.FromSeconds(10); // Minimum span
-            
+
             // Canvas dimensions - make width dynamic based on time span
             double leftMargin = 180;  // Even more space for state names at left
             double rightMargin = 50;
@@ -316,45 +313,47 @@ namespace SemiStandard.Simulator.Wpf
             double pixelsPerSecond = 200; // 200 pixels per second for higher horizontal resolution
             double canvasWidth = Math.Max(4000, leftMargin + rightMargin + (timeSpan.TotalSeconds * pixelsPerSecond));
             double canvasHeight = Math.Max(600, allStates.Count * 50 + 80);
-            
+
             TimelineCanvas.Width = canvasWidth;
             TimelineCanvas.Height = canvasHeight;
-            
+
             // Set the same height for header canvas
             if (StateHeaderCanvas != null)
             {
                 StateHeaderCanvas.Height = canvasHeight;
             }
-            
+
             // Enable anti-aliasing and edge smoothing for less jitter
             RenderOptions.SetEdgeMode(TimelineCanvas, EdgeMode.Unspecified);
             RenderOptions.SetBitmapScalingMode(TimelineCanvas, BitmapScalingMode.HighQuality);
-            
+
             double plotWidth = canvasWidth - leftMargin - rightMargin;
             double plotHeight = canvasHeight - topMargin - bottomMargin;
             double stateSpacing = plotHeight / Math.Max(1, allStates.Count - 1);
-            
+
             // Draw vertical start line at the beginning of timeline canvas
             var startLine = new Line
             {
-                X1 = 0, Y1 = topMargin,  // Start from left edge of timeline
-                X2 = 0, Y2 = canvasHeight - bottomMargin,
+                X1 = 0,
+                Y1 = topMargin,  // Start from left edge of timeline
+                X2 = 0,
+                Y2 = canvasHeight - bottomMargin,
                 Stroke = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
                 StrokeThickness = 1
             };
             TimelineCanvas.Children.Add(startLine);
-            
+
             // Draw state labels in the separate header canvas
             for (int i = 0; i < allStates.Count; i++)
             {
                 double y = topMargin + (i * stateSpacing);
-                
+
                 // Draw state labels in header canvas if it exists
                 if (StateHeaderCanvas != null)
                 {
                     // Truncate state name if too long to prevent overflow
                     string displayName = allStates[i].Length > 20 ? allStates[i].Substring(0, 17) + "..." : allStates[i];
-                    
+
                     var stateLabel = new TextBlock
                     {
                         Text = displayName,
@@ -371,19 +370,21 @@ namespace SemiStandard.Simulator.Wpf
                     stateLabel.MaxWidth = 180;
                     StateHeaderCanvas.Children.Add(stateLabel);
                 }
-                
+
                 // Subtle horizontal guide line in main canvas (starting from 0, not leftMargin)
                 var guideLine = new Line
                 {
-                    X1 = 0, Y1 = y,  // Start from left edge of timeline canvas
-                    X2 = canvasWidth - rightMargin, Y2 = y,
+                    X1 = 0,
+                    Y1 = y,  // Start from left edge of timeline canvas
+                    X2 = canvasWidth - rightMargin,
+                    Y2 = y,
                     Stroke = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
                     StrokeDashArray = new DoubleCollection { 3, 5 },
                     StrokeThickness = 0.3
                 };
                 TimelineCanvas.Children.Add(guideLine);
             }
-            
+
             // Show current time indicator at the right edge
             if (_stateTransitions.Count > 0)
             {
@@ -399,7 +400,7 @@ namespace SemiStandard.Simulator.Wpf
                     StrokeDashArray = new DoubleCollection { 4, 2 }
                 };
                 TimelineCanvas.Children.Add(currentTimeLine);
-                
+
                 // Current time label
                 var currentTimeLabel = new TextBlock
                 {
@@ -412,16 +413,16 @@ namespace SemiStandard.Simulator.Wpf
                 Canvas.SetTop(currentTimeLabel, 5);
                 TimelineCanvas.Children.Add(currentTimeLabel);
             }
-            
+
             // Draw state transitions as dots and lines
             string currentState = "";
             DateTime lastTime = minTime;
-            
+
             foreach (var transition in _stateTransitions.OrderBy(t => t.Timestamp))
             {
                 // Calculate position (no left margin in timeline canvas)
                 double x = ((transition.Timestamp - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-                
+
                 if (!string.IsNullOrEmpty(currentState))
                 {
                     // Draw line showing state duration
@@ -429,18 +430,20 @@ namespace SemiStandard.Simulator.Wpf
                     if (currentStateIndex >= 0)
                     {
                         double stateY = topMargin + (currentStateIndex * stateSpacing);
-                        
+
                         // Horizontal line showing time in state (adjusted for no left margin in timeline)
                         double lastX = ((lastTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
                         var stateLine = new Line
                         {
-                            X1 = lastX, Y1 = stateY,
-                            X2 = x - leftMargin, Y2 = stateY,  // Adjust X position
+                            X1 = lastX,
+                            Y1 = stateY,
+                            X2 = x - leftMargin,
+                            Y2 = stateY,  // Adjust X position
                             Stroke = new SolidColorBrush(GetStateColor(currentState)),
                             StrokeThickness = 4
                         };
                         TimelineCanvas.Children.Add(stateLine);
-                        
+
                         // Add white transition line
                         int newStateIndex = allStates.IndexOf(transition.ToState);
                         if (newStateIndex >= 0 && newStateIndex != currentStateIndex)
@@ -448,8 +451,10 @@ namespace SemiStandard.Simulator.Wpf
                             double newStateY = topMargin + (newStateIndex * stateSpacing);
                             var transitionLine = new Line
                             {
-                                X1 = x, Y1 = stateY,
-                                X2 = x, Y2 = newStateY,
+                                X1 = x,
+                                Y1 = stateY,
+                                X2 = x,
+                                Y2 = newStateY,
                                 Stroke = Brushes.White,
                                 StrokeThickness = 1
                             };
@@ -457,11 +462,11 @@ namespace SemiStandard.Simulator.Wpf
                         }
                     }
                 }
-                
+
                 currentState = transition.ToState;
                 lastTime = transition.Timestamp;
             }
-            
+
             // Extend current state to current time for continuous movement
             if (!string.IsNullOrEmpty(currentState) && _lastStateChangeTime.HasValue)
             {
@@ -471,18 +476,20 @@ namespace SemiStandard.Simulator.Wpf
                     double stateY = topMargin + (currentStateIndex * stateSpacing);
                     double lastX = leftMargin + ((lastTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
                     double nowX = leftMargin + ((currentTime - minTime).TotalSeconds / timeSpan.TotalSeconds) * plotWidth;
-                    
+
                     // Draw current state line with slight animation effect
                     var currentStateLine = new Line
                     {
-                        X1 = lastX, Y1 = stateY,
-                        X2 = nowX, Y2 = stateY,
+                        X1 = lastX,
+                        Y1 = stateY,
+                        X2 = nowX,
+                        Y2 = stateY,
                         Stroke = new SolidColorBrush(GetStateColor(currentState)),
                         StrokeThickness = 4,
                         Opacity = 0.95  // Slight transparency for active state
                     };
                     TimelineCanvas.Children.Add(currentStateLine);
-                    
+
                     // Add pulsing dot at the end of current state
                     var currentDot = new Ellipse
                     {
@@ -495,22 +502,22 @@ namespace SemiStandard.Simulator.Wpf
                     TimelineCanvas.Children.Add(currentDot);
                 }
             }
-            
+
             // Remove x-axis label completely to avoid number chart appearance
             // Keep only minimal labeling
-            
+
             // Auto-scroll to show current time (rightmost part of timeline)
             if (TimelineScroller != null)
             {
                 TimelineScroller.ScrollToRightEnd();
             }
         }
-        
+
         private void UpdateStatistics()
         {
             // Update total time
             double totalTime = _stateTimeData.Values.Sum(s => s.TotalSeconds);
-            
+
             // Format time display
             string timeDisplay;
             if (totalTime < 60)
@@ -529,28 +536,28 @@ namespace SemiStandard.Simulator.Wpf
                 var minutes = (int)((totalTime % 3600) / 60);
                 timeDisplay = $"{hours}h {minutes}m";
             }
-            
+
             // Only update if changed
             if (TotalTimeText.Text != timeDisplay)
                 TotalTimeText.Text = timeDisplay;
-            
+
             // Update transition count
             int totalTransitions = _stateTimeData.Values.Sum(s => s.TransitionCount);
             var transitionText = totalTransitions.ToString();
             if (TransitionCountText.Text != transitionText)
                 TransitionCountText.Text = transitionText;
-            
+
             // Update existing breakdown items in-place instead of recreating
             if (totalTime > 0)
             {
                 var orderedStates = _stateTimeData.Values.OrderByDescending(s => s.TotalSeconds).ToList();
-                
+
                 // Update existing items or add new ones
                 for (int i = 0; i < orderedStates.Count; i++)
                 {
                     var stateData = orderedStates[i];
                     double percentage = (stateData.TotalSeconds / totalTime) * 100;
-                    
+
                     // Format time spent in state
                     string timeInState;
                     if (stateData.TotalSeconds < 60)
@@ -569,7 +576,7 @@ namespace SemiStandard.Simulator.Wpf
                         var minutes = (int)((stateData.TotalSeconds % 3600) / 60);
                         timeInState = $"{hours}h {minutes}m";
                     }
-                    
+
                     // Find existing item or create new
                     var existingItem = _stateBreakdownItems.FirstOrDefault(x => x.StateName == stateData.StateName);
                     if (existingItem != null)
@@ -594,22 +601,22 @@ namespace SemiStandard.Simulator.Wpf
                         });
                     }
                 }
-                
+
                 // Remove items that no longer exist
                 var statesToRemove = _stateBreakdownItems
                     .Where(item => !_stateTimeData.ContainsKey(item.StateName))
                     .ToList();
-                
+
                 foreach (var item in statesToRemove)
                 {
                     _stateBreakdownItems.Remove(item);
                 }
             }
-            
+
             // Update last update time
             LastUpdateText.Text = $"Last Update: {DateTime.Now:HH:mm:ss}";
         }
-        
+
         private void TrimOldData()
         {
             // Primary policy: Keep only the most recent MAX_TRANSITION_HISTORY items
@@ -618,14 +625,14 @@ namespace SemiStandard.Simulator.Wpf
                 // Sort by timestamp and keep only the newest items
                 var sortedTransitions = _stateTransitions.OrderBy(t => t.Timestamp).ToList();
                 var itemsToRemove = sortedTransitions.Take(_stateTransitions.Count - MAX_TRANSITION_HISTORY).ToList();
-                
+
                 foreach (var transition in itemsToRemove)
                 {
                     _stateTransitions.Remove(transition);
                 }
             }
         }
-        
+
         private Color GetStateColor(string stateName)
         {
             // Use vibrant colors, avoid gray/black/white
@@ -649,12 +656,12 @@ namespace SemiStandard.Simulator.Wpf
                 _ => Color.FromRgb(138, 43, 226)                // Blue violet
             };
         }
-        
+
         private void ChartTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (SimpleChartViewer == null || TimelineContainer == null || ChartTypeCombo == null)
                 return;
-                
+
             try
             {
                 switch (ChartTypeCombo.SelectedIndex)
@@ -665,7 +672,7 @@ namespace SemiStandard.Simulator.Wpf
                         _continuousUpdateTimer.Stop(); // Stop continuous updates
                         UpdateSimpleCharts();
                         break;
-                        
+
                     case 1: // Timeline
                         SimpleChartViewer.Visibility = Visibility.Collapsed;
                         TimelineContainer.Visibility = Visibility.Visible;
@@ -679,19 +686,19 @@ namespace SemiStandard.Simulator.Wpf
                 System.Diagnostics.Debug.WriteLine($"Error changing chart type: {ex.Message}");
             }
         }
-        
+
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             UpdateSimpleCharts();
             UpdateStatistics();
             StatusText.Text = "Refreshed";
         }
-        
+
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
         }
-        
+
         private void TimelineScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             // Sync the header scroll position with the timeline vertical scroll
@@ -700,24 +707,24 @@ namespace SemiStandard.Simulator.Wpf
                 HeaderScroller.ScrollToVerticalOffset(e.VerticalOffset);
             }
         }
-        
+
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
-            
+
             if (e.Key == Key.Escape)
             {
                 Close();
             }
         }
-        
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
             _continuousUpdateTimer?.Stop(); // Clean up timer
         }
     }
-    
+
     public class StateTimeData
     {
         public string StateName { get; set; } = "";
@@ -725,7 +732,7 @@ namespace SemiStandard.Simulator.Wpf
         public int TransitionCount { get; set; }
         public Color Color { get; set; }
     }
-    
+
     public class StateBreakdownItem : INotifyPropertyChanged
     {
         private string _stateName = "";
@@ -734,51 +741,51 @@ namespace SemiStandard.Simulator.Wpf
         private int _transitionCount;
         private double _percentageValue;
         private Brush _stateColor = Brushes.White;
-        
+
         public string StateName
         {
             get => _stateName;
             set { _stateName = value; OnPropertyChanged(); }
         }
-        
+
         public string Percentage
         {
             get => _percentage;
             set { _percentage = value; OnPropertyChanged(); }
         }
-        
+
         public string TimeSpent
         {
             get => _timeSpent;
             set { _timeSpent = value; OnPropertyChanged(); }
         }
-        
+
         public int TransitionCount
         {
             get => _transitionCount;
             set { _transitionCount = value; OnPropertyChanged(); }
         }
-        
+
         public double PercentageValue
         {
             get => _percentageValue;
             set { _percentageValue = value; OnPropertyChanged(); }
         }
-        
+
         public Brush StateColor
         {
             get => _stateColor;
             set { _stateColor = value; OnPropertyChanged(); }
         }
-        
+
         public event PropertyChangedEventHandler? PropertyChanged;
-        
+
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-    
+
     public class StateTransitionEvent
     {
         public string FromState { get; set; } = "";

@@ -1,10 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Xml;
 using XStateNet;
 using Xunit;
 
@@ -152,7 +146,7 @@ public class UnitTest_Activities : IDisposable
             }
         }";
 
-        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate:true, _actions, _guards, null, null, _activities);
+        _stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, guidIsolate: true, _actions, _guards, null, null, _activities);
         _stateMachine.Start();
 
         // Act

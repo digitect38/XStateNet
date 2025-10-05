@@ -1,9 +1,5 @@
-using Xunit;
-
 using XStateNet;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System;
+using Xunit;
 
 // Suppress obsolete warning - standalone super complex test with no inter-machine communication
 #pragma warning disable CS0618

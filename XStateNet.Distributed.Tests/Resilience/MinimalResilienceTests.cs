@@ -1,11 +1,7 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using XStateNet.Orchestration;
-using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Channels;
-
+using XStateNet.Distributed.Resilience;
+using XStateNet.Orchestration;
+using Xunit;
 using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
 
 namespace XStateNet.Distributed.Tests.Resilience

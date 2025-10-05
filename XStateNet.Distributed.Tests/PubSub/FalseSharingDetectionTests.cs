@@ -1,15 +1,8 @@
-using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet.Distributed.PubSub.FalseSharingOptimized;
-using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Tests.PubSub
 {

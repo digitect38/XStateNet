@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 using XStateNet.Distributed.Channels;
-using Moq;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.Channels
 {
@@ -269,7 +263,7 @@ namespace XStateNet.Distributed.Tests.Channels
             Assert.Equal("item1", item);
         }
 
-        
+
 
         [Fact]
         public void Dispose_CleansUpResources()

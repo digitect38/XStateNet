@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
-using Xunit.Abstractions;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Testing;
 using XStateNet.Semi.Transport;
+using Xunit.Abstractions;
 
 namespace SemiStandard.Integration.Tests;
 
@@ -16,7 +16,7 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DirectHsmsIntegrationTests> _logger;
     private readonly IPEndPoint _testEndpoint;
-    
+
     private EquipmentSimulator? _simulator;
     private HsmsConnection? _hostConnection;
     private TaskCompletionSource<HsmsMessage>? _selectResponse;
@@ -56,36 +56,36 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
 
         // Wait deterministically for simulator to be ready to accept connections
         await WaitForSimulatorReady();
-        
+
         // Create direct connection
         _hostConnection = new HsmsConnection(_testEndpoint, HsmsConnection.HsmsConnectionMode.Active, null);
-        
+
         // Subscribe to events before connecting
         _hostConnection.MessageReceived += OnMessageReceived;
         _hostConnection.ErrorOccurred += (sender, ex) => _logger.LogError(ex, "Connection error");
-        
+
         // Connect
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await _hostConnection.ConnectAsync(cts.Token);
         _logger.LogInformation("Physical connection established");
-        
+
         // Perform selection
         var selectReq = new HsmsMessage
         {
             MessageType = HsmsMessageType.SelectReq,
             SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
         };
-        
+
         _selectSystemBytes = selectReq.SystemBytes;
         _selectResponse = new TaskCompletionSource<HsmsMessage>();
-        
+
         await _hostConnection.SendMessageAsync(selectReq, cts.Token);
         _logger.LogInformation("SelectReq sent with SystemBytes={SystemBytes}", selectReq.SystemBytes);
-        
+
         // Wait for SelectRsp
         using var selectCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var response = await _selectResponse.Task.WaitAsync(selectCts.Token);
-        
+
         // Assert
         Assert.Equal(HsmsMessageType.SelectRsp, response.MessageType);
         Assert.True(_hostConnection.IsConnected);
@@ -97,14 +97,14 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
     {
         // Arrange
         await EstablishDirectConnection();
-        
+
         // Act - Send S1F1
         var s1f1 = SecsMessageLibrary.S1F1();
         var systemBytes = (uint)Random.Shared.Next();
         s1f1.SystemBytes = systemBytes;
-        
+
         var responseReceived = new TaskCompletionSource<SecsMessage>();
-        
+
         void OnDataMessage(object? sender, HsmsMessage hsms)
         {
             if (hsms.SystemBytes == systemBytes && hsms.MessageType == HsmsMessageType.DataMessage)
@@ -114,9 +114,9 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
                 responseReceived.TrySetResult(secsMsg);
             }
         }
-        
+
         _hostConnection!.MessageReceived += OnDataMessage;
-        
+
         try
         {
             // Send message
@@ -128,23 +128,23 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
                 SystemBytes = systemBytes,
                 Data = s1f1.Encode()
             };
-            
+
             await _hostConnection.SendMessageAsync(hsmsMessage);
             _logger.LogInformation("Sent S1F1 with SystemBytes={SystemBytes}", systemBytes);
-            
+
             // Wait for response
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var response = await responseReceived.Task.WaitAsync(cts.Token);
-            
+
             // Assert
             Assert.NotNull(response);
             Assert.Equal(1, response.Stream);
             Assert.Equal(2, response.Function);
-            
+
             var responseData = response.Data as SecsList;
             Assert.NotNull(responseData);
             Assert.True(responseData.Items.Count >= 2);
-            
+
             _logger.LogInformation("✓ S1F1/F2 successful with direct connection");
         }
         finally
@@ -169,46 +169,46 @@ public class DirectHsmsIntegrationTests : IAsyncDisposable
 
         // Wait deterministically for simulator to be ready
         await WaitForSimulatorReady();
-        
+
         // Create and connect
         _hostConnection = new HsmsConnection(_testEndpoint, HsmsConnection.HsmsConnectionMode.Active, null);
         _hostConnection.MessageReceived += OnMessageReceived;
-        
+
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await _hostConnection.ConnectAsync(cts.Token);
-        
+
         // Select
         var selectReq = new HsmsMessage
         {
             MessageType = HsmsMessageType.SelectReq,
             SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
         };
-        
+
         _selectSystemBytes = selectReq.SystemBytes;
         _selectResponse = new TaskCompletionSource<HsmsMessage>();
-        
+
         await _hostConnection.SendMessageAsync(selectReq, cts.Token);
-        
+
         using var selectCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var response = await _selectResponse.Task.WaitAsync(selectCts.Token);
-        
+
         if (response.MessageType != HsmsMessageType.SelectRsp)
         {
             throw new InvalidOperationException($"Selection failed: {response.MessageType}");
         }
-        
+
         _logger.LogInformation("Direct connection established and selected");
     }
 
     private void OnMessageReceived(object? sender, HsmsMessage message)
     {
-        _logger.LogDebug("Received message: Type={Type}, SystemBytes={SystemBytes}", 
+        _logger.LogDebug("Received message: Type={Type}, SystemBytes={SystemBytes}",
             message.MessageType, message.SystemBytes);
-        
+
         // Handle SelectRsp
         if (_selectResponse != null && message.SystemBytes == _selectSystemBytes)
         {
-            if (message.MessageType == HsmsMessageType.SelectRsp || 
+            if (message.MessageType == HsmsMessageType.SelectRsp ||
                 message.MessageType == HsmsMessageType.RejectReq)
             {
                 _selectResponse.TrySetResult(message);

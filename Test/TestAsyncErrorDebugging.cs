@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
 using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test
 {

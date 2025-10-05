@@ -1,10 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 
 namespace XStateNet
 {
@@ -162,9 +157,9 @@ namespace XStateNet
             return _innerMachine.SendAsync(eventName, eventData);
         }
         */
-        public string GetActiveStateNames(bool leafOnly = true, string separator = ";") 
+        public string GetActiveStateNames(bool leafOnly = true, string separator = ";")
             => _innerMachine.GetActiveStateNames(leafOnly, separator);
-        
+
 
         public List<CompoundState> GetActiveStates() => _innerMachine.GetActiveStates();
         public bool IsInState(string stateName) => _innerMachine.IsInState(stateName);

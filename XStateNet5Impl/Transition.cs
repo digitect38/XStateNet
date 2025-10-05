@@ -1,5 +1,3 @@
-﻿using System.Linq;
-
 namespace XStateNet;
 
 /// <summary>
@@ -18,13 +16,13 @@ public class TransitionExecutor : StateObject
     {
         await ExecuteCoreAsync(transition, eventName);
     }
-    
+
     private async void ExecuteMultipleTargets(Transition transition, string eventName)
     {
         if (transition.TargetNames == null || StateMachine == null) return;
-        
+
         Logger.Info($"Executing multiple target transition for event {eventName}");
-        
+
         // Execute transition actions once before any state changes
         if (transition.Actions != null)
         {
@@ -42,12 +40,12 @@ public class TransitionExecutor : StateObject
                 }
             }
         }
-        
+
         // Process each target
         foreach (var targetName in transition.TargetNames)
         {
             if (string.IsNullOrWhiteSpace(targetName)) continue;
-            
+
             try
             {
                 // Find the source state for this target in the parallel regions
@@ -57,7 +55,7 @@ public class TransitionExecutor : StateObject
                     Logger.Warning($"Target state '{targetName}' not found");
                     continue;
                 }
-                
+
                 // Find the current active state in the same region as the target
                 var targetRegion = GetParentRegion(targetState);
                 if (targetRegion == null)
@@ -65,7 +63,7 @@ public class TransitionExecutor : StateObject
                     Logger.Warning($"Could not find parent region for target state '{targetName}'");
                     continue;
                 }
-                
+
                 // Get the current active state names in this region
                 // Optimized: Single loop instead of multiple LINQ iterations
                 var activeStateNamesInRegion = new List<string>();
@@ -77,29 +75,29 @@ public class TransitionExecutor : StateObject
                         activeStateNamesInRegion.Add(state.Name);
                     }
                 }
-                
+
                 if (activeStateNamesInRegion.Count == 0)
                 {
                     Logger.Warning($"No active state found in region containing '{targetName}'");
                     continue;
                 }
-                
+
                 var sourceInRegionName = activeStateNamesInRegion.First();
-                
+
                 // Execute the transition for this specific region
                 var (exitList, entryList) = StateMachine.GetFullTransitionSinglePath(sourceInRegionName, targetName);
-                
+
                 string? firstExit = exitList.FirstOrDefault();
                 string? firstEntry = entryList.FirstOrDefault();
-                
+
                 // Exit
                 if (firstExit != null)
                 {
                     StateMachine.TransitUp(firstExit.ToState(StateMachine) as CompoundState).GetAwaiter().GetResult();
                 }
-                
+
                 Logger.Info($"Transit: [ {sourceInRegionName} --> {targetName} ] by {eventName}");
-                
+
                 // Entry
                 if (firstEntry != null)
                 {
@@ -115,7 +113,7 @@ public class TransitionExecutor : StateObject
             }
         }
     }
-    
+
     private StateNode? GetParentRegion(StateNode state)
     {
         var current = state;
@@ -130,7 +128,7 @@ public class TransitionExecutor : StateObject
         }
         return null;
     }
-    
+
     private bool IsInRegion(CompoundState state, StateNode region)
     {
         var current = state;
@@ -141,11 +139,11 @@ public class TransitionExecutor : StateObject
         }
         return false;
     }
-    
+
     protected virtual async Task ExecuteCore(Transition? transition, string eventName)
     {
         if (transition == null) return;
-        if (StateMachine == null) 
+        if (StateMachine == null)
             throw new InvalidOperationException("StateMachine is not initialized");
 
         Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
@@ -163,14 +161,14 @@ public class TransitionExecutor : StateObject
             string? sourceName = transition.SourceName;
             string? targetName = transition.TargetName;
 
-            if (string.IsNullOrWhiteSpace(sourceName)) 
+            if (string.IsNullOrWhiteSpace(sourceName))
                 throw new InvalidOperationException("Source state name cannot be null or empty");
 
             // Handle internal transitions - execute actions without changing state
             if (transition.IsInternal)
             {
                 Logger.Info($"Internal transition on event {eventName} in state {sourceName}");
-                
+
                 // Execute transition actions without state change
                 if (transition?.Actions != null && transition.Actions.Count > 0)
                 {
@@ -194,7 +192,7 @@ public class TransitionExecutor : StateObject
                 {
                     Logger.Debug($"No actions to execute for internal transition (Actions null: {transition?.Actions == null}, Count: {transition?.Actions?.Count ?? 0})");
                 }
-                
+
                 // Fire OnTransition event even for internal transitions
                 var sourceNode = GetState(sourceName);
                 StateMachine.RaiseTransition(sourceNode as CompoundState, sourceNode, eventName);
@@ -580,30 +578,34 @@ public abstract class Transition : StateObject
     public List<NamedAction>? Actions { get; set; }
     public Func<bool>? InCondition { get; set; }
     public bool IsInternal { get; set; } // Internal transition flag
-    
+
     public bool HasMultipleTargets => TargetNames != null && TargetNames.Count > 0;
 
 
-    public CompoundState? Source {
-        get {
-            if(string.IsNullOrWhiteSpace(SourceName)) 
+    public CompoundState? Source
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SourceName))
                 throw new InvalidOperationException("SourceName cannot be null or empty");
-            if(StateMachine == null) 
+            if (StateMachine == null)
                 throw new InvalidOperationException("StateMachine is not initialized");
-            
+
             var state = StateMachine.GetState(SourceName);
             if (state is not CompoundState compoundState)
                 throw new InvalidOperationException($"Source state '{SourceName}' is not a CompoundState");
-            
+
             return compoundState;
         }
-    }  
+    }
     // can not be null any case. Source never be history state
-    public StateNode? Target {
-        get {
+    public StateNode? Target
+    {
+        get
+        {
             if (!string.IsNullOrWhiteSpace(TargetName))
             {
-                if(StateMachine == null) 
+                if (StateMachine == null)
                     throw new InvalidOperationException("StateMachine is not initialized");
                 return StateMachine.GetState(TargetName);       // can be null if targetless transition. Target can be history state
             }
@@ -613,8 +615,8 @@ public abstract class Transition : StateObject
             }
         }
     }
-    
-    public Transition(string? machineId) : base(machineId){}
+
+    public Transition(string? machineId) : base(machineId) { }
 }
 
 /// <summary>
@@ -623,7 +625,7 @@ public abstract class Transition : StateObject
 public class OnTransition : Transition
 {
     public string? Event { get; set; }
-    public OnTransition(string? machineId) : base(machineId){}
+    public OnTransition(string? machineId) : base(machineId) { }
 }
 
 /// <summary>
@@ -640,7 +642,7 @@ public class AfterTransition : Transition
 /// </summary>
 public class AlwaysTransition : Transition
 {
-    public AlwaysTransition(string? machineId) : base(machineId){}
+    public AlwaysTransition(string? machineId) : base(machineId) { }
 }
 
 /// <summary>
@@ -648,7 +650,7 @@ public class AlwaysTransition : Transition
 /// </summary>
 public class OnDoneTransition : Transition
 {
-    public OnDoneTransition(string? machineId) : base(machineId){}
+    public OnDoneTransition(string? machineId) : base(machineId) { }
 }
 
 /// <summary>

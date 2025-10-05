@@ -1,11 +1,10 @@
-using System;
-using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
+using System.Collections.Concurrent;
 using ILogger = Serilog.ILogger;
 
 namespace XStateNet.Distributed.Logging

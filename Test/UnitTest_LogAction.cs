@@ -1,7 +1,5 @@
 
 using Xunit;
-using XStateNet;
-using System.Threading.Tasks;
 
 // Suppress obsolete warning - standalone log action test with no inter-machine communication
 // For tests with inter-machine communication, use OrchestratorTestBase with EventBusOrchestrator
@@ -49,7 +47,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
             stateMachine.Start();
 
             //var output = _stringWriter.ToString();
@@ -82,7 +80,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
             stateMachine.Start();
 
             //var output = _stringWriter.ToString();
@@ -117,7 +115,7 @@ namespace XStateNet.UnitTest
                 }
             }";
 
-            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
             stateMachine.Start();
             stateMachine.Send("GO");
 

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 namespace XStateNet;
 
 public abstract class StateNode : StateObject
@@ -13,7 +13,7 @@ public abstract class StateNode : StateObject
     {
         Name = stateName;
         ParentName = parentName;
-    }    
+    }
 }
 
 /// <summary>
@@ -25,5 +25,5 @@ public abstract class Parser_StateBase : StateObject
     {
     }
     public abstract StateNode Parse(string stateName, string? parentName, JToken stateToken);
-    
+
 }

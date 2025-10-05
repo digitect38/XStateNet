@@ -1,5 +1,5 @@
-using Xunit.Abstractions;
 using XStateNet.Semi.Secs;
+using Xunit.Abstractions;
 
 namespace SemiStandard.Integration.Tests;
 
@@ -30,7 +30,7 @@ public class SecsMessageTests
         Assert.Equal(originalMessage.Function, decoded.Function);
         Assert.Equal(originalMessage.ReplyExpected, decoded.ReplyExpected);
         Assert.Null(decoded.Data);
-        
+
         _output.WriteLine($"✓ Empty message S{originalMessage.Stream}F{originalMessage.Function} encoded/decoded correctly");
     }
 
@@ -54,19 +54,19 @@ public class SecsMessageTests
         Assert.Equal(originalMessage.Stream, decoded.Stream);
         Assert.Equal(originalMessage.Function, decoded.Function);
         Assert.Equal(originalMessage.ReplyExpected, decoded.ReplyExpected);
-        
+
         var decodedData = decoded.Data as SecsList;
         Assert.NotNull(decodedData);
         Assert.Equal(2, decodedData.Items.Count);
-        
+
         var modelName = decodedData.Items[0] as SecsAscii;
         var softwareRev = decodedData.Items[1] as SecsAscii;
-        
+
         Assert.NotNull(modelName);
         Assert.NotNull(softwareRev);
         Assert.Equal("TestEquipment", modelName.Value);
         Assert.Equal("1.0.0", softwareRev.Value);
-        
+
         _output.WriteLine($"✓ S{originalMessage.Stream}F{originalMessage.Function} with ASCII data encoded/decoded correctly");
     }
 
@@ -93,18 +93,18 @@ public class SecsMessageTests
         // Assert
         Assert.Equal(originalMessage.Stream, decoded.Stream);
         Assert.Equal(originalMessage.Function, decoded.Function);
-        
+
         var decodedData = decoded.Data as SecsList;
         Assert.NotNull(decodedData);
         Assert.Equal(6, decodedData.Items.Count);
-        
+
         Assert.Equal((byte)1, (decodedData.Items[0] as SecsU1)?.Value);
         Assert.Equal((ushort)1000, (decodedData.Items[1] as SecsU2)?.Value);
         Assert.Equal(100000u, (decodedData.Items[2] as SecsU4)?.Value);
         Assert.Equal(-12345, (decodedData.Items[3] as SecsI4)?.Value);
         Assert.Equal(3.14159f, (decodedData.Items[4] as SecsF4)?.Value);
         Assert.Equal(2.718281828459045, (decodedData.Items[5] as SecsF8)?.Value);
-        
+
         _output.WriteLine($"✓ S{originalMessage.Stream}F{originalMessage.Function} with numeric data encoded/decoded correctly");
     }
 
@@ -132,16 +132,16 @@ public class SecsMessageTests
         var decodedData = decoded.Data as SecsList;
         Assert.NotNull(decodedData);
         Assert.Equal(3, decodedData.Items.Count);
-        
+
         Assert.Equal(1u, (decodedData.Items[0] as SecsU4)?.Value);
         Assert.Equal(2u, (decodedData.Items[1] as SecsU4)?.Value);
-        
+
         var nestedList = decodedData.Items[2] as SecsList;
         Assert.NotNull(nestedList);
         Assert.Equal(2, nestedList.Items.Count);
         Assert.Equal("SubItem1", (nestedList.Items[0] as SecsAscii)?.Value);
         Assert.Equal("SubItem2", (nestedList.Items[1] as SecsAscii)?.Value);
-        
+
         _output.WriteLine($"✓ S{originalMessage.Stream}F{originalMessage.Function} with nested structure encoded/decoded correctly");
     }
 
@@ -163,7 +163,7 @@ public class SecsMessageTests
         var decodedBinary = decoded.Data as SecsBinary;
         Assert.NotNull(decodedBinary);
         Assert.Equal(binaryData, decodedBinary.Value);
-        
+
         _output.WriteLine($"✓ S{originalMessage.Stream}F{originalMessage.Function} with binary data encoded/decoded correctly");
     }
 
@@ -190,11 +190,11 @@ public class SecsMessageTests
         Assert.Equal(1, s1f3.Stream);
         Assert.Equal(3, s1f3.Function);
         Assert.True(s1f3.ReplyExpected);
-        
+
         var s1f3Data = s1f3.Data as SecsList;
         Assert.NotNull(s1f3Data);
         Assert.Equal(3, s1f3Data.Items.Count);
-        
+
         for (int i = 0; i < 3; i++)
         {
             Assert.Equal(svids[i], (s1f3Data.Items[i] as SecsU4)?.Value);
@@ -220,7 +220,7 @@ public class SecsMessageTests
         // Assert
         Assert.Equal(stream, decoded.Stream);
         Assert.Equal(function, decoded.Function);
-        
+
         _output.WriteLine($"✓ Edge case S{stream}F{function} handled correctly");
     }
 
@@ -257,7 +257,7 @@ public class SecsMessageTests
         // Assert
         Assert.Equal(originalMessage.SystemBytes, decoded.SystemBytes);
         Assert.Equal("Test", (decoded.Data as SecsAscii)?.Value);
-        
+
         _output.WriteLine("✓ SystemBytes preservation works correctly");
     }
 }

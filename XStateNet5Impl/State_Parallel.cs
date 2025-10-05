@@ -1,10 +1,5 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace XStateNet;
 
 
@@ -53,12 +48,13 @@ public class ParallelState : CompoundState
         base.BuildTransitionList(eventName, transitionList);
 
         // children next evaluation
-        foreach (string subStateName in SubStateNames) {
+        foreach (string subStateName in SubStateNames)
+        {
             GetState(subStateName)?.BuildTransitionList(eventName, transitionList);
         }
 
     }
-    
+
     // Helper method for base class call
     internal void BuildTransitionListBase(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
@@ -72,7 +68,7 @@ public class ParallelState : CompoundState
     {
         bool done = true;
 
-        foreach(string subStateName in SubStateNames)
+        foreach (string subStateName in SubStateNames)
         {
             var state = GetState(subStateName);
             done = done && (state?.IsDone ?? false);
@@ -304,7 +300,7 @@ public class ParallelState : CompoundState
         {
             list.Add(subStateName);
 
-            var subState =  GetState(subStateName);
+            var subState = GetState(subStateName);
 
             if (subState != null)
             {
@@ -320,7 +316,7 @@ public class ParallelState : CompoundState
     /// <param name="singleBrancePath"></param>
     public override void GetSouceSubStateCollection(ICollection<string> collection, bool singleBrancePath = false)
     {
-        if (singleBrancePath) 
+        if (singleBrancePath)
         {
             string subState = SubStateNames[0];
             collection.Add(subState);
@@ -344,7 +340,7 @@ public class ParallelState : CompoundState
     /// <param name="hist"></param>
     public override void GetTargetSubStateCollection(ICollection<string> collection, bool singleBranchPath, HistoryType hist = HistoryType.None)
     {
-        if(singleBranchPath && SubStateNames.Count > 0)
+        if (singleBranchPath && SubStateNames.Count > 0)
         {
             string subState = SubStateNames[0];
             collection.Add(subState);
@@ -378,7 +374,7 @@ public class ParallelState : CompoundState
         }
         return initialStates;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -405,7 +401,7 @@ public class Parser_ParallelState : Parser_RealState
     {
         var state = new ParallelState(stateName, parentName, machineId)
         {
-        };        
+        };
 
         ParseActionsAndService(state, stateToken);
 

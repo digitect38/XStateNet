@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
-using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Tests;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test
 {
@@ -58,7 +53,7 @@ namespace Test
                     }
                 }
             }";
-                        
+
             _currentMachine = CreateMachine("machineId", script, actions);
             await _currentMachine.StartAsync();
 
@@ -128,7 +123,7 @@ namespace Test
                     }
                 }
             };
-                        
+
             _currentMachine = CreateMachine("machineId", machineJson, actions);
             var uniqueId = _currentMachine.Id;
             await _currentMachine.StartAsync();
@@ -136,7 +131,7 @@ namespace Test
             // Send START events through orchestrator
             for (int i = 0; i < 3; i++)
             {
-                _output.WriteLine($"Sending START event #{i+1}");
+                _output.WriteLine($"Sending START event #{i + 1}");
                 await SendEventAsync("TEST", uniqueId, "START");
             }
 

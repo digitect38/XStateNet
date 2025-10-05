@@ -1,9 +1,4 @@
-﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace XStateNet;
 
@@ -113,7 +108,7 @@ public enum StateType
     Normal,
     Parallel,
     History,
-    Final   
+    Final
 }
 
 public enum HistoryType
@@ -138,7 +133,7 @@ public class StateMap : ConcurrentDictionary<string, StateNode>
 }
 
 public class ContextMap : ConcurrentDictionary<string, object?>
-{ 
+{
     public ContextMap() : base() { }
 }
 

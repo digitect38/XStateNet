@@ -1,17 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using TimelineWPF;
+using Microsoft.Extensions.Logging;
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
 using XStateNet;
-using XStateNet.Helpers;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
-using Microsoft.Extensions.Logging;
+using XStateNet.Helpers;
+using Xunit;
 
 // Suppress obsolete warning - PubSub timeline integration test
 #pragma warning disable CS0618

@@ -1,8 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
-using System.Linq;
-using System.Diagnostics;
+using Newtonsoft.Json.Linq;
 using System.Text.Json;
 
 namespace XStateNet;
@@ -74,7 +70,7 @@ public partial class StateMachine
             // If guidIsolate is true, append a unique GUID to the machine ID
             string machineId = rootToken["id"]?.ToString() ?? "machine";
             if (guidIsolate)
-            { 
+            {
                 machineId = $"{machineId}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
             }
             stateMachine.machineId = $"#{machineId}";
@@ -166,9 +162,9 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     private static string ConvertToQuotedKeys(string? json)
     {
-        if (json == null) 
+        if (json == null)
             throw new ArgumentNullException(nameof(json), "JSON script cannot be null");
-        
+
         // Use safe regex with timeout to prevent ReDoS
         var regex = Security.CreateSafeRegex(@"(?<!\\)(\b[a-zA-Z_][a-zA-Z0-9_]*\b)\s*:");
         var result = regex.Replace(json, "\"$1\":");
@@ -187,9 +183,9 @@ public partial class StateMachine
 
         var stateTypeStr = stateToken["type"]?.ToString();
 
-        StateType stateType = 
-            stateTypeStr == "parallel" ? StateType.Parallel : 
-            stateTypeStr == "history" ? StateType.History : 
+        StateType stateType =
+            stateTypeStr == "parallel" ? StateType.Parallel :
+            stateTypeStr == "history" ? StateType.History :
             stateTypeStr == "final" ? StateType.Final : StateType.Normal;
 
         switch (stateType)
@@ -258,7 +254,7 @@ public partial class StateMachine
 
         if (!string.IsNullOrEmpty(parentName))
         {
-            if(StateMap == null)
+            if (StateMap == null)
             {
                 throw new InvalidOperationException("StateMap is not initialized");
             }
@@ -311,8 +307,8 @@ public partial class StateMachine
         var alwaysToken = stateToken["always"];
 
         if (alwaysToken != null)
-        {            
-            if(alwaysToken == null)
+        {
+            if (alwaysToken == null)
             {
                 throw new Exception("Always token is null!");
             }
@@ -331,7 +327,7 @@ public partial class StateMachine
 
             ParseTransitions(state, TransitionType.OnDone, "onDone", onDoneToken);
         }
-        
+
         // Parse onError transitions
         var onErrorToken = stateToken["onError"];
         if (onErrorToken != null)
@@ -397,9 +393,9 @@ public partial class StateMachine
     /// <exception cref="Exception"></exception>
     private List<NamedAction>? GetActionCallbacks(List<string> actionNames)
     {
-        if (actionNames == null) return null;       
+        if (actionNames == null) return null;
 
-        if(ActionMap == null)
+        if (ActionMap == null)
         {
             throw new Exception("ActionMap is null!");
         }
@@ -508,7 +504,7 @@ public partial class StateMachine
             try
             {
                 var targetToken = token["target"];
-                
+
                 // Check if target is an array (multiple targets)
                 if (targetToken != null && targetToken.Type == JTokenType.Array)
                 {
@@ -543,12 +539,12 @@ public partial class StateMachine
 
                 var guardTokeen = token["guard"];
                 var condToken = token["cond"];
-                
-                if(guardTokeen != null)
+
+                if (guardTokeen != null)
                 {
                     guard = guardTokeen.ToString();
                 }
-                else if(condToken != null)
+                else if (condToken != null)
                 {
                     guard = condToken.ToString();
                 }
@@ -684,10 +680,10 @@ public partial class StateMachine
         transition.SourceName = source.Name;
         transition.TargetName = targetName;
         transition.TargetNames = targetNames; // Set multiple targets if present
-        if(actionNames != null)   transition.Actions = GetActionCallbacks(actionNames);
-        if(guard != null)  transition.Guard = GetGuardCallback(guard);
+        if (actionNames != null) transition.Actions = GetActionCallbacks(actionNames);
+        if (guard != null) transition.Guard = GetGuardCallback(guard);
         transition.InCondition = !string.IsNullOrEmpty(inCondition) ? GetInConditionCallback(inCondition) : () => true;
-        
+
         // Check for internal transition (target is null or ".")
         if (targetName == "." || (targetName == null && targetNames == null && transition.Actions != null))
         {
@@ -732,7 +728,7 @@ public partial class StateMachine
 
         return transition;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -755,7 +751,7 @@ public partial class StateMachine
 
             actions = new List<NamedAction>(4); // Pre-allocate with typical size
 
-            if(ActionMap != null)
+            if (ActionMap != null)
                 foreach (var actionName in jobj)
                 {
                     if (ActionMap.ContainsKey(actionName))
@@ -790,7 +786,7 @@ public partial class StateMachine
         }
 
         var currentPathArray = currentPath?.Split('.').ToList();
-        if(currentPathArray != null)
+        if (currentPathArray != null)
         {
             var pathArray = new List<string>(currentPathArray);
 
@@ -805,7 +801,7 @@ public partial class StateMachine
         }
     }
 
-    HistoryType ParseHistoryType(JToken token) =>  token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;
+    HistoryType ParseHistoryType(JToken token) => token["history"]?.ToString() == "deep" ? HistoryType.Deep : HistoryType.Shallow;
 
 }
 

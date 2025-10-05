@@ -1,8 +1,5 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Diagnostics;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Diagnostics;
 
 namespace XStateNet.Distributed.Resilience
 {

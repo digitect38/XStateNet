@@ -1,11 +1,7 @@
-using System;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet.Semi.Testing;
-using XStateNet.Semi.Transport;
+using System.Net;
 using XStateNet.Semi.Secs;
+using XStateNet.Semi.Transport;
 
 namespace XStateNet.Semi.Testing.Console
 {
@@ -33,7 +29,7 @@ namespace XStateNet.Semi.Testing.Console
 
             // Create equipment controller with XState machines
             var equipmentEndpoint = new IPEndPoint(IPAddress.Loopback, 5000);
-            var controller = new XStateEquipmentController(equipmentEndpoint, 
+            var controller = new XStateEquipmentController(equipmentEndpoint,
                 loggerFactory.CreateLogger<XStateEquipmentController>())
             {
                 ModelName = "XStateNet-EQ001",
@@ -67,7 +63,7 @@ namespace XStateNet.Semi.Testing.Console
                 // Start equipment controller
                 System.Console.WriteLine("\n▶ Starting XState Equipment Controller...");
                 var controllerTask = controller.StartAsync();
-                
+
                 // Give the controller a moment to start listening
                 //await Task.Delay(1000);
                 System.Console.WriteLine("✓ Equipment controller is listening...\n");
@@ -99,7 +95,7 @@ namespace XStateNet.Semi.Testing.Console
                 System.Console.WriteLine("  Attempting to connect to equipment...");
                 await hostConnection.ConnectAsync();
                 System.Console.WriteLine("✓ Host connected successfully!\n");
-                
+
                 // Wait for controller task to complete (it should complete when connection is accepted)
                 await controllerTask;
                 System.Console.WriteLine("✓ Equipment controller fully initialized!\n");
@@ -218,13 +214,13 @@ namespace XStateNet.Semi.Testing.Console
             DisplayMachineStates(controller);
 
             System.Console.WriteLine("\n✓ All test scenarios completed!");
-            
+
             // Wait to observe state transitions
             System.Console.WriteLine("\n▶ Observing state machine transitions for 30 seconds...");
             for (int i = 0; i < 6; i++)
             {
                 await Task.Delay(5000);
-                System.Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] Status check {i+1}/6:");
+                System.Console.WriteLine($"\n[{DateTime.Now:HH:mm:ss}] Status check {i + 1}/6:");
                 DisplayMachineStates(controller);
             }
         }
@@ -275,13 +271,13 @@ namespace XStateNet.Semi.Testing.Console
             System.Console.WriteLine("┌──────────────────────────────────────────────────────────────────────┐");
             System.Console.WriteLine("│                      CURRENT STATE MACHINES                          │");
             System.Console.WriteLine("├──────────────────────────────────────────────────────────────────────┤");
-            
+
             var states = controller.GetAllMachineStates();
             foreach (var (machine, state) in states)
             {
                 System.Console.WriteLine($"│ {machine,-20} : {state,-45} │");
             }
-            
+
             System.Console.WriteLine("└──────────────────────────────────────────────────────────────────────┘");
         }
     }

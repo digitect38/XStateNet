@@ -1,6 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 namespace XStateNet;
 
 public static class Helper
@@ -18,20 +15,20 @@ public static class Helper
     {
         if (collection == null)
             throw new ArgumentNullException(nameof(collection));
-        
+
         return string.Join(separator, collection.Select(state => state?.Name ?? "<null>"));
     }
-    
+
     public static string ToCsvString(this IEnumerable<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")
     {
         if (collection == null)
             throw new ArgumentNullException(nameof(collection));
         if (stateMachine == null)
             throw new ArgumentNullException(nameof(stateMachine));
-        
+
         if (leafOnly)
         {
-            return string.Join(separator, collection.Where(state => 
+            return string.Join(separator, collection.Where(state =>
             {
                 if (string.IsNullOrWhiteSpace(state)) return false;
                 var stateNode = stateMachine.GetState(state);
@@ -43,14 +40,14 @@ public static class Helper
             return string.Join(separator, collection.Select(state => state ?? "<null>"));
         }
     }
-    
+
     public static string ToCsvString(this ICollection<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")
     {
         if (collection == null)
             throw new ArgumentNullException(nameof(collection));
         if (stateMachine == null)
             throw new ArgumentNullException(nameof(stateMachine));
-        
+
         if (leafOnly)
         {
             return string.Join(separator, collection.Where(state =>
@@ -72,7 +69,7 @@ public static class Helper
             throw new ArgumentNullException(nameof(stateName));
         if (stateMachine == null)
             throw new ArgumentNullException(nameof(stateMachine));
-        
+
         return stateMachine.GetState(stateName);
     }
 }

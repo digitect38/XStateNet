@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet.Semi.Transport;
+using System.Net;
 using XStateNet.Semi.Secs;
+using XStateNet.Semi.Transport;
 
 namespace XStateNet.Semi.Testing
 {
@@ -31,18 +27,18 @@ namespace XStateNet.Semi.Testing
             // Start equipment simulator
             var equipmentEndpoint = new IPEndPoint(IPAddress.Loopback, 5000);
             var simulator = new EquipmentSimulator(equipmentEndpoint, loggerFactory.CreateLogger<EquipmentSimulator>());
-            
+
             // Configure simulator
             simulator.ModelName = "TestEquipment001";
             simulator.SoftwareRevision = "2.0.0";
             simulator.ResponseDelayMs = 100; // Add some delay for realism
-            
+
             // Subscribe to events
             simulator.MessageReceived += (sender, msg) =>
             {
                 System.Console.WriteLine($"[SIMULATOR] Received: {msg.SxFy}");
             };
-            
+
             simulator.MessageSent += (sender, msg) =>
             {
                 System.Console.WriteLine($"[SIMULATOR] Sent: {msg.SxFy}");
@@ -53,7 +49,7 @@ namespace XStateNet.Semi.Testing
                 // Start the simulator in a background task
                 System.Console.WriteLine("Starting equipment simulator on port 5000...");
                 var simulatorTask = Task.Run(async () => await simulator.StartAsync());
-                
+
                 // Give the simulator a moment to start listening
                 await Task.Delay(500);
                 System.Console.WriteLine("Simulator started successfully!\n");
@@ -72,7 +68,7 @@ namespace XStateNet.Semi.Testing
 
                 await hostConnection.ConnectAsync();
                 System.Console.WriteLine("Host connected successfully!\n");
-                
+
                 // Wait for selection to complete
                 await Task.Delay(1000);
                 System.Console.WriteLine("Selection completed.\n");
@@ -154,7 +150,7 @@ namespace XStateNet.Semi.Testing
             {
                 var s1f1 = SecsMessageLibrary.S1F1();
                 var response = await SendAndReceiveAsync(connection, s1f1);
-                
+
                 if (response != null && response.Stream == 1 && response.Function == 2)
                 {
                     System.Console.WriteLine("✓ S1F1/F2 successful");
@@ -182,7 +178,7 @@ namespace XStateNet.Semi.Testing
             {
                 var s1f13 = SecsMessageLibrary.S1F13();
                 var response = await SendAndReceiveAsync(connection, s1f13);
-                
+
                 if (response != null && response.Stream == 1 && response.Function == 14)
                 {
                     System.Console.WriteLine("✓ S1F13/F14 successful");
@@ -209,7 +205,7 @@ namespace XStateNet.Semi.Testing
             {
                 var s1f3 = SecsMessageLibrary.S1F3(1, 2, 3, 4, 5, 6);
                 var response = await SendAndReceiveAsync(connection, s1f3);
-                
+
                 if (response != null && response.Stream == 1 && response.Function == 4)
                 {
                     System.Console.WriteLine("✓ S1F3/F4 successful");
@@ -239,7 +235,7 @@ namespace XStateNet.Semi.Testing
             {
                 var s2f13 = SecsMessageLibrary.S2F13(1, 2, 3);
                 var response = await SendAndReceiveAsync(connection, s2f13);
-                
+
                 if (response != null && response.Stream == 2 && response.Function == 14)
                 {
                     System.Console.WriteLine("✓ S2F13/F14 successful");
@@ -269,7 +265,7 @@ namespace XStateNet.Semi.Testing
             int timeoutMs = 5000)
         {
             var tcs = new TaskCompletionSource<SecsMessage>();
-            
+
             void OnMessageReceived(object? sender, HsmsMessage hsms)
             {
                 if (hsms.SystemBytes == message.SystemBytes)
@@ -283,14 +279,14 @@ namespace XStateNet.Semi.Testing
                     tcs.TrySetResult(response);
                 }
             }
-            
+
             connection.MessageReceived += OnMessageReceived;
-            
+
             try
             {
                 // Set system bytes - use reasonable range (1 to 65535) for SEMI compatibility
                 message.SystemBytes = (uint)Random.Shared.Next(1, 65536);
-                
+
                 // Convert and send
                 var hsmsMessage = new HsmsMessage
                 {
@@ -300,11 +296,11 @@ namespace XStateNet.Semi.Testing
                     SystemBytes = message.SystemBytes,
                     Data = message.Encode()
                 };
-                
+
                 System.Console.WriteLine($"  Sending HSMS - Stream: {hsmsMessage.Stream}, Function: {hsmsMessage.Function}, SystemBytes: {hsmsMessage.SystemBytes}");
-                
+
                 await connection.SendMessageAsync(hsmsMessage);
-                
+
                 using var cts = new CancellationTokenSource(timeoutMs);
                 return await tcs.Task.WaitAsync(cts.Token);
             }

@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace XStateNet;
 
@@ -30,13 +26,13 @@ public interface IStateMachine : IDisposable
     /// Gets whether the state machine is running
     /// </summary>
     bool IsRunning { get; }
-    
+
     /// <summary>
     /// Starts the state machine (DEPRECATED - Use StartAsync instead)
     /// </summary>
     [Obsolete("Use StartAsync() instead. This synchronous method is deprecated and will be removed in the next major version.", error: false)]
     IStateMachine Start();
-    
+
     /// <summary>
     /// Starts the state machine asynchronously and returns the initial state
     /// </summary>

@@ -1,11 +1,8 @@
-using System;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RabbitMQ.Client;
-using Xunit;
 using XStateNet.Distributed.EventBus;
+using Xunit;
 
 namespace XStateNet.Distributed.Tests.EventBus
 {

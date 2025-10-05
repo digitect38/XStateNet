@@ -1,9 +1,6 @@
-using Xunit;
-
 using XStateNet;
 using XStateNet.UnitTest;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+using Xunit;
 
 // Suppress obsolete warning - standalone diagram framework test with no inter-machine communication
 #pragma warning disable CS0618
@@ -64,7 +61,7 @@ public class DiagrammingFrameworkTests : IDisposable
 
     // Test methods
     [Fact]
-    public async Task TestInitialState()
+    public void TestInitialState()
     {
         var uniqueId = "TestInitialState_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -74,7 +71,7 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public async Task TestLButtonDownOnShapeBody()
+    public void TestLButtonDownOnShapeBody()
     {
         var uniqueId = "TestLButtonDownOnShapeBody_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);
@@ -87,7 +84,7 @@ public class DiagrammingFrameworkTests : IDisposable
     }
 
     [Fact]
-    public async Task TestLButtonDownOnCanvas()
+    public void TestLButtonDownOnCanvas()
     {
         var uniqueId = "TestLButtonDownOnCanvas_" + Guid.NewGuid().ToString("N");
         var stateMachine = CreateStateMachine(uniqueId);

@@ -1,10 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using XStateNet.Distributed.Registry;
-using XStateNet.Distributed.EventBus;
 
 namespace XStateNet.Distributed.Orchestration
 {
@@ -18,92 +13,92 @@ namespace XStateNet.Distributed.Orchestration
         /// Deploy a new state machine instance
         /// </summary>
         Task<DeploymentResult> DeployStateMachineAsync(StateMachineDefinition definition, DeploymentOptions? options = null);
-        
+
         /// <summary>
         /// Scale state machine instances
         /// </summary>
         Task<ScaleResult> ScaleStateMachineAsync(string machineId, int targetInstances);
-        
+
         /// <summary>
         /// Migrate a state machine to another node
         /// </summary>
         Task<MigrationResult> MigrateStateMachineAsync(string machineId, string targetNodeId);
-        
+
         /// <summary>
         /// Shutdown a state machine
         /// </summary>
         Task<bool> ShutdownStateMachineAsync(string machineId, bool graceful = true, TimeSpan? timeout = null);
-        
+
         /// <summary>
         /// Restart a state machine
         /// </summary>
         Task<bool> RestartStateMachineAsync(string machineId);
-        
+
         // Monitoring & Health
         /// <summary>
         /// Check health of a state machine
         /// </summary>
         Task<HealthCheckResult> CheckHealthAsync(string machineId);
-        
+
         /// <summary>
         /// Get metrics for a state machine
         /// </summary>
         Task<MetricsSnapshot> GetMetricsAsync(string machineId, TimeSpan? window = null);
-        
+
         /// <summary>
         /// Get active alerts
         /// </summary>
         Task<IEnumerable<Alert>> GetActiveAlertsAsync(string? machineId = null);
-        
+
         /// <summary>
         /// Get system overview
         /// </summary>
         Task<SystemOverview> GetSystemOverviewAsync();
-        
+
         // Coordination & Workflows
         /// <summary>
         /// Execute a workflow across multiple state machines
         /// </summary>
         Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition workflow, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Create a state machine group
         /// </summary>
         Task<string> CreateStateMachineGroupAsync(string groupName, GroupOptions options, params string[] machineIds);
-        
+
         /// <summary>
         /// Send event to a group
         /// </summary>
         Task SendGroupEventAsync(string groupName, string eventName, object? payload = null);
-        
+
         /// <summary>
         /// Coordinate state machines in a saga pattern
         /// </summary>
         Task<SagaResult> ExecuteSagaAsync(SagaDefinition saga, CancellationToken cancellationToken = default);
-        
+
         // Discovery & Routing
         /// <summary>
         /// Discover state machines by capability
         /// </summary>
         Task<IEnumerable<string>> DiscoverByCapabilityAsync(string capability);
-        
+
         /// <summary>
         /// Route event to appropriate state machine
         /// </summary>
         Task<RoutingResult> RouteEventAsync(RoutingRequest request);
-        
+
         // Configuration
         /// <summary>
         /// Update state machine configuration
         /// </summary>
         Task<bool> UpdateConfigurationAsync(string machineId, ConcurrentDictionary<string, object> configuration);
-        
+
         /// <summary>
         /// Get configuration
         /// </summary>
         Task<ConcurrentDictionary<string, object>> GetConfigurationAsync(string machineId);
     }
-    
+
     // Data models
     public class StateMachineDefinition
     {
@@ -115,7 +110,7 @@ namespace XStateNet.Distributed.Orchestration
         public ResourceRequirements? ResourceRequirements { get; set; }
         public ConcurrentDictionary<string, string> Labels { get; set; } = new();
     }
-    
+
     public class DeploymentOptions
     {
         public string? TargetNodeId { get; set; }
@@ -126,7 +121,7 @@ namespace XStateNet.Distributed.Orchestration
         public HealthCheckOptions? HealthCheck { get; set; }
         public RetryPolicy? RetryPolicy { get; set; }
     }
-    
+
     public class DeploymentResult
     {
         public bool Success { get; set; }
@@ -136,7 +131,7 @@ namespace XStateNet.Distributed.Orchestration
         public string? ErrorMessage { get; set; }
         public TimeSpan DeploymentTime { get; set; }
     }
-    
+
     public class ScaleResult
     {
         public bool Success { get; set; }
@@ -145,7 +140,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<string> NewInstanceIds { get; set; } = new();
         public List<string> RemovedInstanceIds { get; set; } = new();
     }
-    
+
     public class MigrationResult
     {
         public bool Success { get; set; }
@@ -154,7 +149,7 @@ namespace XStateNet.Distributed.Orchestration
         public TimeSpan MigrationTime { get; set; }
         public bool StatePreserved { get; set; }
     }
-    
+
     public class HealthCheckResult
     {
         public string MachineId { get; set; } = string.Empty;
@@ -163,7 +158,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<HealthCheckItem> Items { get; set; } = new();
         public string? Message { get; set; }
     }
-    
+
     public enum HealthStatus
     {
         Healthy,
@@ -172,7 +167,7 @@ namespace XStateNet.Distributed.Orchestration
         Unknown,
         NotFound
     }
-    
+
     public class HealthCheckItem
     {
         public string Name { get; set; } = string.Empty;
@@ -180,7 +175,7 @@ namespace XStateNet.Distributed.Orchestration
         public string? Message { get; set; }
         public ConcurrentDictionary<string, object> Data { get; set; } = new();
     }
-    
+
     public class MetricsSnapshot
     {
         public string MachineId { get; set; } = string.Empty;
@@ -196,7 +191,7 @@ namespace XStateNet.Distributed.Orchestration
         public double ErrorRate { get; set; }
         public ResourceUsage? ResourceUsage { get; set; }
     }
-    
+
     public class Alert
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -208,7 +203,7 @@ namespace XStateNet.Distributed.Orchestration
         public DateTime? ResolvedAt { get; set; }
         public ConcurrentDictionary<string, object> Context { get; set; } = new();
     }
-    
+
     public enum AlertSeverity
     {
         Info,
@@ -216,7 +211,7 @@ namespace XStateNet.Distributed.Orchestration
         Error,
         Critical
     }
-    
+
     public class SystemOverview
     {
         public int TotalMachines { get; set; }
@@ -232,7 +227,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<Alert> RecentAlerts { get; set; } = new();
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
-    
+
     public class WorkflowDefinition
     {
         public string Id { get; set; } = string.Empty;
@@ -242,7 +237,7 @@ namespace XStateNet.Distributed.Orchestration
         public TimeSpan? Timeout { get; set; }
         public WorkflowCompensation? Compensation { get; set; }
     }
-    
+
     public class WorkflowStep
     {
         public string StepId { get; set; } = string.Empty;
@@ -253,7 +248,7 @@ namespace XStateNet.Distributed.Orchestration
         public TimeSpan? Timeout { get; set; }
         public List<string> DependsOn { get; set; } = new();
     }
-    
+
     public class WorkflowResult
     {
         public bool Success { get; set; }
@@ -263,7 +258,7 @@ namespace XStateNet.Distributed.Orchestration
         public object? FinalOutput { get; set; }
         public string? ErrorMessage { get; set; }
     }
-    
+
     public class StepResult
     {
         public string StepId { get; set; } = string.Empty;
@@ -272,7 +267,7 @@ namespace XStateNet.Distributed.Orchestration
         public string? ErrorMessage { get; set; }
         public TimeSpan ExecutionTime { get; set; }
     }
-    
+
     public class GroupOptions
     {
         public GroupCoordinationType CoordinationType { get; set; } = GroupCoordinationType.Broadcast;
@@ -280,7 +275,7 @@ namespace XStateNet.Distributed.Orchestration
         public bool PersistGroup { get; set; } = true;
         public ConcurrentDictionary<string, string> Metadata { get; set; } = new();
     }
-    
+
     public enum GroupCoordinationType
     {
         Broadcast,
@@ -289,7 +284,7 @@ namespace XStateNet.Distributed.Orchestration
         LeastLoaded,
         Primary
     }
-    
+
     public enum LoadBalancingStrategy
     {
         RoundRobin,
@@ -298,7 +293,7 @@ namespace XStateNet.Distributed.Orchestration
         WeightedRoundRobin,
         ConsistentHash
     }
-    
+
     public class ResourceRequirements
     {
         public int MinCpu { get; set; }
@@ -306,7 +301,7 @@ namespace XStateNet.Distributed.Orchestration
         public int MaxCpu { get; set; }
         public int MaxMemoryMB { get; set; }
     }
-    
+
     public class HealthCheckOptions
     {
         public string Endpoint { get; set; } = "/health";
@@ -314,7 +309,7 @@ namespace XStateNet.Distributed.Orchestration
         public int UnhealthyThreshold { get; set; } = 3;
         public int HealthyThreshold { get; set; } = 2;
     }
-    
+
     public class RetryPolicy
     {
         public int MaxRetries { get; set; } = 3;
@@ -322,7 +317,7 @@ namespace XStateNet.Distributed.Orchestration
         public double BackoffMultiplier { get; set; } = 2.0;
         public TimeSpan MaxDelay { get; set; } = TimeSpan.FromMinutes(1);
     }
-    
+
     public class SagaDefinition
     {
         public string Id { get; set; } = string.Empty;
@@ -330,7 +325,7 @@ namespace XStateNet.Distributed.Orchestration
         public List<SagaDefinitionStep> Steps { get; set; } = new();
         public TimeSpan? Timeout { get; set; }
     }
-    
+
     public class SagaDefinitionStep
     {
         public string StepId { get; set; } = string.Empty;
@@ -339,7 +334,7 @@ namespace XStateNet.Distributed.Orchestration
         public string CompensationAction { get; set; } = string.Empty;
         public object? Payload { get; set; }
     }
-    
+
     public class SagaResult
     {
         public bool Success { get; set; }
@@ -349,13 +344,13 @@ namespace XStateNet.Distributed.Orchestration
         public string? FailedStep { get; set; }
         public string? ErrorMessage { get; set; }
     }
-    
+
     public class WorkflowCompensation
     {
         public CompensationStrategy Strategy { get; set; } = CompensationStrategy.Saga;
         public List<CompensationStep> Steps { get; set; } = new();
     }
-    
+
     public enum CompensationStrategy
     {
         Saga,
@@ -363,7 +358,7 @@ namespace XStateNet.Distributed.Orchestration
         Ignore,
         Manual
     }
-    
+
     public class CompensationStep
     {
         public string StepId { get; set; } = string.Empty;
@@ -371,7 +366,7 @@ namespace XStateNet.Distributed.Orchestration
         public string Action { get; set; } = string.Empty;
         public object? Payload { get; set; }
     }
-    
+
     public class RoutingRequest
     {
         public string EventName { get; set; } = string.Empty;
@@ -379,7 +374,7 @@ namespace XStateNet.Distributed.Orchestration
         public RoutingStrategy Strategy { get; set; } = RoutingStrategy.Capability;
         public ConcurrentDictionary<string, string> Requirements { get; set; } = new();
     }
-    
+
     public enum RoutingStrategy
     {
         Direct,
@@ -388,7 +383,7 @@ namespace XStateNet.Distributed.Orchestration
         Broadcast,
         ContentBased
     }
-    
+
     public class RoutingResult
     {
         public bool Success { get; set; }

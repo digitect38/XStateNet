@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using MessagePack;
-using StackExchange.Redis;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using System.Collections.Concurrent;
 
 namespace XStateNet.Distributed.Resilience
 {

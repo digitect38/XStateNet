@@ -1,10 +1,6 @@
-using Xunit;
-using System;
-using System.Linq;
 using XStateNet;
 using XStateNet.Orchestration;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 namespace AdvancedFeatures
 {
@@ -77,7 +73,7 @@ namespace AdvancedFeatures
             Assert.Contains(".a", followerMachine.CurrentState);
             Assert.Contains(".a", leaderMachine.CurrentState);
         }
-        
+
         public static class LeaderFollowerStateMachine
         {
             public static string FollowerStateMachineScript => @"

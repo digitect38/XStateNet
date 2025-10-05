@@ -1,5 +1,3 @@
-using System;
-
 namespace XStateNet.Distributed.Resilience
 {
     /// <summary>

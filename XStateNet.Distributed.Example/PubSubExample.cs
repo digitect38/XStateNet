@@ -1,8 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using XStateNet;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.PubSub;
 using XStateNet.Distributed.PubSub.Optimized;
@@ -31,17 +27,17 @@ namespace XStateNet.Distributed.Examples
             // Create event bus (in-memory for this example)
 
             var eventBus = new InMemoryEventBus(loggerFactory.CreateLogger<InMemoryEventBus>());
-            
+
 
             // Example 1: Traffic Light System with Event Notifications
             await RunTrafficLightExample(eventBus, loggerFactory);
-            
+
             // Example 2: Order Processing System with Multiple Machines
             await RunOrderProcessingExample(eventBus, loggerFactory);
 
             // Example 3: Event Aggregation Example
             await RunEventAggregationExample(eventBus, loggerFactory);
-            
+
             Console.WriteLine("\n=== Example Complete ===");
         }
 

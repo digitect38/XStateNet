@@ -1,14 +1,9 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using XStateNet.Orchestration;
+using XStateNet.Tests.TestInfrastructure;
 using Xunit;
 using Xunit.Abstractions;
-using XStateNet.Tests.TestInfrastructure;
-using XStateNet.Orchestration;
 
 // Suppress obsolete warning - timing-sensitive tests with no inter-machine communication
 #pragma warning disable CS0618
@@ -269,7 +264,8 @@ namespace XStateNet.TimingSensitive.Tests
 
             // Debug - track state changes
             var stateChanges = new List<string>();
-            innerMachine.OnTransition += (from, to, evt) => {
+            innerMachine.OnTransition += (from, to, evt) =>
+            {
                 var change = $"{from?.Name ?? "null"}->{to?.Name ?? "null"}:{evt}";
                 stateChanges.Add(change);
                 _output.WriteLine($"Transition: {change}");
@@ -351,12 +347,14 @@ namespace XStateNet.TimingSensitive.Tests
             var stateChanges = new List<string>();
             var eventProcessed = new List<string>();
 
-            priorityMachine.StateChangedDetailed += (oldState, newState) => {
+            priorityMachine.StateChangedDetailed += (oldState, newState) =>
+            {
                 stateChanges.Add(newState);
                 _output.WriteLine($"State changed: {oldState} -> {newState}");
             };
 
-            priorityMachine.EventProcessed += (sender, args) => {
+            priorityMachine.EventProcessed += (sender, args) =>
+            {
                 eventProcessed.Add(args.EventName);
                 _output.WriteLine($"Event processed: {args.EventName} (Priority: {args.Priority})");
             };

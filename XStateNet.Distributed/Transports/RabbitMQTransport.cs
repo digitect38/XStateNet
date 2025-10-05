@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using XStateNet.Distributed.Core;
 
 namespace XStateNet.Distributed.Transports
@@ -23,7 +17,7 @@ namespace XStateNet.Distributed.Transports
         private string _exchangeName = "xstatenet.exchange";
         private string _address = string.Empty;
         private bool _isConnected;
-        
+
         private readonly ConcurrentDictionary<string, TaskCompletionSource<StateMachineMessage>> _pendingRequests = new();
         private readonly ConcurrentBag<StateMachineMessage> _receivedMessages = new();
         private AsyncEventingBasicConsumer? _consumer;
@@ -43,7 +37,7 @@ namespace XStateNet.Distributed.Transports
             try
             {
                 _address = address;
-                
+
                 // Parse connection string
                 var factory = new ConnectionFactory();
                 if (address.StartsWith("amqp://"))
@@ -54,7 +48,7 @@ namespace XStateNet.Distributed.Transports
                 {
                     factory.HostName = address;
                 }
-                
+
                 factory.AutomaticRecoveryEnabled = true;
                 factory.NetworkRecoveryInterval = TimeSpan.FromSeconds(10);
 
@@ -81,7 +75,7 @@ namespace XStateNet.Distributed.Transports
                 // Setup consumer
                 _consumer = new AsyncEventingBasicConsumer(_channel);
                 _consumer.ReceivedAsync += OnMessageReceivedAsync;
-                
+
                 await _channel.BasicConsumeAsync(
                     queue: _queueName,
                     autoAck: false,
@@ -92,10 +86,10 @@ namespace XStateNet.Distributed.Transports
             }
             catch (Exception ex)
             {
-                ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs 
-                { 
-                    IsConnected = false, 
-                    Exception = ex 
+                ConnectionStatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs
+                {
+                    IsConnected = false,
+                    Exception = ex
                 });
                 throw;
             }
@@ -109,13 +103,13 @@ namespace XStateNet.Distributed.Transports
             try
             {
                 _isConnected = false;
-                
+
                 if (_channel != null)
                 {
                     await _channel.CloseAsync();
                     _channel.Dispose();
                 }
-                
+
                 if (_connection != null)
                 {
                     await _connection.CloseAsync();
@@ -141,7 +135,7 @@ namespace XStateNet.Distributed.Transports
                 properties.CorrelationId = message.CorrelationId;
                 properties.ReplyTo = message.ReplyTo;
                 properties.Priority = (byte)Math.Min(message.Priority, 9);
-                
+
                 if (message.Expiry.HasValue)
                 {
                     properties.Expiration = message.Expiry.Value.TotalMilliseconds.ToString();
@@ -174,14 +168,14 @@ namespace XStateNet.Distributed.Transports
         public async Task<StateMachineMessage?> ReceiveAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             var endTime = DateTime.UtcNow.Add(timeout);
-            
+
             while (DateTime.UtcNow < endTime && !cancellationToken.IsCancellationRequested)
             {
                 if (_receivedMessages.TryTake(out var message))
                 {
                     return message;
                 }
-                
+
                 await Task.Delay(10, cancellationToken);
             }
 
@@ -210,7 +204,7 @@ namespace XStateNet.Distributed.Transports
             {
                 if (_receivedMessages.TryTake(out var message))
                 {
-                    if (MatchesPattern(message.EventName, pattern) || 
+                    if (MatchesPattern(message.EventName, pattern) ||
                         MatchesPattern(message.From, pattern))
                     {
                         yield return message;
@@ -221,7 +215,7 @@ namespace XStateNet.Distributed.Transports
                         _receivedMessages.Add(message);
                     }
                 }
-                
+
                 await Task.Delay(10, cancellationToken);
             }
         }
@@ -272,9 +266,9 @@ namespace XStateNet.Distributed.Transports
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(timeout);
-                
+
                 var reply = await tcs.Task.WaitAsync(cts.Token);
-                
+
                 if (reply?.Payload != null)
                 {
                     return MessageSerializer.Deserialize<TResponse>(reply.Payload);
@@ -298,7 +292,7 @@ namespace XStateNet.Distributed.Transports
             CancellationToken cancellationToken = default)
         {
             var endpoints = new List<StateMachineEndpoint>();
-            
+
             if (!IsConnected || _channel == null)
                 return endpoints;
 
@@ -325,14 +319,14 @@ namespace XStateNet.Distributed.Transports
                     EventName = "DISCOVER",
                     Payload = MessageSerializer.Serialize(query)
                 };
-                
+
                 await SendAsync(discoveryMessage, cancellationToken);
 
                 // Collect responses
                 var endTime = DateTime.UtcNow.Add(timeout == default ? TimeSpan.FromSeconds(3) : timeout);
                 var consumer = new AsyncEventingBasicConsumer(_channel);
                 var receivedEndpoints = new ConcurrentBag<StateMachineEndpoint>();
-                
+
                 consumer.ReceivedAsync += async (sender, args) =>
                 {
                     try
@@ -374,7 +368,7 @@ namespace XStateNet.Distributed.Transports
                 return;
 
             endpoint.Location = MachineLocation.Remote;
-            
+
             // Announce presence
             var announceMessage = new StateMachineMessage
             {
@@ -383,7 +377,7 @@ namespace XStateNet.Distributed.Transports
                 EventName = "ANNOUNCE",
                 Payload = MessageSerializer.Serialize(endpoint)
             };
-            
+
             await SendAsync(announceMessage, cancellationToken);
 
             // Setup periodic heartbeat
@@ -423,7 +417,7 @@ namespace XStateNet.Distributed.Transports
                 if (message != null)
                 {
                     // Check if this is a response to a pending request
-                    if (!string.IsNullOrEmpty(e.BasicProperties?.CorrelationId) && 
+                    if (!string.IsNullOrEmpty(e.BasicProperties?.CorrelationId) &&
                         _pendingRequests.TryRemove(e.BasicProperties.CorrelationId, out var tcs))
                     {
                         tcs.SetResult(message);
@@ -433,7 +427,7 @@ namespace XStateNet.Distributed.Transports
                         _receivedMessages.Add(message);
                         MessageReceived?.Invoke(this, new MessageReceivedEventArgs { Message = message });
                     }
-                    
+
                     // Acknowledge message
                     if (_channel != null)
                         await _channel.BasicAckAsync(e.DeliveryTag, false);

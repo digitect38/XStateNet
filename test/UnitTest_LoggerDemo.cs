@@ -1,9 +1,5 @@
 using Xunit;
 
-using XStateNet;
-using System.Collections.Generic;
-using System;
-
 // Suppress obsolete warning - standalone logger demo test with no inter-machine communication
 #pragma warning disable CS0618
 
@@ -53,7 +49,7 @@ namespace XStateNet.UnitTest
                 }}
             }}";
 
-            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, new GuardMap());
+            var stateMachine = StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, new GuardMap());
 
             Logger.Info("Starting state machine");
             stateMachine.Start();

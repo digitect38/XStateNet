@@ -1,20 +1,14 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using XStateNet.Distributed.Resilience;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using XStateNet.Distributed.Channels;
-using XStateNet;
+using XStateNet.Distributed.Resilience;
 
 namespace XStateNet.Distributed.StateMachines
 {
     /// <summary>
     /// StateMachines wrapper with comprehensive timeout protection
+    /// Can be registered with EventBusOrchestrator to participate in orchestrated communication
     /// </summary>
     public sealed class TimeoutProtectedStateMachine : StateMachine
     {
@@ -24,6 +18,7 @@ namespace XStateNet.Distributed.StateMachines
         private readonly IDeadLetterQueue? _dlq;
         private readonly ILogger<TimeoutProtectedStateMachine>? _logger;
         private readonly TimeoutProtectedStateMachineOptions _options;
+        private XStateNet.Orchestration.EventBusOrchestrator? _orchestrator;
 
         // Timeout configuration per state/transition
         private readonly ConcurrentDictionary<string, TimeSpan> _stateTimeouts;
@@ -44,37 +39,39 @@ namespace XStateNet.Distributed.StateMachines
 
         public string Id => _innerMachine.machineId;
         public string CurrentState => _innerMachine.GetActiveStateNames();
-        public bool IsRunning => _innerMachine.IsRunning;
+        public new bool IsRunning => _innerMachine.IsRunning;
 
         // IStateMachine implementation
-        public string machineId => _innerMachine.machineId;
-        public ConcurrentDictionary<string, object?>? ContextMap
+        public new string machineId => _innerMachine.machineId;
+        public new ConcurrentDictionary<string, object?>? ContextMap
         {
             get => _innerMachine.ContextMap;
             set => _innerMachine.ContextMap = value;
         }
-        public CompoundState? RootState => _innerMachine.RootState;
-        public ServiceInvoker? ServiceInvoker
+        public new CompoundState? RootState => _innerMachine.RootState;
+        public new ServiceInvoker? ServiceInvoker
         {
             get => _innerMachine.ServiceInvoker;
             set => _innerMachine.ServiceInvoker = value;
         }
 
-        public event Action<string>? StateChanged;
-        public event Action<Exception>? ErrorOccurred;
+        public new event Action<string>? StateChanged;
+        public new event Action<Exception>? ErrorOccurred;
 
         public TimeoutProtectedStateMachine(
             IStateMachine innerMachine,
             ITimeoutProtection timeoutProtection,
             IDeadLetterQueue? dlq = null,
             TimeoutProtectedStateMachineOptions? options = null,
-            ILogger<TimeoutProtectedStateMachine>? logger = null)
+            ILogger<TimeoutProtectedStateMachine>? logger = null,
+            XStateNet.Orchestration.EventBusOrchestrator? orchestrator = null)
         {
             _innerMachine = innerMachine ?? throw new ArgumentNullException(nameof(innerMachine));
             _timeoutProtection = timeoutProtection ?? throw new ArgumentNullException(nameof(timeoutProtection));
             _options = options ?? new TimeoutProtectedStateMachineOptions();
             _dlq = dlq;
             _logger = logger;
+            _orchestrator = orchestrator;
 
             _adaptiveTimeout = new AdaptiveTimeoutManager(logger);
 
@@ -85,6 +82,49 @@ namespace XStateNet.Distributed.StateMachines
 
             // Subscribe to state machine events
             SubscribeToStateMachineEvents();
+
+            // Register with orchestrator if provided
+            if (_orchestrator != null)
+            {
+                _orchestrator.RegisterMachine(machineId, this);
+                _logger?.LogInformation("TimeoutProtectedStateMachine {MachineId} registered with orchestrator", machineId);
+            }
+        }
+
+        /// <summary>
+        /// Register this timeout-protected machine with an orchestrator for orchestrated communication
+        /// </summary>
+        public void RegisterWithOrchestrator(XStateNet.Orchestration.EventBusOrchestrator orchestrator, int? channelGroupId = null)
+        {
+            if (orchestrator == null)
+                throw new ArgumentNullException(nameof(orchestrator));
+
+            _orchestrator = orchestrator;
+
+            if (channelGroupId.HasValue)
+            {
+                orchestrator.RegisterMachine(machineId, this, channelGroupId.Value);
+            }
+            else
+            {
+                orchestrator.RegisterMachine(machineId, this);
+            }
+
+            _logger?.LogInformation("TimeoutProtectedStateMachine {MachineId} registered with orchestrator (Group: {GroupId})",
+                machineId, channelGroupId?.ToString() ?? "none");
+        }
+
+        /// <summary>
+        /// Unregister this machine from its orchestrator
+        /// </summary>
+        public void UnregisterFromOrchestrator()
+        {
+            if (_orchestrator != null)
+            {
+                _orchestrator.UnregisterMachine(machineId);
+                _logger?.LogInformation("TimeoutProtectedStateMachine {MachineId} unregistered from orchestrator", machineId);
+                _orchestrator = null;
+            }
         }
 
         public async Task<bool> SendAsync(string eventName, object? payload = null, CancellationToken cancellationToken = default)
@@ -447,7 +487,8 @@ namespace XStateNet.Distributed.StateMachines
             try
             {
                 return await _timeoutProtection.ExecuteAsync(
-                    async ct => {
+                    async ct =>
+                    {
                         await _innerMachine.SendAsync(eventName, payload);
                         return true;
                     },
@@ -532,21 +573,21 @@ namespace XStateNet.Distributed.StateMachines
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete
-        public IStateMachine Start()
+        public new IStateMachine Start()
 #pragma warning restore CS0618
         {
             _innerMachine.Start();
             return this;
         }
 
-        public async Task<string> StartAsync()
+        public new async Task<string> StartAsync()
         {
             return await _innerMachine.StartAsync();
         }
 
-        public void Stop() => _innerMachine.Stop();
+        public new void Stop() => _innerMachine.Stop();
 
-        public async Task<string> SendAsync(string eventName, object? eventData = null)
+        public new async Task<string> SendAsync(string eventName, object? eventData = null)
         {
             return await _innerMachine.SendAsync(eventName, eventData);
         }
@@ -556,12 +597,12 @@ namespace XStateNet.Distributed.StateMachines
             return _innerMachine.GetActiveStateNames();
         }
 
-        public List<CompoundState> GetActiveStates()
+        public new List<CompoundState> GetActiveStates()
         {
             return _innerMachine.GetActiveStates();
         }
 
-        public bool IsInState(string stateName)
+        public new bool IsInState(string stateName)
         {
             return _innerMachine.IsInState(stateName);
         }
@@ -595,7 +636,7 @@ namespace XStateNet.Distributed.StateMachines
             _actionTimeouts[actionName] = timeout;
         }
 
-        public void Dispose()
+        public new void Dispose()
         {
             foreach (var scope in _activeScopes.Values)
             {

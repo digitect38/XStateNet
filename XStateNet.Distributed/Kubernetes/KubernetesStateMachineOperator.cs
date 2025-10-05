@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using k8s;
 using k8s.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using XStateNet.Distributed.Registry;
+using System.Collections.Concurrent;
 using XStateNet.Distributed.Orchestration;
+using XStateNet.Distributed.Registry;
 
 namespace XStateNet.Distributed.Kubernetes
 {
@@ -23,13 +18,13 @@ namespace XStateNet.Distributed.Kubernetes
         private readonly IStateMachineOrchestrator _orchestrator;
         private readonly ILogger<KubernetesStateMachineOperator> _logger;
         private readonly string _namespace;
-        
+
         // Custom Resource Definition constants
         private const string CRD_GROUP = "xstatenet.io";
         private const string CRD_VERSION = "v1";
         private const string CRD_PLURAL = "statemachines";
         private const string CRD_KIND = "StateMachine";
-        
+
         public KubernetesStateMachineOperator(
             IKubernetes kubernetes,
             IStateMachineRegistry registry,
@@ -43,16 +38,16 @@ namespace XStateNet.Distributed.Kubernetes
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _namespace = @namespace;
         }
-        
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             // First, ensure CRD exists
             await EnsureCustomResourceDefinitionAsync();
-            
+
             // Watch for StateMachines custom resources
             await WatchStateMachinesAsync(stoppingToken);
         }
-        
+
         private async Task EnsureCustomResourceDefinitionAsync()
         {
             try
@@ -99,8 +94,8 @@ namespace XStateNet.Distributed.Kubernetes
                                                             ["memory"] = new V1JSONSchemaProps { Type = "string" }
                                                         }
                                                     },
-                                                    ["transport"] = new V1JSONSchemaProps 
-                                                    { 
+                                                    ["transport"] = new V1JSONSchemaProps
+                                                    {
                                                         Type = "string",
                                                         EnumProperty = new List<object> { "zeromq", "rabbitmq", "kafka" }
                                                     },
@@ -151,7 +146,7 @@ namespace XStateNet.Distributed.Kubernetes
                         }
                     }
                 };
-                
+
                 try
                 {
                     await _kubernetes.ApiextensionsV1.CreateCustomResourceDefinitionAsync(crd);
@@ -168,7 +163,7 @@ namespace XStateNet.Distributed.Kubernetes
                 throw;
             }
         }
-        
+
         private async Task WatchStateMachinesAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -182,7 +177,7 @@ namespace XStateNet.Distributed.Kubernetes
                         plural: CRD_PLURAL,
                         watch: true,
                         cancellationToken: cancellationToken);
-                    
+
                     // Process watch events
                     // In real implementation, this would use the Watch API properly
                     await ProcessStateMachineEventsAsync(cancellationToken);
@@ -194,13 +189,13 @@ namespace XStateNet.Distributed.Kubernetes
                 }
             }
         }
-        
+
         private async Task ProcessStateMachineEventsAsync(CancellationToken cancellationToken)
         {
             // This would handle ADDED, MODIFIED, DELETED events
             await Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Reconcile a StateMachines custom resource with actual deployments
         /// </summary>
@@ -209,11 +204,11 @@ namespace XStateNet.Distributed.Kubernetes
             try
             {
                 _logger.LogInformation("Reconciling StateMachine {Name}", resource.Metadata.Name);
-                
+
                 // Check if Deployment exists
                 var deploymentName = $"sm-{resource.Metadata.Name}";
                 V1Deployment? existingDeployment = null;
-                
+
                 try
                 {
                     existingDeployment = await _kubernetes.AppsV1.ReadNamespacedDeploymentAsync(
@@ -223,7 +218,7 @@ namespace XStateNet.Distributed.Kubernetes
                 {
                     // Deployment doesn't exist, need to create it
                 }
-                
+
                 if (existingDeployment == null)
                 {
                     // Create new deployment
@@ -234,13 +229,13 @@ namespace XStateNet.Distributed.Kubernetes
                     // Update existing deployment if needed
                     await UpdateStateMachineDeploymentAsync(resource, existingDeployment);
                 }
-                
+
                 // Create or update Service
                 await EnsureStateMachineServiceAsync(resource);
-                
+
                 // Create or update ConfigMap for state machine definition
                 await EnsureStateMachineConfigMapAsync(resource);
-                
+
                 // Update status
                 await UpdateStateMachineStatusAsync(resource);
             }
@@ -250,7 +245,7 @@ namespace XStateNet.Distributed.Kubernetes
                 throw;
             }
         }
-        
+
         private async Task CreateStateMachineDeploymentAsync(StateMachineResource resource)
         {
             var deployment = new V1Deployment
@@ -366,7 +361,7 @@ namespace XStateNet.Distributed.Kubernetes
                     }
                 }
             };
-            
+
             // Add persistence if enabled
             if (resource.Spec.Persistence?.Enabled == true)
             {
@@ -378,21 +373,21 @@ namespace XStateNet.Distributed.Kubernetes
                         ClaimName = $"sm-{resource.Metadata.Name}-pvc"
                     }
                 });
-                
+
                 deployment.Spec.Template.Spec.Containers[0].VolumeMounts.Add(new V1VolumeMount
                 {
                     Name = "data",
                     MountPath = "/data"
                 });
-                
+
                 // Create PVC
                 await CreatePersistentVolumeClaimAsync(resource);
             }
-            
+
             await _kubernetes.AppsV1.CreateNamespacedDeploymentAsync(deployment, _namespace);
             _logger.LogInformation("Created deployment for StateMachine {Name}", resource.Metadata.Name);
         }
-        
+
         private async Task UpdateStateMachineDeploymentAsync(StateMachineResource resource, V1Deployment deployment)
         {
             // Update replicas if changed
@@ -400,15 +395,15 @@ namespace XStateNet.Distributed.Kubernetes
             {
                 deployment.Spec.Replicas = resource.Spec.Replicas;
                 await _kubernetes.AppsV1.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, _namespace);
-                _logger.LogInformation("Updated replicas for StateMachine {Name} to {Replicas}", 
+                _logger.LogInformation("Updated replicas for StateMachine {Name} to {Replicas}",
                     resource.Metadata.Name, resource.Spec.Replicas);
             }
         }
-        
+
         private async Task EnsureStateMachineServiceAsync(StateMachineResource resource)
         {
             var serviceName = $"sm-{resource.Metadata.Name}-svc";
-            
+
             try
             {
                 await _kubernetes.CoreV1.ReadNamespacedServiceAsync(serviceName, _namespace);
@@ -443,16 +438,16 @@ namespace XStateNet.Distributed.Kubernetes
                         Type = "ClusterIP"
                     }
                 };
-                
+
                 await _kubernetes.CoreV1.CreateNamespacedServiceAsync(service, _namespace);
                 _logger.LogInformation("Created service for StateMachine {Name}", resource.Metadata.Name);
             }
         }
-        
+
         private async Task EnsureStateMachineConfigMapAsync(StateMachineResource resource)
         {
             var configMapName = $"sm-{resource.Metadata.Name}-config";
-            
+
             var configMap = new V1ConfigMap
             {
                 Metadata = new V1ObjectMeta
@@ -466,7 +461,7 @@ namespace XStateNet.Distributed.Kubernetes
                     ["config.json"] = System.Text.Json.JsonSerializer.Serialize(resource.Spec.Config)
                 }
             };
-            
+
             try
             {
                 await _kubernetes.CoreV1.ReplaceNamespacedConfigMapAsync(configMap, configMapName, _namespace);
@@ -476,7 +471,7 @@ namespace XStateNet.Distributed.Kubernetes
                 await _kubernetes.CoreV1.CreateNamespacedConfigMapAsync(configMap, _namespace);
             }
         }
-        
+
         private async Task CreatePersistentVolumeClaimAsync(StateMachineResource resource)
         {
             var pvc = new V1PersistentVolumeClaim
@@ -499,7 +494,7 @@ namespace XStateNet.Distributed.Kubernetes
                     }
                 }
             };
-            
+
             try
             {
                 await _kubernetes.CoreV1.CreateNamespacedPersistentVolumeClaimAsync(pvc, _namespace);
@@ -510,7 +505,7 @@ namespace XStateNet.Distributed.Kubernetes
                 // PVC already exists
             }
         }
-        
+
         private async Task UpdateStateMachineStatusAsync(StateMachineResource resource)
         {
             try
@@ -518,7 +513,7 @@ namespace XStateNet.Distributed.Kubernetes
                 // Get deployment status
                 var deploymentName = $"sm-{resource.Metadata.Name}";
                 var deployment = await _kubernetes.AppsV1.ReadNamespacedDeploymentAsync(deploymentName, _namespace);
-                
+
                 // Update custom resource status
                 var status = new StateMachineStatus
                 {
@@ -526,20 +521,20 @@ namespace XStateNet.Distributed.Kubernetes
                     ReadyReplicas = deployment.Status.ReadyReplicas ?? 0,
                     LastTransition = DateTime.UtcNow.ToString("O")
                 };
-                
+
                 // Get current state from registry
                 var info = await _registry.GetAsync(resource.Metadata.Name);
                 if (info != null)
                 {
                     status.CurrentState = info.CurrentState;
                 }
-                
+
                 // Update status subresource
                 var patch = new
                 {
                     status = status
                 };
-                
+
                 await _kubernetes.CustomObjects.PatchNamespacedCustomObjectStatusAsync(
                     new V1Patch(patch, V1Patch.PatchType.MergePatch),
                     CRD_GROUP,
@@ -547,7 +542,7 @@ namespace XStateNet.Distributed.Kubernetes
                     _namespace,
                     CRD_PLURAL,
                     resource.Metadata.Name);
-                
+
                 _logger.LogDebug("Updated status for StateMachine {Name}", resource.Metadata.Name);
             }
             catch (Exception ex)
@@ -556,7 +551,7 @@ namespace XStateNet.Distributed.Kubernetes
             }
         }
     }
-    
+
     /// <summary>
     /// Custom Resource Definition for StateMachines
     /// </summary>
@@ -566,7 +561,7 @@ namespace XStateNet.Distributed.Kubernetes
         public StateMachineSpec Spec { get; set; } = new();
         public StateMachineStatus Status { get; set; } = new();
     }
-    
+
     public class StateMachineSpec
     {
         public string Definition { get; set; } = string.Empty;
@@ -576,7 +571,7 @@ namespace XStateNet.Distributed.Kubernetes
         public string Transport { get; set; } = "zeromq";
         public PersistenceConfig? Persistence { get; set; }
     }
-    
+
     public class StateMachineStatus
     {
         public string Phase { get; set; } = "Pending";
@@ -584,13 +579,13 @@ namespace XStateNet.Distributed.Kubernetes
         public string? CurrentState { get; set; }
         public string? LastTransition { get; set; }
     }
-    
+
     public class ResourceRequirements
     {
         public string Cpu { get; set; } = "100m";
         public string Memory { get; set; } = "128Mi";
     }
-    
+
     public class PersistenceConfig
     {
         public bool Enabled { get; set; }

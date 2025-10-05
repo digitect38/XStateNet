@@ -1,9 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
-using System.Threading;
 
 namespace XStateNet;
 
@@ -29,11 +25,11 @@ public abstract class RealState : StateNode
     private readonly ConcurrentDictionary<string, Action> _activeActivityCleanups = new();
     private CancellationTokenSource? _activityCancellationSource;
 
-    public RealState(string? name, string? parentName, string? stateMachineId) 
+    public RealState(string? name, string? parentName, string? stateMachineId)
         : base(name, parentName, stateMachineId)
     {
     }
-    
+
     /// <summary>
     /// Clean up the after transition timer with proper exception handling
     /// </summary>
@@ -176,7 +172,7 @@ public abstract class RealState : StateNode
         {
             Parent.ActiveStateName = null;
         }
-        
+
         // Cancel any active after transition timer
         CleanupAfterTimer();
 
@@ -336,10 +332,10 @@ public abstract class CompoundState : RealState
             await entryTask;
     }
 
-    public bool IsDone {set; get; }= false;             // If the state is done, it will not be active anymore.
+    public bool IsDone { set; get; } = false;             // If the state is done, it will not be active anymore.
 
     public abstract void OnDone();  // for final state
-    
+
     public abstract void GetActiveSubStateNames(List<string> list);
 
     /// <summary>
@@ -351,7 +347,7 @@ public abstract class CompoundState : RealState
         if (Name == null) throw new Exception("Name is null");
 
         collection.Add(Name);
-        
+
         var super = Parent;
 
         if (super != null && super.GetType() != typeof(ParallelState))
@@ -384,7 +380,7 @@ public abstract class CompoundState : RealState
 
         return Task.FromResult(Task.CompletedTask);
     }
-        
+
 
     /// <summary>
     /// 
@@ -477,7 +473,7 @@ public abstract class CompoundState : RealState
                     _afterTransitionTimer = null;
             }
         };
-        
+
         timer.AutoReset = false;
         timer.Start();
 
@@ -523,7 +519,7 @@ public abstract class CompoundState : RealState
     public virtual void BuildTransitionList(string eventName, List<(CompoundState state, Transition transition, string eventName)> transitionList)
     {
         // Defensive null check with more context
-        if(StateMachine == null) 
+        if (StateMachine == null)
         {
             // Don't throw during cleanup or disposal
             System.Diagnostics.Debug.WriteLine($"Warning: StateMachine is null for state {Name} when processing event {eventName}");
@@ -582,7 +578,7 @@ public abstract class CompoundState : RealState
 
 public abstract class Parser_RealState : Parser_StateBase
 {
-    public Parser_RealState(string? machineId) : base(machineId)  { }
+    public Parser_RealState(string? machineId) : base(machineId) { }
 
     /// <summary>
     /// 
@@ -596,7 +592,7 @@ public abstract class Parser_RealState : Parser_StateBase
         state.ExitActions = StateMachine.ParseActions("exit", StateMachine.ActionMap, stateToken);
         state.Service = StateMachine.ParseService("invoke", StateMachine.ServiceMap, stateToken);
         state.Activities = StateMachine.ParseActivities("activities", StateMachine.ActivityMap, stateToken);
-        
+
         // Parse onDone and onError transitions from invoke if present
         var invokeToken = stateToken["invoke"];
         if (invokeToken != null)
@@ -634,7 +630,7 @@ public abstract class Parser_RealState : Parser_StateBase
                         var parentPath = state.Name.Substring(0, state.Name.LastIndexOf('.'));
                         targetName = $"{parentPath}{targetName}";
                     }
-                    
+
                     var onDoneTransition = new OnDoneTransition(machineId)
                     {
                         SourceName = state.Name,
@@ -654,7 +650,7 @@ public abstract class Parser_RealState : Parser_StateBase
                     Logger.Debug($"Set OnDoneTransition for state {state.Name} with {onDoneTransition.Actions?.Count ?? 0} actions targeting {targetName}");
                 }
             }
-            
+
             // Parse onError transition from invoke
             var onErrorToken = invokeToken["onError"];
             if (onErrorToken != null)

@@ -1,8 +1,5 @@
-using System;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace XStateNet.Semi.Transport
 {
@@ -52,7 +49,7 @@ namespace XStateNet.Semi.Transport
         public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
             _logger?.LogInformation("[SimpleResilient] ConnectAsync called");
-            
+
             if (_disposed)
                 throw new ObjectDisposedException(nameof(SimpleResilientHsmsConnection));
 
@@ -90,7 +87,7 @@ namespace XStateNet.Semi.Transport
                         // Create new connection
                         _logger?.LogInformation("[SimpleResilient] Creating HsmsConnection to {Endpoint} in {Mode} mode", _endpoint, _mode);
                         _connection = new HsmsConnection(_endpoint, _mode, null);
-                        
+
                         // Subscribe to events BEFORE connecting
                         _connection.MessageReceived += OnMessageReceived;
                         _connection.ErrorOccurred += OnErrorOccurred;
@@ -98,7 +95,7 @@ namespace XStateNet.Semi.Transport
                         // Connect with timeout
                         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                         connectCts.CancelAfter(ConnectTimeoutMs);
-                        
+
                         _logger?.LogInformation("[SimpleResilient] Calling HsmsConnection.ConnectAsync with {Timeout}ms timeout", ConnectTimeoutMs);
                         await _connection.ConnectAsync(connectCts.Token);
                         _logger?.LogInformation("[SimpleResilient] Physical connection established, IsConnected={IsConnected}", _connection.IsConnected);
@@ -132,7 +129,7 @@ namespace XStateNet.Semi.Transport
                     catch (Exception ex)
                     {
                         _logger?.LogWarning(ex, "[SimpleResilient] Connection attempt {Attempt} failed: {Message}", attempt + 1, ex.Message);
-                        
+
                         if (attempt == MaxRetries - 1)
                         {
                             ErrorOccurred?.Invoke(this, ex);
@@ -155,7 +152,7 @@ namespace XStateNet.Semi.Transport
         private async Task<bool> SelectAsync(CancellationToken cancellationToken)
         {
             _logger?.LogInformation("[SimpleResilient] SelectAsync called");
-            
+
             if (_connection == null || !_connection.IsConnected)
             {
                 _logger?.LogWarning("[SimpleResilient] Cannot select - connection is null or not connected");
@@ -167,7 +164,7 @@ namespace XStateNet.Semi.Transport
                 MessageType = HsmsMessageType.SelectReq,
                 SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
             };
-            
+
             _logger?.LogInformation("[SimpleResilient] Sending SelectReq with SystemBytes={SystemBytes}", selectReq.SystemBytes);
 
             // Set up response handler
@@ -186,7 +183,7 @@ namespace XStateNet.Semi.Transport
 
                 var response = await _pendingResponse.Task.WaitAsync(cts.Token);
                 _logger?.LogInformation("[SimpleResilient] Received response: MessageType={MessageType}", response.MessageType);
-                
+
                 return response.MessageType == HsmsMessageType.SelectRsp;
             }
             catch (OperationCanceledException)
@@ -233,15 +230,15 @@ namespace XStateNet.Semi.Transport
         /// Wait for a message with timeout (using event-based approach)
         /// </summary>
         public async Task<HsmsMessage?> WaitForMessageAsync(
-            Func<HsmsMessage, bool> predicate, 
-            TimeSpan timeout, 
+            Func<HsmsMessage, bool> predicate,
+            TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
             if (!IsConnected || !IsSelected)
                 return null;
 
             var tcs = new TaskCompletionSource<HsmsMessage>();
-            
+
             EventHandler<HsmsMessage> handler = (sender, msg) =>
             {
                 if (predicate(msg))
@@ -253,10 +250,10 @@ namespace XStateNet.Semi.Transport
             try
             {
                 MessageReceived += handler;
-                
+
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(timeout);
-                
+
                 return await tcs.Task.WaitAsync(cts.Token);
             }
             catch (OperationCanceledException)
@@ -281,7 +278,7 @@ namespace XStateNet.Semi.Transport
             try
             {
                 IsSelected = false;
-                
+
                 if (_connection != null)
                 {
                     await _connection.DisconnectAsync();
@@ -301,14 +298,14 @@ namespace XStateNet.Semi.Transport
 
         private void OnMessageReceived(object? sender, HsmsMessage message)
         {
-            _logger?.LogDebug("[SimpleResilient] OnMessageReceived: Type={Type}, SystemBytes={SystemBytes}", 
+            _logger?.LogDebug("[SimpleResilient] OnMessageReceived: Type={Type}, SystemBytes={SystemBytes}",
                 message.MessageType, message.SystemBytes);
-            
+
             // Handle pending selection response
             if (_pendingResponse != null && message.SystemBytes == _pendingSystemBytes)
             {
                 _logger?.LogInformation("[SimpleResilient] Received matching response for pending selection");
-                if (message.MessageType == HsmsMessageType.SelectRsp || 
+                if (message.MessageType == HsmsMessageType.SelectRsp ||
                     message.MessageType == HsmsMessageType.RejectReq)
                 {
                     _pendingResponse.TrySetResult(message);
@@ -328,7 +325,7 @@ namespace XStateNet.Semi.Transport
         {
             _logger?.LogError(ex, "[SimpleResilient] Connection error occurred: {Message}", ex.Message);
             ErrorOccurred?.Invoke(this, ex);
-            
+
             // Simple approach: disconnect on error, let caller reconnect if needed
             _logger?.LogInformation("[SimpleResilient] Scheduling disconnect due to error");
             Task.Run(async () => await DisconnectAsync());
@@ -340,13 +337,13 @@ namespace XStateNet.Semi.Transport
                 return;
 
             _disposed = true;
-            
+
             try
             {
                 DisconnectAsync().GetAwaiter().GetResult();
             }
             catch { }
-            
+
             _connectionLock?.Dispose();
         }
     }

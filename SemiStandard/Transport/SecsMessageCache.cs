@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Runtime.Caching;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Runtime.Caching;
 using XStateNet.Semi.Secs;
 
 namespace XStateNet.Semi.Transport
@@ -19,14 +15,14 @@ namespace XStateNet.Semi.Transport
         private readonly ILogger<SecsMessageCache>? _logger;
         private readonly object _lock = new();
         private bool _disposed;
-        
+
         // Cache configuration
         public long MaxMemorySize { get; set; } = 100 * 1024 * 1024; // 100MB default
         public TimeSpan DefaultExpiration { get; set; } = TimeSpan.FromMinutes(5);
         public TimeSpan SlidingExpiration { get; set; } = TimeSpan.FromMinutes(2);
         public int MaxItemCount { get; set; } = 10000;
         public bool EnableCompression { get; set; } = true;
-        
+
         // Global statistics - thread-safe counters
         private long _totalHits;
         private long _totalMisses;
@@ -44,7 +40,7 @@ namespace XStateNet.Semi.Transport
                 return hits + misses > 0 ? (double)hits / (hits + misses) : 0;
             }
         }
-        
+
         public SecsMessageCache(ILogger<SecsMessageCache>? logger = null)
         {
             _logger = logger;
@@ -53,7 +49,7 @@ namespace XStateNet.Semi.Transport
             var cacheId = $"SecsMessageCache_{Guid.NewGuid():N}";
             _cache = new MemoryCache(cacheId);
         }
-        
+
         /// <summary>
         /// Cache a SECS message
         /// </summary>
@@ -70,7 +66,7 @@ namespace XStateNet.Semi.Transport
                 _logger?.LogWarning("Cannot cache null message for key {Key}", key);
                 return;
             }
-                
+
             try
             {
                 var policy = new CacheItemPolicy
@@ -82,7 +78,7 @@ namespace XStateNet.Semi.Transport
                         : System.Runtime.Caching.CacheItemPriority.Default,
                     RemovedCallback = OnCacheItemRemoved
                 };
-                
+
                 var now = DateTime.UtcNow;
                 var cacheItem = new CachedMessage
                 {
@@ -93,7 +89,7 @@ namespace XStateNet.Semi.Transport
                     Size = EstimateMessageSize(message),
                     CompressionLevel = EnableCompression ? CompressionLevel.Optimal : CompressionLevel.None
                 };
-                
+
                 _cache.Set(key, cacheItem, policy);
                 UpdateStatistics(key, CacheOperation.Add);
 
@@ -116,7 +112,7 @@ namespace XStateNet.Semi.Transport
                 _logger?.LogError(ex, "Failed to cache message {Key}", key);
             }
         }
-        
+
         /// <summary>
         /// Retrieve a cached SECS message
         /// </summary>
@@ -124,7 +120,7 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 return null;
-                
+
             try
             {
                 var cacheItem = _cache.Get(key);
@@ -157,7 +153,7 @@ namespace XStateNet.Semi.Transport
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Batch cache multiple messages
         /// </summary>
@@ -165,13 +161,13 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed || messages == null)
                 return;
-                
+
             foreach (var kvp in messages)
             {
                 CacheMessage(kvp.Key, kvp.Value, priority);
             }
         }
-        
+
         /// <summary>
         /// Get or create a message with factory function
         /// </summary>
@@ -180,12 +176,12 @@ namespace XStateNet.Semi.Transport
             var existing = GetMessage(key);
             if (existing != null)
                 return existing;
-                
+
             var message = factory();
             CacheMessage(key, message, priority);
             return message;
         }
-        
+
         /// <summary>
         /// Remove a specific message from cache
         /// </summary>
@@ -193,7 +189,7 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 return false;
-                
+
             var removed = _cache.Remove(key) != null;
             if (removed)
             {
@@ -201,7 +197,7 @@ namespace XStateNet.Semi.Transport
             }
             return removed;
         }
-        
+
         /// <summary>
         /// Clear all cached messages
         /// </summary>
@@ -209,21 +205,21 @@ namespace XStateNet.Semi.Transport
         {
             if (_disposed)
                 return;
-                
+
             var keys = _cache.Select(kvp => kvp.Key).ToList();
             foreach (var key in keys)
             {
                 _cache.Remove(key);
             }
-            
+
             _statistics.Clear();
             Interlocked.Exchange(ref _totalHits, 0);
             Interlocked.Exchange(ref _totalMisses, 0);
             Interlocked.Exchange(ref _totalEvictions, 0);
-            
+
             _logger?.LogInformation("Cache cleared ({Count} items removed)", keys.Count);
         }
-        
+
         /// <summary>
         /// Get cache statistics for a specific key pattern
         /// </summary>
@@ -231,10 +227,10 @@ namespace XStateNet.Semi.Transport
         {
             if (string.IsNullOrEmpty(pattern))
                 return _statistics.ToList();
-                
+
             return _statistics.Where(kvp => kvp.Key.Contains(pattern));
         }
-        
+
         /// <summary>
         /// Preload commonly used messages
         /// </summary>
@@ -250,11 +246,11 @@ namespace XStateNet.Semi.Transport
                 ["S5F2"] = SecsMessageLibrary.S5F2(SecsMessageLibrary.ResponseCodes.ACKC5_ACCEPTED),
                 ["S6F12"] = SecsMessageLibrary.S6F12(SecsMessageLibrary.ResponseCodes.ACKC6_ACCEPTED)
             };
-            
+
             CacheMessageBatch(commonMessages, CachePriority.High);
             _logger?.LogInformation("Preloaded {Count} common messages", commonMessages.Count);
         }
-        
+
         private void OnCacheItemRemoved(CacheEntryRemovedArguments args)
         {
             if (args.RemovedReason == CacheEntryRemovedReason.Evicted ||
@@ -262,16 +258,16 @@ namespace XStateNet.Semi.Transport
             {
                 Interlocked.Increment(ref _totalEvictions);
                 UpdateStatistics(args.CacheItem.Key, CacheOperation.Evict);
-                
-                _logger?.LogDebug("Cache item {Key} removed: {Reason}", 
+
+                _logger?.LogDebug("Cache item {Key} removed: {Reason}",
                     args.CacheItem.Key, args.RemovedReason);
             }
         }
-        
+
         private void UpdateStatistics(string key, CacheOperation operation)
         {
             var stats = _statistics.GetOrAdd(key, k => new CacheStatistics { Key = k });
-            
+
             switch (operation)
             {
                 case CacheOperation.Add:
@@ -290,30 +286,30 @@ namespace XStateNet.Semi.Transport
                     Interlocked.Increment(ref stats._evictCount);
                     break;
             }
-            
+
             stats.LastOperation = operation;
             stats.LastOperationTime = DateTime.UtcNow;
         }
-        
+
         private long EstimateMessageSize(SecsMessage message)
         {
             // Rough estimation of message size in bytes
             long size = 16; // Base overhead
-            
+
             if (message.Data != null)
             {
                 size += EstimateItemSize(message.Data);
             }
-            
+
             return size;
         }
-        
+
         private long EstimateItemSize(SecsItem item)
         {
             return item.Format switch
             {
-                SecsFormat.List => item is SecsList list 
-                    ? list.Items.Sum(i => EstimateItemSize(i)) + 8 
+                SecsFormat.List => item is SecsList list
+                    ? list.Items.Sum(i => EstimateItemSize(i)) + 8
                     : 8,
                 SecsFormat.Binary => item.Length + 8,
                 SecsFormat.ASCII => item.Length + 8,
@@ -330,16 +326,16 @@ namespace XStateNet.Semi.Transport
                 _ => 16
             };
         }
-        
+
         public void Dispose()
         {
             if (_disposed)
                 return;
-                
+
             _disposed = true;
             _cache?.Dispose();
         }
-        
+
         private class CachedMessage
         {
             public SecsMessage Message { get; set; } = null!;
@@ -349,7 +345,7 @@ namespace XStateNet.Semi.Transport
             public long Size { get; set; }
             public CompressionLevel CompressionLevel { get; set; }
         }
-        
+
         public class CacheStatistics
         {
             public string Key { get; set; } = "";
@@ -377,14 +373,14 @@ namespace XStateNet.Semi.Transport
                 }
             }
         }
-        
+
         public enum CachePriority
         {
             Low,
             Normal,
             High
         }
-        
+
         public enum CacheOperation
         {
             Add,
@@ -393,7 +389,7 @@ namespace XStateNet.Semi.Transport
             Remove,
             Evict
         }
-        
+
         private enum CompressionLevel
         {
             None,

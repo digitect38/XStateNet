@@ -1,10 +1,7 @@
-using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using XStateNet.Semi.Secs;
 using XStateNet.Semi.Transport;
 
@@ -30,7 +27,7 @@ namespace SemiStandard.Integration.Tests
         public string ModelName { get; set; } = "TestEquipment";
         public string SoftwareRevision { get; set; } = "1.0.0";
         public bool IsConnected => _client?.Connected ?? false;
-        
+
         private readonly Queue<HsmsMessage> _messagesToSend = new();
 
         public NonBlockingEquipmentSimulator(IPEndPoint endpoint, ILogger<NonBlockingEquipmentSimulator>? logger = null)
@@ -51,12 +48,12 @@ namespace SemiStandard.Integration.Tests
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _listener = new TcpListener(_endpoint.Address, _endpoint.Port);
             _listener.Start();
-            
+
             _logger?.LogInformation("Simulator listening on {Endpoint}", _endpoint);
-            
+
             // Start accepting connections in background (non-blocking)
             _acceptTask = Task.Run(async () => await AcceptConnectionAsync(_cancellationTokenSource.Token));
-            
+
             return Task.CompletedTask; // Return immediately, don't block
         }
 
@@ -68,9 +65,9 @@ namespace SemiStandard.Integration.Tests
                 _client = await _listener!.AcceptTcpClientAsync(cancellationToken);
                 _client.NoDelay = true;
                 _stream = _client.GetStream();
-                
+
                 _logger?.LogInformation("Client connected from {RemoteEndPoint}", _client.Client.RemoteEndPoint);
-                
+
                 // Start receiving messages
                 _receiveTask = Task.Run(async () => await ReceiveMessagesAsync(cancellationToken));
             }
@@ -84,7 +81,7 @@ namespace SemiStandard.Integration.Tests
         {
             var buffer = new byte[65536];
             var headerBuffer = new byte[14];
-            
+
             try
             {
                 while (!cancellationToken.IsCancellationRequested && IsConnected)
@@ -97,13 +94,13 @@ namespace SemiStandard.Integration.Tests
                         if (read == 0) return; // Connection closed
                         bytesRead += read;
                     }
-                    
+
                     // Parse header
                     var totalLength = (headerBuffer[0] << 24) | (headerBuffer[1] << 16) | (headerBuffer[2] << 8) | headerBuffer[3];
                     var dataLength = totalLength - 10;
                     var messageType = (HsmsMessageType)headerBuffer[8];
                     var systemBytes = (uint)((headerBuffer[10] << 24) | (headerBuffer[11] << 16) | (headerBuffer[12] << 8) | headerBuffer[13]);
-                    
+
                     // Read data if present
                     byte[]? data = null;
                     if (dataLength > 0)
@@ -117,9 +114,9 @@ namespace SemiStandard.Integration.Tests
                             bytesRead += read;
                         }
                     }
-                    
+
                     _logger?.LogDebug("Received HSMS message: Type={Type}, SystemBytes={SystemBytes}", messageType, systemBytes);
-                    
+
                     // Handle message
                     await HandleMessageAsync(new HsmsMessage
                     {
@@ -142,7 +139,7 @@ namespace SemiStandard.Integration.Tests
             try
             {
                 HsmsMessage? response = null;
-                
+
                 switch (message.MessageType)
                 {
                     case HsmsMessageType.SelectReq:
@@ -154,7 +151,7 @@ namespace SemiStandard.Integration.Tests
                         };
                         _logger?.LogInformation("Accepted selection request");
                         break;
-                        
+
                     case HsmsMessageType.LinktestReq:
                         response = new HsmsMessage
                         {
@@ -162,7 +159,7 @@ namespace SemiStandard.Integration.Tests
                             SystemBytes = message.SystemBytes
                         };
                         break;
-                        
+
                     case HsmsMessageType.DataMessage:
                         if (_isSelected)
                         {
@@ -178,7 +175,7 @@ namespace SemiStandard.Integration.Tests
                         }
                         break;
                 }
-                
+
                 if (response != null)
                 {
                     _logger?.LogDebug("Sending response: Type={Type}, S{Stream}F{Function}", response.MessageType, response.Stream, response.Function);
@@ -195,9 +192,9 @@ namespace SemiStandard.Integration.Tests
         {
             var sxfy = $"S{hsmsMessage.Stream}F{hsmsMessage.Function}";
             _logger?.LogDebug("Handling SECS message: {SxFy}, Stream={Stream}, Function={Function}", sxfy, hsmsMessage.Stream, hsmsMessage.Function);
-            
+
             SecsMessage? responseMessage = null;
-            
+
             // Handle specific messages
             _logger?.LogDebug("Checking switch case for: '{SxFy}'", sxfy);
             switch (sxfy)
@@ -211,11 +208,11 @@ namespace SemiStandard.Integration.Tests
                         )
                     };
                     break;
-                    
+
                 case "S1F3": // Status Variables Request
-                    var requestData = hsmsMessage.Data != null ? 
+                    var requestData = hsmsMessage.Data != null ?
                         SecsMessage.Decode(hsmsMessage.Stream, hsmsMessage.Function, hsmsMessage.Data, true).Data : null;
-                    
+
                     if (requestData is SecsList list)
                     {
                         var items = new SecsItem[list.Items.Count];
@@ -229,7 +226,7 @@ namespace SemiStandard.Integration.Tests
                         };
                     }
                     break;
-                    
+
                 case "S1F13": // Establish Communications
                     responseMessage = new SecsMessage(1, 14, false)
                     {
@@ -239,14 +236,14 @@ namespace SemiStandard.Integration.Tests
                         )
                     };
                     break;
-                    
+
                 case "S2F13": // Equipment Constants Request
                     _logger?.LogDebug("Handling S2F13 request");
-                    var ecRequest = hsmsMessage.Data != null ? 
+                    var ecRequest = hsmsMessage.Data != null ?
                         SecsMessage.Decode(hsmsMessage.Stream, hsmsMessage.Function, hsmsMessage.Data, true).Data : null;
-                    
+
                     _logger?.LogDebug("S2F13 request data type: {Type}", ecRequest?.GetType().Name ?? "null");
-                    
+
                     if (ecRequest is SecsList ecList)
                     {
                         _logger?.LogDebug("S2F13 request is SecsList with {Count} items", ecList.Items.Count);
@@ -267,17 +264,17 @@ namespace SemiStandard.Integration.Tests
                         _logger?.LogWarning("S2F13 request data is not a SecsList");
                     }
                     break;
-                    
+
                 default:
                     _logger?.LogWarning("No handler for message: {SxFy}", sxfy);
                     break;
             }
-            
+
             if (responseMessage != null)
             {
                 responseMessage.SystemBytes = hsmsMessage.SystemBytes;
                 var encodedData = responseMessage.Encode();
-                
+
                 return Task.FromResult<HsmsMessage?>(new HsmsMessage
                 {
                     Stream = (byte)responseMessage.Stream,
@@ -287,51 +284,51 @@ namespace SemiStandard.Integration.Tests
                     Data = encodedData
                 });
             }
-            
+
             return Task.FromResult<HsmsMessage?>(null);
         }
 
         private async Task SendMessageAsync(HsmsMessage message, CancellationToken cancellationToken)
         {
             if (_stream == null || !IsConnected) return;
-            
+
             var dataLength = message.Data?.Length ?? 0;
             var totalLength = dataLength + 10;
             var buffer = new byte[14 + dataLength];
-            
+
             // Length
             buffer[0] = (byte)(totalLength >> 24);
             buffer[1] = (byte)(totalLength >> 16);
             buffer[2] = (byte)(totalLength >> 8);
             buffer[3] = (byte)totalLength;
-            
+
             // Session ID (0 for now)
             buffer[4] = 0;
             buffer[5] = 0;
-            
+
             // Stream & Function
             buffer[6] = message.Stream;
             buffer[7] = message.Function;
-            
+
             // Message Type
             buffer[8] = (byte)message.MessageType;
             buffer[9] = 0;
-            
+
             // System Bytes
             buffer[10] = (byte)(message.SystemBytes >> 24);
             buffer[11] = (byte)(message.SystemBytes >> 16);
             buffer[12] = (byte)(message.SystemBytes >> 8);
             buffer[13] = (byte)message.SystemBytes;
-            
+
             // Data
             if (message.Data != null && dataLength > 0)
             {
                 Array.Copy(message.Data, 0, buffer, 14, dataLength);
             }
-            
+
             await _stream.WriteAsync(buffer.AsMemory(0, 14 + dataLength), cancellationToken);
             await _stream.FlushAsync(cancellationToken);
-            
+
             _logger?.LogDebug("Sent HSMS response: Type={Type}, SystemBytes={SystemBytes}", message.MessageType, message.SystemBytes);
         }
 
@@ -342,14 +339,14 @@ namespace SemiStandard.Integration.Tests
             _statusVariables[2] = new SecsMessage(1, 4, false) { Data = new SecsU4(200) };
             _statusVariables[3] = new SecsMessage(1, 4, false) { Data = new SecsU4(300) };
         }
-        
+
         /// <summary>
         /// Trigger an alarm to be sent to the host
         /// </summary>
         public async Task TriggerAlarmAsync(uint alarmId, string alarmText, bool set)
         {
             if (!IsConnected || !_isSelected || _stream == null) return;
-            
+
             // Create S5F1 alarm message
             var alarmMessage = new SecsMessage(5, 1, true)
             {
@@ -360,7 +357,7 @@ namespace SemiStandard.Integration.Tests
                 ),
                 SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
             };
-            
+
             var encodedData = alarmMessage.Encode();
             var hsmsMessage = new HsmsMessage
             {
@@ -370,18 +367,18 @@ namespace SemiStandard.Integration.Tests
                 SystemBytes = alarmMessage.SystemBytes,
                 Data = encodedData
             };
-            
+
             await SendMessageAsync(hsmsMessage, CancellationToken.None);
             _logger?.LogInformation("Sent S5F1 alarm: ID={AlarmId}, Text={AlarmText}, Set={Set}", alarmId, alarmText, set);
         }
-        
+
         /// <summary>
         /// Trigger an event to be sent to the host
         /// </summary>
         public async Task TriggerEventAsync(uint ceid, List<SecsItem> data)
         {
             if (!IsConnected || !_isSelected || _stream == null) return;
-            
+
             // Create S6F11 event message
             var eventMessage = new SecsMessage(6, 11, true)
             {
@@ -392,7 +389,7 @@ namespace SemiStandard.Integration.Tests
                 ),
                 SystemBytes = (uint)Random.Shared.Next(1, 65536)  // Use 16-bit range for SEMI compatibility
             };
-            
+
             var encodedData = eventMessage.Encode();
             var hsmsMessage = new HsmsMessage
             {
@@ -402,7 +399,7 @@ namespace SemiStandard.Integration.Tests
                 SystemBytes = eventMessage.SystemBytes,
                 Data = encodedData
             };
-            
+
             await SendMessageAsync(hsmsMessage, CancellationToken.None);
             _logger?.LogInformation("Sent S6F11 event: CEID={Ceid}", ceid);
         }
@@ -410,21 +407,21 @@ namespace SemiStandard.Integration.Tests
         public async Task StopAsync()
         {
             _cancellationTokenSource?.Cancel();
-            
+
             if (_acceptTask != null)
             {
                 try { await _acceptTask; } catch { }
             }
-            
+
             if (_receiveTask != null)
             {
                 try { await _receiveTask; } catch { }
             }
-            
+
             _stream?.Close();
             _client?.Close();
             _listener?.Stop();
-            
+
             _logger?.LogInformation("Simulator stopped");
         }
 
@@ -432,9 +429,9 @@ namespace SemiStandard.Integration.Tests
         {
             if (_disposed) return;
             _disposed = true;
-            
+
             StopAsync().GetAwaiter().GetResult();
-            
+
             _stream?.Dispose();
             _client?.Dispose();
             _cancellationTokenSource?.Dispose();

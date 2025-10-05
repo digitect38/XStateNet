@@ -1,55 +1,33 @@
   복원할 프로젝트를 확인하는 중...
   복원할 모든 프로젝트가 최신 상태입니다.
-  AsyncTestApp -> C:\Develop25\XStateNet\AsyncTestApp\bin\Debug\net8.0\AsyncTestApp.dll
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_win'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_canvas'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(21,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(19,27): warning CS0169: 'MainWindow._rect' 필드가 사용되지 않았습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_win'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_canvas'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(21,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(19,27): warning CS0169: 'MainWindow._rect' 필드가 사용되지 않았습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-  XSView -> C:\Develop25\XStateNet\XSView\bin\Debug\net8.0-windows\XSView.dll
-C:\Develop25\XStateNet\src\State_Real.cs(137,21): warning CS8602: null 가능 참조에 대한 역참조입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\State_Real.cs(319,21): warning CS8602: null 가능 참조에 대한 역참조입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\Parser.cs(484,38): warning CS8601: 가능한 null 참조 할당입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(438,98): warning CS8604: 'string Helper.ToCsvString(ICollection<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")'의 매개 변수 'collection'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(440,44): warning CS8604: 'IEnumerable<string> Enumerable.Concat<string>(IEnumerable<string> first, IEnumerable<string> second)'의 매개 변수 'second'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(446,26): warning CS8604: 'IEnumerable<string> Enumerable.Reverse<string>(IEnumerable<string> source)'의 매개 변수 'source'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-  src -> C:\Develop25\XStateNet\src\bin\Debug\net8.0\src.dll
-C:\Develop25\XStateNet\HistoryTestApp\Program.cs(21,18): warning CS8618: null을 허용하지 않는 필드 'stateMachine'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\HistoryTestApp\HistoryTestApp.csproj]
-  HistoryTestApp -> C:\Develop25\XStateNet\HistoryTestApp\bin\Debug\net8.0\HistoryTestApp.dll
-C:\Develop25\XStateNet\test\UnitTest_SemiIntegrated.cs(377,27): warning CS8600: null 리터럴 또는 가능한 null 값을 null을 허용하지 않는 형식으로 변환하는 중입니다. [C:\Develop25\XStateNet\test\test.csproj]
-C:\Develop25\XStateNet\test\UnitTest_SemiIntegrated.cs(378,26): warning CS8600: null 리터럴 또는 가능한 null 값을 null을 허용하지 않는 형식으로 변환하는 중입니다. [C:\Develop25\XStateNet\test\test.csproj]
-  test -> C:\Develop25\XStateNet\test\bin\Debug\net8.0\test.dll
+  XStateNet -> C:\Develop25\XStateNet\XStateNet5Impl\bin\Debug\net8.0\XStateNet.dll
+  XStateNet.GPU -> C:\Develop25\XStateNet\XStateNet.GPU\bin\Debug\net8.0\XStateNet.GPU.dll
+  SemiStandard -> C:\Develop25\XStateNet\SemiStandard\bin\Debug\net8.0\SemiStandard.dll
+  XStateNet.InterProcess.Service -> C:\Develop25\XStateNet\XStateNet.InterProcess.Service\bin\Debug\net9.0\XStateNet.InterProcess.Service.dll
+  OrchestratorTestApp -> C:\Develop25\XStateNet\OrchestratorTestApp\bin\Debug\net8.0\OrchestratorTestApp.dll
+  XStateNet.Distributed -> C:\Develop25\XStateNet\XStateNet.Distributed\bin\Debug\net8.0\XStateNet.Distributed.dll
+  XStateNet.SharedMemory -> C:\Develop25\XStateNet\XStateNet.SharedMemory\bin\Debug\net8.0\XStateNet.SharedMemory.dll
+  XStateNet.PerformanceMonitor -> C:\Develop25\XStateNet\XStateNet.PerformanceMonitor\bin\Debug\net8.0-windows\XStateNet.PerformanceMonitor.dll
+  XStateNet.InterProcess.TestClient -> C:\Develop25\XStateNet\XStateNet.InterProcess.TestClient\bin\Debug\net9.0\XStateNet.InterProcess.TestClient.dll
+  SemiStandard.Testing.Console -> C:\Develop25\XStateNet\SemiStandard.Testing.Console\bin\Debug\net8.0\SemiStandard.Testing.Console.dll
+  XStateNet.SharedMemory.Tests -> C:\Develop25\XStateNet\XStateNet.SharedMemory.Tests\bin\Debug\net8.0\XStateNet.SharedMemory.Tests.dll
+  HostOnlyProgram -> C:\Develop25\XStateNet\HostOnlyProgram\bin\Debug\net8.0\HostOnlyProgram.dll
+  SemiStandard.Integration.Tests -> C:\Develop25\XStateNet\SemiStandard.Integration.Tests\bin\Debug\net8.0\SemiStandard.Integration.Tests.dll
+  SemiStandard.Tests -> C:\Develop25\XStateNet\SemiStandard.Tests\bin\Debug\net8.0\SemiStandard.Tests.dll
+  XStateNet.InterProcess.Tests -> C:\Develop25\XStateNet\XStateNet.InterProcess.Tests\bin\Debug\net9.0\XStateNet.InterProcess.Tests.dll
+  XStateNet.GPU.Tests -> C:\Develop25\XStateNet\XStateNet.GPU.Tests\bin\Debug\net8.0\XStateNet.GPU.Tests.dll
+  XStateNet.Distributed.Example -> C:\Develop25\XStateNet\XStateNet.Distributed.Example\bin\Debug\net8.0\XStateNet.Distributed.Example.dll
+  XStateNet.Distributed.Tests -> C:\Develop25\XStateNet\XStateNet.Distributed.Tests\bin\Debug\net8.0\XStateNet.Distributed.Tests.dll
   ForestOfParallel -> C:\Develop25\XStateNet\app\ForestOfParallel\bin\Debug\net8.0\ForestOfParallel.dll
+  TimelineWPF -> C:\Develop25\XStateNet\TimelineWPF\bin\Debug\net8.0-windows\TimelineWPF.dll
+  TimelineWPF.Demo -> C:\Develop25\XStateNet\TimelineWPF.Demo\bin\Debug\net8.0-windows\TimelineWPF.Demo.dll
+  SemiStandard.Simulator.Wpf -> C:\Develop25\XStateNet\SemiStandard.Simulator.Wpf\bin\Debug\net8.0-windows\SemiStandard.Simulator.Wpf.dll
+  XStateNet.Tests -> C:\Develop25\XStateNet\Test\bin\Debug\net8.0-windows\XStateNet.Tests.dll
 
 빌드했습니다.
-
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_win'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_canvas'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(21,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(19,27): warning CS0169: 'MainWindow._rect' 필드가 사용되지 않았습니다. [C:\Develop25\XStateNet\XSView\XSView_d4ig22dt_wpftmp.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_win'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_canvas'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(47,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(21,16): warning CS8618: null을 허용하지 않는 필드 '_rect'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\XSView\MainWindow.xaml.cs(19,27): warning CS0169: 'MainWindow._rect' 필드가 사용되지 않았습니다. [C:\Develop25\XStateNet\XSView\XSView.csproj]
-C:\Develop25\XStateNet\src\State_Real.cs(137,21): warning CS8602: null 가능 참조에 대한 역참조입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\State_Real.cs(319,21): warning CS8602: null 가능 참조에 대한 역참조입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\Parser.cs(484,38): warning CS8601: 가능한 null 참조 할당입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(438,98): warning CS8604: 'string Helper.ToCsvString(ICollection<string> collection, StateMachine stateMachine, bool leafOnly = true, string separator = ";")'의 매개 변수 'collection'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(440,44): warning CS8604: 'IEnumerable<string> Enumerable.Concat<string>(IEnumerable<string> first, IEnumerable<string> second)'의 매개 변수 'second'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\src\StateMachine.cs(446,26): warning CS8604: 'IEnumerable<string> Enumerable.Reverse<string>(IEnumerable<string> source)'의 매개 변수 'source'에 대한 가능한 null 참조 인수입니다. [C:\Develop25\XStateNet\src\src.csproj]
-C:\Develop25\XStateNet\HistoryTestApp\Program.cs(21,18): warning CS8618: null을 허용하지 않는 필드 'stateMachine'은(는) 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 필드을(를) nullable로 선언하는 것이 좋습니다. [C:\Develop25\XStateNet\HistoryTestApp\HistoryTestApp.csproj]
-C:\Develop25\XStateNet\test\UnitTest_SemiIntegrated.cs(377,27): warning CS8600: null 리터럴 또는 가능한 null 값을 null을 허용하지 않는 형식으로 변환하는 중입니다. [C:\Develop25\XStateNet\test\test.csproj]
-C:\Develop25\XStateNet\test\UnitTest_SemiIntegrated.cs(378,26): warning CS8600: null 리터럴 또는 가능한 null 값을 null을 허용하지 않는 형식으로 변환하는 중입니다. [C:\Develop25\XStateNet\test\test.csproj]
-    경고 19개
+    경고 0개
     오류 0개
 
-경과 시간: 00:00:01.81
+경과 시간: 00:00:01.78
 
 워크로드 업데이트를 사용할 수 있습니다. 자세한 내용을 보려면 `dotnet workload list`을 실행하세요.

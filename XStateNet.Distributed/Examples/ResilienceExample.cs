@@ -1,15 +1,10 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using XStateNet;
 using XStateNet.Distributed.Channels;
-using XStateNet.Distributed.Resilience;
 using XStateNet.Distributed.Extensions;
-using XStateNet.Distributed.StateMachines;
+using XStateNet.Distributed.Resilience;
 
 namespace XStateNet.Distributed.Examples
 {

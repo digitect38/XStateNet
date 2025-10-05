@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Channels;
 
 namespace XStateNet;
@@ -36,11 +33,11 @@ public class ActorSystem
 {
     private static ActorSystem? _instance;
     private readonly ConcurrentDictionary<string, IActor> _actors = new();
-    
+
     public static ActorSystem Instance => _instance ??= new ActorSystem();
-    
+
     private ActorSystem() { }
-    
+
     /// <summary>
     /// Spawns a new actor
     /// </summary>
@@ -53,7 +50,7 @@ public class ActorSystem
         }
         return actor;
     }
-    
+
     /// <summary>
     /// Gets an actor by ID
     /// </summary>
@@ -62,7 +59,7 @@ public class ActorSystem
         _actors.TryGetValue(id, out var actor);
         return actor;
     }
-    
+
     /// <summary>
     /// Removes an actor
     /// </summary>
@@ -70,7 +67,7 @@ public class ActorSystem
     {
         return _actors.TryRemove(id, out _);
     }
-    
+
     /// <summary>
     /// Sends a message to an actor
     /// </summary>
@@ -85,7 +82,7 @@ public class ActorSystem
             throw new InvalidOperationException($"Actor '{actorId}' not found");
         }
     }
-    
+
     /// <summary>
     /// Stops all actors
     /// </summary>
@@ -106,11 +103,11 @@ public class StateMachineActor : IActor
     private readonly Channel<ActorMessage> _messageChannel;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _processingTask;
-    
+
     public string Id { get; }
     public ActorStatus Status { get; private set; } = ActorStatus.Idle;
     public StateMachine Machine => _stateMachine;
-    
+
     public StateMachineActor(string id, StateMachine stateMachine)
     {
         Id = id;
@@ -121,20 +118,20 @@ public class StateMachineActor : IActor
             SingleWriter = false
         });
     }
-    
+
     /// <summary>
     /// Starts the actor
     /// </summary>
     public async Task StartAsync()
     {
         if (Status == ActorStatus.Running) return;
-        
+
         try
         {
             Status = ActorStatus.Running;
             _cancellationTokenSource = new CancellationTokenSource();
             _stateMachine.Start();
-            
+
             // Start message processing loop
             _processingTask = ProcessMessages(_cancellationTokenSource.Token);
             await Task.CompletedTask;
@@ -146,26 +143,26 @@ public class StateMachineActor : IActor
             throw; // Re-throw to preserve original behavior
         }
     }
-    
+
     /// <summary>
     /// Stops the actor
     /// </summary>
     public async Task StopAsync()
     {
         if (Status != ActorStatus.Running) return;
-        
+
         Status = ActorStatus.Stopped;
         _cancellationTokenSource?.Cancel();
         _messageChannel.Writer.TryComplete();
-        
+
         if (_processingTask != null)
         {
             await _processingTask;
         }
-        
+
         _stateMachine.Stop();
     }
-    
+
     /// <summary>
     /// Sends an event to the actor
     /// </summary>
@@ -175,11 +172,11 @@ public class StateMachineActor : IActor
         {
             throw new InvalidOperationException($"Actor '{Id}' is not running");
         }
-        
+
         var message = new ActorMessage(eventName, data);
         await _messageChannel.Writer.WriteAsync(message);
     }
-    
+
     /// <summary>
     /// Processes messages from the channel
     /// </summary>
@@ -198,7 +195,7 @@ public class StateMachineActor : IActor
                     }
 
                     await _stateMachine.SendAsync(message.EventName);
-                    
+
                     // Check if an error was caught by the state machine's error handling
                     if (_stateMachine.ContextMap != null && _stateMachine.ContextMap.ContainsKey("_error"))
                     {
@@ -222,7 +219,7 @@ public class StateMachineActor : IActor
             // Expected when stopping
         }
     }
-    
+
     /// <summary>
     /// Creates a child actor
     /// </summary>
@@ -241,7 +238,7 @@ public class ActorMessage
     public string EventName { get; }
     public object? Data { get; }
     public DateTime Timestamp { get; }
-    
+
     public ActorMessage(string eventName, object? data = null)
     {
         EventName = eventName;

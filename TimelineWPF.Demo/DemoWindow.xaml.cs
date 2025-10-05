@@ -5,7 +5,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using TimelineWPF;
 using TimelineWPF.PubSub;
 using TimelineWPF.ViewModels;
 using XStateNet;
@@ -25,7 +24,7 @@ namespace TimelineWPF.Demo
         public DemoWindow()
         {
             _stateMachines = new ConcurrentDictionary<string, StateMachine>();
-            
+
             InitializeComponent();
 
             _timer = new DispatcherTimer();
@@ -218,7 +217,7 @@ namespace TimelineWPF.Demo
                 // CreateFromScript might need actions and guards even if empty
                 var actions = new ActionMap();
                 var guards = new GuardMap();
-                return StateMachineFactory.CreateFromScript(script, threadSafe:false, true,actions, guards);
+                return StateMachineFactory.CreateFromScript(script, threadSafe: false, true, actions, guards);
             }
             catch (Exception ex)
             {
@@ -578,7 +577,7 @@ namespace TimelineWPF.Demo
             MachineList?.Items.Clear();
             TargetMachineCombo?.Items.Clear();
             _eventCount = 0;
-            _simulationTime = 0;          
+            _simulationTime = 0;
 
             UpdateStatus();
         }

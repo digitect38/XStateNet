@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace XStateNet.Distributed.Registry
 {
@@ -14,53 +11,53 @@ namespace XStateNet.Distributed.Registry
         /// Register a state machine in the distributed registry
         /// </summary>
         Task<bool> RegisterAsync(string machineId, StateMachineInfo info);
-        
+
         /// <summary>
         /// Unregister a state machine from the distributed registry
         /// </summary>
         Task<bool> UnregisterAsync(string machineId);
-        
+
         /// <summary>
         /// Get information about a specific state machine
         /// </summary>
         Task<StateMachineInfo?> GetAsync(string machineId);
-        
+
         /// <summary>
         /// Get all registered state machines
         /// </summary>
         Task<IEnumerable<StateMachineInfo>> GetAllAsync();
-        
+
         /// <summary>
         /// Get all active state machines (based on heartbeat)
         /// </summary>
         Task<IEnumerable<StateMachineInfo>> GetActiveAsync(TimeSpan heartbeatThreshold);
-        
+
         /// <summary>
         /// Update heartbeat for a state machine
         /// </summary>
         Task UpdateHeartbeatAsync(string machineId);
-        
+
         /// <summary>
         /// Update state machine status
         /// </summary>
         Task UpdateStatusAsync(string machineId, MachineStatus status, string? currentState = null);
-        
+
         /// <summary>
         /// Find state machines by pattern
         /// </summary>
         Task<IEnumerable<StateMachineInfo>> FindByPatternAsync(string pattern);
-        
+
         /// <summary>
         /// Subscribe to registry changes
         /// </summary>
         Task SubscribeToChangesAsync(Action<RegistryChangeEvent> handler);
-        
+
         // Events
         event EventHandler<StateMachineRegisteredEventArgs>? MachineRegistered;
         event EventHandler<StateMachineUnregisteredEventArgs>? MachineUnregistered;
         event EventHandler<StateMachineStatusChangedEventArgs>? StatusChanged;
     }
-    
+
     /// <summary>
     /// Information about a registered state machine
     /// </summary>
@@ -80,7 +77,7 @@ namespace XStateNet.Distributed.Registry
         public ConcurrentDictionary<string, string> Tags { get; set; } = new();
         public ResourceUsage? Resources { get; set; }
     }
-    
+
     /// <summary>
     /// State machine status
     /// </summary>
@@ -95,7 +92,7 @@ namespace XStateNet.Distributed.Registry
         Unhealthy,
         Degraded
     }
-    
+
     /// <summary>
     /// Resource usage information
     /// </summary>
@@ -108,7 +105,7 @@ namespace XStateNet.Distributed.Registry
         public double EventsPerSecond { get; set; }
         public TimeSpan Uptime { get; set; }
     }
-    
+
     /// <summary>
     /// Registry change event
     /// </summary>
@@ -119,7 +116,7 @@ namespace XStateNet.Distributed.Registry
         public StateMachineInfo? MachineInfo { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
-    
+
     public enum RegistryChangeType
     {
         Registered,
@@ -128,20 +125,20 @@ namespace XStateNet.Distributed.Registry
         HeartbeatUpdated,
         MetadataUpdated
     }
-    
+
     // Event args
     public class StateMachineRegisteredEventArgs : EventArgs
     {
         public string MachineId { get; set; } = string.Empty;
         public StateMachineInfo Info { get; set; } = new();
     }
-    
+
     public class StateMachineUnregisteredEventArgs : EventArgs
     {
         public string MachineId { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
     }
-    
+
     public class StateMachineStatusChangedEventArgs : EventArgs
     {
         public string MachineId { get; set; } = string.Empty;

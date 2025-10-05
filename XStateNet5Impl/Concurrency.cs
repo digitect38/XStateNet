@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Channels;
 
 namespace XStateNet;
@@ -23,14 +20,14 @@ public class EventQueue : IDisposable
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _cancellationTokenSource = new CancellationTokenSource();
         _processingSemaphore = new SemaphoreSlim(1, 1);
-        
+
         // Unbounded channel for event queuing
         _channel = Channel.CreateUnbounded<EventMessage>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false
         });
-        
+
         _processingTask = ProcessEventsAsync(_cancellationTokenSource.Token);
     }
 
@@ -127,7 +124,7 @@ public class StateMachineSync
     private readonly ReaderWriterLockSlim _stateLock = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _transitionLocks = new();
     private readonly TimeSpan _lockTimeout = TimeSpan.FromSeconds(30);
-    
+
     /// <summary>
     /// Acquire read lock for state access
     /// </summary>
@@ -135,10 +132,10 @@ public class StateMachineSync
     {
         if (!_stateLock.TryEnterReadLock(_lockTimeout))
             throw new TimeoutException("Failed to acquire read lock");
-        
+
         return new LockReleaser(() => _stateLock.ExitReadLock());
     }
-    
+
     /// <summary>
     /// Acquire write lock for state modification
     /// </summary>
@@ -146,23 +143,23 @@ public class StateMachineSync
     {
         if (!_stateLock.TryEnterWriteLock(_lockTimeout))
             throw new TimeoutException("Failed to acquire write lock");
-        
+
         return new LockReleaser(() => _stateLock.ExitWriteLock());
     }
-    
+
     /// <summary>
     /// Acquire transition lock for specific state
     /// </summary>
     public async Task<IDisposable> AcquireTransitionLockAsync(string stateName)
     {
         var semaphore = _transitionLocks.GetOrAdd(stateName, _ => new SemaphoreSlim(1, 1));
-        
+
         if (!await semaphore.WaitAsync(_lockTimeout))
             throw new TimeoutException($"Failed to acquire transition lock for state {stateName}");
-        
+
         return new LockReleaser(() => semaphore.Release());
     }
-    
+
     /// <summary>
     /// Check for potential deadlock in transition path
     /// </summary>
@@ -170,18 +167,18 @@ public class StateMachineSync
     {
         if (visitedStates == null)
             visitedStates = new HashSet<string>();
-        
+
         // Detect circular reference
         if (visitedStates.Contains(toState))
         {
             Logger.Warning($"Potential deadlock detected: circular reference from {fromState} to {toState}");
             return true;
         }
-        
+
         visitedStates.Add(fromState);
         return false;
     }
-    
+
     public void Dispose()
     {
         _stateLock?.Dispose();
@@ -191,17 +188,17 @@ public class StateMachineSync
         }
         _transitionLocks.Clear();
     }
-    
+
     private class LockReleaser : IDisposable
     {
         private readonly Action _releaseAction;
         private bool _disposed;
-        
+
         public LockReleaser(Action releaseAction)
         {
             _releaseAction = releaseAction;
         }
-        
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -218,17 +215,17 @@ public class SafeTransitionExecutor : TransitionExecutor
 {
     private readonly StateMachineSync _sync;
     private readonly ConcurrentDictionary<string, bool> _activeTransitions = new();
-    
+
     public SafeTransitionExecutor(string? machineId, StateMachineSync sync) : base(machineId)
     {
         _sync = sync ?? throw new ArgumentNullException(nameof(sync));
     }
-    
+
     protected override async Task ExecuteCore(Transition? transition, string eventName)
     {
         await ExecuteAsync(transition, eventName);//.GetAwaiter().GetResult();
     }
-    
+
     /// <summary>
     /// Execute transition with proper async handling
     /// </summary>
@@ -237,20 +234,20 @@ public class SafeTransitionExecutor : TransitionExecutor
         if (transition == null) return;
         if (StateMachine == null)
             throw new InvalidOperationException("StateMachine is not initialized");
-        
+
         var transitionKey = $"{transition.SourceName}->{transition.TargetName}";
-        
+
         // Check for re-entrancy using lock-free ConcurrentDictionary
         if (!_activeTransitions.TryAdd(transitionKey, true))
         {
             Logger.Warning($"Skipping re-entrant transition: {transitionKey}");
             return;
         }
-        
+
         try
         {
             // Check for deadlock potential
-            if (transition.SourceName != null && transition.TargetName != null && 
+            if (transition.SourceName != null && transition.TargetName != null &&
                 _sync.CheckDeadlockPotential(transition.SourceName, transition.TargetName, new HashSet<string>()))
             {
                 Logger.Error($"Deadlock potential detected, aborting transition: {transitionKey}");
@@ -275,11 +272,11 @@ public class SafeTransitionExecutor : TransitionExecutor
             _activeTransitions.TryRemove(transitionKey, out _);
         }
     }
-    
+
     private async Task PerformTransitionAsync(Transition transition, string eventName)
     {
         Logger.Debug($">> transition on event {eventName} in state {transition.SourceName}");
-        
+
         bool guardPassed = transition.Guard == null || transition.Guard.PredicateFunc(StateMachine!);
         if (transition.Guard != null)
         {
@@ -291,23 +288,23 @@ public class SafeTransitionExecutor : TransitionExecutor
         {
             string? sourceName = transition?.SourceName;
             string? targetName = transition?.TargetName;
-            
+
             if (string.IsNullOrWhiteSpace(sourceName))
                 throw new InvalidOperationException("Source state name cannot be null or empty");
-            
+
             if (targetName != null)
             {
                 var (exitList, entryList) = StateMachine!.GetFullTransitionSinglePath(sourceName, targetName);
-                
+
                 string? firstExit = exitList.FirstOrDefault();
                 string? firstEntry = entryList.FirstOrDefault();
-                
+
                 // Exit states
                 if (firstExit != null)
                     await StateMachine!.TransitUp(firstExit.ToState(StateMachine!) as CompoundState);
-                
+
                 Logger.Info($"Transit: [ {sourceName} --> {targetName} ] by {eventName}");
-                
+
                 // Execute transition actions
                 if (transition?.Actions != null)
                 {
@@ -325,11 +322,11 @@ public class SafeTransitionExecutor : TransitionExecutor
                         }
                     }
                 }
-                
+
                 // Enter states
                 if (firstEntry != null)
                     await StateMachine!.TransitDown(firstEntry.ToState(StateMachine!) as CompoundState, targetName);
-                
+
                 // Notify transition completed
                 StateNode? sourceNode = null;
                 StateNode? targetNode = null;

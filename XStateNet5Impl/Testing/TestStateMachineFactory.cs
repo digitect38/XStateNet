@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace XStateNet.Testing
 {
@@ -34,7 +31,7 @@ namespace XStateNet.Testing
             ActionMap? actionMap = null)
         {
             var instanceId = GenerateInstanceId(testMethodName);
-            
+
             var machine = new StateMachineBuilder()
                 .WithJsonScript(jsonScript)
                 .WithBaseId(baseId)
@@ -61,7 +58,7 @@ namespace XStateNet.Testing
             ActionMap? actionMap = null)
         {
             var machines = new List<StateMachine>();
-            
+
             for (int i = 0; i < count; i++)
             {
                 var machine = CreateStateMachine(
@@ -71,7 +68,7 @@ namespace XStateNet.Testing
                     actionMap);
                 machines.Add(machine);
             }
-            
+
             return machines;
         }
 
@@ -80,10 +77,10 @@ namespace XStateNet.Testing
         /// </summary>
         private string GenerateInstanceId(string? testMethodName)
         {
-            var methodPart = string.IsNullOrEmpty(testMethodName) 
-                ? "Anonymous" 
+            var methodPart = string.IsNullOrEmpty(testMethodName)
+                ? "Anonymous"
                 : testMethodName.Replace(" ", "_");
-            
+
             return $"{_testClassName}_{methodPart}_{_testInstanceId}_{Guid.NewGuid().ToString("N")[..8]}";
         }
 
@@ -134,7 +131,7 @@ namespace XStateNet.Testing
 
             _machines.Clear();
             _disposed = true;
-            
+
             // Force garbage collection for test cleanup
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -148,7 +145,7 @@ namespace XStateNet.Testing
     public abstract class StateMachineTestBase : IDisposable
     {
         protected TestStateMachineFactory Factory { get; }
-        
+
         protected StateMachineTestBase()
         {
             var testClassName = GetType().Name;
@@ -190,18 +187,18 @@ namespace XStateNet.Testing
             TimeSpan timeout)
         {
             var endTime = DateTime.UtcNow.Add(timeout);
-            
+
             while (DateTime.UtcNow < endTime)
             {
                 var currentState = machine.GetSourceSubStateCollection(null)
                     .ToCsvString(machine, true);
-                
+
                 if (currentState.Contains(expectedState))
                     return true;
-                
+
                 Thread.Sleep(10);
             }
-            
+
             return false;
         }
 
@@ -243,12 +240,12 @@ namespace XStateNet.Testing
         {
             var baseId = CreateTestId(prefix);
             var ids = new string[count];
-            
+
             for (int i = 0; i < count; i++)
             {
                 ids[i] = $"{baseId}_{i}";
             }
-            
+
             return ids;
         }
     }

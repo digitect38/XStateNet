@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
-using Xunit.Abstractions;
 using XStateNet.Semi.Transport;
+using Xunit.Abstractions;
 
 namespace SemiStandard.Integration.Tests;
 
@@ -14,7 +14,7 @@ public class HsmsTransportTests : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<HsmsTransportTests> _logger;
     private readonly IPEndPoint _testEndpoint;
-    
+
     private HsmsConnection? _passiveConnection;
     private HsmsConnection? _activeConnection;
 
@@ -35,16 +35,16 @@ public class HsmsTransportTests : IAsyncDisposable
     {
         // Arrange
         await StartPassiveConnectionAsync();
-        
+
         // Act
         await ConnectActiveConnectionAsync();
-        
+
         // Assert
         Assert.True(_passiveConnection!.IsConnected);
         Assert.True(_activeConnection!.IsConnected);
         Assert.Equal(HsmsConnection.HsmsConnectionState.Connected, _passiveConnection.State);
         Assert.Equal(HsmsConnection.HsmsConnectionState.Connected, _activeConnection.State);
-        
+
         _logger.LogInformation("✓ HSMS connection established successfully");
     }
 
@@ -54,16 +54,16 @@ public class HsmsTransportTests : IAsyncDisposable
         // Arrange
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
-        
+
         var selectRspReceived = new TaskCompletionSource<HsmsMessage>();
         var selectReqReceived = new TaskCompletionSource<HsmsMessage>();
-        
+
         _activeConnection!.MessageReceived += (sender, msg) =>
         {
             if (msg.MessageType == HsmsMessageType.SelectRsp)
                 selectRspReceived.TrySetResult(msg);
         };
-        
+
         _passiveConnection!.MessageReceived += (sender, msg) =>
         {
             if (msg.MessageType == HsmsMessageType.SelectReq)
@@ -77,27 +77,27 @@ public class HsmsTransportTests : IAsyncDisposable
             MessageType = HsmsMessageType.SelectReq,
             SystemBytes = systemBytes
         };
-        
+
         await _activeConnection.SendMessageAsync(selectReq);
-        
+
         // Assert
         var receivedReq = await selectReqReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(HsmsMessageType.SelectReq, receivedReq.MessageType);
         Assert.Equal(systemBytes, receivedReq.SystemBytes);
-        
+
         // Send response
         var selectRsp = new HsmsMessage
         {
             MessageType = HsmsMessageType.SelectRsp,
             SystemBytes = systemBytes
         };
-        
+
         await _passiveConnection.SendMessageAsync(selectRsp);
-        
+
         var receivedRsp = await selectRspReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(HsmsMessageType.SelectRsp, receivedRsp.MessageType);
         Assert.Equal(systemBytes, receivedRsp.SystemBytes);
-        
+
         _logger.LogInformation("✓ SelectReq/Rsp exchange successful");
     }
 
@@ -107,9 +107,9 @@ public class HsmsTransportTests : IAsyncDisposable
         // Arrange
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
-        
+
         var messageReceived = new TaskCompletionSource<HsmsMessage>();
-        
+
         _passiveConnection!.MessageReceived += (sender, msg) =>
         {
             if (msg.MessageType == HsmsMessageType.DataMessage)
@@ -127,9 +127,9 @@ public class HsmsTransportTests : IAsyncDisposable
             SystemBytes = systemBytes,
             Data = testData
         };
-        
+
         await _activeConnection!.SendMessageAsync(dataMessage);
-        
+
         // Assert
         var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(HsmsMessageType.DataMessage, received.MessageType);
@@ -137,7 +137,7 @@ public class HsmsTransportTests : IAsyncDisposable
         Assert.Equal(1, received.Function);
         Assert.Equal(systemBytes, received.SystemBytes);
         Assert.Equal(testData, received.Data);
-        
+
         _logger.LogInformation("✓ Data message with correct encoding sent and received");
     }
 
@@ -147,9 +147,9 @@ public class HsmsTransportTests : IAsyncDisposable
         // Arrange
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
-        
+
         var linktestRspReceived = new TaskCompletionSource<HsmsMessage>();
-        
+
         _activeConnection!.MessageReceived += (sender, msg) =>
         {
             if (msg.MessageType == HsmsMessageType.LinktestRsp)
@@ -163,26 +163,26 @@ public class HsmsTransportTests : IAsyncDisposable
             MessageType = HsmsMessageType.LinktestReq,
             SystemBytes = systemBytes
         };
-        
+
         await _activeConnection.SendMessageAsync(linktestReq);
-        
+
         // Passive connection should automatically respond with LinktestRsp
         // (This would be handled by the equipment simulator in real scenarios)
-        
+
         // For this test, manually send the response
         var linktestRsp = new HsmsMessage
         {
             MessageType = HsmsMessageType.LinktestRsp,
             SystemBytes = systemBytes
         };
-        
+
         await _passiveConnection!.SendMessageAsync(linktestRsp);
-        
+
         // Assert
         var received = await linktestRspReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(HsmsMessageType.LinktestRsp, received.MessageType);
         Assert.Equal(systemBytes, received.SystemBytes);
-        
+
         _logger.LogInformation("✓ Linktest request/response successful");
     }
 
@@ -192,10 +192,10 @@ public class HsmsTransportTests : IAsyncDisposable
         // Arrange
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
-        
+
         var receivedMessages = new List<HsmsMessage>();
         var messagesReceived = new TaskCompletionSource<bool>();
-        
+
         _passiveConnection!.MessageReceived += (sender, msg) =>
         {
             lock (receivedMessages)
@@ -219,17 +219,17 @@ public class HsmsTransportTests : IAsyncDisposable
                 SystemBytes = systemBytes,
                 Data = new byte[] { (byte)i }
             };
-            
+
             tasks.Add(_activeConnection!.SendMessageAsync(message));
         }
-        
+
         await Task.WhenAll(tasks);
-        
+
         // Assert
         await messagesReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        
+
         Assert.Equal(5, receivedMessages.Count);
-        
+
         // Verify all messages were received correctly
         for (int i = 0; i < 5; i++)
         {
@@ -240,7 +240,7 @@ public class HsmsTransportTests : IAsyncDisposable
             Assert.Equal(i + 1, message.Function);
             Assert.Equal(new byte[] { (byte)i }, message.Data);
         }
-        
+
         _logger.LogInformation("✓ Multiple simultaneous messages handled correctly");
     }
 
@@ -250,20 +250,20 @@ public class HsmsTransportTests : IAsyncDisposable
         // Arrange
         await StartPassiveConnectionAsync();
         await ConnectActiveConnectionAsync();
-        
+
         Assert.True(_activeConnection!.IsConnected);
         Assert.True(_passiveConnection!.IsConnected);
 
         // Act
         await _activeConnection.DisconnectAsync();
-        
+
         // Wait a moment for the disconnection to propagate
         await Task.Delay(500);
-        
+
         // Assert
         Assert.False(_activeConnection.IsConnected);
         Assert.Equal(HsmsConnection.HsmsConnectionState.NotConnected, _activeConnection.State);
-        
+
         _logger.LogInformation("✓ Connection disconnection handled correctly");
     }
 
@@ -275,10 +275,10 @@ public class HsmsTransportTests : IAsyncDisposable
             _loggerFactory.CreateLogger<HsmsConnection>());
 
         var connectTask = _passiveConnection.ConnectAsync();
-        
+
         // Give it a moment to start listening
         await Task.Delay(200);
-        
+
         _logger.LogInformation("Passive connection started listening on {Endpoint}", _testEndpoint);
     }
 
@@ -290,10 +290,10 @@ public class HsmsTransportTests : IAsyncDisposable
             _loggerFactory.CreateLogger<HsmsConnection>());
 
         await _activeConnection.ConnectAsync();
-        
+
         // Give the passive connection time to accept
         await Task.Delay(200);
-        
+
         _logger.LogInformation("Active connection established to {Endpoint}", _testEndpoint);
     }
 

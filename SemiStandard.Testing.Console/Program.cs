@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-
 namespace SemiStandard.Testing.Console
 {
     class Program
@@ -36,7 +33,7 @@ namespace SemiStandard.Testing.Console
                 ShowHelp();
             }
         }
-        
+
         static void ShowHelp()
         {
             System.Console.WriteLine("SEMI Standard Testing Console");
