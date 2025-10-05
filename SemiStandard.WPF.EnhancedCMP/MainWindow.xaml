@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SemiStandard.WPF.EnhancedCMP.ViewModels"
         mc:Ignorable="d"
-        Title="Enhanced CMP Simulator - SEMI E40/E90/E134/E39 Integration"
-        Height="900" Width="1400"
+        Title="Enhanced CMP Simulator (4 Tools, 7 Wafers) - E90 Process Journey"
+        Height="1080" Width="1600"
         Background="#1E1E1E">
 
     <Window.DataContext>
@@ -15,14 +15,28 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <Style x:Key="SubStateVisibility" TargetType="Border">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SubState}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Wafer Pulse Animation -->
+        <Storyboard x:Key="WaferPulse" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1.0" To="0.6" Duration="0:0:1" AutoReverse="True"/>
+        </Storyboard>
     </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="220"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="300"/>
+            <RowDefinition Height="200"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
@@ -34,8 +48,8 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Enhanced CMP Simulator" FontSize="28" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="SEMI Standards: E40 Process Jobs • E90 Substrate Tracking • E134 Data Collection • E39 Equipment Metrics"
+                    <TextBlock Text="Enhanced CMP Simulator (4 Tools, 7 Wafers)" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="E90 Wafer Journey: Loadport → WTR1 → Polisher → WTR2 → Cleaner → WTR1 → Loadport"
                                FontSize="14" Foreground="#9CDCFE" Margin="0,5,0,0"/>
                 </StackPanel>
 
@@ -53,81 +67,166 @@
             </Grid>
         </Border>
 
-        <!-- Master Scheduler Status -->
-        <Border Grid.Row="1" Background="#2D2D30" Padding="15" CornerRadius="5" Margin="0,0,0,10">
+        <!-- Tool Process Cycles (3 wafers per tool) -->
+        <Border Grid.Row="1" Background="#2D2D30" Padding="10" CornerRadius="5" Margin="0,0,0,10">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Status" FontSize="12" Foreground="#808080"/>
-                    <TextBlock Text="{Binding StatusText}" FontSize="18" FontWeight="Bold" Foreground="#4CAF50"/>
-                </StackPanel>
+                <TextBlock Grid.Row="0" Text="Tool Process Cycles (3 Wafers per Tool)" FontSize="13" FontWeight="Bold" Foreground="White" Margin="0,0,0,8"/>
 
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="Master State" FontSize="12" Foreground="#808080"/>
-                    <TextBlock Text="{Binding MasterState}" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                </StackPanel>
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding Tools}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="Current WIP" FontSize="12" Foreground="#808080"/>
-                    <TextBlock Text="{Binding CurrentWip}" FontSize="18" FontWeight="Bold" Foreground="#2196F3"/>
-                </StackPanel>
+                                <!-- Tool ID -->
+                                <Border Grid.Column="0" Background="#252526" CornerRadius="3" Padding="8,5">
+                                    <TextBlock Text="{Binding ToolId}" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
 
-                <StackPanel Grid.Column="3">
-                    <TextBlock Text="Queue Length" FontSize="12" Foreground="#808080"/>
-                    <TextBlock Text="{Binding QueueLength}" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
-                </StackPanel>
+                                <!-- Cycle 1 (Current) -->
+                                <Border Grid.Column="1" CornerRadius="3" Margin="5,0" Padding="8,5">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="{Binding Cycle1Color}"/>
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding Cycle1Text}" FontSize="10" Foreground="White" VerticalAlignment="Center" TextAlignment="Center"/>
+                                </Border>
 
-                <StackPanel Grid.Column="4">
-                    <TextBlock Text="Total Jobs" FontSize="12" Foreground="#808080"/>
-                    <TextBlock Text="{Binding TotalJobs}" FontSize="18" FontWeight="Bold" Foreground="#9C27B0"/>
-                </StackPanel>
+                                <!-- Cycle 2 (Previous 1) -->
+                                <Border Grid.Column="2" CornerRadius="3" Margin="5,0" Padding="8,5">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="{Binding Cycle2Color}"/>
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding Cycle2Text}" FontSize="10" Foreground="White" VerticalAlignment="Center" TextAlignment="Center"/>
+                                </Border>
 
-                <StackPanel Grid.Column="5">
-                    <TextBlock Text="Utilization" FontSize="12" Foreground="#808080"/>
-                    <TextBlock FontSize="18" FontWeight="Bold" Foreground="#4CAF50">
-                        <TextBlock.Text>
-                            <Binding Path="Utilization" StringFormat="{}{0:F1}%"/>
-                        </TextBlock.Text>
-                    </TextBlock>
-                </StackPanel>
+                                <!-- Cycle 3 (Previous 2) -->
+                                <Border Grid.Column="3" CornerRadius="3" Margin="5,0" Padding="8,5">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="{Binding Cycle3Color}"/>
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding Cycle3Text}" FontSize="10" Foreground="White" VerticalAlignment="Center" TextAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Grid>
         </Border>
 
         <!-- Tools Grid -->
         <Grid Grid.Row="2">
-            <ItemsControl ItemsSource="{Binding Tools}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <UniformGrid Rows="1" Columns="3"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="#2D2D30" Margin="5" Padding="15" CornerRadius="5">
-                            <StackPanel>
-                                <TextBlock Text="{Binding ToolId}" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Tools}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="2" Columns="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#2D2D30" Margin="5" Padding="10" CornerRadius="5">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ToolId}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
 
-                                <!-- Status Indicator -->
-                                <Border Height="60" Margin="0,10" CornerRadius="5">
-                                    <Border.Background>
-                                        <SolidColorBrush Color="{Binding StatusColor}"/>
-                                    </Border.Background>
-                                    <TextBlock Text="{Binding State}" FontSize="22" FontWeight="Bold"
-                                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
+                                    <!-- Wafer Visualization -->
+                                    <Grid Height="110" Margin="0,8">
+                                        <!-- Wafer Circle -->
+                                        <Ellipse Width="80" Height="80" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="#404040"/>
+                                                    <Setter Property="Stroke" Value="#606060"/>
+                                                    <Setter Property="StrokeThickness" Value="2"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasWafer}" Value="True">
+                                                            <Setter Property="Fill">
+                                                                <Setter.Value>
+                                                                    <RadialGradientBrush>
+                                                                        <GradientStop Color="{Binding StatusColor}" Offset="0.4"/>
+                                                                        <GradientStop Color="#1E1E1E" Offset="1"/>
+                                                                    </RadialGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter Property="Stroke">
+                                                                <Setter.Value>
+                                                                    <SolidColorBrush Color="{Binding StatusColor}"/>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter Property="StrokeThickness" Value="3"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding MainState}" Value="processing">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard Name="ProcessingPulse" Storyboard="{StaticResource WaferPulse}"/>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <StopStoryboard BeginStoryboardName="ProcessingPulse"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+
+                                        <!-- Wafer ID Text -->
+                                        <TextBlock Text="{Binding CurrentWaferId}" FontSize="9" FontWeight="Bold"
+                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,35,0,0"
+                                                   Visibility="{Binding HasWafer, Converter={StaticResource BoolToVis}}"/>
+
+                                        <!-- Job ID Label -->
+                                        <TextBlock Text="{Binding CurrentJobId}" FontSize="8" Foreground="#9CDCFE"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,50,0,0"
+                                                   Visibility="{Binding HasWafer, Converter={StaticResource BoolToVis}}"/>
+
+                                        <!-- Empty Indicator -->
+                                        <TextBlock Text="○" FontSize="40" Foreground="#404040"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,25,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasWafer}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- E90 Substrate Tracking Label -->
+                                        <TextBlock Text="E90" FontSize="7" FontWeight="Bold" Foreground="#4CAF50"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                   Visibility="{Binding HasWafer, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
+
+                                    <!-- Main State -->
+                                    <Border Height="35" Margin="0,5" CornerRadius="5">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="{Binding StatusColor}"/>
+                                        </Border.Background>
+                                        <TextBlock Text="{Binding MainState}" FontSize="14" FontWeight="Bold"
+                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- SubState (if exists) -->
+                                    <Border Height="18" Margin="0,0,0,5" Style="{StaticResource SubStateVisibility}">
+                                        <TextBlock Text="{Binding SubState}" FontSize="10" Foreground="#9CDCFE"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    </Border>
 
                                 <!-- Metrics -->
-                                <Grid Margin="0,10,0,0">
+                                <Grid Margin="0,5,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
@@ -137,25 +236,25 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Wafers:" Foreground="#808080" Margin="0,5"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WafersProcessed}" Foreground="White" FontWeight="Bold" Margin="0,5"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Wafers:" Foreground="#808080" Margin="0,3" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WafersProcessed}" Foreground="White" FontWeight="Bold" Margin="5,3,0,3" FontSize="11"/>
 
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Slurry:" Foreground="#808080" Margin="0,5"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Slurry:" Foreground="#808080" Margin="0,3" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="5,3,0,3" FontSize="11">
                                         <TextBlock.Text>
                                             <Binding Path="SlurryLevel" StringFormat="{}{0:F1}%"/>
                                         </TextBlock.Text>
                                     </TextBlock>
 
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Pad Wear:" Foreground="#808080" Margin="0,5"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Pad:" Foreground="#808080" Margin="0,3" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="5,3,0,3" FontSize="11">
                                         <TextBlock.Text>
                                             <Binding Path="PadWear" StringFormat="{}{0:F1}%"/>
                                         </TextBlock.Text>
                                     </TextBlock>
 
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Avg Cycle:" Foreground="#808080" Margin="0,5"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Cycle:" Foreground="#808080" Margin="0,3" FontSize="11"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="5,3,0,3" FontSize="11">
                                         <TextBlock.Text>
                                             <Binding Path="AvgCycleTime" StringFormat="{}{0:F1}s"/>
                                         </TextBlock.Text>
@@ -166,6 +265,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </ScrollViewer>
         </Grid>
 
         <!-- Event Log -->
