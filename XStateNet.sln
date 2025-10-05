@@ -53,6 +53,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet.SharedMemory", "X
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XStateNet.SharedMemory.Tests", "XStateNet.SharedMemory.Tests\XStateNet.SharedMemory.Tests.csproj", "{A5261210-FBA2-409B-B16B-2582E68F6B62}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemiStandard.WPF.EnhancedCMP", "SemiStandard.WPF.EnhancedCMP\SemiStandard.WPF.EnhancedCMP.csproj", "{DC93EA93-2ADA-457E-BE22-8C90685B7B39}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -339,6 +341,18 @@ Global
 		{A5261210-FBA2-409B-B16B-2582E68F6B62}.Release|x64.Build.0 = Release|Any CPU
 		{A5261210-FBA2-409B-B16B-2582E68F6B62}.Release|x86.ActiveCfg = Release|Any CPU
 		{A5261210-FBA2-409B-B16B-2582E68F6B62}.Release|x86.Build.0 = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|x64.Build.0 = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Debug|x86.Build.0 = Debug|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|x64.ActiveCfg = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|x64.Build.0 = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|x86.ActiveCfg = Release|Any CPU
+		{DC93EA93-2ADA-457E-BE22-8C90685B7B39}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

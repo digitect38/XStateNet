@@ -1,0 +1,195 @@
+﻿<Window x:Class="SemiStandard.WPF.EnhancedCMP.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SemiStandard.WPF.EnhancedCMP.ViewModels"
+        mc:Ignorable="d"
+        Title="Enhanced CMP Simulator - SEMI E40/E90/E134/E39 Integration"
+        Height="900" Width="1400"
+        Background="#1E1E1E">
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="300"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2D2D30" Padding="20" CornerRadius="5" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Enhanced CMP Simulator" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="SEMI Standards: E40 Process Jobs • E90 Substrate Tracking • E134 Data Collection • E39 Equipment Metrics"
+                               FontSize="14" Foreground="#9CDCFE" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▶ Start" Command="{Binding StartCommand}"
+                            Width="100" Height="40" Margin="5"
+                            Background="#0E639C" Foreground="White" FontSize="14" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="⏹ Stop" Command="{Binding StopCommand}"
+                            Width="100" Height="40" Margin="5"
+                            Background="#F44336" Foreground="White" FontSize="14" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="➕ Send Job" Command="{Binding SendJobCommand}"
+                            Width="100" Height="40" Margin="5"
+                            Background="#4CAF50" Foreground="White" FontSize="14" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Master Scheduler Status -->
+        <Border Grid.Row="1" Background="#2D2D30" Padding="15" CornerRadius="5" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Status" FontSize="12" Foreground="#808080"/>
+                    <TextBlock Text="{Binding StatusText}" FontSize="18" FontWeight="Bold" Foreground="#4CAF50"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Master State" FontSize="12" Foreground="#808080"/>
+                    <TextBlock Text="{Binding MasterState}" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Current WIP" FontSize="12" Foreground="#808080"/>
+                    <TextBlock Text="{Binding CurrentWip}" FontSize="18" FontWeight="Bold" Foreground="#2196F3"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="Queue Length" FontSize="12" Foreground="#808080"/>
+                    <TextBlock Text="{Binding QueueLength}" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="Total Jobs" FontSize="12" Foreground="#808080"/>
+                    <TextBlock Text="{Binding TotalJobs}" FontSize="18" FontWeight="Bold" Foreground="#9C27B0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="5">
+                    <TextBlock Text="Utilization" FontSize="12" Foreground="#808080"/>
+                    <TextBlock FontSize="18" FontWeight="Bold" Foreground="#4CAF50">
+                        <TextBlock.Text>
+                            <Binding Path="Utilization" StringFormat="{}{0:F1}%"/>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tools Grid -->
+        <Grid Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Tools}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" Columns="3"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#2D2D30" Margin="5" Padding="15" CornerRadius="5">
+                            <StackPanel>
+                                <TextBlock Text="{Binding ToolId}" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                <!-- Status Indicator -->
+                                <Border Height="60" Margin="0,10" CornerRadius="5">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="{Binding StatusColor}"/>
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding State}" FontSize="22" FontWeight="Bold"
+                                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Metrics -->
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Wafers:" Foreground="#808080" Margin="0,5"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WafersProcessed}" Foreground="White" FontWeight="Bold" Margin="0,5"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Slurry:" Foreground="#808080" Margin="0,5"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                        <TextBlock.Text>
+                                            <Binding Path="SlurryLevel" StringFormat="{}{0:F1}%"/>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Pad Wear:" Foreground="#808080" Margin="0,5"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                        <TextBlock.Text>
+                                            <Binding Path="PadWear" StringFormat="{}{0:F1}%"/>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Avg Cycle:" Foreground="#808080" Margin="0,5"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="White" FontWeight="Bold" Margin="0,5">
+                                        <TextBlock.Text>
+                                            <Binding Path="AvgCycleTime" StringFormat="{}{0:F1}s"/>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <!-- Event Log -->
+        <Border Grid.Row="3" Background="#2D2D30" Padding="15" CornerRadius="5" Margin="0,10,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Event Log" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding EventLog}"
+                         Background="#1E1E1E" Foreground="#D4D4D4"
+                         BorderThickness="0" FontFamily="Consolas" FontSize="12">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="5,2"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="#D4D4D4"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
