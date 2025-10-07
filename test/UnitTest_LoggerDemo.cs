@@ -22,9 +22,10 @@ namespace XStateNet.UnitTest
             var actions = new ActionMap
             {
                 ["logAction"] = new List<NamedAction> {
-                    new NamedAction("logAction", async (sm) => {
+                    new NamedAction("logAction", (sm) => {
                         // This will show the line number in this test file
                         Logger.Info("Action executed in state machine");
+                        return Task.CompletedTask;
                     })
                 }
             };

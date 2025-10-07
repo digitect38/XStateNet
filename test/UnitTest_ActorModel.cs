@@ -19,7 +19,7 @@ public class UnitTest_ActorModel : IDisposable
 
         _actions = new ActionMap
         {
-            ["log"] = new List<NamedAction> { new NamedAction("log", async (sm) => Console.WriteLine($"Action in {sm.machineId}")) }
+            ["log"] = new List<NamedAction> { new NamedAction("log", (sm) => { Console.WriteLine($"Action in {sm.machineId}"); return Task.CompletedTask; }) }
         };
 
         _guards = new GuardMap();

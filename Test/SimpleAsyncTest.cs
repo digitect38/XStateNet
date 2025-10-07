@@ -172,7 +172,7 @@ namespace Test
             {
                 ["doWork"] = new List<NamedAction>
                 {
-                    new NamedAction("doWork", async (sm) =>
+                    new NamedAction("doWork", (sm) =>
                     {
                         _output.WriteLine("  Action: doWork started");
 
@@ -187,6 +187,7 @@ namespace Test
                         });
 
                         _output.WriteLine("  Action: doWork completing");
+                        return Task.CompletedTask;
                     })
                 },
                 ["onComplete"] = new List<NamedAction>

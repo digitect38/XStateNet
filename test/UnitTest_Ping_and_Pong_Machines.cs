@@ -59,14 +59,14 @@ namespace AdvancedFeatures
             // Ping actions
             _pingActions = new ActionMap()
             {
-                ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", async (sm) => _pongStateMachine.Send("to_b")) }
+                ["sendToPongToB"] = new List<NamedAction> { new NamedAction("sendToPongToB", (sm) => { _pongStateMachine.Send("to_b"); return Task.CompletedTask; }) }
             };
             _pingGuards = new GuardMap();
 
             // Pong actions
             _pongActions = new ActionMap()
             {
-                ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", async (sm) => _pingStateMachine.Send("to_a")) }
+                ["sendToPingToA"] = new List<NamedAction> { new NamedAction("sendToPingToA", (sm) => { _pingStateMachine.Send("to_a"); return Task.CompletedTask; }) }
             };
             _pongGuards = new GuardMap();
 
@@ -136,7 +136,7 @@ namespace AdvancedFeatures
         public async Task TestPingPongStateMachines()
         {
             // Setup test environment
-            SetupTest();
+            await SetupTest();
 
             try
             {

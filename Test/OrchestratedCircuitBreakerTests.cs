@@ -287,7 +287,7 @@ namespace XStateNet.Tests
             // Act & Assert
             await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
             {
-                await breaker.ExecuteAsync(async ct => true);
+                await breaker.ExecuteAsync(ct => Task.FromResult(true));
             });
         }
 
@@ -333,7 +333,7 @@ namespace XStateNet.Tests
             // Try second test - should be rejected
             try
             {
-                await breaker.ExecuteAsync(async ct => true);
+                await breaker.ExecuteAsync(ct => Task.FromResult(true));
             }
             catch (CircuitBreakerOpenException)
             {
