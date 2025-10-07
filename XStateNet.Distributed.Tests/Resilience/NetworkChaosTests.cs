@@ -192,7 +192,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 }
             }
             await Task.WhenAll(tasks);
-            await WaitUntilQuiescentAsync(() => processedCount, noProgressTimeoutMs: 2000, maxWaitSeconds: 5);
+            await WaitForCountAsync(() => processedCount, targetValue: 180, timeoutSeconds: 10);
 
             sw.Stop();
 
