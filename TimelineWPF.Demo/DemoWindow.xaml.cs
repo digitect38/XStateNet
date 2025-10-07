@@ -65,7 +65,7 @@ namespace TimelineWPF.Demo
             LoadTrafficLightDemo();
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        private void Timer_Tick(object? sender, EventArgs e)
         {
             if (!_isRunning) return;
 
@@ -193,7 +193,7 @@ namespace TimelineWPF.Demo
             }
         }
 
-        private StateMachine CreateTrafficLightMachine(string name)
+        private StateMachine? CreateTrafficLightMachine(string name)
         {
             try
             {
