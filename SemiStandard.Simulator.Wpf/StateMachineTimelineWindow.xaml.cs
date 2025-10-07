@@ -31,7 +31,7 @@ namespace SemiStandard.Simulator.Wpf
         private SimulationState simulationState = SimulationState.Stopped;
 
         // Timing
-        private DispatcherTimer simulationTimer;
+        private DispatcherTimer simulationTimer = null!;
         private DateTime lastTimestamp;
         private double simulationTime = 0; // microseconds
         private double playbackSpeed = 1.0;
@@ -180,7 +180,7 @@ namespace SemiStandard.Simulator.Wpf
             return baseTime * (1 - jitter) + random.NextDouble() * (baseTime * jitter * 2);
         }
 
-        private void SimulationTimer_Tick(object sender, EventArgs e)
+        private void SimulationTimer_Tick(object? sender, EventArgs e)
         {
             if (simulationState != SimulationState.Running) return;
 
@@ -773,7 +773,7 @@ namespace SemiStandard.Simulator.Wpf
         }
 
         // Event handlers
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        private void StartButton_Click(object? sender, RoutedEventArgs? e)
         {
             Debug.WriteLine($"[DEBUG] StartButton_Click: simulationTime before={simulationTime:F0}");
 
@@ -793,7 +793,7 @@ namespace SemiStandard.Simulator.Wpf
             Debug.WriteLine($"[DEBUG] StartButton_Click: simulationTime after={simulationTime:F0}");
         }
 
-        private void PauseButton_Click(object sender, RoutedEventArgs e)
+        private void PauseButton_Click(object? sender, RoutedEventArgs? e)
         {
             simulationState = SimulationState.Paused;
             simulationTimer.Stop();
@@ -859,6 +859,8 @@ namespace SemiStandard.Simulator.Wpf
             if (isRealtimeMode) return;
 
             var canvas = sender as Canvas;
+            if (canvas == null) return;
+
             Point mousePos = e.GetPosition(canvas);
 
             double timeAtMouse = viewOffset + (mousePos.X - canvas.ActualWidth / 2) / zoomFactor;
@@ -888,8 +890,11 @@ namespace SemiStandard.Simulator.Wpf
             }
 
             isPanning = true;
-            lastPanPoint = e.GetPosition(sender as Canvas);
-            (sender as Canvas).CaptureMouse();
+            var canvas = sender as Canvas;
+            if (canvas == null) return;
+
+            lastPanPoint = e.GetPosition(canvas);
+            canvas.CaptureMouse();
         }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
@@ -897,6 +902,8 @@ namespace SemiStandard.Simulator.Wpf
             if (isRealtimeMode || !isPanning) return;
 
             var canvas = sender as Canvas;
+            if (canvas == null) return;
+
             Point currentPoint = e.GetPosition(canvas);
             double dx = currentPoint.X - lastPanPoint.X;
             lastPanPoint = currentPoint;
@@ -911,7 +918,8 @@ namespace SemiStandard.Simulator.Wpf
             if (isPanning)
             {
                 isPanning = false;
-                (sender as Canvas).ReleaseMouseCapture();
+                var canvas = sender as Canvas;
+                canvas?.ReleaseMouseCapture();
             }
         }
 
@@ -919,7 +927,7 @@ namespace SemiStandard.Simulator.Wpf
         {
             public double Time { get; set; }
             public ItemType Type { get; set; }
-            public string Name { get; set; }
+            public string Name { get; set; } = null!;
             public double Duration { get; set; }
         }
 
@@ -932,9 +940,9 @@ namespace SemiStandard.Simulator.Wpf
 
         private class StateMachineDefinition
         {
-            public string Name { get; set; }
-            public string[] States { get; set; }
-            public string InitialState { get; set; }
+            public string Name { get; set; } = null!;
+            public string[] States { get; set; } = null!;
+            public string InitialState { get; set; } = null!;
         }
     }
 }

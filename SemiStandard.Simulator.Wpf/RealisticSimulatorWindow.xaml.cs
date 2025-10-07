@@ -814,6 +814,7 @@ namespace SemiStandard.Simulator.Wpf
 
             return; // The old script definitions are no longer needed
 
+#pragma warning disable CS0162 // Unreachable code detected
             // OLD CODE BELOW (kept for reference but not executed)
             _xStateScripts["EquipmentController"] = @"{
   id: 'EquipmentController',
@@ -1068,6 +1069,7 @@ namespace SemiStandard.Simulator.Wpf
 
                 _debugTimelineWindow.Show();
             }
+#pragma warning restore CS0162
         }
 
         private void ShowUmlTimingButton_Click(object sender, RoutedEventArgs e)
@@ -1387,21 +1389,21 @@ namespace SemiStandard.Simulator.Wpf
             }
 
             // Initial state machine setup using real state machines
-            await _stateMachines["EquipmentController"]?.SendAsync("POWER_ON");
-            await _stateMachines["TransportHandler"]?.SendAsync("INIT_COMPLETE");
+            await (_stateMachines["EquipmentController"]?.SendAsync("POWER_ON") ?? Task.CompletedTask);
+            await (_stateMachines["TransportHandler"]?.SendAsync("INIT_COMPLETE") ?? Task.CompletedTask);
             await Task.Delay(100);
-            await _stateMachines["ProcessManager"]?.SendAsync("SYSTEM_READY");
+            await (_stateMachines["ProcessManager"]?.SendAsync("SYSTEM_READY") ?? Task.CompletedTask);
             await Task.Delay(100);
-            await _stateMachines["EquipmentController"]?.SendAsync("INIT_SUCCESS");
+            await (_stateMachines["EquipmentController"]?.SendAsync("INIT_SUCCESS") ?? Task.CompletedTask);
 
             // Initialize SEMI standard state machines using real events
-            await _stateMachines["E30GEM"]?.SendAsync("ENABLE_COMMAND");
-            await _stateMachines["E87Carrier"]?.SendAsync("CARRIER_DETECTED");
-            await _stateMachines["E94ControlJob"]?.SendAsync("CREATE_JOB");
-            await _stateMachines["E37HSMSSession"]?.SendAsync("CONNECT");
-            await _stateMachines["ProcessControl"]?.SendAsync("START_REQUEST");
-            await _stateMachines["MaterialHandling"]?.SendAsync("LOAD_START");
-            await _stateMachines["AlarmManager"]?.SendAsync("WARNING_DETECTED");
+            await (_stateMachines["E30GEM"]?.SendAsync("ENABLE_COMMAND") ?? Task.CompletedTask);
+            await (_stateMachines["E87Carrier"]?.SendAsync("CARRIER_DETECTED") ?? Task.CompletedTask);
+            await (_stateMachines["E94ControlJob"]?.SendAsync("CREATE_JOB") ?? Task.CompletedTask);
+            await (_stateMachines["E37HSMSSession"]?.SendAsync("CONNECT") ?? Task.CompletedTask);
+            await (_stateMachines["ProcessControl"]?.SendAsync("START_REQUEST") ?? Task.CompletedTask);
+            await (_stateMachines["MaterialHandling"]?.SendAsync("LOAD_START") ?? Task.CompletedTask);
+            await (_stateMachines["AlarmManager"]?.SendAsync("WARNING_DETECTED") ?? Task.CompletedTask);
 
             // Simulate periodic state changes
             var stateTimer = new DispatcherTimer();

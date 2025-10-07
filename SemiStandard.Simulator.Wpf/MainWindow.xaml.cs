@@ -55,7 +55,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SetupMessageLog();
         SetupTimers();
         SetupEventHandlers();
-        InitializeStateMachines();
+        _ = InitializeStateMachines(); // Fire and forget - initialization continues in background
 
         _startTime = DateTime.Now;
     }
@@ -307,7 +307,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         LogMessage("->", "Simulator stopped");
     }
 
-    private async void ResetStates_Click(object? sender, RoutedEventArgs e)
+    private void ResetStates_Click(object? sender, RoutedEventArgs e)
     {
         if (_controller == null) return;
 
@@ -366,12 +366,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         await Task.CompletedTask;
     }
 
-    private async Task SendSecsMessage(SecsMessage message)
+    private Task SendSecsMessage(SecsMessage message)
     {
         if (_hostConnection == null || !_hostConnection.IsConnected)
         {
             LogMessage("!", "Not connected to host");
-            return;
+            return Task.CompletedTask;
         }
 
         try
@@ -386,6 +386,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _messageErrors++;
             LogMessage("!", $"Send failed: {ex.Message}");
         }
+
+        return Task.CompletedTask;
     }
 
     private async void SendCustomMessage_Click(object? sender, RoutedEventArgs e)
