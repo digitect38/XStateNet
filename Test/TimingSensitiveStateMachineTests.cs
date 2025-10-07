@@ -51,7 +51,7 @@ namespace XStateNet.TimingSensitive.Tests
             }";
 
             var innerMachine = StateMachineFactory.CreateFromScript(config.Replace("'", "\""), false, true);
-            innerMachine.StartAsync();
+            _ = innerMachine.StartAsync();
             using var priorityMachine = new PriorityStateMachine(innerMachine);
 
             var transitionOrder = new List<string>();

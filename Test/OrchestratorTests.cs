@@ -40,7 +40,7 @@ namespace Test
             // Arrange
             var machine = PureStateMachineFactory.CreateSimple("m1");
             _machines.Add(machine);
-            _orchestrator.RegisterMachine("m1", (machine as PureStateMachineAdapter)?.GetUnderlying());
+            _orchestrator.RegisterMachine("m1", (machine as PureStateMachineAdapter)?.GetUnderlying()!);
             await machine.StartAsync();
 
             // Act

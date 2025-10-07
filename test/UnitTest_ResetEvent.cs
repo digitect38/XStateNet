@@ -43,15 +43,17 @@ public class UnitTest_ResetEvent : IDisposable
 
         _actions = new ActionMap
         {
-            ["logEntry"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["logEntry"] = new List<NamedAction> { new NamedAction((sm) => {
                 _actionLog.Add($"entry:{sm.GetActiveStateNames()}");
                 _counters["entries"] = _counters.GetValueOrDefault("entries", 0) + 1;
+                return Task.CompletedTask;
             }, "logEntry") },
-            ["logExit"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["logExit"] = new List<NamedAction> { new NamedAction((sm) => {
                 _actionLog.Add($"exit:{sm.GetActiveStateNames()}");
                 _counters["exits"] = _counters.GetValueOrDefault("exits", 0) + 1;
+                return Task.CompletedTask;
             }, "logExit") },
-            ["incrementCounter"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["incrementCounter"] = new List<NamedAction> { new NamedAction((sm) => {
                 var counterValue = sm.ContextMap?["counter"];
                 var counter = 0;
                 if(counterValue is Newtonsoft.Json.Linq.JValue jv) {
@@ -61,18 +63,22 @@ public class UnitTest_ResetEvent : IDisposable
                 }
                 sm.ContextMap!["counter"] = counter + 1;
                 _actionLog.Add($"counter:{counter + 1}");
+                return Task.CompletedTask;
             }, "incrementCounter") },
-            ["logAction"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["logAction"] = new List<NamedAction> { new NamedAction((sm) => {
                 _actionLog.Add($"action:executed");
+                return Task.CompletedTask;
             }, "logAction") },
-            ["initializeContext"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["initializeContext"] = new List<NamedAction> { new NamedAction((sm) => {
                 sm.ContextMap!["initialized"] = true;
                 _actionLog.Add("context:initialized");
+                return Task.CompletedTask;
             }, "initializeContext") },
-            ["modifyContext"] = new List<NamedAction> { new NamedAction(async (sm) => {
+            ["modifyContext"] = new List<NamedAction> { new NamedAction((sm) => {
                 sm.ContextMap!["modified"] = true;
                 sm.ContextMap!["counter"] = 99;
                 _actionLog.Add("context:modified");
+                return Task.CompletedTask;
             }, "modifyContext") }
         };
 

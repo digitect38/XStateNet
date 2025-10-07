@@ -10,10 +10,10 @@ namespace XStateNet.Tests.TestInfrastructure
 
         public static async Task WaitForConditionAsync(
             Func<bool> condition,
-            string description = null,
+            string? description = null,
             TimeSpan? timeout = null,
             TimeSpan? pollingInterval = null,
-            ITestOutputHelper output = null)
+            ITestOutputHelper? output = null)
         {
             var actualTimeout = timeout ?? DefaultTimeout;
             var actualPollingInterval = pollingInterval ?? DefaultPollingInterval;
@@ -38,10 +38,10 @@ namespace XStateNet.Tests.TestInfrastructure
         public static async Task<T> WaitForResultAsync<T>(
             Func<Task<T>> asyncFunc,
             Func<T, bool> validator,
-            string description = null,
+            string? description = null,
             TimeSpan? timeout = null,
             TimeSpan? pollingInterval = null,
-            ITestOutputHelper output = null)
+            ITestOutputHelper? output = null)
         {
             var actualTimeout = timeout ?? DefaultTimeout;
             var actualPollingInterval = pollingInterval ?? DefaultPollingInterval;
@@ -72,10 +72,10 @@ namespace XStateNet.Tests.TestInfrastructure
             Func<Task> action,
             int maxAttempts = 3,
             TimeSpan? delayBetweenAttempts = null,
-            ITestOutputHelper output = null)
+            ITestOutputHelper? output = null)
         {
             var actualDelay = delayBetweenAttempts ?? TimeSpan.FromMilliseconds(100);
-            Exception lastException = null;
+            Exception? lastException = null;
 
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
@@ -106,7 +106,7 @@ namespace XStateNet.Tests.TestInfrastructure
         public static async Task RunConcurrentOperationsAsync(
             int concurrencyLevel,
             Func<int, Task> operation,
-            ITestOutputHelper output = null)
+            ITestOutputHelper? output = null)
         {
             output?.WriteLine($"Starting {concurrencyLevel} concurrent operations");
             var stopwatch = Stopwatch.StartNew();
@@ -123,7 +123,7 @@ namespace XStateNet.Tests.TestInfrastructure
         public static async Task<List<T>> CollectConcurrentResultsAsync<T>(
             int operationCount,
             Func<int, Task<T>> operation,
-            ITestOutputHelper output = null)
+            ITestOutputHelper? output = null)
         {
             output?.WriteLine($"Collecting results from {operationCount} concurrent operations");
             var stopwatch = Stopwatch.StartNew();
@@ -160,7 +160,7 @@ namespace XStateNet.Tests.TestInfrastructure
             public static async Task<T> WithTimeoutAsync<T>(
                 Task<T> task,
                 TimeSpan? timeout = null,
-                string operationName = null)
+                string? operationName = null)
             {
                 var actualTimeout = timeout ?? DefaultTimeout;
                 var timeoutTask = Task.Delay(actualTimeout);
@@ -178,7 +178,7 @@ namespace XStateNet.Tests.TestInfrastructure
             public static async Task WithTimeoutAsync(
                 Task task,
                 TimeSpan? timeout = null,
-                string operationName = null)
+                string? operationName = null)
             {
                 var actualTimeout = timeout ?? DefaultTimeout;
                 var timeoutTask = Task.Delay(actualTimeout);
@@ -200,7 +200,7 @@ namespace XStateNet.Tests.TestInfrastructure
                 Func<T> getValue,
                 T expectedValue,
                 TimeSpan? timeout = null,
-                ITestOutputHelper output = null)
+                ITestOutputHelper? output = null)
             {
                 var actualTimeout = timeout ?? DefaultTimeout;
                 var stopwatch = Stopwatch.StartNew();
@@ -231,7 +231,7 @@ namespace XStateNet.Tests.TestInfrastructure
                 Func<bool> invariantCheck,
                 int iterations = 100,
                 int concurrencyLevel = 10,
-                ITestOutputHelper output = null)
+                ITestOutputHelper? output = null)
             {
                 output?.WriteLine($"Testing for race conditions: {iterations} iterations with concurrency {concurrencyLevel}");
 

@@ -10,20 +10,20 @@ namespace AdvancedFeatures
 {
     public class InterMachinePingPongStateMachinesTests : XStateNet.Tests.TestBase, IDisposable
     {
-        private StateMachine _pingStateMachine;
-        private StateMachine _pongStateMachine;
+        private StateMachine _pingStateMachine = null!;
+        private StateMachine _pongStateMachine = null!;
 
-        private ActionMap _pingActions;
-        private GuardMap _pingGuards;
+        private ActionMap _pingActions = null!;
+        private GuardMap _pingGuards = null!;
 
-        private ActionMap _pongActions;
-        private GuardMap _pongGuards;
+        private ActionMap _pongActions = null!;
+        private GuardMap _pongGuards = null!;
 
-        private List<string> _transitionLog;
+        private List<string> _transitionLog = null!;
 
         // Store unique IDs for this test instance
-        private string _pingId;
-        private string _pongId;
+        private string _pingId = null!;
+        private string _pongId = null!;
 
         void Send(StateMachine sm)
         {
@@ -112,13 +112,13 @@ namespace AdvancedFeatures
 
             // Clear any remaining references
             _transitionLog?.Clear();
-            _transitionLog = null;
-            _pingActions = null;
-            _pongActions = null;
-            _pingGuards = null;
-            _pongGuards = null;
-            _pingId = null;
-            _pongId = null;
+            _transitionLog = null!;
+            _pingActions = null!;
+            _pongActions = null!;
+            _pingGuards = null!;
+            _pongGuards = null!;
+            _pingId = null!;
+            _pongId = null!;
         }
 
         // IDisposable implementation
