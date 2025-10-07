@@ -155,11 +155,13 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             var json = @"{
                 id: 'latency-node',
-                initial: 'active',
+                initial: 'idle',
                 states: {
+                    idle: {
+                        on: { TICK: { target: 'active', actions: ['processWithLatency'] } }
+                    },
                     active: {
-                        entry: ['processWithLatency'],
-                        on: { TICK: 'active' }
+                        on: { TICK: { target: 'idle', actions: ['processWithLatency'] } }
                     }
                 }
             }";
