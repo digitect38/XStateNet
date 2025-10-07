@@ -93,19 +93,22 @@ namespace XStateNet.Distributed.Tests.Resilience
                     // Heavy load (10 tasks)
                     for (int i = 0; i < 10; i++)
                     {
-                        tasks.Add(Task.Run(() => RunHeavyLoadScenario(iteration, i)));
+                        var taskId = i; // Capture loop variable
+                        tasks.Add(Task.Run(() => RunHeavyLoadScenario(iteration, taskId)));
                     }
 
                     // Medium load (20 tasks)
                     for (int i = 0; i < 20; i++)
                     {
-                        tasks.Add(Task.Run(() => RunMediumLoadScenario(iteration, i)));
+                        var taskId = i; // Capture loop variable
+                        tasks.Add(Task.Run(() => RunMediumLoadScenario(iteration, taskId)));
                     }
 
                     // Light load (30 tasks)
                     for (int i = 0; i < 30; i++)
                     {
-                        tasks.Add(Task.Run(() => RunLightLoadScenario(iteration, i)));
+                        var taskId = i; // Capture loop variable
+                        tasks.Add(Task.Run(() => RunLightLoadScenario(iteration, taskId)));
                     }
 
                     var sw = Stopwatch.StartNew();
@@ -116,6 +119,11 @@ namespace XStateNet.Distributed.Tests.Resilience
                 }
                 catch (Exception ex)
                 {
+                    if (iteration == 0) // Log first failure for debugging
+                    {
+                        _output.WriteLine($"First failure: {ex.GetType().Name}: {ex.Message}");
+                        _output.WriteLine($"Stack: {ex.StackTrace}");
+                    }
                     tracker.RecordFailure("MixedLoad", ex, 0);
                 }
 
@@ -393,28 +401,30 @@ namespace XStateNet.Distributed.Tests.Resilience
         private async Task RunHeavyLoadScenario(int iteration, int taskId)
         {
             using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-            var json = @"{ id: 'heavy', initial: 'active', states: { active: {} } }";
+            var machineId = $"heavy-{iteration}-{taskId}";
+            var json = $@"{{ id: '{machineId}', initial: 'active', states: {{ active: {{}} }} }}";
             var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-                id: "heavy", json: json, orchestrator: orchestrator,
+                id: machineId, json: json, orchestrator: orchestrator,
                 orchestratedActions: null, guards: null, services: null, delays: null, activities: null, enableGuidIsolation: false);
-            await orchestrator.StartMachineAsync("heavy");
+            await orchestrator.StartMachineAsync(machineId);
 
             for (int i = 0; i < 50; i++)
-                await orchestrator.SendEventFireAndForgetAsync("test", "heavy", "WORK");
+                await orchestrator.SendEventFireAndForgetAsync("test", machineId, "WORK");
             await Task.Yield();
         }
 
         private async Task RunMediumLoadScenario(int iteration, int taskId)
         {
             using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-            var json = @"{ id: 'medium', initial: 'active', states: { active: {} } }";
+            var machineId = $"medium-{iteration}-{taskId}";
+            var json = $@"{{ id: '{machineId}', initial: 'active', states: {{ active: {{}} }} }}";
             var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-                id: "medium", json: json, orchestrator: orchestrator,
+                id: machineId, json: json, orchestrator: orchestrator,
                 orchestratedActions: null, guards: null, services: null, delays: null, activities: null, enableGuidIsolation: false);
-            await orchestrator.StartMachineAsync("medium");
+            await orchestrator.StartMachineAsync(machineId);
 
             for (int i = 0; i < 20; i++)
-                await orchestrator.SendEventFireAndForgetAsync("test", "medium", "WORK");
+                await orchestrator.SendEventFireAndForgetAsync("test", machineId, "WORK");
             await Task.Yield();
         }
 
