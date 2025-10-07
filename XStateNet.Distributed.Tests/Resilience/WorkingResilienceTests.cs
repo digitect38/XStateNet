@@ -44,7 +44,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch { }
             }
 
-            await Task.Delay(50);
+            await Task.Yield();
 
             // Assert
             Assert.Contains("open", circuitBreaker.CurrentState);
@@ -227,18 +227,18 @@ namespace XStateNet.Distributed.Tests.Resilience
             while (!circuitBreaker.CurrentState.Contains("open", StringComparison.OrdinalIgnoreCase)
                    && DateTime.UtcNow < deadline)
             {
-                await Task.Delay(10);
+                await Task.Yield();
             }
             Assert.Contains("open", circuitBreaker.CurrentState, StringComparison.OrdinalIgnoreCase);
 
-            // Wait for timeout
+            // Wait for timeout (intentional - testing circuit breaker timing)
             await Task.Delay(150);
 
             // Should now accept a test request (half-open)
             var result = await circuitBreaker.ExecuteAsync(ct => Task.FromResult("test"), CancellationToken.None);
             Assert.Equal("test", result);
 
-            await Task.Delay(50);
+            await Task.Yield();
             Assert.Contains("closed", circuitBreaker.CurrentState);
         }
 
@@ -265,7 +265,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
             catch { }
 
-            await Task.Delay(50);
+            await Task.Yield();
 
             // Assert - Should reject
             await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>

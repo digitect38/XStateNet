@@ -183,12 +183,13 @@ public class ToolViewModel : ViewModelBase
         set => SetProperty(ref _cycle3Color, value);
     }
 
-    public void UpdateCycles()
+    public void UpdateCycles(string? currentStage = null)
     {
-        // Current cycle (Cycle 1) - shows current wafer state
+        // Current cycle (Cycle 1) - shows current wafer and E90 stage
         if (HasWafer && !string.IsNullOrEmpty(CurrentWaferId))
         {
-            Cycle1Text = $"{CurrentWaferId}\n{MainState}";
+            var stageText = currentStage ?? MainState;
+            Cycle1Text = $"{CurrentWaferId}\n{stageText}";
             Cycle1Color = StatusColor;
         }
         else
@@ -204,7 +205,7 @@ public class ToolViewModel : ViewModelBase
             var prevCycle = new CycleInfo
             {
                 WaferId = _lastWaferId,
-                State = _lastMainState,
+                State = _lastStage ?? _lastMainState,
                 Color = GetColorForState(_lastMainState)
             };
 
@@ -226,10 +227,12 @@ public class ToolViewModel : ViewModelBase
 
         _lastWaferId = CurrentWaferId;
         _lastMainState = MainState;
+        _lastStage = currentStage;
     }
 
     private string? _lastWaferId;
     private string _lastMainState = "";
+    private string? _lastStage;
 
     private string GetColorForState(string state) => state.ToLower() switch
     {

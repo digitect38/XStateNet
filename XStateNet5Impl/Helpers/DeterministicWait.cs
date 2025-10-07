@@ -1,173 +1,221 @@
-using System.Diagnostics;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace XStateNet.Helpers
 {
     /// <summary>
-    /// Helper class for deterministic waiting in tests to replace Task.Delay
+    /// Production-grade deterministic wait utilities for async operations
+    /// Provides progress-aware waiting instead of fixed Task.Delay calls
     /// </summary>
     public static class DeterministicWait
     {
         /// <summary>
-        /// Waits for a specific condition to be true within a timeout
+        /// Wait deterministically for a condition to be met, polling with progress detection
         /// </summary>
-        public static async Task WaitForConditionAsync(
+        /// <param name="condition">Condition to wait for (e.g., () => count >= 50)</param>
+        /// <param name="getProgress">Function to get current progress value for detecting stalls</param>
+        /// <param name="timeoutSeconds">Maximum time to wait in seconds (default: 5)</param>
+        /// <param name="pollIntervalMs">How often to check condition in milliseconds (default: 50)</param>
+        /// <param name="noProgressTimeoutMs">How long to wait with no progress before giving up (default: 1000)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>True if condition was met, false if timeout or no progress</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task<bool> WaitForConditionAsync(
             Func<bool> condition,
-            int timeoutMs = 5000,
-            int pollIntervalMs = 10,
-            string conditionDescription = null)
+            Func<int> getProgress,
+            double timeoutSeconds = 5.0,
+            int pollIntervalMs = 50,
+            int noProgressTimeoutMs = 1000,
+            CancellationToken cancellationToken = default)
         {
-            var stopwatch = Stopwatch.StartNew();
-            while (!condition() && stopwatch.ElapsedMilliseconds < timeoutMs)
+            if (condition == null) throw new ArgumentNullException(nameof(condition));
+            if (getProgress == null) throw new ArgumentNullException(nameof(getProgress));
+            if (timeoutSeconds <= 0) throw new ArgumentException("Timeout must be positive", nameof(timeoutSeconds));
+            if (pollIntervalMs <= 0) throw new ArgumentException("Poll interval must be positive", nameof(pollIntervalMs));
+            if (noProgressTimeoutMs <= 0) throw new ArgumentException("No-progress timeout must be positive", nameof(noProgressTimeoutMs));
+
+            var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+            var lastProgress = getProgress();
+            var noProgressCount = 0;
+            var noProgressThreshold = noProgressTimeoutMs / pollIntervalMs;
+
+            while (DateTime.UtcNow < deadline)
             {
-                await Task.Delay(pollIntervalMs);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (condition())
+                    return true;
+
+                await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
+
+                var currentProgress = getProgress();
+                if (currentProgress == lastProgress)
+                {
+                    noProgressCount++;
+                    if (noProgressCount >= noProgressThreshold)
+                    {
+                        // No progress detected - queue likely drained
+                        return condition();
+                    }
+                }
+                else
+                {
+                    noProgressCount = 0;
+                    lastProgress = currentProgress;
+                }
             }
 
-            if (!condition())
-            {
-                var description = conditionDescription ?? "Condition";
-                throw new TimeoutException($"{description} not met within {timeoutMs}ms timeout");
-            }
+            return condition();
         }
 
         /// <summary>
-        /// Waits for a state machine to reach a specific state
+        /// Wait deterministically for a counter to reach a target value
         /// </summary>
-        public static async Task WaitForStateAsync(this StateMachine stateMachine, string expectedState, int timeoutMs = 5000)
+        /// <param name="getCount">Function to get current count</param>
+        /// <param name="targetValue">Target value to wait for</param>
+        /// <param name="timeoutSeconds">Maximum time to wait in seconds (default: 5)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>True if target was reached, false if timeout</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task<bool> WaitForCountAsync(
+            Func<int> getCount,
+            int targetValue,
+            double timeoutSeconds = 5.0,
+            CancellationToken cancellationToken = default)
         {
-            // Use the built-in WaitForStateAsync method from StateMachine
-            await stateMachine.WaitForStateAsync(expectedState, timeoutMs);
+            if (getCount == null) throw new ArgumentNullException(nameof(getCount));
+
+            return await WaitForConditionAsync(
+                condition: () => getCount() >= targetValue,
+                getProgress: getCount,
+                timeoutSeconds: timeoutSeconds,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Waits for a collection to contain a specific number of items
+        /// Wait deterministically until no progress is detected (queue drained)
+        /// Useful for waiting until async operations complete without knowing exact count
         /// </summary>
-        public static async Task WaitForCountAsync<T>(
-            Func<IEnumerable<T>> collectionProvider,
-            int expectedCount,
-            int timeoutMs = 5000)
+        /// <param name="getProgress">Function to get current progress value</param>
+        /// <param name="noProgressTimeoutMs">How long to wait with no progress (default: 1000)</param>
+        /// <param name="maxWaitSeconds">Maximum time to wait overall (default: 5)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>Task that completes when quiescent or timeout</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task WaitUntilQuiescentAsync(
+            Func<int> getProgress,
+            int noProgressTimeoutMs = 1000,
+            double maxWaitSeconds = 5.0,
+            CancellationToken cancellationToken = default)
         {
+            if (getProgress == null) throw new ArgumentNullException(nameof(getProgress));
+
             await WaitForConditionAsync(
-                () => collectionProvider().Count() >= expectedCount,
-                timeoutMs,
-                conditionDescription: $"Collection count >= {expectedCount}");
+                condition: () => false, // Never satisfied, relies on no-progress detection
+                getProgress: getProgress,
+                timeoutSeconds: maxWaitSeconds,
+                noProgressTimeoutMs: noProgressTimeoutMs,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Waits for a collection to contain a specific item
+        /// Wait for a specific amount of time with deterministic progress detection
+        /// Use this instead of Task.Delay when you want to ensure operations complete
         /// </summary>
-        public static async Task WaitForItemAsync<T>(
-            Func<IEnumerable<T>> collectionProvider,
-            Func<T, bool> predicate,
-            int timeoutMs = 5000)
+        /// <param name="getProgress">Function to track progress during the wait</param>
+        /// <param name="minimumWaitMs">Minimum time to wait in milliseconds</param>
+        /// <param name="additionalQuiescentMs">Additional time to wait after no progress (default: 500)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>Task that completes after minimum wait + quiescence</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task WaitWithProgressAsync(
+            Func<int> getProgress,
+            int minimumWaitMs,
+            int additionalQuiescentMs = 500,
+            CancellationToken cancellationToken = default)
         {
-            await WaitForConditionAsync(
-                () => collectionProvider().Any(predicate),
-                timeoutMs,
-                conditionDescription: "Expected item in collection");
+            if (getProgress == null) throw new ArgumentNullException(nameof(getProgress));
+            if (minimumWaitMs < 0) throw new ArgumentException("Minimum wait must be non-negative", nameof(minimumWaitMs));
+
+            await Task.Delay(minimumWaitMs, cancellationToken).ConfigureAwait(false);
+
+            // Then wait until quiescent
+            await WaitUntilQuiescentAsync(
+                getProgress: getProgress,
+                noProgressTimeoutMs: additionalQuiescentMs,
+                maxWaitSeconds: 5.0,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Waits for a string collection to contain a specific value
+        /// Wait for multiple conditions with progress detection
+        /// Returns when all conditions are met or timeout occurs
         /// </summary>
-        public static async Task WaitForLogEntryAsync(
-            IEnumerable<string> log,
-            string expectedEntry,
-            int timeoutMs = 5000)
+        /// <param name="conditions">Array of conditions to wait for</param>
+        /// <param name="getProgress">Function to get current progress value</param>
+        /// <param name="timeoutSeconds">Maximum time to wait in seconds (default: 5)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>True if all conditions were met, false if timeout</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task<bool> WaitForAllConditionsAsync(
+            Func<bool>[] conditions,
+            Func<int> getProgress,
+            double timeoutSeconds = 5.0,
+            CancellationToken cancellationToken = default)
         {
-            await WaitForConditionAsync(
-                () => log.Contains(expectedEntry),
-                timeoutMs,
-                conditionDescription: $"Log entry '{expectedEntry}'");
+            if (conditions == null || conditions.Length == 0)
+                throw new ArgumentException("Must provide at least one condition", nameof(conditions));
+            if (getProgress == null) throw new ArgumentNullException(nameof(getProgress));
+
+            return await WaitForConditionAsync(
+                condition: () =>
+                {
+                    foreach (var cond in conditions)
+                    {
+                        if (!cond())
+                            return false;
+                    }
+                    return true;
+                },
+                getProgress: getProgress,
+                timeoutSeconds: timeoutSeconds,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Waits for a string collection to match a predicate
+        /// Wait for any of multiple conditions with progress detection
+        /// Returns when any condition is met or timeout occurs
         /// </summary>
-        public static async Task WaitForLogEntryAsync(
-            IEnumerable<string> log,
-            Func<string, bool> predicate,
-            int timeoutMs = 5000)
+        /// <param name="conditions">Array of conditions to wait for</param>
+        /// <param name="getProgress">Function to get current progress value</param>
+        /// <param name="timeoutSeconds">Maximum time to wait in seconds (default: 5)</param>
+        /// <param name="cancellationToken">Optional cancellation token</param>
+        /// <returns>True if any condition was met, false if timeout</returns>
+        /// <exception cref="OperationCanceledException">If cancellation is requested</exception>
+        public static async Task<bool> WaitForAnyConditionAsync(
+            Func<bool>[] conditions,
+            Func<int> getProgress,
+            double timeoutSeconds = 5.0,
+            CancellationToken cancellationToken = default)
         {
-            await WaitForConditionAsync(
-                () => log.Any(predicate),
-                timeoutMs,
-                conditionDescription: "Matching log entry");
-        }
+            if (conditions == null || conditions.Length == 0)
+                throw new ArgumentException("Must provide at least one condition", nameof(conditions));
+            if (getProgress == null) throw new ArgumentNullException(nameof(getProgress));
 
-        /// <summary>
-        /// Waits for a counter/value to reach a specific threshold
-        /// </summary>
-        public static async Task WaitForValueAsync(
-            Func<int> valueProvider,
-            int expectedValue,
-            int timeoutMs = 5000,
-            bool atLeast = true)
-        {
-            if (atLeast)
-            {
-                await WaitForConditionAsync(
-                    () => valueProvider() >= expectedValue,
-                    timeoutMs,
-                    conditionDescription: $"Value >= {expectedValue}");
-            }
-            else
-            {
-                await WaitForConditionAsync(
-                    () => valueProvider() == expectedValue,
-                    timeoutMs,
-                    conditionDescription: $"Value == {expectedValue}");
-            }
-        }
-
-        /// <summary>
-        /// Waits for multiple conditions to be true
-        /// </summary>
-        public static async Task WaitForAllConditionsAsync(
-            params Func<bool>[] conditions)
-        {
-            await WaitForConditionAsync(
-                () => conditions.All(c => c()),
-                5000,
-                conditionDescription: "All conditions");
-        }
-
-        /// <summary>
-        /// Waits for any of the conditions to be true
-        /// </summary>
-        public static async Task WaitForAnyConditionAsync(
-            params Func<bool>[] conditions)
-        {
-            await WaitForConditionAsync(
-                () => conditions.Any(c => c()),
-                5000,
-                conditionDescription: "Any condition");
-        }
-
-        /// <summary>
-        /// Waits for a service to complete by checking event logs
-        /// </summary>
-        public static async Task WaitForServiceCompletionAsync(
-            IEnumerable<string> eventLog,
-            string serviceName,
-            int timeoutMs = 5000)
-        {
-            await WaitForConditionAsync(
-                () => eventLog.Any(e => e.Contains($"service:{serviceName}:completed")),
-                timeoutMs,
-                conditionDescription: $"Service '{serviceName}' completion");
-        }
-
-        /// <summary>
-        /// Waits for multiple services to complete
-        /// </summary>
-        public static async Task WaitForServicesCompletionAsync(
-            IEnumerable<string> eventLog,
-            params string[] serviceNames)
-        {
-            foreach (var serviceName in serviceNames)
-            {
-                await WaitForServiceCompletionAsync(eventLog, serviceName);
-            }
+            return await WaitForConditionAsync(
+                condition: () =>
+                {
+                    foreach (var cond in conditions)
+                    {
+                        if (cond())
+                            return true;
+                    }
+                    return false;
+                },
+                getProgress: getProgress,
+                timeoutSeconds: timeoutSeconds,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

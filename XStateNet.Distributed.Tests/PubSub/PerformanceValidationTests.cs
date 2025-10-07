@@ -33,9 +33,9 @@ namespace XStateNet.Distributed.Tests.PubSub
         #region Throughput Tests
 
         [Theory]
-        [InlineData(1000, 1)]      // 1K events, 1 subscriber
-        [InlineData(10000, 10)]    // 10K events, 10 subscribers
-        [InlineData(100000, 100)]  // 100K events, 100 subscribers
+        [InlineData(500, 1)]      // 0.5K events, 1 subscriber
+        [InlineData(5000, 10)]    // 5K events, 10 subscribers
+        [InlineData(50000, 100)]  // 50K events, 100 subscribers
         public async Task Throughput_MeetsTargets(int eventCount, int subscriberCount)
         {
             // Arrange

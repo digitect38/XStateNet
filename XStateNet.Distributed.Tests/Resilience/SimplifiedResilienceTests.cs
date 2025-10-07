@@ -50,7 +50,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 catch { }
             }
 
-            await Task.Delay(50);
+            await Task.Yield();
             Assert.Contains("open", circuitBreaker.CurrentState);
 
             // Circuit rejects calls when open
@@ -59,7 +59,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await circuitBreaker.ExecuteAsync(ct => Task.FromResult("test"), CancellationToken.None);
             });
 
-            // Wait for break duration
+            // Wait for break duration (intentional - testing circuit breaker timing)
             await Task.Delay(150);
 
             // Circuit allows retry after break

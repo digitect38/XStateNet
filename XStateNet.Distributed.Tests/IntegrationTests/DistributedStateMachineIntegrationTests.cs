@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using XStateNet.Distributed.EventBus;
 using XStateNet.Distributed.Orchestration;
 using XStateNet.Distributed.Registry;
+using XStateNet.Helpers;
 using Xunit;
 
 namespace XStateNet.Distributed.Tests.IntegrationTests
@@ -445,7 +446,9 @@ namespace XStateNet.Distributed.Tests.IntegrationTests
 
             // Act - Update heartbeat
             await _registry.UpdateHeartbeatAsync(machineId);
-            await Task.Delay(100);
+
+            // Brief grace period for heartbeat update to propagate
+            await Task.Yield();
 
             // Get active machines with short threshold
             var activeMachines = await _registry.GetActiveAsync(TimeSpan.FromSeconds(1));

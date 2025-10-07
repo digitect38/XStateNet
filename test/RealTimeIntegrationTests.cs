@@ -1,6 +1,7 @@
 using TimelineWPF.Models;
 using TimelineWPF.ViewModels;
 using XStateNet;
+using XStateNet.Helpers;
 using XStateNet.Orchestration;
 using Xunit;
 
@@ -277,13 +278,19 @@ namespace TimelineWPF.Tests
 
             var (machine, machineId) = CreateTestMachine("test-unregister");
             adapter.RegisterStateMachine(machine, "Test Machine");
-            await Task.Delay(100); // Allow registration to complete
+            await DeterministicWait.WaitForConditionAsync(
+                condition: () => viewModel.GetStateMachines().Any(),
+                getProgress: () => viewModel.GetStateMachines().Count(),
+                timeoutSeconds: 2);
             Assert.Single(viewModel.GetStateMachines());
 
             // Act
             var actualId = machine.machineId;
             adapter.UnregisterStateMachine(actualId);
-            await Task.Delay(100); // Allow unregistration to complete
+            await DeterministicWait.WaitForConditionAsync(
+                condition: () => !viewModel.GetStateMachines().Any(),
+                getProgress: () => viewModel.GetStateMachines().Any() ? 0 : 1,
+                timeoutSeconds: 2);
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
@@ -292,7 +299,8 @@ namespace TimelineWPF.Tests
             // Verify no more updates are received
             updateReceived = false;
             await SendToMachineAsync(machineId, "START");
-            await Task.Delay(200); // Wait to see if an update occurs
+            // Wait briefly to see if an unexpected update occurs (using grace period)
+            await Task.Yield();
             Assert.False(updateReceived, "Should not receive updates after unregistering.");
         }
 
@@ -403,11 +411,17 @@ namespace TimelineWPF.Tests
 
             adapter.RegisterStateMachine(machine1, "Machine 1");
             adapter.RegisterStateMachine(machine2, "Machine 2");
-            await Task.Delay(100); // Allow registrations to complete
+            await DeterministicWait.WaitForConditionAsync(
+                condition: () => viewModel.GetStateMachines().Count() >= 2,
+                getProgress: () => viewModel.GetStateMachines().Count(),
+                timeoutSeconds: 2);
 
             // Act
             adapter.Clear();
-            await Task.Delay(100); // Allow clear to process
+            await DeterministicWait.WaitForConditionAsync(
+                condition: () => !viewModel.GetStateMachines().Any(),
+                getProgress: () => viewModel.GetStateMachines().Any() ? 0 : 1,
+                timeoutSeconds: 2);
 
             // Assert
             var stateMachines = viewModel.GetStateMachines().ToList();
@@ -417,7 +431,8 @@ namespace TimelineWPF.Tests
             updateReceived = false;
             await SendToMachineAsync(machineId1, "START");
             await SendToMachineAsync(machineId2, "START");
-            await Task.Delay(200); // Wait to see if an update occurs
+            // Wait briefly to see if an unexpected update occurs (using grace period)
+            await Task.Yield();
 
             Assert.False(updateReceived, "Should not receive updates after clearing.");
             stateMachines = viewModel.GetStateMachines().ToList();

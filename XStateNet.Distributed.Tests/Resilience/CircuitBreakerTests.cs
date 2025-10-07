@@ -1,3 +1,4 @@
+using XStateNet.Helpers;
 using XStateNet.Orchestration;
 using Xunit;
 using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
@@ -69,7 +70,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(openTask == openStateReached.Task, "Circuit breaker should open within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Assert
             Assert.Equal(3, failureCount);
@@ -113,7 +114,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(openTask == openStateReached.Task, "Circuit breaker should open within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Assert - Should reject calls
             await Assert.ThrowsAsync<CircuitBreakerOpenException>(async () =>
@@ -161,6 +162,9 @@ namespace XStateNet.Distributed.Tests.Resilience
             // Wait for open state transition (with timeout)
             var openTask = await Task.WhenAny(openStateReached.Task, Task.Delay(500));
             Assert.True(openTask == openStateReached.Task, "Circuit breaker should transition to open state within 500ms");
+
+            // Give the state machine time to update CurrentState property
+            await Task.Yield();
             Assert.Contains("open", circuitBreaker.CurrentState);
 
             // Wait for half-open state transition (after openDuration of 100ms)
@@ -168,7 +172,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit breaker should transition to half-open state within 500ms");
 
             // Give the state machine time to update CurrentState property
-            await Task.Delay(100);
+            await Task.Yield();
 
             // Attempt execution - should succeed now that circuit is half-open
             string? result = null;
@@ -237,14 +241,14 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(openTask == openStateReached.Task, "Circuit should open within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Wait for circuit to transition to half-open
             var halfOpenTask = await Task.WhenAny(halfOpenStateReached.Task, Task.Delay(500));
             Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Execute successful call in half-open state
             var result = await circuitBreaker.ExecuteAsync(ct => Task.FromResult(1), CancellationToken.None);
@@ -255,7 +259,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(closedTask == closedStateReached.Task, "Circuit should close within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Assert
             Assert.Contains("closed", circuitBreaker.CurrentState);
@@ -312,7 +316,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             while (!circuitBreaker.CurrentState.Contains("open", StringComparison.OrdinalIgnoreCase)
                    && DateTime.UtcNow < deadline)
             {
-                await Task.Delay(10);
+                await Task.Yield();
             }
             Assert.Contains("open", circuitBreaker.CurrentState, StringComparison.OrdinalIgnoreCase);
 
@@ -321,7 +325,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(halfOpenTask == halfOpenStateReached.Task, "Circuit should transition to half-open within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
 
             // Step 3: Fail in half-open state
             Exception? caughtException = null;
@@ -347,7 +351,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             Assert.True(reopenTask == reopenedStateReached.Task, "Circuit should reopen within 500ms");
 
             // Grace period for property update
-            await Task.Delay(10);
+            await Task.Yield();
             Assert.Contains("open", circuitBreaker.CurrentState);
         }
 
@@ -442,7 +446,7 @@ namespace XStateNet.Distributed.Tests.Resilience
             }
 
             await Task.WhenAll(tasks);
-            await Task.Delay(100);
+            await Task.Yield();
 
             // Assert - Should handle concurrent operations correctly
             Assert.True(successCount > 0);

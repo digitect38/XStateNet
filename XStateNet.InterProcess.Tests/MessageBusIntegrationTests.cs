@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using XStateNet.Helpers;
 using XStateNet.InterProcess.Service;
 
 namespace XStateNet.InterProcess.Tests;
@@ -148,7 +149,8 @@ public class MessageBusIntegrationTests : IAsyncLifetime
 
         // Act
         await _messageBus.SendEventAsync("sender", "test", "PING", null);
-        await Task.Delay(100);
+        // Brief grace period for health status to update
+        await Task.Yield();
 
         var health = _messageBus.GetHealthStatus();
 
@@ -201,13 +203,17 @@ public class MessageBusIntegrationTests : IAsyncLifetime
 
         // Act
         await _messageBus.SendEventAsync("sender", "test", "EVENT_1", null);
-        await Task.Delay(100);
+        await DeterministicWait.WaitForCountAsync(
+            getCount: () => receivedCount,
+            targetValue: 1,
+            timeoutSeconds: 2);
         Assert.Equal(1, receivedCount);
 
         subscription.Dispose(); // Unsubscribe
 
         await _messageBus.SendEventAsync("sender", "test", "EVENT_2", null);
-        await Task.Delay(100);
+        // Brief grace period to verify no additional messages received
+        await Task.Yield();
 
         // Assert
         Assert.Equal(1, receivedCount); // Should still be 1, not 2

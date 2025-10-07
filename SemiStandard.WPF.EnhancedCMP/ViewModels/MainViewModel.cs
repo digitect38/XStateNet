@@ -264,7 +264,10 @@ public class MainViewModel : ViewModelBase
                     tool.CurrentWaferId = scheduler.GetCurrentWaferId();
                     tool.CurrentJobId = scheduler.GetCurrentJobId();
                     tool.RefreshStatusColor();
-                    tool.UpdateCycles();
+
+                    // Find journey for current wafer to get stage info
+                    var journey = WaferJourneys.FirstOrDefault(j => j.WaferId == tool.CurrentWaferId);
+                    tool.UpdateCycles(journey?.StageDescription);
                 }
 
                 // Update wafer matrix

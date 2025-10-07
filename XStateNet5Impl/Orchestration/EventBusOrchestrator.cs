@@ -375,7 +375,7 @@ namespace XStateNet.Orchestration
                     // Log self-sends for debugging
                     if (evt.IsSelfSend)
                     {
-                        Console.WriteLine($"[Orchestrator] Processing self-send: {evt.EventName} for {evt.ToMachineId}");
+                       // Console.WriteLine($"[Orchestrator] Processing self-send: {evt.EventName} for {evt.ToMachineId}");
                     }
 
                     // Send event to the state machine
@@ -688,7 +688,7 @@ namespace XStateNet.Orchestration
     public class OrchestratorConfig
     {
         public int PoolSize { get; set; } = 4;  // Number of event buses in the pool
-        public bool EnableLogging { get; set; } = true;
+        public bool EnableLogging { get; set; } = false;
         public int DefaultTimeoutMs { get; set; } = 5000;
 
         // High-throughput optimizations

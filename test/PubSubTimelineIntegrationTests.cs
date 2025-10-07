@@ -72,8 +72,9 @@ namespace TimelineWPF.Tests
 
             // Wait for event to propagate
             await DeterministicWait.WaitForConditionAsync(
-                () => viewModel.GetStateMachines().Any(),
-                timeoutMs: 1000);
+                condition: () => viewModel.GetStateMachines().Any(),
+                getProgress: () => viewModel.GetStateMachines().Count(),
+                timeoutSeconds: 1.0);
 
             // Assert
             var stateMachine = viewModel.GetStateMachines().First();

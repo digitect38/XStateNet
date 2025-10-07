@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using XStateNet.Helpers;
 using XStateNet.Orchestration;
 using Xunit;
 using Xunit.Abstractions;
@@ -95,7 +96,12 @@ namespace Test
 
             // Act
             var result = await _orchestrator.SendEventAsync("external", "self", "START");
-            await Task.Delay(100); // Allow self-send to process
+
+            // Wait for self-send to process
+            await DeterministicWait.WaitForConditionAsync(
+                condition: () => receivedSelfSend,
+                getProgress: () => receivedSelfSend ? 1 : 0,
+                timeoutSeconds: 2);
 
             // Assert
             Assert.True(result.Success);
@@ -347,21 +353,25 @@ namespace Test
         public async Task Orchestrator_ComplexWorkflow_Success()
         {
             // Arrange - Create a workflow: order -> payment -> shipping -> complete
+            var workflowSteps = 0;
             var workflowActions = new Dictionary<string, Action<OrchestratedContext>>
             {
                 ["processOrder"] = (ctx) =>
                 {
                     _output.WriteLine("   Processing order...");
+                    Interlocked.Increment(ref workflowSteps);
                     ctx.RequestSend("payment", "CHARGE");
                 },
                 ["processPayment"] = (ctx) =>
                 {
                     _output.WriteLine("   Processing payment...");
+                    Interlocked.Increment(ref workflowSteps);
                     ctx.RequestSend("shipping", "SHIP");
                 },
                 ["processShipping"] = (ctx) =>
                 {
                     _output.WriteLine("   Processing shipping...");
+                    Interlocked.Increment(ref workflowSteps);
                     ctx.RequestSend("order", "COMPLETE");
                 }
             };
@@ -452,10 +462,16 @@ namespace Test
 
             // Act
             var result = await _orchestrator.SendEventAsync("customer", "order", "PROCESS");
-            await Task.Delay(200); // Allow workflow to complete
+
+            // Wait for all 3 workflow steps to complete
+            await DeterministicWait.WaitForCountAsync(
+                getCount: () => workflowSteps,
+                targetValue: 3,
+                timeoutSeconds: 3);
 
             // Assert
             Assert.True(result.Success);
+            Assert.Equal(3, workflowSteps);
             _output.WriteLine("✓ Complex workflow executed successfully");
         }
 
@@ -507,7 +523,12 @@ namespace Test
 
             // Act
             var result = await _orchestrator.SendEventAsync("external", machineId, "INCREMENT");
-            await Task.Delay(500); // Allow all self-sends to process
+
+            // Wait for all 100 self-sends to process
+            await DeterministicWait.WaitForCountAsync(
+                getCount: () => sendCount,
+                targetValue: 100,
+                timeoutSeconds: 5);
 
             // Assert
             Assert.True(result.Success);

@@ -81,7 +81,7 @@ namespace XStateNet.Tests
 
             // Start some background operations
             _ = connection.ConnectAsync();
-            await Task.Delay(50); // Let it start
+            await Task.Yield(); // Let it start
 
             // Act - Dispose should complete quickly without deadlock
             await connection.DisposeAsync();
@@ -102,7 +102,7 @@ namespace XStateNet.Tests
             // Arrange
             var connection = new MockResilientConnection();
             _ = connection.ConnectAsync();
-            await Task.Delay(50);
+            await Task.Yield();
 
             // Act
             var disposeTask = Task.Run(() =>
@@ -143,7 +143,8 @@ namespace XStateNet.Tests
                 // Expected
             }
 
-            await Task.Delay(200); // Give time for cleanup
+            // Give time for cleanup to complete
+            await Task.Yield();
 
             // Assert
             Assert.True(taskStarted, "Task should have started");

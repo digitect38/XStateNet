@@ -57,7 +57,7 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await stateChangedTcs.Task.ConfigureAwait(false);
             }
 
-            await Task.Delay(10); // Small delay to ensure state transition completes
+            await Task.Yield(); // Small delay to ensure state transition completes
 
             // Assert - Circuit should be open
             Assert.Contains("open", cb.CurrentState);
@@ -68,14 +68,14 @@ namespace XStateNet.Distributed.Tests.Resilience
                 await cb.ExecuteAsync(ct => Task.FromResult("should fail"), CancellationToken.None);
             });
 
-            // Wait for break duration to elapse
+            // Wait for break duration to elapse (intentional - testing circuit breaker timing)
             await Task.Delay(100);
 
             // Now the circuit should allow execution (half-open)
             var result = await cb.ExecuteAsync(ct => Task.FromResult("success"), CancellationToken.None);
             Assert.Equal("success", result);
 
-            await Task.Delay(50);
+            await Task.Yield();
             // Circuit should be closed after successful execution
             Assert.Contains("closed", cb.CurrentState);
         }

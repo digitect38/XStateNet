@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
+using XStateNet.Helpers;
 using XStateNet.Semi.Transport;
 using Xunit.Abstractions;
 
@@ -260,8 +261,11 @@ public class HsmsTransportTests : IAsyncDisposable
         // Act
         await _activeConnection.DisconnectAsync();
 
-        // Wait a moment for the disconnection to propagate
-        await Task.Delay(500);
+        // Wait for disconnection to propagate
+        await DeterministicWait.WaitForConditionAsync(
+            condition: () => !_activeConnection.IsConnected,
+            getProgress: () => _activeConnection.IsConnected ? 0 : 1,
+            timeoutSeconds: 2);
 
         // Assert
         Assert.False(_activeConnection.IsConnected);
@@ -279,8 +283,11 @@ public class HsmsTransportTests : IAsyncDisposable
 
         var connectTask = _passiveConnection.ConnectAsync();
 
-        // Give it a moment to start listening
-        await Task.Delay(200);
+        // Wait for passive connection to start listening
+        await DeterministicWait.WaitForConditionAsync(
+            condition: () => _passiveConnection.State != HsmsConnection.HsmsConnectionState.NotConnected,
+            getProgress: () => (int)_passiveConnection.State,
+            timeoutSeconds: 2);
 
         _logger.LogInformation("Passive connection started listening on {Endpoint}", _testEndpoint);
     }
@@ -294,28 +301,37 @@ public class HsmsTransportTests : IAsyncDisposable
 
         await _activeConnection.ConnectAsync();
 
-        // Give the passive connection time to accept
-        await Task.Delay(200);
+        // Wait for active connection to establish
+        await DeterministicWait.WaitForConditionAsync(
+            condition: () => _activeConnection.IsConnected,
+            getProgress: () => _activeConnection.IsConnected ? 1 : 0,
+            timeoutSeconds: 2);
 
         _logger.LogInformation("Active connection established to {Endpoint}", _testEndpoint);
     }
 
     private async Task WaitForConnectionsAsync()
     {
-        // Wait for both connections to be fully established (poll with timeout)
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (_activeConnection?.IsConnected == true &&
-                _passiveConnection?.IsConnected == true &&
-                _activeConnection.State == HsmsConnection.HsmsConnectionState.Connected &&
-                _passiveConnection.State == HsmsConnection.HsmsConnectionState.Connected)
+        // Wait for both connections to be fully established
+        var connected = await DeterministicWait.WaitForConditionAsync(
+            condition: () => _activeConnection?.IsConnected == true &&
+                            _passiveConnection?.IsConnected == true &&
+                            _activeConnection.State == HsmsConnection.HsmsConnectionState.Connected &&
+                            _passiveConnection.State == HsmsConnection.HsmsConnectionState.Connected,
+            getProgress: () =>
             {
-                return;
-            }
-            await Task.Delay(10);
-        }
-        throw new TimeoutException("Connections did not fully establish within timeout");
+                int progress = 0;
+                if (_activeConnection?.IsConnected == true) progress++;
+                if (_passiveConnection?.IsConnected == true) progress++;
+                if (_activeConnection?.State == HsmsConnection.HsmsConnectionState.Connected) progress++;
+                if (_passiveConnection?.State == HsmsConnection.HsmsConnectionState.Connected) progress++;
+                return progress;
+            },
+            timeoutSeconds: 5,
+            pollIntervalMs: 10);
+
+        if (!connected)
+            throw new TimeoutException("Connections did not fully establish within timeout");
     }
 
     private static int GetAvailablePort()
