@@ -44,11 +44,10 @@ namespace XStateNet.Distributed.Tests.Resilience
                         initial: 'idle',
                         states: {
                             idle: {
-                                on: { TICK: 'active' }
+                                on: { TICK: { target: 'active', actions: ['process'] } }
                             },
                             active: {
-                                entry: ['process'],
-                                on: { TICK: 'idle' }
+                                on: { TICK: { target: 'idle', actions: ['process'] } }
                             }
                         }
                     }";
