@@ -238,6 +238,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
             for (int iteration = 0; iteration < 1000; iteration++)
             {
+                var currentIteration = iteration; // Capture iteration variable
                 var iterationSw = Stopwatch.StartNew();
 
                 try
@@ -247,6 +248,7 @@ namespace XStateNet.Distributed.Tests.Resilience
 
                     for (int i = 0; i < 100; i++)
                     {
+                        var taskId = i; // Capture loop variable
                         tasks.Add(Task.Run(async () =>
                         {
                             using var orchestrator = new EventBusOrchestrator(new OrchestratorConfig
@@ -255,19 +257,20 @@ namespace XStateNet.Distributed.Tests.Resilience
                                 PoolSize = 2
                             });
 
-                            var json = @"{
-                                id: 'temp',
+                            var machineId = $"temp-{currentIteration}-{taskId}";
+                            var json = $@"{{
+                                id: '{machineId}',
                                 initial: 'active',
-                                states: {
-                                    active: { on: { TICK: 'active' } }
-                                }
-                            }";
+                                states: {{
+                                    active: {{ on: {{ TICK: 'active' }} }}
+                                }}
+                            }}";
 
                             var machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-                                id: "temp", json: json, orchestrator: orchestrator,
+                                id: machineId, json: json, orchestrator: orchestrator,
                                 orchestratedActions: null, guards: null, services: null, delays: null, activities: null, enableGuidIsolation: false);
-                            await orchestrator.StartMachineAsync("temp");
-                            await orchestrator.SendEventAsync("test", "temp", "TICK");
+                            await orchestrator.StartMachineAsync(machineId);
+                            await orchestrator.SendEventAsync("test", machineId, "TICK");
                         }));
                     }
 
