@@ -24,7 +24,7 @@ namespace TimelineWPF.PubSub
         /// <summary>
         /// Register a state machine for timeline monitoring
         /// </summary>
-        public void RegisterStateMachine(string machineName, StateMachine machine, List<string> states = null)
+        public void RegisterStateMachine(string machineName, StateMachine machine, List<string>? states = null)
         {
             if (string.IsNullOrEmpty(machineName))
                 throw new ArgumentNullException(nameof(machineName));
@@ -86,7 +86,7 @@ namespace TimelineWPF.PubSub
         /// <summary>
         /// Manually publish a state transition
         /// </summary>
-        public void PublishStateTransition(string machineName, string fromState, string toState, string triggerEvent = null)
+        public void PublishStateTransition(string machineName, string fromState, string toState, string? triggerEvent = null)
         {
             var message = new StateTransitionMessage(
                 machineName,
@@ -101,7 +101,7 @@ namespace TimelineWPF.PubSub
         /// <summary>
         /// Manually publish an event
         /// </summary>
-        public void PublishEvent(string machineName, string eventName, object eventData = null, bool wasHandled = true)
+        public void PublishEvent(string machineName, string eventName, object? eventData = null, bool wasHandled = true)
         {
             var message = new EventMessage(
                 machineName,
@@ -116,7 +116,7 @@ namespace TimelineWPF.PubSub
         /// <summary>
         /// Manually publish an action
         /// </summary>
-        public void PublishAction(string machineName, string actionName, string stateName = null)
+        public void PublishAction(string machineName, string actionName, string? stateName = null)
         {
             var message = new ActionMessage(
                 machineName,

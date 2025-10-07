@@ -197,7 +197,8 @@ namespace TimelineWPF.Control
         private void DrawObjects(DrawingContext dc)
         {
             double currentTime = IsRealtimeMode ? SimulationTime : ViewOffset;
-            var itemList = ItemsSource.ToList();
+            var itemList = ItemsSource?.ToList();
+            if (itemList == null) return;
 
             foreach (var item in itemList)
             {
@@ -240,7 +241,7 @@ namespace TimelineWPF.Control
 
         private void DrawState(DrawingContext dc, TimelineItem item, double x, double y, double width)
         {
-            if (item.Name == null || !_stateBrushes.TryGetValue(item.Name, out Brush brush))
+            if (item.Name == null || !_stateBrushes.TryGetValue(item.Name, out Brush? brush))
             {
                 brush = Brushes.Gray;
             }
@@ -348,9 +349,9 @@ namespace TimelineWPF.Control
             DrawIconLabel(dc, item.Name, x, y);
         }
 
-        private void DrawIconLabel(DrawingContext dc, string name, double x, double y)
+        private void DrawIconLabel(DrawingContext dc, string? name, double x, double y)
         {
-            var formattedText = new FormattedText(name, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, 10, WhiteBrush, 1.25);
+            var formattedText = new FormattedText(name ?? string.Empty, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, 10, WhiteBrush, 1.25);
             dc.DrawText(formattedText, new Point(x + 15, y - formattedText.Height / 2));
         }
 

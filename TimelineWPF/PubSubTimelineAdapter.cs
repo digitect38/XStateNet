@@ -89,7 +89,7 @@ namespace TimelineWPF
                 var cleanInitialState = initialState.Contains(".")
                     ? initialState.Split('.').Last()
                     : initialState;
-                _timelineProvider.AddStateTransition(name, null, cleanInitialState, timestamp);
+                _timelineProvider.AddStateTransition(name, null!, cleanInitialState, timestamp);
             }
 
             // Start the notification service

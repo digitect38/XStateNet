@@ -68,7 +68,7 @@ namespace TimelineWPF
                 var cleanInitialState = initialState.Contains(".")
                     ? initialState.Split('.').Last()
                     : initialState;
-                _timelineProvider.AddStateTransition(name, null, cleanInitialState, initialTimestamp);
+                _timelineProvider.AddStateTransition(name, null!, cleanInitialState, initialTimestamp);
 
                 // Use the monitor's ID (which removes # prefix) for consistency
                 var monitorId = monitor.StateMachineId;
@@ -165,7 +165,7 @@ namespace TimelineWPF
                 Console.WriteLine($"[TIMELINE] Adding state transition to timeline: {displayName} {e.FromState} -> {e.ToState} at {timestamp}");
                 _timelineProvider.AddStateTransition(
                     displayName,
-                    e.FromState,
+                    e.FromState ?? string.Empty,
                     e.ToState,
                     timestamp
                 );

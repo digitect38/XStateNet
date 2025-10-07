@@ -34,7 +34,7 @@ namespace TimelineWPF
             simulatorWindow.Show();
         }
 
-        private async Task InitializeDemo()
+        private Task InitializeDemo()
         {
             // No initialization needed for RealTimeStateMachineAdapter
 
@@ -89,6 +89,8 @@ namespace TimelineWPF
                 await Task.Delay(2000);
                 machine3.Send("CLOSE_DOOR");
             });
+
+            return Task.CompletedTask;
         }
 
         private StateMachine CreateDemoMachine(string id, string type)
