@@ -353,18 +353,25 @@ public class OrchestratedForwardPriorityController : INotifyPropertyChanged, IDi
 
         await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
 
-        // Mark as completed
-        lock (_stateLock)
-        {
-            _lCompleted.Add(waferId);
-        }
-
         int timeout = 5000;
         int elapsed = 0;
         while (!_r1.CurrentState.Contains(".idle") && elapsed < timeout)
         {
             await Task.Delay(50, ct);
             elapsed += 50;
+        }
+
+        // Mark as completed
+        lock (_stateLock)
+        {
+            _lCompleted.Add(waferId);
+
+            // Mark wafer as completed (changes font color to white)
+            var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
+            if (wafer != null)
+            {
+                wafer.IsCompleted = true;
+            }
         }
 
         Log($"✓ Wafer {waferId} completed ({_lCompleted.Count}/25)");
