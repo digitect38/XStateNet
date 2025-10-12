@@ -34,7 +34,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private List<int> _lPending = new();
     private List<int> _lCompleted = new();
     private Task? _schedulerTask;
-    private Task? _uiUpdateTask;
     private bool _isInitialized = false;
 
     // Timing constants
@@ -69,10 +68,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         InitializeStations();
         InitializeWafers();
         InitializeStateMachines();
+        SubscribeToStateUpdates();
 
         Log("═══════════════════════════════════════════════════════════");
         Log("CMP Tool Simulator - Orchestrated Forward Priority");
         Log("Using XStateNet State Machines + EventBusOrchestrator");
+        Log("Architecture: Pub/Sub pattern for state updates (no polling)");
         Log("═══════════════════════════════════════════════════════════");
     }
 
@@ -121,6 +122,26 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log("✓ State machines created");
     }
 
+    private void SubscribeToStateUpdates()
+    {
+        // Subscribe to orchestrator events to receive state updates via Pub/Sub
+        _orchestrator.MachineEventProcessed += OnMachineEventProcessed;
+        Log("✓ Subscribed to state update events (Pub/Sub pattern)");
+    }
+
+    private void OnMachineEventProcessed(object? sender, MachineEventProcessedEventArgs e)
+    {
+        // This is called whenever any machine processes an event
+        // We can use this to trigger UI updates without polling
+
+        // Trigger UI update on state changes
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            UpdateWaferPositions();
+            StationStatusChanged?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
     public async Task StartSimulation()
     {
         // Start all state machines
@@ -133,11 +154,10 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         Log("✓ All state machines started");
 
-        // Start scheduler and UI update tasks
+        // Start scheduler task (UI updates via Pub/Sub event handler)
         _schedulerTask = Task.Run(() => SchedulerService(_cts.Token), _cts.Token);
-        _uiUpdateTask = Task.Run(() => UIUpdateService(_cts.Token), _cts.Token);
 
-        Log("▶ Simulation started");
+        Log("▶ Simulation started (Pub/Sub mode - no UI polling)");
     }
 
     public async Task ExecuteOneStep()
@@ -473,19 +493,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log($"✓ Wafer {waferId} completed ({_lCompleted.Count}/25)");
     }
 
-    private async Task UIUpdateService(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            await Task.Delay(50, ct);
-
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateWaferPositions();
-                StationStatusChanged?.Invoke(this, EventArgs.Empty);
-            });
-        }
-    }
+    // UIUpdateService removed - now using Pub/Sub pattern via MachineEventProcessed event
 
     private void UpdateWaferPositions()
     {
@@ -628,5 +636,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     {
         _cts.Cancel();
         _cts.Dispose();
+
+        // Unsubscribe from orchestrator events
+        _orchestrator.MachineEventProcessed -= OnMachineEventProcessed;
     }
 }
