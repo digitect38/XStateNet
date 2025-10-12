@@ -61,6 +61,11 @@ public class BufferMachine
 
             ["onPlace"] = (ctx) =>
             {
+                // Extract wafer ID from event data
+                if (ctx.Event.Data is JObject jObj && jObj["wafer"] != null)
+                {
+                    _currentWafer = jObj["wafer"]!.Value<int>();
+                }
                 logger($"[Buffer] Wafer {_currentWafer} placed");
             },
 
@@ -76,7 +81,8 @@ public class BufferMachine
 
             ["onPick"] = (ctx) =>
             {
-                logger($"[Buffer] Wafer {_currentWafer} picked");
+                int pickedWafer = _currentWafer ?? 0;
+                logger($"[Buffer] Wafer {pickedWafer} picked");
                 _currentWafer = null;
             }
         };
@@ -93,14 +99,4 @@ public class BufferMachine
     }
 
     public async Task<string> StartAsync() => await _machine.StartAsync();
-
-    public void SetWafer(int waferId)
-    {
-        _currentWafer = waferId;
-    }
-
-    public void ClearWafer()
-    {
-        _currentWafer = null;
-    }
 }

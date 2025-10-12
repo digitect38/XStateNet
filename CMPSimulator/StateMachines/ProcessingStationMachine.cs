@@ -81,7 +81,11 @@ public class ProcessingStationMachine
 
             ["onPlace"] = (ctx) =>
             {
-                // Wafer ID will be passed via event data
+                // Extract wafer ID from event data
+                if (ctx.Event.Data is JObject jObj && jObj["wafer"] != null)
+                {
+                    _currentWafer = jObj["wafer"]!.Value<int>();
+                }
                 logger($"[{_stationName}] Wafer {_currentWafer} placed");
             },
 
@@ -117,7 +121,8 @@ public class ProcessingStationMachine
 
             ["onPick"] = (ctx) =>
             {
-                logger($"[{_stationName}] Wafer {_currentWafer} picked");
+                int pickedWafer = _currentWafer ?? 0;
+                logger($"[{_stationName}] Wafer {pickedWafer} picked");
                 _currentWafer = null;
             }
         };
@@ -143,14 +148,4 @@ public class ProcessingStationMachine
     }
 
     public async Task<string> StartAsync() => await _machine.StartAsync();
-
-    public void SetWafer(int waferId)
-    {
-        _currentWafer = waferId;
-    }
-
-    public void ClearWafer()
-    {
-        _currentWafer = null;
-    }
 }

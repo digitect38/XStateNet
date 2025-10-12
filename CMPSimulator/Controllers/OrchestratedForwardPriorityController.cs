@@ -14,7 +14,7 @@ namespace CMPSimulator.Controllers;
 /// Architecture: Station → Scheduler (status reports only)
 ///              Scheduler → Robot (centralized commands)
 /// </summary>
-public class OrchestratedForwardPriorityController : INotifyPropertyChanged, IDisposable
+public class OrchestratedForwardPriorityController : IForwardPriorityController
 {
     private readonly EventBusOrchestrator _orchestrator;
     private readonly Dictionary<string, StationPosition> _stations;
@@ -238,8 +238,8 @@ public class OrchestratedForwardPriorityController : INotifyPropertyChanged, IDi
         Log($"[P1] C→B: R3 transferring wafer {waferId}");
 
         // Set transfer info and send TRANSFER command
+        // Note: Station will receive PLACE event from Robot and update its wafer
         _r3!.SetTransferInfo(waferId, "cleaner", "buffer");
-        _buffer!.SetWafer(waferId);
 
         await _orchestrator.SendEventAsync("scheduler", "R3", "TRANSFER");
 
@@ -274,8 +274,9 @@ public class OrchestratedForwardPriorityController : INotifyPropertyChanged, IDi
 
         Log($"[P2] P→C: R2 transferring wafer {waferId}");
 
+        // Set transfer info and send TRANSFER command
+        // Note: Station will receive PLACE event from Robot and update its wafer
         _r2!.SetTransferInfo(waferId, "polisher", "cleaner");
-        _cleaner!.SetWafer(waferId);
 
         await _orchestrator.SendEventAsync("scheduler", "R2", "TRANSFER");
 
@@ -314,8 +315,9 @@ public class OrchestratedForwardPriorityController : INotifyPropertyChanged, IDi
 
         Log($"[P3] L→P: R1 transferring wafer {waferId}");
 
+        // Set transfer info and send TRANSFER command
+        // Note: Station will receive PLACE event from Robot and update its wafer
         _r1!.SetTransferInfo(waferId, "LoadPort", "polisher");
-        _polisher!.SetWafer(waferId);
 
         await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
 
