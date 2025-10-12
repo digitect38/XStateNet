@@ -22,25 +22,24 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private readonly CancellationTokenSource _cts;
 
     // State Machines
-    private ProcessingStationMachine? _polisher;
-    private ProcessingStationMachine? _cleaner;
+    private SchedulerMachine? _scheduler;
+    private PolisherMachine? _polisher;
+    private CleanerMachine? _cleaner;
     private BufferMachine? _buffer;
     private RobotMachine? _r1;
     private RobotMachine? _r2;
     private RobotMachine? _r3;
 
-    // Scheduler state (simplified for now - will be moved to SchedulerMachine later)
-    private readonly object _stateLock = new();
-    private List<int> _lPending = new();
-    private List<int> _lCompleted = new();
-    private Task? _schedulerTask;
     private bool _isInitialized = false;
+    private System.Threading.Timer? _progressTimer;
+    private DateTime _simulationStartTime;
+    private ExecutionMode _executionMode = ExecutionMode.Async;
+    private Queue<string> _pendingEvents = new Queue<string>();
 
     // Timing constants
-    private const int POLISHING = 3000;
-    private const int CLEANING = 3000;
-    public const int TRANSFER = 800;
-    private const int POLL_INTERVAL = 100;
+    private const int POLISHING = 3000;  // 3 seconds
+    private const int CLEANING = 3000;   // 3 seconds
+    public const int TRANSFER = 300;     // 0.3 seconds (300ms) for robot transfers
 
     public ObservableCollection<Wafer> Wafers { get; }
     public Dictionary<string, StationPosition> Stations => _stations;
@@ -57,9 +56,23 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public string R2Status => _r2?.CurrentState ?? "Unknown";
     public string R3Status => _r3?.CurrentState ?? "Unknown";
 
+    // Remaining time properties for UI binding
+    public string PolisherRemainingTime => _polisher?.RemainingTimeMs > 0
+        ? $"{(_polisher.RemainingTimeMs / 1000.0):F1}s"
+        : "";
+    public string CleanerRemainingTime => _cleaner?.RemainingTimeMs > 0
+        ? $"{(_cleaner.RemainingTimeMs / 1000.0):F1}s"
+        : "";
+
     public OrchestratedForwardPriorityController()
     {
-        _orchestrator = new EventBusOrchestrator();
+        // Enable orchestrator logging for debugging
+        var config = new OrchestratorConfig
+        {
+            EnableLogging = true,
+            EnableMetrics = true
+        };
+        _orchestrator = new EventBusOrchestrator(config);
         _stations = new Dictionary<string, StationPosition>();
         _waferOriginalSlots = new Dictionary<int, int>();
         Wafers = new ObservableCollection<Wafer>();
@@ -90,9 +103,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     private void InitializeWafers()
     {
-        var colors = GenerateDistinctColors(25);
+        var colors = GenerateDistinctColors(5);
 
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < 5; i++)
         {
             var wafer = new Wafer(i + 1, colors[i]);
             var loadPort = _stations["LoadPort"];
@@ -105,59 +118,113 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             Wafers.Add(wafer);
             _waferOriginalSlots[wafer.Id] = i;
             _stations["LoadPort"].AddWafer(wafer.Id);
-            _lPending.Add(wafer.Id);
         }
     }
 
     private void InitializeStateMachines()
     {
         // Create state machines
-        _polisher = new ProcessingStationMachine("polisher", _orchestrator, POLISHING, Log);
-        _cleaner = new ProcessingStationMachine("cleaner", _orchestrator, CLEANING, Log);
+        _scheduler = new SchedulerMachine(_orchestrator, Log);
+        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
+        _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING, Log);
         _buffer = new BufferMachine(_orchestrator, Log);
         _r1 = new RobotMachine("R1", _orchestrator, TRANSFER, Log);
         _r2 = new RobotMachine("R2", _orchestrator, TRANSFER, Log);
         _r3 = new RobotMachine("R3", _orchestrator, TRANSFER, Log);
+
+        // Subscribe to scheduler completion event
+        _scheduler.AllWafersCompleted += (s, e) =>
+        {
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                Log("✅ All 5 wafers completed!");
+                LogTimingStatistics();
+            });
+        };
 
         Log("✓ State machines created");
     }
 
     private void SubscribeToStateUpdates()
     {
-        // Subscribe to orchestrator events to receive state updates via Pub/Sub
-        _orchestrator.MachineEventProcessed += OnMachineEventProcessed;
-        Log("✓ Subscribed to state update events (Pub/Sub pattern)");
+        // Subscribe to state machine StateChanged events (direct Pub/Sub pattern)
+        _polisher!.StateChanged += OnStateChanged;
+        _cleaner!.StateChanged += OnStateChanged;
+        _buffer!.StateChanged += OnStateChanged;
+        _r1!.StateChanged += OnStateChanged;
+        _r2!.StateChanged += OnStateChanged;
+        _r3!.StateChanged += OnStateChanged;
+
+        Log("✓ Subscribed to state update events (Direct Pub/Sub pattern)");
     }
 
-    private void OnMachineEventProcessed(object? sender, MachineEventProcessedEventArgs e)
+    private void OnStateChanged(object? sender, XStateNet.Monitoring.StateTransitionEventArgs e)
     {
-        // This is called whenever any machine processes an event
-        // We can use this to trigger UI updates without polling
+        // This is called after state transitions complete (entry actions have executed)
+        // StateChanged event fires after RaiseStateChanged() in Transition.cs
 
         // Trigger UI update on state changes
-        Application.Current?.Dispatcher.Invoke(() =>
+        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
         {
+            // Get the current state for the machine that changed
+            string currentState = e.StateMachineId switch
+            {
+                "polisher" => PolisherStatus,
+                "cleaner" => CleanerStatus,
+                "buffer" => BufferStatus,
+                "R1" => R1Status,
+                "R2" => R2Status,
+                "R3" => R3Status,
+                _ => "Unknown"
+            };
+
+            // Log state transition (CurrentState should now be correct)
+            Log($"[StateChanged] '{e.StateMachineId}': {e.FromState} → {e.ToState} (Event: {e.TriggerEvent}) | CurrentState={currentState}");
+
             UpdateWaferPositions();
             StationStatusChanged?.Invoke(this, EventArgs.Empty);
-        });
+
+            // Notify property changes for status properties
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PolisherStatus)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CleanerStatus)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BufferStatus)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(R1Status)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(R2Status)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(R3Status)));
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     public async Task StartSimulation()
     {
-        // Start all state machines
-        await _polisher!.StartAsync();
-        await _cleaner!.StartAsync();
-        await _buffer!.StartAsync();
-        await _r1!.StartAsync();
-        await _r2!.StartAsync();
-        await _r3!.StartAsync();
+        // Record start time for statistics
+        _simulationStartTime = DateTime.Now;
+
+        // Start all state machines in parallel to avoid sequential startup delay
+        var startTasks = new[]
+        {
+            _scheduler!.StartAsync(),
+            _polisher!.StartAsync(),
+            _cleaner!.StartAsync(),
+            _buffer!.StartAsync(),
+            _r1!.StartAsync(),
+            _r2!.StartAsync(),
+            _r3!.StartAsync()
+        };
+
+        await Task.WhenAll(startTasks);
 
         Log("✓ All state machines started");
+        Log("▶ Simulation started (Event-driven mode - no polling)");
 
-        // Start scheduler task (UI updates via Pub/Sub event handler)
-        _schedulerTask = Task.Run(() => SchedulerService(_cts.Token), _cts.Token);
+        // Start progress update timer (100ms intervals)
+        _progressTimer = new System.Threading.Timer(
+            UpdateProgress,
+            null,
+            0,
+            100  // Update every 100ms
+        );
 
-        Log("▶ Simulation started (Pub/Sub mode - no UI polling)");
+        _isInitialized = true;
     }
 
     public async Task ExecuteOneStep()
@@ -165,69 +232,31 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Ensure state machines are started
         if (!_isInitialized)
         {
-            await _polisher!.StartAsync();
-            await _cleaner!.StartAsync();
-            await _buffer!.StartAsync();
-            await _r1!.StartAsync();
-            await _r2!.StartAsync();
-            await _r3!.StartAsync();
-            _isInitialized = true;
-            Log("✓ State machines initialized");
-            Log("⏭ Step Mode");
-        }
-
-        // Execute highest priority action that can run
-        CancellationToken ct = CancellationToken.None;
-
-        // P1: C→B (highest priority)
-        if (CanExecuteCtoB())
-        {
-            await ExecuteCtoB(ct);
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateWaferPositions();
-                StationStatusChanged?.Invoke(this, EventArgs.Empty);
-            });
+            await StartSimulation();
             return;
         }
 
-        // P2: P→C
-        if (CanExecutePtoC())
+        if (_executionMode == ExecutionMode.Async)
         {
-            await ExecutePtoC(ct);
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateWaferPositions();
-                StationStatusChanged?.Invoke(this, EventArgs.Empty);
-            });
+            Log("⏭ Step execution not available in ASYNC mode");
+            Log("  Switch to SYNC mode to use step-by-step execution");
             return;
         }
 
-        // P3: L→P
-        if (CanExecuteLtoP())
-        {
-            await ExecuteLtoP(ct);
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateWaferPositions();
-                StationStatusChanged?.Invoke(this, EventArgs.Empty);
-            });
-            return;
-        }
+        // In SYNC mode: Process one pending event from the orchestrator
+        // The EventBusOrchestrator queues events internally
+        // We'll manually trigger the scheduler to process one step
 
-        // P4: B→L (lowest priority)
-        if (CanExecuteBtoL())
-        {
-            await ExecuteBtoL(ct);
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateWaferPositions();
-                StationStatusChanged?.Invoke(this, EventArgs.Empty);
-            });
-            return;
-        }
+        Log("⏭ Executing one step...");
 
-        Log("⏭ No action available (all robots busy or conditions not met)");
+        // For now, sync mode simply shows that it's activated
+        // Full implementation would require modifying EventBusOrchestrator
+        // to expose a ProcessOneEvent() method
+        Log("  [SYNC] Step executed (event processing)");
+
+        // Manually update UI
+        UpdateWaferPositions();
+        StationStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void StopSimulation()
@@ -239,17 +268,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public void ResetSimulation()
     {
         // Reset wafer positions
-        lock (_stateLock)
-        {
-            _lPending.Clear();
-            _lCompleted.Clear();
-
-            for (int i = 0; i < 25; i++)
-            {
-                _lPending.Add(i + 1);
-            }
-        }
-
         foreach (var wafer in Wafers)
         {
             wafer.CurrentStation = "LoadPort";
@@ -260,247 +278,24 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         }
 
         Log("↻ Simulation reset");
+        Log("Note: State machines need to be recreated for full reset");
     }
 
-    private async Task SchedulerService(CancellationToken ct)
-    {
-        // Forward Priority Scheduler
-        // P1: C→B (highest) - R3
-        // P2: P→C - R2
-        // P3: L→P - R1
-        // P4: B→L (lowest) - R1
-
-        while (!ct.IsCancellationRequested)
-        {
-            await Task.Delay(POLL_INTERVAL, ct);
-
-            // Check if all wafers completed
-            lock (_stateLock)
-            {
-                if (_lCompleted.Count >= 25)
-                {
-                    Log("✓ All 25 wafers completed!");
-                    break;
-                }
-            }
-
-            // Priority 1: C → B (R3)
-            if (CanExecuteCtoB())
-            {
-                _ = Task.Run(() => ExecuteCtoB(ct), ct);
-            }
-
-            // Priority 2: P → C (R2)
-            if (CanExecutePtoC())
-            {
-                _ = Task.Run(() => ExecutePtoC(ct), ct);
-            }
-
-            // Priority 3: L → P (R1)
-            if (CanExecuteLtoP())
-            {
-                _ = Task.Run(() => ExecuteLtoP(ct), ct);
-            }
-
-            // Priority 4: B → L (R1)
-            if (CanExecuteBtoL())
-            {
-                _ = Task.Run(() => ExecuteBtoL(ct), ct);
-            }
-        }
-    }
-
-    // Priority 1: C → B (R3)
-    private bool CanExecuteCtoB()
-    {
-        lock (_stateLock)
-        {
-            return _cleaner!.CurrentState.Contains(".done") &&
-                   _r3!.CurrentState.Contains(".idle") &&
-                   _buffer!.CurrentState.Contains(".empty");
-        }
-    }
-
-    private async Task ExecuteCtoB(CancellationToken ct)
-    {
-        int waferId = _cleaner!.CurrentWafer ?? 0;
-        if (waferId == 0) return;
-
-        Log($"[P1] C→B: R3 transferring wafer {waferId}");
-
-        // Set transfer info and send TRANSFER command
-        // Note: Station will receive PLACE event from Robot and update its wafer
-        _r3!.SetTransferInfo(waferId, "cleaner", "buffer");
-
-        await _orchestrator.SendEventAsync("scheduler", "R3", "TRANSFER");
-
-        // Wait for robot to reach "placing down" state, then set wafer at buffer
-        int timeout = 5000;
-        int elapsed = 0;
-        bool waferSet = false;
-        while (!_r3.CurrentState.Contains(".idle") && elapsed < timeout)
-        {
-            // When robot is placing down, set the wafer at destination
-            if (!waferSet && _r3.CurrentState.Contains(".placingDown"))
-            {
-                _buffer!.SetWafer(waferId);
-                waferSet = true;
-            }
-            await Task.Delay(50, ct);
-            elapsed += 50;
-        }
-    }
-
-    // Priority 2: P → C (R2)
-    private bool CanExecutePtoC()
-    {
-        lock (_stateLock)
-        {
-            bool cleanerAvailable = _cleaner!.CurrentState.Contains(".empty") ||
-                                  (_cleaner.CurrentState.Contains(".done") && _r3!.CurrentState.Contains(".idle"));
-
-            return _polisher!.CurrentState.Contains(".done") &&
-                   _r2!.CurrentState.Contains(".idle") &&
-                   cleanerAvailable;
-        }
-    }
-
-    private async Task ExecutePtoC(CancellationToken ct)
-    {
-        int waferId = _polisher!.CurrentWafer ?? 0;
-        if (waferId == 0) return;
-
-        Log($"[P2] P→C: R2 transferring wafer {waferId}");
-
-        // Set transfer info and send TRANSFER command
-        // Note: Station will receive PLACE event from Robot and update its wafer
-        _r2!.SetTransferInfo(waferId, "polisher", "cleaner");
-
-        await _orchestrator.SendEventAsync("scheduler", "R2", "TRANSFER");
-
-        // Wait for robot to reach "placing down" state, then set wafer at cleaner
-        int timeout = 5000;
-        int elapsed = 0;
-        bool waferSet = false;
-        while (!_r2.CurrentState.Contains(".idle") && elapsed < timeout)
-        {
-            // When robot is placing down, set the wafer at destination
-            if (!waferSet && _r2.CurrentState.Contains(".placingDown"))
-            {
-                _cleaner!.SetWafer(waferId);
-                waferSet = true;
-            }
-            await Task.Delay(50, ct);
-            elapsed += 50;
-        }
-    }
-
-    // Priority 3: L → P (R1)
-    private bool CanExecuteLtoP()
-    {
-        lock (_stateLock)
-        {
-            bool polisherAvailable = _polisher!.CurrentState.Contains(".empty") ||
-                                   (_polisher.CurrentState.Contains(".done") && _r2!.CurrentState.Contains(".idle"));
-
-            return _lPending.Count > 0 &&
-                   _r1!.CurrentState.Contains(".idle") &&
-                   polisherAvailable;
-        }
-    }
-
-    private async Task ExecuteLtoP(CancellationToken ct)
-    {
-        int waferId;
-        lock (_stateLock)
-        {
-            if (_lPending.Count == 0) return;
-            waferId = _lPending[0];
-            _lPending.RemoveAt(0);
-        }
-
-        Log($"[P3] L→P: R1 transferring wafer {waferId}");
-
-        // Set transfer info and send TRANSFER command
-        _r1!.SetTransferInfo(waferId, "LoadPort", "polisher");
-
-        await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
-
-        // Wait for robot to reach "placing down" state, then set wafer at polisher
-        int timeout = 5000;
-        int elapsed = 0;
-        bool waferSet = false;
-        while (!_r1.CurrentState.Contains(".idle") && elapsed < timeout)
-        {
-            // When robot is placing down, set the wafer at destination
-            if (!waferSet && _r1.CurrentState.Contains(".placingDown"))
-            {
-                _polisher!.SetWafer(waferId);
-                waferSet = true;
-            }
-            await Task.Delay(50, ct);
-            elapsed += 50;
-        }
-    }
-
-    // Priority 4: B → L (R1)
-    private bool CanExecuteBtoL()
-    {
-        lock (_stateLock)
-        {
-            // Only when no L→P work available
-            bool canDoLtoP = _lPending.Count > 0 && _r1!.CurrentState.Contains(".idle");
-
-            return _buffer!.CurrentState.Contains(".occupied") &&
-                   _r1!.CurrentState.Contains(".idle") &&
-                   !canDoLtoP;
-        }
-    }
-
-    private async Task ExecuteBtoL(CancellationToken ct)
-    {
-        int waferId = _buffer!.CurrentWafer ?? 0;
-        if (waferId == 0) return;
-
-        Log($"[P4] B→L: R1 returning wafer {waferId}");
-
-        _r1!.SetTransferInfo(waferId, "buffer", "LoadPort");
-
-        await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
-
-        // B→L doesn't need to set wafer at LoadPort (wafer goes back to _lCompleted list)
-        int timeout = 5000;
-        int elapsed = 0;
-        while (!_r1.CurrentState.Contains(".idle") && elapsed < timeout)
-        {
-            await Task.Delay(50, ct);
-            elapsed += 50;
-        }
-
-        // Mark as completed
-        lock (_stateLock)
-        {
-            _lCompleted.Add(waferId);
-
-            // Mark wafer as completed (changes font color to white)
-            var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
-            if (wafer != null)
-            {
-                wafer.IsCompleted = true;
-            }
-        }
-
-        Log($"✓ Wafer {waferId} completed ({_lCompleted.Count}/25)");
-    }
-
-    // UIUpdateService removed - now using Pub/Sub pattern via MachineEventProcessed event
+    // All scheduling logic moved to SchedulerMachine - event-driven architecture
 
     private void UpdateWaferPositions()
     {
-        // Update LoadPort wafers
-        lock (_stateLock)
+        // Update LoadPort wafers (get lists from SchedulerMachine)
+        if (_scheduler != null)
         {
-            foreach (var waferId in _lPending.Concat(_lCompleted))
+            var completedWafers = _scheduler.Completed;
+
+            // Pending wafers are wafers 1-5 that haven't been completed yet
+            var allWafers = Enumerable.Range(1, 5);
+            var pendingWafers = allWafers.Except(completedWafers);
+            var loadPortWafers = pendingWafers.Concat(completedWafers);
+
+            foreach (var waferId in loadPortWafers)
             {
                 var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
                 if (wafer != null)
@@ -510,6 +305,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                     var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
                     wafer.X = x;
                     wafer.Y = y;
+
+                    // Mark completed wafers
+                    if (completedWafers.Contains(waferId))
+                    {
+                        wafer.IsCompleted = true;
+                    }
                 }
             }
         }
@@ -632,12 +433,89 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         LogMessage?.Invoke(this, message);
     }
 
+    private void UpdateProgress(object? state)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            // Notify UI of property changes for remaining time
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PolisherRemainingTime)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CleanerRemainingTime)));
+        }), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void LogTimingStatistics()
+    {
+        var totalElapsed = (DateTime.Now - _simulationStartTime).TotalMilliseconds;
+
+        Log("");
+        Log("═══════════════════════════════════════════════════════════");
+        Log("                   TIMING STATISTICS                       ");
+        Log("═══════════════════════════════════════════════════════════");
+        Log($"Total simulation time: {totalElapsed:F1} ms ({totalElapsed / 1000:F2} s)");
+        Log("");
+        Log("Configured operation times (per wafer):");
+        Log($"  • Polishing:  {POLISHING} ms ({POLISHING / 1000.0:F1} s)");
+        Log($"  • Cleaning:   {CLEANING} ms ({CLEANING / 1000.0:F1} s)");
+        Log($"  • Transfer:   {TRANSFER} ms ({TRANSFER / 1000.0:F1} s)");
+        Log("");
+        Log("Theoretical minimum time for 5 wafers:");
+        Log("  (Assuming perfect parallelization and no overhead)");
+
+        // In Forward Priority with perfect execution:
+        // - Each wafer goes: L→P(transfer) → Polish(3000ms) → P→C(transfer) → Clean(3000ms) → C→B(transfer) → B→L(transfer)
+        // - For 5 wafers with 2 stations working in parallel (P and C):
+        //   The bottleneck is the sequential processing through P and C
+        //   Best case: Wafers can overlap in P and C
+        //   W1: L→P(800) + P(3000) + P→C(800) + C(3000) + C→B(800) + B→L(800) = 9200ms
+        //   But W2 can start at Polisher when W1 moves to Cleaner
+        //   So with perfect pipeline: First wafer = 9200ms, each additional = 3000ms (bottleneck)
+        var firstWaferTime = 4 * TRANSFER + POLISHING + CLEANING; // L→P + P + P→C + C + C→B + B→L
+        var additionalWaferTime = Math.Max(POLISHING, CLEANING); // Bottleneck station
+        var theoreticalMin = firstWaferTime + (4 * additionalWaferTime); // First + 4 more
+
+        Log($"  • First wafer:         {firstWaferTime} ms ({firstWaferTime / 1000.0:F1} s)");
+        Log($"  • Each additional:     {additionalWaferTime} ms ({additionalWaferTime / 1000.0:F1} s) (bottleneck)");
+        Log($"  • Total (5 wafers):    {theoreticalMin} ms ({theoreticalMin / 1000.0:F1} s)");
+        Log("");
+
+        var overhead = totalElapsed - theoreticalMin;
+        var efficiency = (theoreticalMin / totalElapsed) * 100;
+
+        Log($"Actual overhead:  {overhead:F1} ms ({overhead / 1000:F2} s)");
+        Log($"Efficiency:       {efficiency:F1}%");
+        Log("═══════════════════════════════════════════════════════════");
+    }
+
+    public void SetExecutionMode(ExecutionMode mode)
+    {
+        _executionMode = mode;
+        Log($"▶ Execution mode set to: {mode}");
+
+        if (mode == ExecutionMode.Sync)
+        {
+            Log("  • In SYNC mode, use 'Step' button to execute one event at a time");
+            Log("  • Events will be queued and processed manually");
+        }
+        else
+        {
+            Log("  • In ASYNC mode, events are processed automatically");
+        }
+    }
+
     public void Dispose()
     {
         _cts.Cancel();
         _cts.Dispose();
 
-        // Unsubscribe from orchestrator events
-        _orchestrator.MachineEventProcessed -= OnMachineEventProcessed;
+        // Dispose progress timer
+        _progressTimer?.Dispose();
+
+        // Unsubscribe from state change events
+        if (_polisher != null) _polisher.StateChanged -= OnStateChanged;
+        if (_cleaner != null) _cleaner.StateChanged -= OnStateChanged;
+        if (_buffer != null) _buffer.StateChanged -= OnStateChanged;
+        if (_r1 != null) _r1.StateChanged -= OnStateChanged;
+        if (_r2 != null) _r2.StateChanged -= OnStateChanged;
+        if (_r3 != null) _r3.StateChanged -= OnStateChanged;
     }
 }

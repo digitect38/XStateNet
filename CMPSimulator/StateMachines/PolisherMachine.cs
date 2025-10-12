@@ -6,23 +6,34 @@ using Newtonsoft.Json.Linq;
 namespace CMPSimulator.StateMachines;
 
 /// <summary>
-/// Processing Station State Machine (Polisher, Cleaner)
-/// States: Empty → Idle → Processing → Done → Empty
+/// Polisher State Machine
+/// States: empty → processing → done → idle → empty
 /// Reports state changes to Scheduler (no direct robot commands)
 /// </summary>
-public class ProcessingStationMachine
+public class PolisherMachine
 {
     private readonly string _stationName;
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
     private readonly int _processingTimeMs;
     private readonly EventBusOrchestrator _orchestrator;
-    private StateMachine? _underlyingMachine; // Access to underlying machine for ContextMap
+    private StateMachine? _underlyingMachine;
     private int? _currentWafer;
+    private DateTime _processingStartTime;
 
     public string StationName => _stationName;
     public string CurrentState => _machine.CurrentState;
     public int? CurrentWafer => _currentWafer;
+    public int RemainingTimeMs
+    {
+        get
+        {
+            if (CurrentState != "processing") return 0;
+            var elapsed = (DateTime.Now - _processingStartTime).TotalMilliseconds;
+            var remaining = _processingTimeMs - elapsed;
+            return Math.Max(0, (int)remaining);
+        }
+    }
 
     // Expose StateChanged event for Pub/Sub
     public event EventHandler<StateTransitionEventArgs>? StateChanged
@@ -31,7 +42,7 @@ public class ProcessingStationMachine
         remove => _monitor.StateTransitioned -= value;
     }
 
-    public ProcessingStationMachine(
+    public PolisherMachine(
         string stationName,
         EventBusOrchestrator orchestrator,
         int processingTimeMs,
@@ -116,6 +127,7 @@ public class ProcessingStationMachine
 
             ["reportProcessing"] = (ctx) =>
             {
+                _processingStartTime = DateTime.Now;
                 logger($"[{_stationName}] State: processing (wafer {_currentWafer})");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
@@ -179,8 +191,7 @@ public class ProcessingStationMachine
             enableGuidIsolation: false
         );
 
-        // Create and start monitor for state change notifications
-        // Also store reference to underlying machine for ContextMap access
+        // Create and start monitor
         _underlyingMachine = ((PureStateMachineAdapter)_machine).GetUnderlying() as StateMachine;
         _monitor = new StateMachineMonitor(_underlyingMachine!);
         _monitor.StartMonitoring();

@@ -102,6 +102,20 @@ namespace XStateNet.Orchestration
 
             _machines[machineId] = managed;
 
+            // Subscribe to StateChanged events for automatic ExecuteDeferredSends
+            // This is needed for internal transitions (like invoke service onDone)
+            // that don't go through ProcessEventAsync
+            if (machine is StateMachine sm)
+            {
+                sm.StateChanged += async (newState) =>
+                {
+                    if (_machineContexts.TryGetValue(machineId, out var context))
+                    {
+                        await context.ExecuteDeferredSends();
+                    }
+                };
+            }
+
             // Record metrics
             if (_config.EnableMetrics)
             {

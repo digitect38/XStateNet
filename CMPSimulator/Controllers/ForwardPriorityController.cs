@@ -1135,6 +1135,14 @@ public class ForwardPriorityController : IForwardPriorityController
         _debugLog?.WriteLine($"[T+{elapsed,8:F0}ms] {message}");
     }
 
+    public void SetExecutionMode(ExecutionMode mode)
+    {
+        // ForwardPriorityController doesn't support mode switching
+        // It always runs in its own polling-based mode
+        Log($"⚠ ForwardPriorityController does not support execution mode switching");
+        Log($"  (This controller uses polling-based execution)");
+    }
+
     public void Dispose()
     {
         _cts?.Cancel();

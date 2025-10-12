@@ -1,5 +1,6 @@
 using XStateNet;
 using XStateNet.Orchestration;
+using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
 
 namespace CMPSimulator.StateMachines;
@@ -12,13 +13,25 @@ namespace CMPSimulator.StateMachines;
 public class BufferMachine
 {
     private readonly IPureStateMachine _machine;
+    private readonly StateMachineMonitor _monitor;
+    private readonly EventBusOrchestrator _orchestrator;
+    private StateMachine? _underlyingMachine; // Access to underlying machine for ContextMap
     private int? _currentWafer;
 
     public string CurrentState => _machine.CurrentState;
     public int? CurrentWafer => _currentWafer;
 
+    // Expose StateChanged event for Pub/Sub
+    public event EventHandler<StateTransitionEventArgs>? StateChanged
+    {
+        add => _monitor.StateTransitioned += value;
+        remove => _monitor.StateTransitioned -= value;
+    }
+
     public BufferMachine(EventBusOrchestrator orchestrator, Action<string> logger)
     {
+        _orchestrator = orchestrator;
+
         var definition = """
         {
             "id": "buffer",
@@ -61,7 +74,16 @@ public class BufferMachine
 
             ["onPlace"] = (ctx) =>
             {
-                // Wafer ID is set externally before PLACE event is sent
+                // Extract wafer ID from underlying state machine's ContextMap
+                if (_underlyingMachine?.ContextMap != null)
+                {
+                    var data = _underlyingMachine.ContextMap["_event"] as JObject;
+                    if (data != null)
+                    {
+                        _currentWafer = data["wafer"]?.ToObject<int?>();
+                    }
+                }
+
                 logger($"[Buffer] Wafer {_currentWafer} placed");
             },
 
@@ -92,9 +114,26 @@ public class BufferMachine
             services: null,
             enableGuidIsolation: false
         );
+
+        // Create and start monitor for state change notifications
+        // Also store reference to underlying machine for ContextMap access
+        _underlyingMachine = ((PureStateMachineAdapter)_machine).GetUnderlying() as StateMachine;
+        _monitor = new StateMachineMonitor(_underlyingMachine!);
+        _monitor.StartMonitoring();
+
+        // Note: ExecuteDeferredSends is now automatically handled by EventBusOrchestrator
     }
 
-    public async Task<string> StartAsync() => await _machine.StartAsync();
+    public async Task<string> StartAsync()
+    {
+        var result = await _machine.StartAsync();
+
+        // Execute deferred sends from entry actions
+        var context = _orchestrator.GetOrCreateContext("buffer");
+        await context.ExecuteDeferredSends();
+
+        return result;
+    }
 
     public void SetWafer(int waferId)
     {

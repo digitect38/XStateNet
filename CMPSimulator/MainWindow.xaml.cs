@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
@@ -19,6 +20,8 @@ public partial class MainWindow : Window
     private Point _panStart;
     private double _panStartHorizontalOffset;
     private double _panStartVerticalOffset;
+
+    private DateTime _simulationStartTime = DateTime.Now;
 
     public MainWindow()
     {
@@ -49,12 +52,27 @@ public partial class MainWindow : Window
         SimulationCanvas.MouseLeave += SimulationCanvas_MouseLeave;
     }
 
+    private void ExecutionMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_controller == null) return;
+
+        bool isSyncMode = SyncModeRadio.IsChecked == true;
+        _controller.SetExecutionMode(isSyncMode ? ExecutionMode.Sync : ExecutionMode.Async);
+
+        // Update UI based on mode
+        // Note: Don't enable StepButton here - it's enabled by StartButton_Click
+        // This just switches the mode for when Start is pressed
+    }
+
     private async void StartButton_Click(object sender, RoutedEventArgs e)
     {
         StartButton.IsEnabled = false;
         StepButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         ResetButton.IsEnabled = false;
+
+        // Reset simulation start time when starting
+        _simulationStartTime = DateTime.Now;
 
         await _controller.StartSimulation();
     }
@@ -83,6 +101,9 @@ public partial class MainWindow : Window
     {
         _controller.ResetSimulation();
 
+        // Reset simulation start time
+        _simulationStartTime = DateTime.Now;
+
         StartButton.IsEnabled = true;
         StepButton.IsEnabled = true;
         StopButton.IsEnabled = false;
@@ -104,7 +125,11 @@ public partial class MainWindow : Window
 
     private void Log(string message)
     {
-        LogTextBlock.Text += message + Environment.NewLine;
+        // Calculate elapsed time since simulation start
+        var elapsed = DateTime.Now - _simulationStartTime;
+        string timestamp = $"[{elapsed.TotalSeconds:000.000}] ";
+
+        LogTextBlock.Text += timestamp + message + Environment.NewLine;
 
         // Auto-scroll to bottom (TextBox has built-in scroll support)
         LogTextBlock.ScrollToEnd();
@@ -138,17 +163,116 @@ public partial class MainWindow : Window
 
     private void CopyLog_Click(object sender, RoutedEventArgs e)
     {
-        if (!string.IsNullOrEmpty(LogTextBlock.SelectedText))
+        try
         {
-            Clipboard.SetText(LogTextBlock.SelectedText);
-        }
-        else
-        {
-            // If no text is selected, copy all text
-            if (!string.IsNullOrEmpty(LogTextBlock.Text))
+            string textToCopy;
+
+            if (!string.IsNullOrEmpty(LogTextBlock.SelectedText))
             {
-                Clipboard.SetText(LogTextBlock.Text);
+                textToCopy = LogTextBlock.SelectedText;
             }
+            else
+            {
+                // If no text is selected, copy all text
+                textToCopy = LogTextBlock.Text;
+            }
+
+            if (string.IsNullOrEmpty(textToCopy))
+                return;
+
+            // Check if text is too large (> 10MB can cause clipboard issues)
+            const int MaxClipboardSize = 10 * 1024 * 1024; // 10MB
+
+            if (textToCopy.Length > MaxClipboardSize)
+            {
+                // Copy only the last N lines to avoid clipboard overflow
+                var lines = textToCopy.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+                int linesToCopy = Math.Min(5000, lines.Length); // Last 5000 lines
+
+                var result = MessageBox.Show(
+                    $"로그가 너무 큽니다 ({textToCopy.Length:N0} 문자).\n마지막 {linesToCopy}줄만 복사하시겠습니까?",
+                    "클립보드 크기 초과",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    var lastLines = lines.Skip(lines.Length - linesToCopy).ToArray();
+                    textToCopy = string.Join(Environment.NewLine, lastLines);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            // Retry clipboard operation (CLIPBRD_E_CANT_OPEN workaround)
+            bool success = false;
+            int retries = 5;
+            for (int i = 0; i < retries; i++)
+            {
+                try
+                {
+                    Clipboard.SetText(textToCopy);
+                    success = true;
+                    break;
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    if (i < retries - 1)
+                    {
+                        System.Threading.Thread.Sleep(100); // Wait 100ms before retry
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            if (success)
+            {
+                MessageBox.Show($"로그가 클립보드에 복사되었습니다.\n({textToCopy.Length:N0} 문자)",
+                    "복사 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"클립보드 복사 실패: {ex.Message}\n\n다시 시도해주세요.",
+                "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OpenLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Create temp directory if not exists
+            string tempDir = Path.Combine(Path.GetTempPath(), "CMPSimulator");
+            Directory.CreateDirectory(tempDir);
+
+            // Generate timestamped filename
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string logFileName = $"CMPSimulator_Log_{timestamp}.txt";
+            string logFilePath = Path.Combine(tempDir, logFileName);
+
+            // Write log to file
+            File.WriteAllText(logFilePath, LogTextBlock.Text);
+
+            // Open with default editor
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = logFilePath,
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(processStartInfo);
+
+            Log($"Log file opened: {logFilePath}");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"로그 파일 열기 실패: {ex.Message}",
+                "오류", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

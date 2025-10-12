@@ -6,18 +6,18 @@ using Newtonsoft.Json.Linq;
 namespace CMPSimulator.StateMachines;
 
 /// <summary>
-/// Processing Station State Machine (Polisher, Cleaner)
-/// States: Empty → Idle → Processing → Done → Empty
-/// Reports state changes to Scheduler (no direct robot commands)
+/// E157-Compliant Polisher State Machine
+/// Based on SEMI E157 Equipment State Model
+/// States: IDLE → SETUP → READY → EXECUTING → PAUSE/COMPLETE → IDLE
 /// </summary>
-public class ProcessingStationMachine
+public class E157PolisherMachine
 {
     private readonly string _stationName;
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
     private readonly int _processingTimeMs;
     private readonly EventBusOrchestrator _orchestrator;
-    private StateMachine? _underlyingMachine; // Access to underlying machine for ContextMap
+    private StateMachine? _underlyingMachine;
     private int? _currentWafer;
 
     public string StationName => _stationName;
@@ -31,7 +31,7 @@ public class ProcessingStationMachine
         remove => _monitor.StateTransitioned -= value;
     }
 
-    public ProcessingStationMachine(
+    public E157PolisherMachine(
         string stationName,
         EventBusOrchestrator orchestrator,
         int processingTimeMs,
@@ -179,8 +179,7 @@ public class ProcessingStationMachine
             enableGuidIsolation: false
         );
 
-        // Create and start monitor for state change notifications
-        // Also store reference to underlying machine for ContextMap access
+        // Create and start monitor
         _underlyingMachine = ((PureStateMachineAdapter)_machine).GetUnderlying() as StateMachine;
         _monitor = new StateMachineMonitor(_underlyingMachine!);
         _monitor.StartMonitoring();

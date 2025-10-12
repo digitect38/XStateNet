@@ -7,6 +7,8 @@ namespace XStateNet.Monitoring
     {
         private readonly StateMachine _stateMachine;
         private bool _isMonitoring;
+        private string? _lastState;
+        private string? _lastEvent;
 
         public event EventHandler<StateTransitionEventArgs>? StateTransitioned;
         public event EventHandler<StateMachineEventArgs>? EventReceived;
@@ -32,8 +34,12 @@ namespace XStateNet.Monitoring
         {
             if (_isMonitoring) return;
 
+            // Initialize with current state
+            _lastState = _stateMachine.GetActiveStateNames();
+
             // Subscribe to state machine events
-            _stateMachine.OnTransition += OnStateMachineTransition;
+            // Use StateChanged instead of OnTransition to ensure entry actions have completed
+            _stateMachine.StateChanged += OnStateMachineStateChanged;
             _stateMachine.OnEventReceived += OnStateMachineEventReceived;
             _stateMachine.OnActionExecuted += OnStateMachineActionExecuted;
             _stateMachine.OnGuardEvaluated += OnStateMachineGuardEvaluated;
@@ -46,7 +52,7 @@ namespace XStateNet.Monitoring
             if (!_isMonitoring) return;
 
             // Unsubscribe from state machine events
-            _stateMachine.OnTransition -= OnStateMachineTransition;
+            _stateMachine.StateChanged -= OnStateMachineStateChanged;
             _stateMachine.OnEventReceived -= OnStateMachineEventReceived;
             _stateMachine.OnActionExecuted -= OnStateMachineActionExecuted;
             _stateMachine.OnGuardEvaluated -= OnStateMachineGuardEvaluated;
@@ -65,7 +71,7 @@ namespace XStateNet.Monitoring
                 });
         }
 
-        private void OnStateMachineTransition(CompoundState? fromState, StateNode? toState, string eventName)
+        private void OnStateMachineStateChanged(string newStateString)
         {
             // Extract just the state name without machine ID prefix
             string ExtractStateName(string? fullName)
@@ -75,18 +81,30 @@ namespace XStateNet.Monitoring
                 return parts.Length > 1 ? parts.Last() : fullName;
             }
 
-            StateTransitioned?.Invoke(this, new StateTransitionEventArgs
+            var fromState = ExtractStateName(_lastState);
+            var toState = ExtractStateName(newStateString);
+
+            // Only fire event if state actually changed
+            if (fromState != toState)
             {
-                StateMachineId = StateMachineId,
-                FromState = ExtractStateName(fromState?.Name),
-                ToState = ExtractStateName(toState?.Name),
-                TriggerEvent = eventName,
-                Timestamp = DateTime.UtcNow
-            });
+                StateTransitioned?.Invoke(this, new StateTransitionEventArgs
+                {
+                    StateMachineId = StateMachineId,
+                    FromState = fromState,
+                    ToState = toState,
+                    TriggerEvent = _lastEvent ?? "unknown",
+                    Timestamp = DateTime.UtcNow
+                });
+
+                _lastState = newStateString;
+            }
         }
 
         private void OnStateMachineEventReceived(string eventName, object? eventData)
         {
+            // Track the last event that was sent to the state machine
+            _lastEvent = eventName;
+
             EventReceived?.Invoke(this, new StateMachineEventArgs
             {
                 StateMachineId = StateMachineId,

@@ -1,5 +1,6 @@
 using XStateNet;
 using XStateNet.Orchestration;
+using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
 
 namespace CMPSimulator.StateMachines;
@@ -13,7 +14,10 @@ public class RobotMachine
 {
     private readonly string _robotName;
     private readonly IPureStateMachine _machine;
+    private readonly StateMachineMonitor _monitor;
     private readonly int _transferTimeMs;
+    private readonly EventBusOrchestrator _orchestrator; // Already has this field
+    private StateMachine? _underlyingMachine; // Access to underlying machine for ContextMap
     private int? _heldWafer;
     private string? _pickFrom;
     private string? _placeTo;
@@ -21,6 +25,13 @@ public class RobotMachine
     public string RobotName => _robotName;
     public string CurrentState => _machine.CurrentState;
     public int? HeldWafer => _heldWafer;
+
+    // Expose StateChanged event for Pub/Sub
+    public event EventHandler<StateTransitionEventArgs>? StateChanged
+    {
+        add => _monitor.StateTransitioned += value;
+        remove => _monitor.StateTransitioned -= value;
+    }
 
     public RobotMachine(
         string robotName,
@@ -30,6 +41,7 @@ public class RobotMachine
     {
         _robotName = robotName;
         _transferTimeMs = transferTimeMs;
+        _orchestrator = orchestrator;
 
         var definition = $$"""
         {
@@ -57,8 +69,18 @@ public class RobotMachine
                 },
                 "holding": {
                     "entry": ["reportHolding", "logHolding"],
-                    "after": {
-                        "1": "placingDown"
+                    "on": {
+                        "DESTINATION_READY": {
+                            "target": "placingDown"
+                        }
+                    }
+                },
+                "waitingDestination": {
+                    "entry": ["logWaitingDestination"],
+                    "on": {
+                        "DESTINATION_READY": {
+                            "target": "placingDown"
+                        }
                     }
                 },
                 "placingDown": {
@@ -100,7 +122,18 @@ public class RobotMachine
 
             ["storeTransferInfo"] = (ctx) =>
             {
-                // Transfer info should be set externally before sending TRANSFER event
+                // Extract transfer info from underlying state machine's ContextMap
+                if (_underlyingMachine?.ContextMap != null)
+                {
+                    var data = _underlyingMachine.ContextMap["_event"] as JObject;
+                    if (data != null)
+                    {
+                        _heldWafer = data["waferId"]?.ToObject<int?>();
+                        _pickFrom = data["from"]?.ToString();
+                        _placeTo = data["to"]?.ToString();
+                    }
+                }
+
                 logger($"[{_robotName}] Transfer command: {_pickFrom} → {_placeTo} (Wafer {_heldWafer})");
             },
 
@@ -122,13 +155,26 @@ public class RobotMachine
                 {
                     ["robot"] = _robotName,
                     ["state"] = "holding",
-                    ["wafer"] = _heldWafer
+                    ["wafer"] = _heldWafer,
+                    ["waitingFor"] = _placeTo  // Tell scheduler where we want to go
                 });
             },
 
             ["logHolding"] = (ctx) =>
             {
-                logger($"[{_robotName}] Holding wafer {_heldWafer}");
+                logger($"[{_robotName}] Holding wafer {_heldWafer} (waiting for Scheduler to confirm destination ready)");
+            },
+
+            ["logWaitingDestination"] = (ctx) =>
+            {
+                logger($"[{_robotName}] ⏸ Waiting for destination '{_placeTo}' to become empty (holding wafer {_heldWafer})");
+                ctx.RequestSend("scheduler", "ROBOT_STATUS", new JObject
+                {
+                    ["robot"] = _robotName,
+                    ["state"] = "waitingDestination",
+                    ["wafer"] = _heldWafer,
+                    ["waitingFor"] = _placeTo
+                });
             },
 
             ["logPlacingDown"] = (ctx) =>
@@ -138,9 +184,17 @@ public class RobotMachine
 
             ["placeWafer"] = (ctx) =>
             {
-                logger($"[{_robotName}] Placed wafer {_heldWafer} at {_placeTo}");
-                // Notify destination station
-                ctx.RequestSend(_placeTo!, "PLACE", new JObject { ["wafer"] = _heldWafer });
+                int placedWafer = _heldWafer ?? 0;
+                logger($"[{_robotName}] Placed wafer {placedWafer} at {_placeTo}");
+
+                // Send event to destination station with wafer info
+                ctx.RequestSend(_placeTo!, "PLACE", new JObject
+                {
+                    ["wafer"] = placedWafer
+                });
+
+                // Clear held wafer immediately after placing
+                _heldWafer = null;
             },
 
             ["logReturning"] = (ctx) =>
@@ -151,11 +205,15 @@ public class RobotMachine
             ["completeTransfer"] = (ctx) =>
             {
                 logger($"[{_robotName}] Transfer complete");
-                _heldWafer = null;
+                // _heldWafer is already cleared in placeWafer
+                // Clear transfer info
                 _pickFrom = null;
                 _placeTo = null;
             }
         };
+
+        // No guards needed - Scheduler handles all decision making
+        Dictionary<string, Func<StateMachine, bool>>? guards = null;
 
         var services = new Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>
         {
@@ -183,13 +241,31 @@ public class RobotMachine
             json: definition,
             orchestrator: orchestrator,
             orchestratedActions: actions,
-            guards: null,
+            guards: guards,
             services: services,
             enableGuidIsolation: false
         );
+
+        // Create and start monitor for state change notifications
+        // Also store reference to underlying machine for ContextMap access
+        _underlyingMachine = ((PureStateMachineAdapter)_machine).GetUnderlying() as StateMachine;
+        _monitor = new StateMachineMonitor(_underlyingMachine!);
+        _monitor.StartMonitoring();
+
+        // Note: ExecuteDeferredSends is now automatically handled by EventBusOrchestrator
+        // when it registers the machine via RegisterMachine()
     }
 
-    public async Task<string> StartAsync() => await _machine.StartAsync();
+    public async Task<string> StartAsync()
+    {
+        var result = await _machine.StartAsync();
+
+        // Execute deferred sends from entry actions
+        var context = _orchestrator.GetOrCreateContext(_robotName);
+        await context.ExecuteDeferredSends();
+
+        return result;
+    }
 
     public void SetTransferInfo(int waferId, string from, string to)
     {

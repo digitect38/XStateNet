@@ -121,7 +121,7 @@ public class LoadPortMachine
                 Console.WriteLine($"[{MachineId}] 🔧 E84 Signal: BUSY=1"),
 
             ["logTransferComplete"] = (ctx) =>
-                Console.WriteLine($"[{MachineId}] 📍 E84 Step 6: COMPT (transfer complete)"),
+                Console.WriteLine($"[{MachineId}] 📍 E84 Step 6: COMPT (transfer complete)"), 
 
             ["e84_compt"] = (ctx) =>
                 Console.WriteLine($"[{MachineId}] 🔧 E84 Signal: COMPT=1"),
