@@ -9,7 +9,7 @@ namespace CMPSimulator.StateMachines;
 /// Scheduler State Machine
 /// Receives STATION_STATUS and ROBOT_STATUS events
 /// Executes Forward Priority scheduling logic
-/// Priority: P1(C→B) > P2(P→C) > P3(L→P) > P4(B→L)
+/// Priority: P1(C→B) >= P2(P→C) >= P3(L→P) >= P4(B→L)
 /// </summary>
 public class SchedulerMachine
 {
@@ -314,9 +314,46 @@ public class SchedulerMachine
             if (kvp.Value == station)
             {
                 var robot = kvp.Key;
-                _logger($"[Scheduler] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
-                ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
-                _robotWaitingFor.Remove(robot);
+                var destState = GetStationState(station);
+                bool destReady = false;
+
+                // Apply robot-specific state checks (same logic as holding state)
+                // R1: Can place to Polisher only when empty/idle (Polisher can't accept PLACE in done state)
+                // R2: Can place to Cleaner when empty/idle OR done (R3 will pick immediately)
+                // R3: Only when Buffer is empty (strict - no downstream robot)
+                if (robot == "R1")
+                {
+                    // R1 → Polisher: Only when truly empty/idle
+                    // Polisher state machine only accepts PLACE in empty state!
+                    destReady = (destState == "empty" || destState == "idle" || destState == "IDLE");
+                }
+                else if (robot == "R2")
+                {
+                    // R2 → Cleaner: Can place when empty/idle OR done
+                    // This allows overlapping: R2 places while R3 picks
+                    destReady = (destState == "empty" || destState == "idle" || destState == "done");
+                }
+                else if (robot == "R3")
+                {
+                    // R3 → Buffer: Must wait until Buffer is truly empty (no downstream robot)
+                    destReady = (destState == "empty" || destState == "idle");
+                }
+                else
+                {
+                    // Fallback for any other robot
+                    destReady = (destState == "empty" || destState == "idle");
+                }
+
+                if (destReady)
+                {
+                    _logger($"[Scheduler] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
+                    ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
+                    _robotWaitingFor.Remove(robot);
+                }
+                else
+                {
+                    _logger($"[Scheduler] ⏸ Station {station} changed but not ready for {robot} (state={destState ?? "N/A"})");
+                }
             }
         }
     }
