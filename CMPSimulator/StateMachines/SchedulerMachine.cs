@@ -50,8 +50,9 @@ public class SchedulerMachine
         _logger = logger;
         _orchestrator = orchestrator;
 
-        // Initialize LoadPort queue with 5 wafers (for faster testing)
-        for (int i = 1; i <= 5; i++)
+        // Initialize LoadPort queue with wafers
+        int totalWafers = CMPSimulator.Controllers.OrchestratedForwardPriorityController.TOTAL_WAFERS;
+        for (int i = 1; i <= totalWafers; i++)
         {
             _lPending.Add(i);
         }
@@ -578,12 +579,13 @@ public class SchedulerMachine
 
         // Mark as completed
         _lCompleted.Add(waferId.Value);
-        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/5)");
+        int totalWafers = CMPSimulator.Controllers.OrchestratedForwardPriorityController.TOTAL_WAFERS;
+        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{totalWafers})");
 
         // Check if all wafers completed
-        if (_lCompleted.Count >= 5)
+        if (_lCompleted.Count >= totalWafers)
         {
-            _logger("[Scheduler] ✅ All 5 wafers completed!");
+            _logger($"[Scheduler] ✅ All {totalWafers} wafers completed!");
             AllWafersCompleted?.Invoke(this, EventArgs.Empty);
         }
     }

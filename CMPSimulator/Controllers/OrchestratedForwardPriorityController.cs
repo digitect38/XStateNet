@@ -37,9 +37,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private Queue<string> _pendingEvents = new Queue<string>();
 
     // Timing constants
-    private const int POLISHING = 3000;  // 3 seconds
-    private const int CLEANING = 3000;   // 3 seconds
-    public const int TRANSFER = 300;     // 0.3 seconds (300ms) for robot transfers
+    private const int POLISHING = 7000;  // 7 seconds
+    private const int CLEANING = 7000;   // 7 seconds
+    public const int TRANSFER = 1000;    // 1 second (1000ms) for robot transfers
+
+    // Simulation configuration
+    public const int TOTAL_WAFERS = 10;  // Total number of wafers to process
 
     public ObservableCollection<Wafer> Wafers { get; }
     public Dictionary<string, StationPosition> Stations => _stations;
@@ -103,9 +106,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     private void InitializeWafers()
     {
-        var colors = GenerateDistinctColors(5);
+        var colors = GenerateDistinctColors(TOTAL_WAFERS);
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < TOTAL_WAFERS; i++)
         {
             var wafer = new Wafer(i + 1, colors[i]);
             var loadPort = _stations["LoadPort"];
@@ -137,7 +140,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             Application.Current?.Dispatcher.Invoke(() =>
             {
-                Log("✅ All 5 wafers completed!");
+                Log($"✅ All {TOTAL_WAFERS} wafers completed!");
                 LogTimingStatistics();
             });
         };
@@ -290,8 +293,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             var completedWafers = _scheduler.Completed;
 
-            // Pending wafers are wafers 1-5 that haven't been completed yet
-            var allWafers = Enumerable.Range(1, 5);
+            // Pending wafers are wafers 1-TOTAL_WAFERS that haven't been completed yet
+            var allWafers = Enumerable.Range(1, TOTAL_WAFERS);
             var pendingWafers = allWafers.Except(completedWafers);
             var loadPortWafers = pendingWafers.Concat(completedWafers);
 
@@ -458,24 +461,24 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log($"  • Cleaning:   {CLEANING} ms ({CLEANING / 1000.0:F1} s)");
         Log($"  • Transfer:   {TRANSFER} ms ({TRANSFER / 1000.0:F1} s)");
         Log("");
-        Log("Theoretical minimum time for 5 wafers:");
+        Log($"Theoretical minimum time for {TOTAL_WAFERS} wafers:");
         Log("  (Assuming perfect parallelization and no overhead)");
 
         // In Forward Priority with perfect execution:
         // - Each wafer goes: L→P(transfer) → Polish(3000ms) → P→C(transfer) → Clean(3000ms) → C→B(transfer) → B→L(transfer)
-        // - For 5 wafers with 2 stations working in parallel (P and C):
+        // - For TOTAL_WAFERS wafers with 2 stations working in parallel (P and C):
         //   The bottleneck is the sequential processing through P and C
         //   Best case: Wafers can overlap in P and C
-        //   W1: L→P(800) + P(3000) + P→C(800) + C(3000) + C→B(800) + B→L(800) = 9200ms
+        //   W1: L→P(300) + P(3000) + P→C(300) + C(3000) + C→B(300) + B→L(300) = 7200ms
         //   But W2 can start at Polisher when W1 moves to Cleaner
-        //   So with perfect pipeline: First wafer = 9200ms, each additional = 3000ms (bottleneck)
+        //   So with perfect pipeline: First wafer = 7200ms, each additional = 3000ms (bottleneck)
         var firstWaferTime = 4 * TRANSFER + POLISHING + CLEANING; // L→P + P + P→C + C + C→B + B→L
         var additionalWaferTime = Math.Max(POLISHING, CLEANING); // Bottleneck station
-        var theoreticalMin = firstWaferTime + (4 * additionalWaferTime); // First + 4 more
+        var theoreticalMin = firstWaferTime + ((TOTAL_WAFERS - 1) * additionalWaferTime); // First + (N-1) more
 
         Log($"  • First wafer:         {firstWaferTime} ms ({firstWaferTime / 1000.0:F1} s)");
         Log($"  • Each additional:     {additionalWaferTime} ms ({additionalWaferTime / 1000.0:F1} s) (bottleneck)");
-        Log($"  • Total (5 wafers):    {theoreticalMin} ms ({theoreticalMin / 1000.0:F1} s)");
+        Log($"  • Total ({TOTAL_WAFERS} wafers):   {theoreticalMin} ms ({theoreticalMin / 1000.0:F1} s)");
         Log("");
 
         var overhead = totalElapsed - theoreticalMin;

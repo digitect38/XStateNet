@@ -161,11 +161,11 @@
                     Canvas.Left="420" Canvas.Top="250" Width="120" Height="120"
                     Background="#FFFACD">
                 <Grid>
-                    <TextBlock Text="Polisher" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="PolisherRemainingTimeText" Text="{Binding PolisherRemainingTime}" FontSize="10"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                              Foreground="#CC6600" FontWeight="Bold"/>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
+                        <TextBlock Text="Polisher" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="PolisherRemainingTimeText" Text="{Binding PolisherRemainingTime}" FontSize="9"
+                                  HorizontalAlignment="Center" Foreground="#CC6600" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                    </StackPanel>
                     <TextBlock x:Name="PolisherStatusText" Text="Idle" FontSize="9"
                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
                 </Grid>
@@ -188,11 +188,11 @@
                     Canvas.Left="760" Canvas.Top="250" Width="120" Height="120"
                     Background="#E0FFFF">
                 <Grid>
-                    <TextBlock Text="Cleaner" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="CleanerRemainingTimeText" Text="{Binding CleanerRemainingTime}" FontSize="10"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                              Foreground="#0099CC" FontWeight="Bold"/>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
+                        <TextBlock Text="Cleaner" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="CleanerRemainingTimeText" Text="{Binding CleanerRemainingTime}" FontSize="9"
+                                  HorizontalAlignment="Center" Foreground="#0099CC" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                    </StackPanel>
                     <TextBlock x:Name="CleanerStatusText" Text="Idle" FontSize="9"
                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
                 </Grid>
