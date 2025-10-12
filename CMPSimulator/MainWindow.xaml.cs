@@ -8,7 +8,7 @@ namespace CMPSimulator;
 
 public partial class MainWindow : Window
 {
-    private readonly ForwardPriorityController _controller;
+    private readonly IForwardPriorityController _controller;
     private readonly Storyboard _waferAnimationStoryboard;
     private double _currentZoom = 1.0;
     private const double ZoomMin = 0.5;
@@ -24,8 +24,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Use Forward Priority Controller
-        _controller = new ForwardPriorityController();
+        // Switch between implementations:
+        // _controller = new ForwardPriorityController();  // Non-XStateNet version
+        _controller = new OrchestratedForwardPriorityController();  // XStateNet Orchestrated version
         _waferAnimationStoryboard = new Storyboard();
 
         // Set data context for wafer binding

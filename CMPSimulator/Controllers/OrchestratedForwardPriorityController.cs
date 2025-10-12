@@ -243,11 +243,18 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         await _orchestrator.SendEventAsync("scheduler", "R3", "TRANSFER");
 
-        // Wait for transfer to complete (R3 will return to idle)
+        // Wait for robot to reach "placing down" state, then set wafer at buffer
         int timeout = 5000;
         int elapsed = 0;
+        bool waferSet = false;
         while (!_r3.CurrentState.Contains(".idle") && elapsed < timeout)
         {
+            // When robot is placing down, set the wafer at destination
+            if (!waferSet && _r3.CurrentState.Contains(".placingDown"))
+            {
+                _buffer!.SetWafer(waferId);
+                waferSet = true;
+            }
             await Task.Delay(50, ct);
             elapsed += 50;
         }
@@ -280,10 +287,18 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         await _orchestrator.SendEventAsync("scheduler", "R2", "TRANSFER");
 
+        // Wait for robot to reach "placing down" state, then set wafer at cleaner
         int timeout = 5000;
         int elapsed = 0;
+        bool waferSet = false;
         while (!_r2.CurrentState.Contains(".idle") && elapsed < timeout)
         {
+            // When robot is placing down, set the wafer at destination
+            if (!waferSet && _r2.CurrentState.Contains(".placingDown"))
+            {
+                _cleaner!.SetWafer(waferId);
+                waferSet = true;
+            }
             await Task.Delay(50, ct);
             elapsed += 50;
         }
@@ -316,15 +331,22 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log($"[P3] L→P: R1 transferring wafer {waferId}");
 
         // Set transfer info and send TRANSFER command
-        // Note: Station will receive PLACE event from Robot and update its wafer
         _r1!.SetTransferInfo(waferId, "LoadPort", "polisher");
 
         await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
 
+        // Wait for robot to reach "placing down" state, then set wafer at polisher
         int timeout = 5000;
         int elapsed = 0;
+        bool waferSet = false;
         while (!_r1.CurrentState.Contains(".idle") && elapsed < timeout)
         {
+            // When robot is placing down, set the wafer at destination
+            if (!waferSet && _r1.CurrentState.Contains(".placingDown"))
+            {
+                _polisher!.SetWafer(waferId);
+                waferSet = true;
+            }
             await Task.Delay(50, ct);
             elapsed += 50;
         }
@@ -355,6 +377,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         await _orchestrator.SendEventAsync("scheduler", "R1", "TRANSFER");
 
+        // B→L doesn't need to set wafer at LoadPort (wafer goes back to _lCompleted list)
         int timeout = 5000;
         int elapsed = 0;
         while (!_r1.CurrentState.Contains(".idle") && elapsed < timeout)

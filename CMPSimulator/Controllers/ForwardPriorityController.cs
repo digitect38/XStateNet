@@ -12,7 +12,7 @@ namespace CMPSimulator.Controllers;
 /// Forward Priority Scheduler-based CMP controller for WPF
 /// Centralized scheduler with forward priority: Process equipment resource release first
 /// </summary>
-public class ForwardPriorityController : INotifyPropertyChanged, IDisposable
+public class ForwardPriorityController : IForwardPriorityController
 {
     private readonly Dictionary<string, StationPosition> _stations;
     private readonly Dictionary<int, int> _waferOriginalSlots;
