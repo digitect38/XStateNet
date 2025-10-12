@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XStateNet5Impl\XStateNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="CMPSimulatorConsole\**" />
+    <EmbeddedResource Remove="CMPSimulatorConsole\**" />
+    <None Remove="CMPSimulatorConsole\**" />
+    <Page Remove="CMPSimulatorConsole\**" />
+
+    <Compile Remove="CMPSimulator.Tests\**" />
+    <EmbeddedResource Remove="CMPSimulator.Tests\**" />
+    <None Remove="CMPSimulator.Tests\**" />
+    <Page Remove="CMPSimulator.Tests\**" />
+  </ItemGroup>
+
+</Project>
