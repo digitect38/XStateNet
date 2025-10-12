@@ -23,6 +23,7 @@ public interface IForwardPriorityController : INotifyPropertyChanged, IDisposabl
     event EventHandler? StationStatusChanged;
 
     Task StartSimulation();
+    Task ExecuteOneStep();
     void StopSimulation();
     void ResetSimulation();
 }

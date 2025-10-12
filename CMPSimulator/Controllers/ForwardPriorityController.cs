@@ -382,6 +382,49 @@ public class ForwardPriorityController : IForwardPriorityController
         _uiUpdateTask = Task.Run(() => UIUpdateService(_cts.Token), _cts.Token);
     }
 
+    public async Task ExecuteOneStep()
+    {
+        if (!_stopwatch.IsRunning)
+        {
+            await _machine.StartAsync();
+            _stopwatch.Restart();
+            Log("⏭ Step Mode");
+        }
+
+        // Execute highest priority action that can run
+        CancellationToken ct = CancellationToken.None;
+
+        // P1: C→B (highest priority)
+        if (CanExecCtoB())
+        {
+            await ExecCtoB(ct);
+            return;
+        }
+
+        // P2: P→C
+        if (CanExecPtoC())
+        {
+            await ExecPtoC(ct);
+            return;
+        }
+
+        // P3: L→P
+        if (CanExecLtoP())
+        {
+            await ExecLtoP(ct);
+            return;
+        }
+
+        // P4: B→L (lowest priority)
+        if (CanExecBtoL())
+        {
+            await ExecBtoL(ct);
+            return;
+        }
+
+        Log("⏭ No action available (all robots busy or conditions not met)");
+    }
+
     public void StopSimulation()
     {
         _cts.Cancel();

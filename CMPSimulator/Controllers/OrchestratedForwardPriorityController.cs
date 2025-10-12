@@ -35,6 +35,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private List<int> _lCompleted = new();
     private Task? _schedulerTask;
     private Task? _uiUpdateTask;
+    private bool _isInitialized = false;
 
     // Timing constants
     private const int POLISHING = 3000;
@@ -137,6 +138,76 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         _uiUpdateTask = Task.Run(() => UIUpdateService(_cts.Token), _cts.Token);
 
         Log("▶ Simulation started");
+    }
+
+    public async Task ExecuteOneStep()
+    {
+        // Ensure state machines are started
+        if (!_isInitialized)
+        {
+            await _polisher!.StartAsync();
+            await _cleaner!.StartAsync();
+            await _buffer!.StartAsync();
+            await _r1!.StartAsync();
+            await _r2!.StartAsync();
+            await _r3!.StartAsync();
+            _isInitialized = true;
+            Log("✓ State machines initialized");
+            Log("⏭ Step Mode");
+        }
+
+        // Execute highest priority action that can run
+        CancellationToken ct = CancellationToken.None;
+
+        // P1: C→B (highest priority)
+        if (CanExecuteCtoB())
+        {
+            await ExecuteCtoB(ct);
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateWaferPositions();
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+            return;
+        }
+
+        // P2: P→C
+        if (CanExecutePtoC())
+        {
+            await ExecutePtoC(ct);
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateWaferPositions();
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+            return;
+        }
+
+        // P3: L→P
+        if (CanExecuteLtoP())
+        {
+            await ExecuteLtoP(ct);
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateWaferPositions();
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+            return;
+        }
+
+        // P4: B→L (lowest priority)
+        if (CanExecuteBtoL())
+        {
+            await ExecuteBtoL(ct);
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateWaferPositions();
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+            return;
+        }
+
+        Log("⏭ No action available (all robots busy or conditions not met)");
     }
 
     public void StopSimulation()

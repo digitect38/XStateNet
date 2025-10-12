@@ -52,10 +52,22 @@ public partial class MainWindow : Window
     private async void StartButton_Click(object sender, RoutedEventArgs e)
     {
         StartButton.IsEnabled = false;
+        StepButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         ResetButton.IsEnabled = false;
 
         await _controller.StartSimulation();
+    }
+
+    private async void StepButton_Click(object sender, RoutedEventArgs e)
+    {
+        StepButton.IsEnabled = false;
+        StartButton.IsEnabled = false;
+
+        await _controller.ExecuteOneStep();
+
+        StepButton.IsEnabled = true;
+        StartButton.IsEnabled = true;
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -72,6 +84,7 @@ public partial class MainWindow : Window
         _controller.ResetSimulation();
 
         StartButton.IsEnabled = true;
+        StepButton.IsEnabled = true;
         StopButton.IsEnabled = false;
 
         // Update station status displays
