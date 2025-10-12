@@ -50,9 +50,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public event EventHandler? StationStatusChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // Status properties (read from state machines)
-    public string PolisherStatus => GetMachineStatus(_polisher);
-    public string CleanerStatus => GetMachineStatus(_cleaner);
+    // Status properties (read from state machines) - Show full state path
+    public string PolisherStatus => _polisher?.CurrentState ?? "Unknown";
+    public string CleanerStatus => _cleaner?.CurrentState ?? "Unknown";
     public string BufferStatus => _buffer?.CurrentState ?? "Unknown";
     public string R1Status => _r1?.CurrentState ?? "Unknown";
     public string R2Status => _r2?.CurrentState ?? "Unknown";
@@ -583,17 +583,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 wafer.Y = pos.Y + pos.Height / 2;
             }
         }
-    }
-
-    private string GetMachineStatus(ProcessingStationMachine? machine)
-    {
-        if (machine == null) return "Unknown";
-
-        var state = machine.CurrentState;
-        if (state.Contains(".empty")) return "Empty";
-        if (state.Contains(".processing")) return "Processing";
-        if (state.Contains(".done")) return "Done";
-        return state;
     }
 
     private List<Color> GenerateDistinctColors(int count)
