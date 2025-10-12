@@ -60,13 +60,15 @@ namespace XStateNet.Distributed.Tests.PubSub
 
             var publishTasks = new Task[Environment.ProcessorCount];
             var eventsPerTask = eventCount / publishTasks.Length;
+            var remainder = eventCount % publishTasks.Length;
 
             for (int i = 0; i < publishTasks.Length; i++)
             {
                 var taskId = i;
+                var eventsForThisTask = eventsPerTask + (i < remainder ? 1 : 0);
                 publishTasks[i] = Task.Run(async () =>
                 {
-                    for (int j = 0; j < eventsPerTask; j++)
+                    for (int j = 0; j < eventsForThisTask; j++)
                     {
                         await eventBus.BroadcastAsync($"EVENT_{taskId}_{j}");
                     }

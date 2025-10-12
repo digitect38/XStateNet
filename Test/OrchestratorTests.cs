@@ -4,7 +4,7 @@ using XStateNet.Orchestration;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Test
+namespace XStateNet.Orchestration.Tests
 {
     public class OrchestratorTests : IDisposable
     {
@@ -429,7 +429,8 @@ namespace Test
                 guards: null,
                 services: null,
                 delays: null,
-                activities: null);
+                activities: null,
+                enableGuidIsolation: false);
             var paymentMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
                 id: "payment",
                 json: paymentJson,
@@ -438,7 +439,8 @@ namespace Test
                 guards: null,
                 services: null,
                 delays: null,
-                activities: null);
+                activities: null,
+                enableGuidIsolation: false);
             var shippingMachine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
                 id: "shipping",
                 json: shippingJson,
@@ -447,13 +449,10 @@ namespace Test
                 guards: null,
                 services: null,
                 delays: null,
-                activities: null);
+                activities: null,
+                enableGuidIsolation: false);
 
             _machines.AddRange(new[] { orderMachine, paymentMachine, shippingMachine });
-
-            _orchestrator.RegisterMachine("order", (orderMachine as PureStateMachineAdapter)?.GetUnderlying());
-            _orchestrator.RegisterMachine("payment", (paymentMachine as PureStateMachineAdapter)?.GetUnderlying());
-            _orchestrator.RegisterMachine("shipping", (shippingMachine as PureStateMachineAdapter)?.GetUnderlying());
 
             await Task.WhenAll(
                 orderMachine.StartAsync(),

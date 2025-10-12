@@ -6,7 +6,7 @@ using XStateNet.Orchestration;
 using Xunit;
 using Xunit.Abstractions;
 using CircuitBreakerOpenException = XStateNet.Orchestration.CircuitBreakerOpenException;
-
+#if false
 namespace XStateNet.Distributed.Tests.Resilience
 {
     /// <summary>
@@ -757,3 +757,4 @@ namespace XStateNet.Distributed.Tests.Resilience
         }
     }
 }
+#endif

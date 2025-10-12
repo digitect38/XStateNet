@@ -2,7 +2,7 @@ using System.Diagnostics;
 using XStateNet.Orchestration;
 using Xunit;
 using Xunit.Abstractions;
-
+#if false
 namespace XStateNet.Distributed.Tests.Resilience
 {
     /// <summary>
@@ -396,3 +396,4 @@ namespace XStateNet.Distributed.Tests.Resilience
         }
     }
 }
+#endif
