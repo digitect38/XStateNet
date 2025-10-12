@@ -56,11 +56,9 @@ public class RobotMachine
                     }
                 },
                 "holding": {
-                    "entry": ["reportHolding", "logHolding", "autoPlace"],
-                    "on": {
-                        "PLACE": {
-                            "target": "placingDown"
-                        }
+                    "entry": ["reportHolding", "logHolding"],
+                    "after": {
+                        "1": "placingDown"
                     }
                 },
                 "placingDown": {
@@ -131,12 +129,6 @@ public class RobotMachine
             ["logHolding"] = (ctx) =>
             {
                 logger($"[{_robotName}] Holding wafer {_heldWafer}");
-            },
-
-            ["autoPlace"] = (ctx) =>
-            {
-                // Immediately transition to placingDown
-                ctx.RequestSend(_robotName, "PLACE");
             },
 
             ["logPlacingDown"] = (ctx) =>
