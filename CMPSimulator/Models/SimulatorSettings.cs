@@ -17,6 +17,9 @@ public class SimulatorSettings
     public int BufferHoldTime { get; set; } = 0;
     public int LoadPortReturnTime { get; set; } = 1000;
 
+    // LoadPort configuration
+    public int InitialWaferCount { get; set; } = 10;
+
     // Station geometry
     public StationGeometry LoadPort { get; set; } = new StationGeometry { Left = 80, Top = 80, Width = 160, Height = 240 };
     public StationGeometry R1 { get; set; } = new StationGeometry { Left = 248, Top = 80, Width = 112, Height = 240 };

@@ -37,14 +37,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private Queue<string> _pendingEvents = new Queue<string>();
 
     // Timing configuration (can be updated via UpdateSettings)
-    private int POLISHING = 5000;  // 5 seconds default
-    private int CLEANING = 3000;   // 3 seconds default
-    public int TRANSFER = 1000;    // 1 second (1000ms) for robot transfers - public for state machines
-    private int BUFFER_HOLD = 0;    // 0 seconds default (no hold time)
-    private int LOADPORT_RETURN = 1000; // 1 second default
+    private int POLISHING;
+    private int CLEANING;
+    public int TRANSFER;  // public for state machines
+    private int BUFFER_HOLD;
+    private int LOADPORT_RETURN;
 
     // Simulation configuration
-    public int TOTAL_WAFERS = 10;  // Total number of wafers to process (default) - public for state machines
+    public int TOTAL_WAFERS;  // Total number of wafers to process - public for state machines
 
     public ObservableCollection<Wafer> Wafers { get; }
     public Dictionary<string, StationPosition> Stations => _stations;
@@ -69,8 +69,70 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         ? $"{(_cleaner.RemainingTimeMs / 1000.0):F1}s"
         : "";
 
+    // Real-time statistics properties for UI binding
+    public string ElapsedTime
+    {
+        get
+        {
+            if (!_isInitialized) return "0.0s";
+            var elapsed = (DateTime.Now - _simulationStartTime).TotalSeconds;
+            return $"{elapsed:F1}s";
+        }
+    }
+
+    public int CompletedWafers => _scheduler?.Completed.Count ?? 0;
+    public int PendingWafers => TOTAL_WAFERS - CompletedWafers;
+
+    public string TheoreticalMinTime
+    {
+        get
+        {
+            var firstWaferTime = 4 * TRANSFER + POLISHING + CLEANING;
+            var additionalWaferTime = Math.Max(POLISHING, CLEANING);
+            var theoreticalMin = firstWaferTime + ((TOTAL_WAFERS - 1) * additionalWaferTime);
+            return $"{theoreticalMin / 1000.0:F1}s";
+        }
+    }
+
+    public string Efficiency
+    {
+        get
+        {
+            if (!_isInitialized) return "0.0%";
+            var totalElapsed = (DateTime.Now - _simulationStartTime).TotalMilliseconds;
+            if (totalElapsed < 100) return "0.0%"; // Avoid division by near-zero
+
+            var firstWaferTime = 4 * TRANSFER + POLISHING + CLEANING;
+            var additionalWaferTime = Math.Max(POLISHING, CLEANING);
+            var theoreticalMin = firstWaferTime + ((TOTAL_WAFERS - 1) * additionalWaferTime);
+            var efficiency = (theoreticalMin / totalElapsed) * 100;
+            return $"{efficiency:F1}%";
+        }
+    }
+
+    public string Throughput
+    {
+        get
+        {
+            if (!_isInitialized) return "0.00 wafers/s";
+            var elapsed = (DateTime.Now - _simulationStartTime).TotalSeconds;
+            if (elapsed < 0.1) return "0.00 wafers/s";
+            var throughput = CompletedWafers / elapsed;
+            return $"{throughput:F2} wafers/s";
+        }
+    }
+
     public OrchestratedForwardPriorityController()
     {
+        // Load settings
+        var settings = Helpers.SettingsManager.LoadSettings();
+        TRANSFER = settings.R1TransferTime;
+        POLISHING = settings.PolisherTime;
+        CLEANING = settings.CleanerTime;
+        BUFFER_HOLD = settings.BufferHoldTime;
+        LOADPORT_RETURN = settings.LoadPortReturnTime;
+        TOTAL_WAFERS = settings.InitialWaferCount;
+
         // Enable orchestrator logging for debugging
         var config = new OrchestratorConfig
         {
@@ -86,12 +148,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         InitializeStations();
         InitializeWafers();
         InitializeStateMachines();
-        SubscribeToStateUpdates();
 
         Log("═══════════════════════════════════════════════════════════");
         Log("CMP Tool Simulator - Orchestrated Forward Priority");
         Log("Using XStateNet State Machines + EventBusOrchestrator");
         Log("Architecture: Pub/Sub pattern for state updates (no polling)");
+        Log($"Configuration: {TOTAL_WAFERS} wafers, Transfer={TRANSFER}ms, Polish={POLISHING}ms, Clean={CLEANING}ms");
         Log("═══════════════════════════════════════════════════════════");
     }
 
@@ -128,6 +190,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     private void InitializeStateMachines()
     {
+        // Unsubscribe from old state machines if they exist
+        UnsubscribeFromStateUpdates();
+
         // Create state machines
         _scheduler = new SchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
         _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
@@ -148,6 +213,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         };
 
         Log("✓ State machines created");
+
+        // Subscribe to state updates
+        SubscribeToStateUpdates();
     }
 
     private void SubscribeToStateUpdates()
@@ -161,6 +229,17 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         _r3!.StateChanged += OnStateChanged;
 
         Log("✓ Subscribed to state update events (Direct Pub/Sub pattern)");
+    }
+
+    private void UnsubscribeFromStateUpdates()
+    {
+        // Unsubscribe from old state machines if they exist
+        if (_polisher != null) _polisher.StateChanged -= OnStateChanged;
+        if (_cleaner != null) _cleaner.StateChanged -= OnStateChanged;
+        if (_buffer != null) _buffer.StateChanged -= OnStateChanged;
+        if (_r1 != null) _r1.StateChanged -= OnStateChanged;
+        if (_r2 != null) _r2.StateChanged -= OnStateChanged;
+        if (_r3 != null) _r3.StateChanged -= OnStateChanged;
     }
 
     private void OnStateChanged(object? sender, XStateNet.Monitoring.StateTransitionEventArgs e)
@@ -272,26 +351,83 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     public void ResetSimulation()
     {
-        // Reset wafer positions and completion status
-        foreach (var wafer in Wafers)
+        // Stop progress timer
+        _progressTimer?.Dispose();
+        _progressTimer = null;
+
+        // Reload settings to pick up any changes
+        var settings = Helpers.SettingsManager.LoadSettings();
+        bool waferCountChanged = TOTAL_WAFERS != settings.InitialWaferCount;
+        bool timingChanged = TRANSFER != settings.R1TransferTime ||
+                            POLISHING != settings.PolisherTime ||
+                            CLEANING != settings.CleanerTime;
+
+        // Update configuration from settings
+        TRANSFER = settings.R1TransferTime;
+        POLISHING = settings.PolisherTime;
+        CLEANING = settings.CleanerTime;
+        BUFFER_HOLD = settings.BufferHoldTime;
+        LOADPORT_RETURN = settings.LoadPortReturnTime;
+
+        Log("↻ Simulation reset - reloading configuration");
+        Log($"Configuration: {settings.InitialWaferCount} wafers, Transfer={TRANSFER}ms, Polish={POLISHING}ms, Clean={CLEANING}ms");
+
+        // If wafer count changed, need to reinitialize wafers
+        if (waferCountChanged)
         {
-            wafer.CurrentStation = "LoadPort";
-            wafer.IsCompleted = false;  // Reset processing status
-            var slot = _waferOriginalSlots[wafer.Id];
-            var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
-            wafer.X = x;
-            wafer.Y = y;
+            TOTAL_WAFERS = settings.InitialWaferCount;
+            Log($"⚙ Wafer count changed to {TOTAL_WAFERS} - reinitializing wafers and state machines");
+
+            // Clear existing wafers
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                Wafers.Clear();
+                _waferOriginalSlots.Clear();
+                _stations["LoadPort"].WaferSlots.Clear();
+            });
+
+            // Reinitialize wafers with new count
+            InitializeWafers();
+
+            // Recreate state machines with new wafer count
+            InitializeStateMachines();
+        }
+        else if (timingChanged)
+        {
+            Log($"⚙ Timing changed - recreating state machines");
+
+            // Reset wafer positions and completion status
+            foreach (var wafer in Wafers)
+            {
+                wafer.CurrentStation = "LoadPort";
+                wafer.IsCompleted = false;
+                var slot = _waferOriginalSlots[wafer.Id];
+                var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                wafer.X = x;
+                wafer.Y = y;
+            }
+
+            // Recreate state machines with new timing
+            InitializeStateMachines();
+        }
+        else
+        {
+            // No config changes, just reset wafer positions
+            foreach (var wafer in Wafers)
+            {
+                wafer.CurrentStation = "LoadPort";
+                wafer.IsCompleted = false;
+                var slot = _waferOriginalSlots[wafer.Id];
+                var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                wafer.X = x;
+                wafer.Y = y;
+            }
         }
 
         // Reset initialization flag to allow settings updates
         _isInitialized = false;
 
-        // Stop progress timer
-        _progressTimer?.Dispose();
-        _progressTimer = null;
-
-        Log("↻ Simulation reset to initial state");
-        Log("Note: State machines need to be recreated for full reset");
+        Log("✓ Reset complete - ready to start");
     }
 
     // All scheduling logic moved to SchedulerMachine - event-driven architecture
@@ -453,6 +589,13 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             // Notify UI of property changes for remaining time
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PolisherRemainingTime)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CleanerRemainingTime)));
+
+            // Notify UI of property changes for statistics
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ElapsedTime)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CompletedWafers)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PendingWafers)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Throughput)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Efficiency)));
         }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
@@ -531,7 +674,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         BUFFER_HOLD = bufferHold;
         LOADPORT_RETURN = loadPortReturn;
 
-        Log($"✓ Settings updated successfully");
+        Log($"✓ Settings updated - recreating state machines with new timing values");
         Log($"  • R1 Transfer: {TRANSFER} ms");
         Log($"  • Polisher: {POLISHING} ms");
         Log($"  • R2 Transfer: {r2Transfer} ms");
@@ -539,6 +682,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log($"  • R3 Transfer: {r3Transfer} ms");
         Log($"  • Buffer Hold: {BUFFER_HOLD} ms");
         Log($"  • LoadPort Return: {LOADPORT_RETURN} ms");
+
+        // Recreate state machines with new timing values
+        InitializeStateMachines();
 
         // Update UI
         Application.Current?.Dispatcher.Invoke(() =>
@@ -557,11 +703,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         _progressTimer?.Dispose();
 
         // Unsubscribe from state change events
-        if (_polisher != null) _polisher.StateChanged -= OnStateChanged;
-        if (_cleaner != null) _cleaner.StateChanged -= OnStateChanged;
-        if (_buffer != null) _buffer.StateChanged -= OnStateChanged;
-        if (_r1 != null) _r1.StateChanged -= OnStateChanged;
-        if (_r2 != null) _r2.StateChanged -= OnStateChanged;
-        if (_r3 != null) _r3.StateChanged -= OnStateChanged;
+        UnsubscribeFromStateUpdates();
     }
 }

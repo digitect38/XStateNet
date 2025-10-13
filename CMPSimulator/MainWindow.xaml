@@ -171,6 +171,53 @@
 
                                 <Separator Margin="0,15,0,15"/>
 
+                                <!-- Real-time Statistics Section -->
+                                <Border Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,15">
+                                    <StackPanel>
+                                        <TextBlock Text="📊 Real-time Statistics" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" Foreground="#007ACC"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Elapsed Time -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Elapsed Time:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="ElapsedTimeText" Grid.Row="0" Grid.Column="1" Text="0.0s" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Completed / Pending -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Completed:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="CompletedWafersText" Grid.Row="1" Grid.Column="1" Text="0" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pending:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="PendingWafersText" Grid.Row="2" Grid.Column="1" Text="0" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Throughput -->
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Throughput:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="ThroughputText" Grid.Row="3" Grid.Column="1" Text="0.00 wafers/s" FontFamily="Consolas" Margin="0,0,0,5" Foreground="#007ACC" FontWeight="Bold"/>
+
+                                            <!-- Theoretical Min -->
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Theoretical Min:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="TheoreticalMinText" Grid.Row="4" Grid.Column="1" Text="0.0s" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Efficiency -->
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Efficiency:" FontWeight="SemiBold" Margin="0,0,0,0"/>
+                                            <TextBlock x:Name="EfficiencyText" Grid.Row="5" Grid.Column="1" Text="0.0%" FontFamily="Consolas" Margin="0,0,0,0" Foreground="#28A745" FontWeight="Bold"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Separator Margin="0,0,0,15"/>
+
                                 <!-- Global Station Timing Section -->
                                 <TextBlock Text="Global Station Timing (ms)" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,5">
@@ -225,7 +272,7 @@
                                              PreviewTextInput="NumberValidationTextBox"/>
 
                                     <!-- LoadPort Transfer Time -->
-                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="LoadPort Return:" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="R1 Return:" VerticalAlignment="Center"/>
                                     <TextBox x:Name="LoadPortReturnTextBox" Grid.Row="6" Grid.Column="1" Text="1000"
                                              VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
                                              PreviewTextInput="NumberValidationTextBox"/>

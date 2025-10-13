@@ -59,6 +59,13 @@ public partial class MainWindow : Window
         _controller.LogMessage += Controller_LogMessage;
         _controller.StationStatusChanged += Controller_StationStatusChanged;
 
+        // Subscribe to simulation completion event (only for orchestrated controller)
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            // Access the internal scheduler's completion event through reflection or add public event
+            // For now, we'll monitor completion in the timer itself
+        }
+
         // Apply zoom transform to CMP System
         CMPSystem.LayoutTransform = _zoomTransform;
 
@@ -379,6 +386,39 @@ public partial class MainWindow : Window
         AddPropertyRow("Current Status", LoadPortControl.StatusText);
         AddPropertyRow("Function", "Load/Unload wafers");
 
+        // Add separator before wafer count section
+        var separator1 = new System.Windows.Controls.Separator { Margin = new Thickness(0, 10, 0, 10) };
+        PropertyGridContainer.Children.Add(separator1);
+
+        // Add Wafer Count section title
+        var waferCountTitle = new System.Windows.Controls.TextBlock
+        {
+            Text = "Wafer Configuration",
+            FontWeight = FontWeights.Bold,
+            FontSize = 14,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        PropertyGridContainer.Children.Add(waferCountTitle);
+
+        // Add editable InitialWaferCount property
+        AddEditablePropertyRow("Initial Wafers", _settings.InitialWaferCount, (newValue) => {
+            _settings.InitialWaferCount = (int)newValue;
+        });
+
+        // Add Apply button for wafer count
+        var applyWaferButton = new Button
+        {
+            Content = "Apply Wafer Count",
+            Margin = new Thickness(0, 10, 0, 0),
+            Padding = new Thickness(15, 8, 15, 8),
+            Background = new SolidColorBrush(Color.FromRgb(0, 122, 204)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand
+        };
+        applyWaferButton.Click += (s, e) => ApplyWaferCountChanges();
+        PropertyGridContainer.Children.Add(applyWaferButton);
+
         // Add Geometry section
         AddGeometrySection(_settings.LoadPort);
 
@@ -400,6 +440,37 @@ public partial class MainWindow : Window
             {
                 AddPropertyRow("  ↳ Routing", LoadPortControl.BackwardRoutingStrategy.ToString());
             }
+        }
+    }
+
+    private void ApplyWaferCountChanges()
+    {
+        try
+        {
+            // Validate value
+            if (_settings.InitialWaferCount < 0 || _settings.InitialWaferCount > 25)
+            {
+                MessageBox.Show("Initial wafer count must be between 0 and 25.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Save settings
+            SettingsManager.SaveSettings(_settings);
+
+            // Show success message
+            MessageBox.Show($"Initial wafer count set to {_settings.InitialWaferCount}\n\nNote: This will take effect on next simulation reset/start.",
+                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            Log($"Initial wafer count updated: {_settings.InitialWaferCount}");
+
+            // Refresh property display
+            SelectStation("LoadPort");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to apply wafer count: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -580,20 +651,157 @@ public partial class MainWindow : Window
         // Add Geometry section title
         var geometryTitle = new System.Windows.Controls.TextBlock
         {
-            Text = "Geometry",
+            Text = "Geometry (Editable)",
             FontWeight = FontWeights.Bold,
             FontSize = 14,
             Margin = new Thickness(0, 0, 0, 10)
         };
         PropertyGridContainer.Children.Add(geometryTitle);
 
-        // Add geometry properties
+        // Add read-only summary
         AddPropertyRow("Position", geometry.PositionString);
         AddPropertyRow("Size", geometry.SizeString);
-        AddPropertyRow("Left", geometry.Left.ToString());
-        AddPropertyRow("Top", geometry.Top.ToString());
-        AddPropertyRow("Width", geometry.Width.ToString());
-        AddPropertyRow("Height", geometry.Height.ToString());
+
+        // Add editable geometry properties
+        AddEditablePropertyRow("Left", geometry.Left, (newValue) => {
+            geometry.Left = newValue;
+            UpdateStationGeometry();
+        });
+        AddEditablePropertyRow("Top", geometry.Top, (newValue) => {
+            geometry.Top = newValue;
+            UpdateStationGeometry();
+        });
+        AddEditablePropertyRow("Width", geometry.Width, (newValue) => {
+            geometry.Width = newValue;
+            UpdateStationGeometry();
+        });
+        AddEditablePropertyRow("Height", geometry.Height, (newValue) => {
+            geometry.Height = newValue;
+            UpdateStationGeometry();
+        });
+
+        // Add Apply button
+        var applyButton = new Button
+        {
+            Content = "Apply Geometry",
+            Margin = new Thickness(0, 10, 0, 0),
+            Padding = new Thickness(15, 8, 15, 8),
+            Background = new SolidColorBrush(Color.FromRgb(0, 122, 204)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand
+        };
+        applyButton.Click += (s, e) => ApplyGeometryChanges(geometry);
+        PropertyGridContainer.Children.Add(applyButton);
+    }
+
+    private void AddEditablePropertyRow(string label, double value, Action<double> onValueChanged)
+    {
+        var grid = new System.Windows.Controls.Grid
+        {
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(120) });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var labelText = new System.Windows.Controls.TextBlock
+        {
+            Text = label + ":",
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        System.Windows.Controls.Grid.SetColumn(labelText, 0);
+
+        var textBox = new TextBox
+        {
+            Text = value.ToString(),
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(5, 3, 5, 3)
+        };
+        textBox.PreviewTextInput += NumberValidationTextBox;
+        textBox.TextChanged += (s, e) => {
+            if (double.TryParse(textBox.Text, out double newValue))
+            {
+                onValueChanged(newValue);
+            }
+        };
+        System.Windows.Controls.Grid.SetColumn(textBox, 1);
+
+        grid.Children.Add(labelText);
+        grid.Children.Add(textBox);
+        PropertyGridContainer.Children.Add(grid);
+    }
+
+    private void UpdateStationGeometry()
+    {
+        // Update the actual station controls with new geometry
+        if (_selectedStationName == null) return;
+
+        StationControl? station = _selectedStationName switch
+        {
+            "LoadPort" => LoadPortControl,
+            "R1" => R1Control,
+            "Polisher" => PolisherControl,
+            "R2" => R2Control,
+            "Cleaner" => CleanerControl,
+            "R3" => R3Control,
+            "Buffer" => BufferControl,
+            _ => null
+        };
+
+        StationGeometry? geometry = _selectedStationName switch
+        {
+            "LoadPort" => _settings.LoadPort,
+            "R1" => _settings.R1,
+            "Polisher" => _settings.Polisher,
+            "R2" => _settings.R2,
+            "Cleaner" => _settings.Cleaner,
+            "R3" => _settings.R3,
+            "Buffer" => _settings.Buffer,
+            _ => null
+        };
+
+        if (station != null && geometry != null)
+        {
+            station.Width = geometry.Width;
+            station.Height = geometry.Height;
+            Canvas.SetLeft(station, geometry.Left);
+            Canvas.SetTop(station, geometry.Top);
+        }
+    }
+
+    private void ApplyGeometryChanges(StationGeometry geometry)
+    {
+        try
+        {
+            // Validate values
+            if (geometry.Left < 0 || geometry.Top < 0 || geometry.Width <= 0 || geometry.Height <= 0)
+            {
+                MessageBox.Show("All geometry values must be positive (Width and Height must be > 0).",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Save settings
+            SettingsManager.SaveSettings(_settings);
+
+            // Show success message
+            MessageBox.Show($"Geometry updated and saved for {_selectedStationName}",
+                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            Log($"Geometry applied for {_selectedStationName}: ({geometry.Left}, {geometry.Top}), {geometry.Width}×{geometry.Height}");
+
+            // Refresh property display
+            if (_selectedStationName != null)
+            {
+                SelectStation(_selectedStationName);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to apply geometry: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void ExecutionMode_Changed(object sender, RoutedEventArgs e)
@@ -669,6 +877,17 @@ public partial class MainWindow : Window
         StepButton.IsEnabled = true;
         StopButton.IsEnabled = false;
 
+        // Reset statistics display
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            ElapsedTimeText.Text = "0.0s";
+            CompletedWafersText.Text = "0";
+            PendingWafersText.Text = orchestratedController.TOTAL_WAFERS.ToString();
+            ThroughputText.Text = "0.00 wafers/s";
+            TheoreticalMinText.Text = orchestratedController.TheoreticalMinTime;
+            EfficiencyText.Text = "0.0%";
+        }
+
         // Update station status displays
         UpdateStationDisplays();
     }
@@ -680,6 +899,22 @@ public partial class MainWindow : Window
         {
             PolisherControl.RemainingTime = orchestratedController.PolisherRemainingTime;
             CleanerControl.RemainingTime = orchestratedController.CleanerRemainingTime;
+
+            // Update real-time statistics display
+            ElapsedTimeText.Text = orchestratedController.ElapsedTime;
+            CompletedWafersText.Text = orchestratedController.CompletedWafers.ToString();
+            PendingWafersText.Text = orchestratedController.PendingWafers.ToString();
+            ThroughputText.Text = orchestratedController.Throughput;
+            TheoreticalMinText.Text = orchestratedController.TheoreticalMinTime;
+            EfficiencyText.Text = orchestratedController.Efficiency;
+
+            // Stop timer when all wafers are completed
+            if (orchestratedController.CompletedWafers >= orchestratedController.TOTAL_WAFERS)
+            {
+                _remainingTimeTimer?.Stop();
+                StopButton.IsEnabled = false;
+                ResetButton.IsEnabled = true;
+            }
         }
     }
 

@@ -72,26 +72,17 @@ namespace CMPSimulator.Controls
 
         private static void OnTotalWaferCountChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is CMPSystemControl control)
-            {
-                control.TotalWaferCountText.Text = e.NewValue.ToString();
-            }
+            // Property value changed - UI binding removed (now shown in Property panel)
         }
 
         private static void OnPreProcessCountChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is CMPSystemControl control)
-            {
-                control.PreProcessCountText.Text = e.NewValue.ToString();
-            }
+            // Property value changed - UI binding removed (now shown in Property panel)
         }
 
         private static void OnPostProcessCountChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is CMPSystemControl control)
-            {
-                control.PostProcessCountText.Text = e.NewValue.ToString();
-            }
+            // Property value changed - UI binding removed (now shown in Property panel)
         }
 
         public CMPSystemControl()
@@ -297,6 +288,10 @@ namespace CMPSimulator.Controls
                     Width = width,
                     Height = height
                 };
+
+                // Disable anti-aliasing on the image as well
+                RenderOptions.SetEdgeMode(image, EdgeMode.Aliased);
+                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
 
                 GridCanvas.Children.Add(image);
             }
