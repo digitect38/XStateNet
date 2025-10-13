@@ -66,8 +66,8 @@ public partial class MainWindow : Window
             // For now, we'll monitor completion in the timer itself
         }
 
-        // Apply zoom transform to CMP System
-        CMPSystem.LayoutTransform = _zoomTransform;
+        // Apply zoom transform to StationCanvas only (not grid)
+        CMPSystem.Canvas.LayoutTransform = _zoomTransform;
 
         // Create and add station controls to CMP System
         InitializeStationControls();
