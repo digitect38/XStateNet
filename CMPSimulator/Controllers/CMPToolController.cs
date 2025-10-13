@@ -54,7 +54,7 @@ public class CMPToolController
     private void InitializeStations()
     {
         // Define station positions (X, Y, Width, Height, Capacity)
-        _stations["LoadPort"] = new StationPosition("LoadPort", 50, 150, 100, 400, 25);
+        _stations["LoadPort"] = new StationPosition("LoadPort", 40, 150, 100, 400, 25);
 
         _stations["WTR1"] = new StationPosition("WTR1", 250, 300, 80, 80, 0); // Transit only
 

@@ -1,9 +1,13 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Controls;
 using CMPSimulator.Controllers;
 using CMPSimulator.Models;
+using CMPSimulator.Controls;
+using CMPSimulator.Helpers;
 
 namespace CMPSimulator;
 
@@ -15,6 +19,7 @@ public partial class MainWindow : Window
     private const double ZoomMin = 0.5;
     private const double ZoomMax = 3.0;
     private const double ZoomStep = 0.1;
+    private ScaleTransform _zoomTransform = new ScaleTransform(1.0, 1.0);
 
     private bool _isPanning = false;
     private Point _panStart;
@@ -22,10 +27,25 @@ public partial class MainWindow : Window
     private double _panStartVerticalOffset;
 
     private DateTime _simulationStartTime = DateTime.Now;
+    private string? _selectedStationName = null;
+    private System.Windows.Threading.DispatcherTimer? _remainingTimeTimer;
+    private SimulatorSettings _settings;
+
+    // Station control references
+    private LoadPortControl LoadPortControl;
+    private RobotStationControl R1Control;
+    private ProcessStationControl PolisherControl;
+    private RobotStationControl R2Control;
+    private ProcessStationControl CleanerControl;
+    private RobotStationControl R3Control;
+    private RobotStationControl BufferControl;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // Load settings from file
+        _settings = SettingsManager.LoadSettings();
 
         // Switch between implementations:
         // _controller = new ForwardPriorityController();  // Non-XStateNet version
@@ -39,17 +59,541 @@ public partial class MainWindow : Window
         _controller.LogMessage += Controller_LogMessage;
         _controller.StationStatusChanged += Controller_StationStatusChanged;
 
+        // Apply zoom transform to CMP System
+        CMPSystem.LayoutTransform = _zoomTransform;
+
+        // Create and add station controls to CMP System
+        InitializeStationControls();
+
         Log("═══════════════════════════════════════════════════════════");
         Log("CMP Tool Simulator - Forward Priority Scheduler");
         Log("Priority: P1(C→B) > P2(P→C) > P3(L→P) > P4(B→L)");
         Log("Press Start to begin simulation");
         Log("═══════════════════════════════════════════════════════════");
 
-        // Setup panning events
-        SimulationCanvas.MouseLeftButtonDown += SimulationCanvas_MouseLeftButtonDown;
-        SimulationCanvas.MouseMove += SimulationCanvas_MouseMove;
-        SimulationCanvas.MouseLeftButtonUp += SimulationCanvas_MouseLeftButtonUp;
-        SimulationCanvas.MouseLeave += SimulationCanvas_MouseLeave;
+        // Setup canvas events (both panning and selection)
+        CMPSystem.Canvas.MouseLeftButtonDown += Canvas_MouseLeftButtonDown;
+        CMPSystem.Canvas.MouseMove += SimulationCanvas_MouseMove;
+        CMPSystem.Canvas.MouseLeftButtonUp += SimulationCanvas_MouseLeftButtonUp;
+        CMPSystem.Canvas.MouseLeave += SimulationCanvas_MouseLeave;
+
+        // Setup station click handlers (will check Edit Mode inside)
+        LoadPortControl.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("LoadPort"); e.Handled = true; } };
+        R1Control.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("R1"); e.Handled = true; } };
+        PolisherControl.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("Polisher"); e.Handled = true; } };
+        R2Control.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("R2"); e.Handled = true; } };
+        CleanerControl.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("Cleaner"); e.Handled = true; } };
+        R3Control.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("R3"); e.Handled = true; } };
+        BufferControl.MouseLeftButtonDown += (s, e) => { if (!_isPanning && !StationEditor.IsEditMode) { SelectStation("Buffer"); e.Handled = true; } };
+
+        // Load timing settings into UI TextBoxes
+        LoadTimingSettingsToUI();
+
+        Log($"Settings loaded from: {SettingsManager.GetSettingsFilePath()}");
+    }
+
+    private void LoadTimingSettingsToUI()
+    {
+        // Load timing settings from _settings into UI TextBoxes
+        R1TransferTextBox.Text = _settings.R1TransferTime.ToString();
+        PolisherTextBox.Text = _settings.PolisherTime.ToString();
+        R2TransferTextBox.Text = _settings.R2TransferTime.ToString();
+        CleanerTextBox.Text = _settings.CleanerTime.ToString();
+        R3TransferTextBox.Text = _settings.R3TransferTime.ToString();
+        BufferHoldTextBox.Text = _settings.BufferHoldTime.ToString();
+        LoadPortReturnTextBox.Text = _settings.LoadPortReturnTime.ToString();
+    }
+
+    private void InitializeStationControls()
+    {
+        var converter = new BrushConverter();
+
+        // Create LoadPort (using geometry from settings)
+        LoadPortControl = new LoadPortControl
+        {
+            StationName = "LoadPort",
+            StatusText = "0/0",
+            BackgroundColor = Brushes.White,
+            Width = _settings.LoadPort.Width,
+            Height = _settings.LoadPort.Height
+        };
+        CMPSystem.AddStation(LoadPortControl, _settings.LoadPort.Left, _settings.LoadPort.Top);
+
+        // Create R1 (using geometry from settings)
+        R1Control = new RobotStationControl
+        {
+            StationName = "R1",
+            StatusText = "Empty",
+            BackgroundColor = (Brush)converter.ConvertFromString("#D0E8FF")!,
+            Width = _settings.R1.Width,
+            Height = _settings.R1.Height
+        };
+        CMPSystem.AddStation(R1Control, _settings.R1.Left, _settings.R1.Top);
+
+        // Create Polisher (using geometry from settings)
+        PolisherControl = new ProcessStationControl
+        {
+            StationName = "Polisher",
+            StatusText = "Idle",
+            BackgroundColor = (Brush)converter.ConvertFromString("#FFFACD")!,
+            Width = _settings.Polisher.Width,
+            Height = _settings.Polisher.Height
+        };
+        CMPSystem.AddStation(PolisherControl, _settings.Polisher.Left, _settings.Polisher.Top);
+
+        // Create R2 (using geometry from settings)
+        R2Control = new RobotStationControl
+        {
+            StationName = "R2",
+            StatusText = "Empty",
+            BackgroundColor = (Brush)converter.ConvertFromString("#D0E8FF")!,
+            Width = _settings.R2.Width,
+            Height = _settings.R2.Height
+        };
+        CMPSystem.AddStation(R2Control, _settings.R2.Left, _settings.R2.Top);
+
+        // Create Cleaner (using geometry from settings)
+        CleanerControl = new ProcessStationControl
+        {
+            StationName = "Cleaner",
+            StatusText = "Idle",
+            BackgroundColor = (Brush)converter.ConvertFromString("#E0FFFF")!,
+            Width = _settings.Cleaner.Width,
+            Height = _settings.Cleaner.Height
+        };
+        CMPSystem.AddStation(CleanerControl, _settings.Cleaner.Left, _settings.Cleaner.Top);
+
+        // Create R3 (using geometry from settings)
+        R3Control = new RobotStationControl
+        {
+            StationName = "R3",
+            StatusText = "Empty",
+            BackgroundColor = (Brush)converter.ConvertFromString("#FFD0E8")!,
+            Width = _settings.R3.Width,
+            Height = _settings.R3.Height
+        };
+        CMPSystem.AddStation(R3Control, _settings.R3.Left, _settings.R3.Top);
+
+        // Create Buffer (using geometry from settings)
+        BufferControl = new RobotStationControl
+        {
+            StationName = "Buffer",
+            StatusText = "Empty",
+            BackgroundColor = (Brush)converter.ConvertFromString("#FFE0B2")!,
+            Width = _settings.Buffer.Width,
+            Height = _settings.Buffer.Height
+        };
+        CMPSystem.AddStation(BufferControl, _settings.Buffer.Left, _settings.Buffer.Top);
+
+        // Update total wafer count (will be updated with wafers during simulation)
+        CMPSystem.UpdateTotalWaferCount();
+
+        // Setup station connections
+        // LoadPort → Forward → R1
+        LoadPortControl.NextForward.Add(R1Control);
+
+        // R1 → Forward → Polisher, Backward → LoadPort
+        R1Control.NextForward.Add(PolisherControl);
+        R1Control.NextBackward.Add(LoadPortControl);
+
+        // Polisher → Forward → R2, Backward → R1
+        PolisherControl.NextForward.Add(R2Control);
+        PolisherControl.NextBackward.Add(R1Control);
+
+        // R2 → Forward → Cleaner, Backward → Polisher
+        R2Control.NextForward.Add(CleanerControl);
+        R2Control.NextBackward.Add(PolisherControl);
+
+        // Cleaner → Forward → R3, Backward → R2
+        CleanerControl.NextForward.Add(R3Control);
+        CleanerControl.NextBackward.Add(R2Control);
+
+        // R3 → Forward → Buffer, Backward → Cleaner
+        R3Control.NextForward.Add(BufferControl);
+        R3Control.NextBackward.Add(CleanerControl);
+
+        // Buffer → Backward → R1 (to return to LoadPort via R1)
+        BufferControl.NextBackward.Add(R1Control);
+    }
+
+    private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Handle Ctrl+Click for panning
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            _isPanning = true;
+            _panStart = e.GetPosition(SimulationScrollViewer);
+            _panStartHorizontalOffset = SimulationScrollViewer.HorizontalOffset;
+            _panStartVerticalOffset = SimulationScrollViewer.VerticalOffset;
+            CMPSystem.Canvas.Cursor = Cursors.Hand;
+            CMPSystem.Canvas.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
+        // Handle normal click for CMP System selection (not in edit mode)
+        if (!_isPanning && !StationEditor.IsEditMode)
+        {
+            // Check if click is on a station by testing hit test
+            var clickedElement = e.OriginalSource as FrameworkElement;
+
+            // If clicked on the canvas background (not a station), select CMP System
+            if (clickedElement is Canvas || clickedElement is Border)
+            {
+                SelectCMPSystem();
+            }
+        }
+    }
+
+    private void SelectCMPSystem()
+    {
+        _selectedStationName = null;
+        SelectedObjectNameText.Text = "Selected: CMP System";
+
+        // Clear and rebuild property display
+        PropertyGridContainer.Children.Clear();
+
+        // Show CMP System properties
+        ShowCMPSystemProperties();
+    }
+
+    private void ShowCMPSystemProperties()
+    {
+        AddPropertyRow("Type", "CMP System Container");
+        AddPropertyRow("Canvas Size", $"{CMPSystem.Width} × {CMPSystem.Height}");
+        AddPropertyRow("Grid Size", $"{CMPSystemControl.GridSize}px");
+        AddPropertyRow("Total Stations", "7");
+        AddPropertyRow("Total Wafers", CMPSystem.TotalWaferCount.ToString());
+        AddPropertyRow("Pre-Process", CMPSystem.PreProcessCount.ToString());
+        AddPropertyRow("Post-Process", CMPSystem.PostProcessCount.ToString());
+
+        // Add separator
+        var separator = new System.Windows.Controls.Separator { Margin = new Thickness(0, 10, 0, 10) };
+        PropertyGridContainer.Children.Add(separator);
+
+        // Add Scheduler information (if available)
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            var schedulerTitle = new System.Windows.Controls.TextBlock
+            {
+                Text = "Scheduler Status",
+                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            PropertyGridContainer.Children.Add(schedulerTitle);
+
+            // Get elapsed time since simulation start
+            var elapsed = DateTime.Now - _simulationStartTime;
+            string elapsedTime = $"{elapsed.TotalSeconds:F1}s";
+
+            AddPropertyRow("Elapsed Time", elapsedTime);
+
+            // Add separator before grid options
+            var separator2 = new System.Windows.Controls.Separator { Margin = new Thickness(0, 10, 0, 10) };
+            PropertyGridContainer.Children.Add(separator2);
+        }
+
+        // Add grid display options
+        var gridOptionsTitle = new System.Windows.Controls.TextBlock
+        {
+            Text = "Grid Display Options",
+            FontWeight = FontWeights.Bold,
+            FontSize = 12,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        PropertyGridContainer.Children.Add(gridOptionsTitle);
+
+        // Create radio buttons for grid display mode
+        var gridModePanel = new System.Windows.Controls.StackPanel
+        {
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+
+        var lineRadio = new System.Windows.Controls.RadioButton
+        {
+            Content = "Lines Only",
+            GroupName = "GridDisplayMode",
+            IsChecked = CMPSystem.GridMode == GridDisplayMode.Line,
+            Margin = new Thickness(0, 0, 0, 5)
+        };
+        lineRadio.Checked += (s, e) => CMPSystem.GridMode = GridDisplayMode.Line;
+
+        var dotRadio = new System.Windows.Controls.RadioButton
+        {
+            Content = "Dots Only",
+            GroupName = "GridDisplayMode",
+            IsChecked = CMPSystem.GridMode == GridDisplayMode.Dot,
+            Margin = new Thickness(0, 0, 0, 5)
+        };
+        dotRadio.Checked += (s, e) => CMPSystem.GridMode = GridDisplayMode.Dot;
+
+        var bothRadio = new System.Windows.Controls.RadioButton
+        {
+            Content = "Lines + Dots",
+            GroupName = "GridDisplayMode",
+            IsChecked = CMPSystem.GridMode == GridDisplayMode.Both,
+            Margin = new Thickness(0, 0, 0, 5)
+        };
+        bothRadio.Checked += (s, e) => CMPSystem.GridMode = GridDisplayMode.Both;
+
+        gridModePanel.Children.Add(lineRadio);
+        gridModePanel.Children.Add(dotRadio);
+        gridModePanel.Children.Add(bothRadio);
+        PropertyGridContainer.Children.Add(gridModePanel);
+    }
+
+    private void SelectStation(string stationName)
+    {
+        _selectedStationName = stationName;
+        SelectedObjectNameText.Text = $"Selected: {stationName}";
+
+        // Clear and rebuild property display
+        PropertyGridContainer.Children.Clear();
+
+        // Show station-specific properties
+        switch (stationName)
+        {
+            case "LoadPort":
+                ShowLoadPortProperties();
+                break;
+            case "R1":
+            case "R2":
+            case "R3":
+                ShowRobotProperties(stationName);
+                break;
+            case "Polisher":
+            case "Cleaner":
+                ShowProcessStationProperties(stationName);
+                break;
+            case "Buffer":
+                ShowBufferProperties();
+                break;
+        }
+    }
+
+    private void ShowLoadPortProperties()
+    {
+        AddPropertyRow("Type", "LoadPort Station");
+        AddPropertyRow("Capacity", "25 wafers (5x5 grid)");
+        AddPropertyRow("Current Status", LoadPortControl.StatusText);
+        AddPropertyRow("Function", "Load/Unload wafers");
+
+        // Add Geometry section
+        AddGeometrySection(_settings.LoadPort);
+
+        // Show connections
+        if (LoadPortControl.NextForward.Count > 0)
+        {
+            var forwardStations = string.Join(", ", LoadPortControl.NextForward.Select(s => s.StationName));
+            AddPropertyRow("Next (Forward)", forwardStations);
+            if (LoadPortControl.NextForward.Count > 1)
+            {
+                AddPropertyRow("  ↳ Routing", LoadPortControl.ForwardRoutingStrategy.ToString());
+            }
+        }
+        if (LoadPortControl.NextBackward.Count > 0)
+        {
+            var backwardStations = string.Join(", ", LoadPortControl.NextBackward.Select(s => s.StationName));
+            AddPropertyRow("Next (Backward)", backwardStations);
+            if (LoadPortControl.NextBackward.Count > 1)
+            {
+                AddPropertyRow("  ↳ Routing", LoadPortControl.BackwardRoutingStrategy.ToString());
+            }
+        }
+    }
+
+    private void ShowRobotProperties(string robotName)
+    {
+        string status = robotName switch
+        {
+            "R1" => _controller.R1Status,
+            "R2" => _controller.R2Status,
+            "R3" => _controller.R3Status,
+            _ => "Unknown"
+        };
+
+        string function = robotName switch
+        {
+            "R1" => "Transfer: LoadPort ↔ Polisher ↔ Buffer",
+            "R2" => "Transfer: Polisher ↔ Cleaner",
+            "R3" => "Transfer: Cleaner ↔ Buffer",
+            _ => "Unknown"
+        };
+
+        StationControl? robotControl = robotName switch
+        {
+            "R1" => R1Control,
+            "R2" => R2Control,
+            "R3" => R3Control,
+            _ => null
+        };
+
+        StationGeometry? geometry = robotName switch
+        {
+            "R1" => _settings.R1,
+            "R2" => _settings.R2,
+            "R3" => _settings.R3,
+            _ => null
+        };
+
+        AddPropertyRow("Type", "Robot Station");
+        AddPropertyRow("Current Status", status);
+        AddPropertyRow("Function", function);
+
+        // Add Geometry section
+        if (geometry != null)
+        {
+            AddGeometrySection(geometry);
+        }
+
+        // Show connections
+        if (robotControl != null)
+        {
+            if (robotControl.NextForward.Count > 0)
+            {
+                var forwardStations = string.Join(", ", robotControl.NextForward.Select(s => s.StationName));
+                AddPropertyRow("Next (Forward)", forwardStations);
+                if (robotControl.NextForward.Count > 1)
+                {
+                    AddPropertyRow("  ↳ Routing", robotControl.ForwardRoutingStrategy.ToString());
+                }
+            }
+            if (robotControl.NextBackward.Count > 0)
+            {
+                var backwardStations = string.Join(", ", robotControl.NextBackward.Select(s => s.StationName));
+                AddPropertyRow("Next (Backward)", backwardStations);
+                if (robotControl.NextBackward.Count > 1)
+                {
+                    AddPropertyRow("  ↳ Routing", robotControl.BackwardRoutingStrategy.ToString());
+                }
+            }
+        }
+    }
+
+    private void ShowProcessStationProperties(string stationName)
+    {
+        string status = stationName == "Polisher" ? _controller.PolisherStatus : _controller.CleanerStatus;
+        string processType = stationName == "Polisher" ? "Polishing" : "Cleaning";
+        StationControl? processControl = stationName == "Polisher" ? PolisherControl : CleanerControl;
+        StationGeometry geometry = stationName == "Polisher" ? _settings.Polisher : _settings.Cleaner;
+
+        AddPropertyRow("Type", "Process Station");
+        AddPropertyRow("Process", processType);
+        AddPropertyRow("Current Status", status);
+        AddPropertyRow("Capacity", "1 wafer");
+
+        // Add Geometry section
+        AddGeometrySection(geometry);
+
+        // Show connections
+        if (processControl != null)
+        {
+            if (processControl.NextForward.Count > 0)
+            {
+                var forwardStations = string.Join(", ", processControl.NextForward.Select(s => s.StationName));
+                AddPropertyRow("Next (Forward)", forwardStations);
+                if (processControl.NextForward.Count > 1)
+                {
+                    AddPropertyRow("  ↳ Routing", processControl.ForwardRoutingStrategy.ToString());
+                }
+            }
+            if (processControl.NextBackward.Count > 0)
+            {
+                var backwardStations = string.Join(", ", processControl.NextBackward.Select(s => s.StationName));
+                AddPropertyRow("Next (Backward)", backwardStations);
+                if (processControl.NextBackward.Count > 1)
+                {
+                    AddPropertyRow("  ↳ Routing", processControl.BackwardRoutingStrategy.ToString());
+                }
+            }
+        }
+    }
+
+    private void ShowBufferProperties()
+    {
+        AddPropertyRow("Type", "Buffer Station");
+        AddPropertyRow("Current Status", _controller.BufferStatus);
+        AddPropertyRow("Capacity", "1 wafer");
+        AddPropertyRow("Function", "Temporary storage");
+
+        // Add Geometry section
+        AddGeometrySection(_settings.Buffer);
+
+        // Show connections
+        if (BufferControl.NextForward.Count > 0)
+        {
+            var forwardStations = string.Join(", ", BufferControl.NextForward.Select(s => s.StationName));
+            AddPropertyRow("Next (Forward)", forwardStations);
+            if (BufferControl.NextForward.Count > 1)
+            {
+                AddPropertyRow("  ↳ Routing", BufferControl.ForwardRoutingStrategy.ToString());
+            }
+        }
+        if (BufferControl.NextBackward.Count > 0)
+        {
+            var backwardStations = string.Join(", ", BufferControl.NextBackward.Select(s => s.StationName));
+            AddPropertyRow("Next (Backward)", backwardStations);
+            if (BufferControl.NextBackward.Count > 1)
+            {
+                AddPropertyRow("  ↳ Routing", BufferControl.BackwardRoutingStrategy.ToString());
+            }
+        }
+    }
+
+    private void AddPropertyRow(string label, string value)
+    {
+        var grid = new System.Windows.Controls.Grid
+        {
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(120) });
+        grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var labelText = new System.Windows.Controls.TextBlock
+        {
+            Text = label + ":",
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        System.Windows.Controls.Grid.SetColumn(labelText, 0);
+
+        var valueText = new System.Windows.Controls.TextBlock
+        {
+            Text = value,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        System.Windows.Controls.Grid.SetColumn(valueText, 1);
+
+        grid.Children.Add(labelText);
+        grid.Children.Add(valueText);
+        PropertyGridContainer.Children.Add(grid);
+    }
+
+    private void AddGeometrySection(StationGeometry geometry)
+    {
+        // Add separator before geometry section
+        var separator = new System.Windows.Controls.Separator { Margin = new Thickness(0, 10, 0, 10) };
+        PropertyGridContainer.Children.Add(separator);
+
+        // Add Geometry section title
+        var geometryTitle = new System.Windows.Controls.TextBlock
+        {
+            Text = "Geometry",
+            FontWeight = FontWeights.Bold,
+            FontSize = 14,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        PropertyGridContainer.Children.Add(geometryTitle);
+
+        // Add geometry properties
+        AddPropertyRow("Position", geometry.PositionString);
+        AddPropertyRow("Size", geometry.SizeString);
+        AddPropertyRow("Left", geometry.Left.ToString());
+        AddPropertyRow("Top", geometry.Top.ToString());
+        AddPropertyRow("Width", geometry.Width.ToString());
+        AddPropertyRow("Height", geometry.Height.ToString());
     }
 
     private void ExecutionMode_Changed(object sender, RoutedEventArgs e)
@@ -74,6 +618,17 @@ public partial class MainWindow : Window
         // Reset simulation start time when starting
         _simulationStartTime = DateTime.Now;
 
+        // Start remaining time update timer (update every 100ms for smooth display)
+        if (_remainingTimeTimer == null)
+        {
+            _remainingTimeTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+            _remainingTimeTimer.Tick += RemainingTimeTimer_Tick;
+        }
+        _remainingTimeTimer.Start();
+
         await _controller.StartSimulation();
     }
 
@@ -92,6 +647,9 @@ public partial class MainWindow : Window
     {
         _controller.StopSimulation();
 
+        // Stop remaining time timer
+        _remainingTimeTimer?.Stop();
+
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
         ResetButton.IsEnabled = true;
@@ -100,6 +658,9 @@ public partial class MainWindow : Window
     private void ResetButton_Click(object sender, RoutedEventArgs e)
     {
         _controller.ResetSimulation();
+
+        // Stop remaining time timer
+        _remainingTimeTimer?.Stop();
 
         // Reset simulation start time
         _simulationStartTime = DateTime.Now;
@@ -110,6 +671,16 @@ public partial class MainWindow : Window
 
         // Update station status displays
         UpdateStationDisplays();
+    }
+
+    private void RemainingTimeTimer_Tick(object? sender, EventArgs e)
+    {
+        // Update remaining time display for Polisher and Cleaner at regular intervals
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            PolisherControl.RemainingTime = orchestratedController.PolisherRemainingTime;
+            CleanerControl.RemainingTime = orchestratedController.CleanerRemainingTime;
+        }
     }
 
     private void Controller_LogMessage(object? sender, string message)
@@ -143,17 +714,29 @@ public partial class MainWindow : Window
 
     private void UpdateStationDisplays()
     {
-        // Update LoadPort count (count wafers whose CurrentStation is LoadPort)
-        var loadPortCount = _controller.Wafers.Count(w => w.CurrentStation == "LoadPort");
-        LoadPortCountText.Text = $"{loadPortCount}/25";
+        // Update all station controls with current wafer data
+        LoadPortControl.UpdateWafers(_controller.Wafers);
+        R1Control.UpdateWafers(_controller.Wafers);
+        R1Control.StatusText = _controller.R1Status;
+        PolisherControl.UpdateWafers(_controller.Wafers);
+        PolisherControl.StatusText = _controller.PolisherStatus;
 
-        // Update station status displays
-        R1StatusText.Text = _controller.R1Status;
-        PolisherStatusText.Text = _controller.PolisherStatus;
-        R2StatusText.Text = _controller.R2Status;
-        CleanerStatusText.Text = _controller.CleanerStatus;
-        R3StatusText.Text = _controller.R3Status;
-        BufferStatusText.Text = _controller.BufferStatus;
+        // Note: Remaining time is updated by the RemainingTimeTimer_Tick method (100ms intervals)
+
+        R2Control.UpdateWafers(_controller.Wafers);
+        R2Control.StatusText = _controller.R2Status;
+        CleanerControl.UpdateWafers(_controller.Wafers);
+        CleanerControl.StatusText = _controller.CleanerStatus;
+
+        // Note: Remaining time is updated by the RemainingTimeTimer_Tick method (100ms intervals)
+
+        R3Control.UpdateWafers(_controller.Wafers);
+        R3Control.StatusText = _controller.R3Status;
+        BufferControl.UpdateWafers(_controller.Wafers);
+        BufferControl.StatusText = _controller.BufferStatus;
+
+        // Update total wafer count in CMP System with Pre/Post breakdown
+        CMPSystem.UpdateTotalWaferCount(_controller.Wafers);
     }
 
     private void SelectAllLog_Click(object sender, RoutedEventArgs e)
@@ -295,9 +878,9 @@ public partial class MainWindow : Window
                 _currentZoom = Math.Max(_currentZoom - ZoomStep, ZoomMin);
             }
 
-            // Apply zoom to canvas
-            CanvasScaleTransform.ScaleX = _currentZoom;
-            CanvasScaleTransform.ScaleY = _currentZoom;
+            // Apply zoom to CMP System
+            _zoomTransform.ScaleX = _currentZoom;
+            _zoomTransform.ScaleY = _currentZoom;
         }
     }
 
@@ -310,8 +893,8 @@ public partial class MainWindow : Window
             _panStart = e.GetPosition(SimulationScrollViewer);
             _panStartHorizontalOffset = SimulationScrollViewer.HorizontalOffset;
             _panStartVerticalOffset = SimulationScrollViewer.VerticalOffset;
-            SimulationCanvas.Cursor = Cursors.Hand;
-            SimulationCanvas.CaptureMouse();
+            CMPSystem.Canvas.Cursor = Cursors.Hand;
+            CMPSystem.Canvas.CaptureMouse();
             e.Handled = true;
         }
     }
@@ -335,8 +918,8 @@ public partial class MainWindow : Window
         if (_isPanning)
         {
             _isPanning = false;
-            SimulationCanvas.Cursor = Cursors.Arrow;
-            SimulationCanvas.ReleaseMouseCapture();
+            CMPSystem.Canvas.Cursor = Cursors.Arrow;
+            CMPSystem.Canvas.ReleaseMouseCapture();
             e.Handled = true;
         }
     }
@@ -346,9 +929,210 @@ public partial class MainWindow : Window
         if (_isPanning)
         {
             _isPanning = false;
-            SimulationCanvas.Cursor = Cursors.Arrow;
-            SimulationCanvas.ReleaseMouseCapture();
+            CMPSystem.Canvas.Cursor = Cursors.Arrow;
+            CMPSystem.Canvas.ReleaseMouseCapture();
         }
+    }
+
+    private void NumberValidationTextBox(object sender, System.Windows.Input.TextCompositionEventArgs e)
+    {
+        // Only allow numeric input
+        e.Handled = !int.TryParse(e.Text, out _);
+    }
+
+    private void ApplySettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Parse timing values
+            if (!int.TryParse(R1TransferTextBox.Text, out int r1Transfer) || r1Transfer < 0)
+            {
+                MessageBox.Show("R1 Transfer time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(PolisherTextBox.Text, out int polisher) || polisher < 0)
+            {
+                MessageBox.Show("Polisher time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(R2TransferTextBox.Text, out int r2Transfer) || r2Transfer < 0)
+            {
+                MessageBox.Show("R2 Transfer time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(CleanerTextBox.Text, out int cleaner) || cleaner < 0)
+            {
+                MessageBox.Show("Cleaner time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(R3TransferTextBox.Text, out int r3Transfer) || r3Transfer < 0)
+            {
+                MessageBox.Show("R3 Transfer time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(BufferHoldTextBox.Text, out int bufferHold) || bufferHold < 0)
+            {
+                MessageBox.Show("Buffer Hold time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(LoadPortReturnTextBox.Text, out int loadPortReturn) || loadPortReturn < 0)
+            {
+                MessageBox.Show("LoadPort Return time must be a positive number.",
+                    "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Apply settings to controller (wafer count is managed by LoadPort)
+            _controller.UpdateSettings(r1Transfer, polisher, r2Transfer, cleaner, r3Transfer, bufferHold, loadPortReturn);
+
+            // Update settings object with new timing values
+            _settings.R1TransferTime = r1Transfer;
+            _settings.PolisherTime = polisher;
+            _settings.R2TransferTime = r2Transfer;
+            _settings.CleanerTime = cleaner;
+            _settings.R3TransferTime = r3Transfer;
+            _settings.BufferHoldTime = bufferHold;
+            _settings.LoadPortReturnTime = loadPortReturn;
+
+            // Auto-save settings to file
+            SettingsManager.SaveSettings(_settings);
+
+            // Show success message
+            SettingsStatusTextBlock.Text = "Settings applied and saved successfully!";
+            SettingsStatusTextBlock.Foreground = Brushes.Green;
+
+            // Clear success message after 3 seconds
+            var timer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(3)
+            };
+            timer.Tick += (s, args) =>
+            {
+                SettingsStatusTextBlock.Text = "";
+                timer.Stop();
+            };
+            timer.Start();
+
+            Log("Settings updated: " +
+                "R1=" + r1Transfer + "ms" +
+                ", Polisher=" + polisher + "ms" +
+                ", R2=" + r2Transfer + "ms" +
+                ", Cleaner=" + cleaner + "ms" +
+                ", R3=" + r3Transfer + "ms" +
+                ", Buffer=" + bufferHold + "ms" +
+                ", LoadPort=" + loadPortReturn + "ms");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to apply settings: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            SettingsStatusTextBlock.Text = "Failed to apply settings";
+            SettingsStatusTextBlock.Foreground = Brushes.Red;
+        }
+    }
+
+    private void EditMode_Checked(object sender, RoutedEventArgs e)
+    {
+        StationEditor.IsEditMode = true;
+
+        // Subscribe to geometry changed event
+        StationEditor.GeometryChanged += StationEditor_GeometryChanged;
+
+        // Enable edit mode for all stations
+        StationEditor.EnableEditMode(LoadPortControl);
+        StationEditor.EnableEditMode(R1Control);
+        StationEditor.EnableEditMode(PolisherControl);
+        StationEditor.EnableEditMode(R2Control);
+        StationEditor.EnableEditMode(CleanerControl);
+        StationEditor.EnableEditMode(R3Control);
+        StationEditor.EnableEditMode(BufferControl);
+
+        Log("✏ Edit Mode enabled - You can now move and resize stations");
+    }
+
+    private void EditMode_Unchecked(object sender, RoutedEventArgs e)
+    {
+        StationEditor.IsEditMode = false;
+
+        // Unsubscribe from geometry changed event
+        StationEditor.GeometryChanged -= StationEditor_GeometryChanged;
+
+        // Disable edit mode for all stations
+        StationEditor.DisableEditMode(LoadPortControl);
+        StationEditor.DisableEditMode(R1Control);
+        StationEditor.DisableEditMode(PolisherControl);
+        StationEditor.DisableEditMode(R2Control);
+        StationEditor.DisableEditMode(CleanerControl);
+        StationEditor.DisableEditMode(R3Control);
+        StationEditor.DisableEditMode(BufferControl);
+
+        Log("Edit Mode disabled");
+    }
+
+    private void StationEditor_GeometryChanged(object? sender, StationGeometryChangedEventArgs e)
+    {
+        // Update settings based on which station was changed
+        switch (e.StationName)
+        {
+            case "LoadPort":
+                _settings.LoadPort.Left = e.Left;
+                _settings.LoadPort.Top = e.Top;
+                _settings.LoadPort.Width = e.Width;
+                _settings.LoadPort.Height = e.Height;
+                break;
+            case "R1":
+                _settings.R1.Left = e.Left;
+                _settings.R1.Top = e.Top;
+                _settings.R1.Width = e.Width;
+                _settings.R1.Height = e.Height;
+                break;
+            case "Polisher":
+                _settings.Polisher.Left = e.Left;
+                _settings.Polisher.Top = e.Top;
+                _settings.Polisher.Width = e.Width;
+                _settings.Polisher.Height = e.Height;
+                break;
+            case "R2":
+                _settings.R2.Left = e.Left;
+                _settings.R2.Top = e.Top;
+                _settings.R2.Width = e.Width;
+                _settings.R2.Height = e.Height;
+                break;
+            case "Cleaner":
+                _settings.Cleaner.Left = e.Left;
+                _settings.Cleaner.Top = e.Top;
+                _settings.Cleaner.Width = e.Width;
+                _settings.Cleaner.Height = e.Height;
+                break;
+            case "R3":
+                _settings.R3.Left = e.Left;
+                _settings.R3.Top = e.Top;
+                _settings.R3.Width = e.Width;
+                _settings.R3.Height = e.Height;
+                break;
+            case "Buffer":
+                _settings.Buffer.Left = e.Left;
+                _settings.Buffer.Top = e.Top;
+                _settings.Buffer.Width = e.Width;
+                _settings.Buffer.Height = e.Height;
+                break;
+        }
+
+        // Auto-save settings
+        SettingsManager.SaveSettings(_settings);
+        Log($"Station geometry updated: {e.StationName} at ({e.Left}, {e.Top}), size {e.Width}×{e.Height}");
     }
 
     protected override void OnClosed(EventArgs e)

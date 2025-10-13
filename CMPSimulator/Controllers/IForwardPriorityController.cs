@@ -43,4 +43,5 @@ public interface IForwardPriorityController : INotifyPropertyChanged, IDisposabl
     void StopSimulation();
     void ResetSimulation();
     void SetExecutionMode(ExecutionMode mode);
+    void UpdateSettings(int r1Transfer, int polisher, int r2Transfer, int cleaner, int r3Transfer, int bufferHold, int loadPortReturn);
 }

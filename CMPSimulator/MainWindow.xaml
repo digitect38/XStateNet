@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:CMPSimulator.Controls"
         mc:Ignorable="d"
         Title="CMP Tool Simulator - Forward Priority Scheduler" Height="700" Width="1400"
         Background="#F0F0F0"
@@ -89,8 +90,16 @@
                     <Button x:Name="StopButton" Content="⏸ Pause" Style="{StaticResource ControlButtonStyle}" Click="StopButton_Click" IsEnabled="False"/>
                     <Button x:Name="ResetButton" Content="↻ Reset" Style="{StaticResource ControlButtonStyle}" Click="ResetButton_Click"/>
 
-                    <!-- Mode Toggle Switch -->
+                    <!-- Edit Mode Toggle -->
                     <Border Background="#E8E8E8" CornerRadius="4" Padding="10,5" Margin="15,0,0,0">
+                        <CheckBox x:Name="EditModeCheckBox" Content="✏ Edit Mode"
+                                  FontWeight="SemiBold" FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="EditMode_Checked" Unchecked="EditMode_Unchecked"/>
+                    </Border>
+
+                    <!-- Mode Toggle Switch -->
+                    <Border Background="#E8E8E8" CornerRadius="4" Padding="10,5" Margin="5,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Mode:" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <RadioButton x:Name="AsyncModeRadio" Content="Async" GroupName="ExecutionMode"
@@ -105,7 +114,7 @@
 
                 <!-- Title -->
                 <TextBlock Grid.Column="1" Text="CMP Tool - Forward Priority Scheduler" FontSize="18" FontWeight="Bold"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#333333"/>
+                          HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#333333" Width="657"/>
 
                 <!-- Statistics -->
                 <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0">
@@ -128,167 +137,7 @@
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
                       Background="#E8E8E8">
-            <Canvas x:Name="SimulationCanvas" Background="Transparent" Width="1000" Height="600">
-                <Canvas.LayoutTransform>
-                    <ScaleTransform x:Name="CanvasScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
-                </Canvas.LayoutTransform>
-
-            <!-- Station: LoadPort -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="46" Canvas.Top="256" Width="108" Height="108">
-                <Grid>
-                    <TextBlock Text="LoadPort" FontWeight="Bold" FontSize="10"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                    <TextBlock x:Name="LoadPortCountText" Text="5/5" FontSize="8"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
-                </Grid>
-            </Border>
-
-            <!-- Station: R1 (Robot 1: L↔P↔B) -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="250" Canvas.Top="270" Width="80" Height="80"
-                    Background="#D0E8FF">
-                <Grid>
-                    <TextBlock Text="R1" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="R1StatusText" Text="Empty" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Station: Polisher -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="420" Canvas.Top="250" Width="120" Height="120"
-                    Background="#FFFACD">
-                <Grid>
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
-                        <TextBlock Text="Polisher" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="PolisherRemainingTimeText" Text="{Binding PolisherRemainingTime}" FontSize="9"
-                                  HorizontalAlignment="Center" Foreground="#CC6600" FontWeight="SemiBold" Margin="0,2,0,0"/>
-                    </StackPanel>
-                    <TextBlock x:Name="PolisherStatusText" Text="Idle" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Station: R2 (Robot 2: P↔C only) -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="590" Canvas.Top="270" Width="80" Height="80"
-                    Background="#D0E8FF">
-                <Grid>
-                    <TextBlock Text="R2" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="R2StatusText" Text="Empty" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Station: Cleaner -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="760" Canvas.Top="250" Width="120" Height="120"
-                    Background="#E0FFFF">
-                <Grid>
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
-                        <TextBlock Text="Cleaner" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="CleanerRemainingTimeText" Text="{Binding CleanerRemainingTime}" FontSize="9"
-                                  HorizontalAlignment="Center" Foreground="#0099CC" FontWeight="SemiBold" Margin="0,2,0,0"/>
-                    </StackPanel>
-                    <TextBlock x:Name="CleanerStatusText" Text="Idle" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Station: R3 (Robot 3: C↔B only) -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="590" Canvas.Top="460" Width="80" Height="80"
-                    Background="#FFD0E8">
-                <Grid>
-                    <TextBlock Text="R3" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="R3StatusText" Text="Empty" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Buffer -->
-            <Border Style="{StaticResource StationStyle}"
-                    Canvas.Left="440" Canvas.Top="460" Width="80" Height="80"
-                    Background="#FFE0B2">
-                <Grid>
-                    <TextBlock Text="Buffer" FontWeight="Bold" FontSize="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                    <TextBlock x:Name="BufferStatusText" Text="Empty" FontSize="9"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
-                </Grid>
-            </Border>
-
-            <!-- Flow Path Arrows -->
-            <Path Stroke="#666666" StrokeThickness="2" StrokeDashArray="4,2" Opacity="0.5">
-                <Path.Data>
-                    <PathGeometry>
-                        <!-- Forward Path: LoadPort -> R1 -> Polisher -> R2 -> Cleaner (all Y=310) -->
-                        <PathFigure StartPoint="150,300">
-                            <LineSegment Point="250,310"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="330,310">
-                            <LineSegment Point="420,310"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="540,310">
-                            <LineSegment Point="590,310"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="670,310">
-                            <LineSegment Point="760,310"/>
-                        </PathFigure>
-
-                        <!-- Return Path: Cleaner -> R3 -> Buffer -> R1 -> LoadPort -->
-                        <PathFigure StartPoint="760,330">
-                            <LineSegment Point="670,500"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="590,500">
-                            <LineSegment Point="520,500"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="440,500">
-                            <LineSegment Point="330,310"/>
-                        </PathFigure>
-                        <PathFigure StartPoint="250,310">
-                            <LineSegment Point="150,300"/>
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
-
-            <!-- Wafers Container (will be populated dynamically) -->
-            <ItemsControl x:Name="WafersItemsControl" ItemsSource="{Binding Wafers}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <Canvas/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemContainerStyle>
-                    <Style TargetType="ContentPresenter">
-                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
-                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
-                    </Style>
-                </ItemsControl.ItemContainerStyle>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.RenderTransform>
-                                <TranslateTransform X="-10" Y="-10"/>
-                            </Grid.RenderTransform>
-                            <Ellipse Style="{StaticResource WaferStyle}" Fill="{Binding Brush}"/>
-                            <TextBlock Text="{Binding Id}" FontSize="8" FontWeight="Bold"
-                                      Foreground="{Binding TextColor}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.Effect>
-                                    <DropShadowEffect ShadowDepth="0" BlurRadius="3" Color="Black"/>
-                                </TextBlock.Effect>
-                            </TextBlock>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            </Canvas>
+                <controls:CMPSystemControl x:Name="CMPSystem" Width="1920" Height="1080" MaxWidth="1920" MaxHeight="1080"/>
             </ScrollViewer>
 
             <!-- GridSplitter for resizing -->
@@ -300,68 +149,164 @@
                           ShowsPreview="False"
                           Cursor="SizeWE"/>
 
-            <!-- Log Panel (Right) -->
+            <!-- TabControl Panel (Right) - Property and Log -->
             <Border Grid.Column="2" Background="White" BorderBrush="#CCCCCC" BorderThickness="1,0,0,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="30"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                <TabControl>
+                    <!-- Property Tab -->
+                    <TabItem Header="Property">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="15">
+                                <!-- Selected Object Info -->
+                                <TextBlock x:Name="SelectedObjectNameText" Text="No Object Selected"
+                                          FontWeight="Bold" FontSize="16" Margin="0,0,0,15"
+                                          Foreground="#007ACC"/>
 
-                    <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                                <Separator Margin="0,0,0,15"/>
+
+                                <!-- Property Grid Container -->
+                                <StackPanel x:Name="PropertyGridContainer">
+                                    <TextBlock Text="Select a station to view its properties"
+                                              FontStyle="Italic" Foreground="Gray"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,15,0,15"/>
+
+                                <!-- Global Station Timing Section -->
+                                <TextBlock Text="Global Station Timing (ms)" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- R1 Transfer Time -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="R1 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R1TransferTextBox" Grid.Row="0" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Polisher Processing Time -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Polisher:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="PolisherTextBox" Grid.Row="1" Grid.Column="1" Text="5000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- R2 Transfer Time -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="R2 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R2TransferTextBox" Grid.Row="2" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Cleaner Processing Time -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Cleaner:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="CleanerTextBox" Grid.Row="3" Grid.Column="1" Text="3000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- R3 Transfer Time -->
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="R3 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R3TransferTextBox" Grid.Row="4" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Buffer Hold Time -->
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Buffer Hold:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="BufferHoldTextBox" Grid.Row="5" Grid.Column="1" Text="0"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- LoadPort Transfer Time -->
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="LoadPort Return:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LoadPortReturnTextBox" Grid.Row="6" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+                                </Grid>
+
+                                <!-- Apply Button -->
+
+                                <TextBlock x:Name="SettingsStatusTextBlock" Text=""
+                                           Foreground="Green" FontSize="10"
+                                           Margin="0,5,0,0" TextAlignment="Center"/>
+                                <Button x:Name="ApplySettingsButton" Content="Apply Settings"
+                                        Style="{StaticResource ControlButtonStyle}"
+                                        Click="ApplySettingsButton_Click"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Log Tab -->
+                    <TabItem Header="Log">
                         <Grid>
-                            <TextBlock Text="Simulation Log" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
-                            <Button x:Name="OpenLogButton" Content="📄 Open Log"
-                                    HorizontalAlignment="Right"
-                                    Margin="0,0,10,0"
-                                    Padding="8,3"
-                                    FontSize="10"
-                                    Background="#007ACC"
-                                    Foreground="White"
-                                    BorderThickness="0"
-                                    Cursor="Hand"
-                                    Click="OpenLogButton_Click">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}"
-                                                            CornerRadius="3"
-                                                            Padding="{TemplateBinding Padding}">
-                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#005A9E"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                        </Grid>
-                    </Border>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                    <TextBox x:Name="LogTextBlock" Grid.Row="1"
-                             FontFamily="Consolas" FontSize="11"
-                             Margin="10" Foreground="#333333"
-                             TextWrapping="Wrap"
-                             IsReadOnly="True"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Disabled"
-                             Background="White"
-                             BorderThickness="0">
-                        <TextBox.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="전체 선택(_A)" Click="SelectAllLog_Click" InputGestureText="Ctrl+A"/>
-                                <MenuItem Header="복사(_C)" Click="CopyLog_Click" InputGestureText="Ctrl+C"/>
-                            </ContextMenu>
-                        </TextBox.ContextMenu>
-                    </TextBox>
-                </Grid>
+                            <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <TextBlock Text="Simulation Log" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
+                                    <Button x:Name="OpenLogButton" Content="📄 Open Log"
+                                            HorizontalAlignment="Right"
+                                            Margin="0,0,10,0"
+                                            Padding="8,3"
+                                            FontSize="10"
+                                            Background="#007ACC"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Click="OpenLogButton_Click">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    CornerRadius="3"
+                                                                    Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#005A9E"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <TextBox x:Name="LogTextBlock" Grid.Row="1"
+                                     FontFamily="Consolas" FontSize="11"
+                                     Margin="10" Foreground="#333333"
+                                     TextWrapping="Wrap"
+                                     IsReadOnly="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Disabled"
+                                     Background="White"
+                                     BorderThickness="0">
+                                <TextBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="전체 선택(_A)" Click="SelectAllLog_Click" InputGestureText="Ctrl+A"/>
+                                        <MenuItem Header="복사(_C)" Click="CopyLog_Click" InputGestureText="Ctrl+C"/>
+                                    </ContextMenu>
+                                </TextBox.ContextMenu>
+                            </TextBox>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
             </Border>
         </Grid>
     </Grid>

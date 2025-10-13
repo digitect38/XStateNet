@@ -246,13 +246,13 @@ public class ForwardPriorityController : IForwardPriorityController
 
     private void InitializeStations()
     {
-        _stations["LoadPort"] = new StationPosition("LoadPort", 46, 256, 108, 108, 25);  // Y=310 center aligned with R1
-        _stations["R1"] = new StationPosition("R1", 250, 270, 80, 80, 0);  // Y=310 aligned with P, R2, C
-        _stations["Polisher"] = new StationPosition("Polisher", 420, 250, 120, 120, 1);  // Y=310
-        _stations["R2"] = new StationPosition("R2", 590, 270, 80, 80, 0);  // Y=310 aligned with R1, P, C
-        _stations["Cleaner"] = new StationPosition("Cleaner", 760, 250, 120, 120, 1);  // Y=310
-        _stations["R3"] = new StationPosition("R3", 590, 460, 80, 80, 0);  // Y=500 aligned with Buffer
-        _stations["Buffer"] = new StationPosition("Buffer", 440, 460, 80, 80, 1);  // X=480, Y=500 aligned with R3
+        _stations["LoadPort"] = new StationPosition("LoadPort", 78, 270, 150, 165, 25);  // Updated to match MainWindow.xaml
+        _stations["R1"] = new StationPosition("R1", 233, 270, 80, 80, 0);  // Y=310 center (270+40)
+        _stations["Polisher"] = new StationPosition("Polisher", 318, 270, 195, 80, 1);  // Y=310 center (270+40)
+        _stations["R2"] = new StationPosition("R2", 518, 270, 80, 80, 0);  // Y=310 center (270+40)
+        _stations["Cleaner"] = new StationPosition("Cleaner", 603, 270, 80, 165, 1);  // Y=352.5 center (270+82.5)
+        _stations["R3"] = new StationPosition("R3", 518, 355, 80, 80, 0);  // Y=395 center (355+40)
+        _stations["Buffer"] = new StationPosition("Buffer", 233, 355, 80, 80, 1);  // Y=395 center (355+40)
     }
 
     private void InitializeWafers()
@@ -460,10 +460,11 @@ public class ForwardPriorityController : IForwardPriorityController
         _previousBufferStatus = "Empty";
         _completed.Clear();
 
-        // Reset wafer positions
+        // Reset wafer positions and completion status
         foreach (var wafer in Wafers)
         {
             wafer.CurrentStation = "LoadPort";
+            wafer.IsCompleted = false;  // Reset completion status
             var slot = _waferOriginalSlots[wafer.Id];
             var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
             wafer.X = x;
@@ -914,8 +915,15 @@ public class ForwardPriorityController : IForwardPriorityController
             {
                 UpdatePreviousCleanerState();
                 _cProcessing = false;
+
+                // Mark wafer as completed immediately after cleaning (changes font color to white)
+                var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
+                if (wafer != null)
+                {
+                    wafer.IsCompleted = true;
+                }
             }
-            Log($"✅ [Processing] C({waferId}) Cleaning DONE (after {CLEANING}ms)");
+            Log($"✅ [Processing] C({waferId}) Cleaning DONE (after {CLEANING}ms) - Wafer completed!");
         }, ct);
     }
 
@@ -1051,14 +1059,10 @@ public class ForwardPriorityController : IForwardPriorityController
             UpdatePreviousR1State();
             _r1 = null;
 
-            // Mark wafer as completed (changes font color to white)
-            var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
-            if (wafer != null)
-            {
-                wafer.IsCompleted = true;
-            }
+            // Wafer was already marked as completed after cleaning
+            // No need to set IsCompleted again here
         }
-        Log($"[P4] R1 placed wafer {waferId} at LoadPort ✓ Completed!");
+        Log($"[P4] R1 placed wafer {waferId} at LoadPort ✓ Returned to LoadPort!");
 
         await Task.Delay(TRANSFER / 2, ct);
 
@@ -1141,6 +1145,12 @@ public class ForwardPriorityController : IForwardPriorityController
         // It always runs in its own polling-based mode
         Log($"⚠ ForwardPriorityController does not support execution mode switching");
         Log($"  (This controller uses polling-based execution)");
+    }
+
+    public void UpdateSettings(int r1Transfer, int polisher, int r2Transfer, int cleaner, int r3Transfer, int bufferHold, int loadPortReturn)
+    {
+        Log($"⚠ ForwardPriorityController does not support runtime settings update");
+        Log($"  (This is a legacy controller - use OrchestratedForwardPriorityController instead)");
     }
 
     public void Dispose()

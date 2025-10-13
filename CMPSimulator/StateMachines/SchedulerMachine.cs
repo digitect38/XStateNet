@@ -45,14 +45,16 @@ public class SchedulerMachine
     // Event for completion notification
     public event EventHandler? AllWafersCompleted;
 
-    public SchedulerMachine(EventBusOrchestrator orchestrator, Action<string> logger)
+    private readonly int _totalWafers;
+
+    public SchedulerMachine(EventBusOrchestrator orchestrator, Action<string> logger, int totalWafers = 10)
     {
         _logger = logger;
         _orchestrator = orchestrator;
+        _totalWafers = totalWafers;
 
         // Initialize LoadPort queue with wafers
-        int totalWafers = CMPSimulator.Controllers.OrchestratedForwardPriorityController.TOTAL_WAFERS;
-        for (int i = 1; i <= totalWafers; i++)
+        for (int i = 1; i <= _totalWafers; i++)
         {
             _lPending.Add(i);
         }
@@ -579,13 +581,12 @@ public class SchedulerMachine
 
         // Mark as completed
         _lCompleted.Add(waferId.Value);
-        int totalWafers = CMPSimulator.Controllers.OrchestratedForwardPriorityController.TOTAL_WAFERS;
-        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{totalWafers})");
+        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{_totalWafers})");
 
         // Check if all wafers completed
-        if (_lCompleted.Count >= totalWafers)
+        if (_lCompleted.Count >= _totalWafers)
         {
-            _logger($"[Scheduler] ✅ All {totalWafers} wafers completed!");
+            _logger($"[Scheduler] ✅ All {_totalWafers} wafers completed!");
             AllWafersCompleted?.Invoke(this, EventArgs.Empty);
         }
     }
