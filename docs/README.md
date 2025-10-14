@@ -6,6 +6,15 @@ Comprehensive documentation for the XStateNet semiconductor manufacturing simula
 
 ### Core Documentation
 
+- **[CMP Simulator Documentation](./CMP-Simulator-Documentation.md)** 📱
+  - Complete simulator user guide
+  - Architecture and design patterns
+  - State machine integration
+  - UI features and controls
+  - Configuration and troubleshooting
+  - Development guide for extensions
+  - **Version:** 1.4.0 | **Tag:** v1.4.0-ui-blue-outline
+
 - **[Scheduler DSL Documentation](./Scheduler-DSL-Documentation.md)** ⭐
   - XState-based Declarative Scheduling DSL
   - JSON rule engine and syntax
@@ -27,26 +36,39 @@ Comprehensive documentation for the XStateNet semiconductor manufacturing simula
 
 ### Guides
 
+- **Simulator User Guide** ✅ [Available](./CMP-Simulator-Documentation.md)
+  - Getting started
+  - UI features and controls
+  - Configuration and settings
+  - Troubleshooting
+
 - **Scheduler DSL Guide** ✅ [Available](./Scheduler-DSL-Documentation.md)
   - Rule creation and syntax
   - Condition evaluation
   - Action execution
   - Troubleshooting
 
-- **State Machine Guide** *(Coming soon)*
+- **State Machine Guide** ✅ [Available](./CMP-Simulator-Documentation.md#state-machines)
    - Creating custom state machines
    - Event handling
    - Service invocation
+   - Station and robot machines
 
-- **SEMI Standards Guide** *(Coming soon)*
+- **SEMI Standards Guide** ✅ [Available](./CMP-Simulator-Documentation.md#semi-standards)
    - E87 Carrier Management
    - E90 Substrate Tracking
    - Integration patterns
 
 ### API Reference
 
+- **CMP Simulator** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#api-reference)
+  - OrchestratedForwardPriorityController
+  - State machine APIs
+  - Configuration APIs
 - **DeclarativeSchedulerMachine** ✅ [See Scheduler DSL](./Scheduler-DSL-Documentation.md#declarativeschedulermachine)
 - **SchedulingRuleEngine** ✅ [See Scheduler DSL](./Scheduler-DSL-Documentation.md#schedulingruleengine)
+- **WaferMachine** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#wafermachine)
+- **Station Machines** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#station-state-machines)
 - **EventBusOrchestrator** *(Coming soon)*
 - **StateMachineMonitor** *(Coming soon)*
 
@@ -54,8 +76,9 @@ Comprehensive documentation for the XStateNet semiconductor manufacturing simula
 
 - **Forward Priority Scheduling** ✅ [See Scheduler DSL](./Scheduler-DSL-Documentation.md#forward-priority-scheduling)
 - **Custom Scheduling Rules** ✅ [See Scheduler DSL](./Scheduler-DSL-Documentation.md#example-rules)
-- **Station State Machines** *(Coming soon)*
-- **Robot Coordination** *(Coming soon)*
+- **Station State Machines** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#adding-a-new-station)
+- **Robot Coordination** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#robot-state-machines)
+- **Wafer Tracking (E90)** ✅ [See Simulator Docs](./CMP-Simulator-Documentation.md#e90-wafer-tracking)
 
 ## 🎯 Key Features
 
@@ -164,6 +187,7 @@ Related documentation and resources
 
 | Date | Version | Document | Changes |
 |------|---------|----------|---------|
+| 2025-10-15 | 1.4.0 | CMP Simulator | Complete simulator user and developer guide |
 | 2025-10-15 | 1.3.0 | Scheduler DSL | Initial comprehensive documentation |
 | 2025-10-15 | 1.4.0 | UI Updates | Blue outline state tree documentation |
 
