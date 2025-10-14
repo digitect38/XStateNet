@@ -350,6 +350,17 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             carrier.StateChanged += OnStateChanged;
         }
+
+        // Subscribe to scheduler
+        if (_useDeclarativeScheduler)
+        {
+            _declarativeScheduler!.StateChanged += OnStateChanged;
+        }
+        else
+        {
+            _scheduler!.StateChanged += OnStateChanged;
+        }
+
         _polisher!.StateChanged += OnStateChanged;
         _cleaner!.StateChanged += OnStateChanged;
         _buffer!.StateChanged += OnStateChanged;
@@ -368,6 +379,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             carrier.StateChanged -= OnStateChanged;
         }
+        if (_scheduler != null) _scheduler.StateChanged -= OnStateChanged;
+        if (_declarativeScheduler != null) _declarativeScheduler.StateChanged -= OnStateChanged;
         if (_polisher != null) _polisher.StateChanged -= OnStateChanged;
         if (_cleaner != null) _cleaner.StateChanged -= OnStateChanged;
         if (_buffer != null) _buffer.StateChanged -= OnStateChanged;
@@ -388,6 +401,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             string currentState = e.StateMachineId switch
             {
                 "LoadPort" => LoadPortStatus,
+                "scheduler" => _useDeclarativeScheduler ? (_declarativeScheduler?.CurrentState ?? "Unknown") : (_scheduler?.CurrentState ?? "Unknown"),
                 "polisher" => PolisherStatus,
                 "cleaner" => CleanerStatus,
                 "buffer" => BufferStatus,
