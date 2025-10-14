@@ -53,7 +53,7 @@ public class DeclarativeSchedulerMachine
 
         var definition = """
         {
-            "id": "declarative-scheduler",
+            "id": "scheduler",
             "initial": "running",
             "states": {
                 "running": {
@@ -154,7 +154,7 @@ public class DeclarativeSchedulerMachine
         };
 
         _machine = ExtendedPureStateMachineFactory.CreateFromScriptWithGuardsAndServices(
-            id: "declarative-scheduler",
+            id: "scheduler",
             json: definition,
             orchestrator: orchestrator,
             orchestratedActions: actions,
@@ -172,7 +172,7 @@ public class DeclarativeSchedulerMachine
     {
         var result = await _machine.StartAsync();
 
-        var context = _orchestrator.GetOrCreateContext("declarative-scheduler");
+        var context = _orchestrator.GetOrCreateContext("scheduler");
         await context.ExecuteDeferredSends();
 
         return result;
