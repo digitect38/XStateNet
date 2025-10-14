@@ -22,6 +22,7 @@ public class SimulatorSettings
 
     // Station geometry
     public StationGeometry LoadPort { get; set; } = new StationGeometry { Left = 80, Top = 80, Width = 160, Height = 240 };
+    public StationGeometry LoadPort2 { get; set; } = new StationGeometry { Left = 80, Top = 340, Width = 160, Height = 240 };
     public StationGeometry R1 { get; set; } = new StationGeometry { Left = 248, Top = 80, Width = 112, Height = 240 };
     public StationGeometry Polisher { get; set; } = new StationGeometry { Left = 368, Top = 80, Width = 272, Height = 112 };
     public StationGeometry R2 { get; set; } = new StationGeometry { Left = 648, Top = 80, Width = 112, Height = 112 };

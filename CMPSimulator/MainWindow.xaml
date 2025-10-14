@@ -290,6 +290,11 @@
                         </ScrollViewer>
                     </TabItem>
 
+                    <!-- State Tree Tab -->
+                    <TabItem Header="State Tree">
+                        <controls:StateTreeControl x:Name="StateTreeControl"/>
+                    </TabItem>
+
                     <!-- Log Tab -->
                     <TabItem Header="Log">
                         <Grid>

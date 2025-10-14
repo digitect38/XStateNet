@@ -66,11 +66,14 @@ public partial class MainWindow : Window
             // For now, we'll monitor completion in the timer itself
         }
 
-        // Apply zoom transform to StationCanvas only (not grid)
-        CMPSystem.Canvas.LayoutTransform = _zoomTransform;
+        // Apply zoom transform to entire CMP System (grid zooms, but dot size stays fixed via inverse transform)
+        CMPSystem.LayoutTransform = _zoomTransform;
 
         // Create and add station controls to CMP System
         InitializeStationControls();
+
+        // Initialize State Tree
+        InitializeStateTree();
 
         Log("═══════════════════════════════════════════════════════════");
         Log("CMP Tool Simulator - Forward Priority Scheduler");
@@ -223,6 +226,225 @@ public partial class MainWindow : Window
         BufferControl.NextBackward.Add(R1Control);
     }
 
+    private void InitializeStateTree()
+    {
+        // Clear existing tree
+        StateTreeControl.RootNodes.Clear();
+
+        // Create root node for CMP System
+        var rootNode = new StateTreeNode("CMP_SYSTEM", "CMP System", "System", "Running");
+        rootNode.IsExpanded = true;
+
+        // Add LoadPort hierarchy
+        var loadPortNode = new StateTreeNode("LoadPort", "LoadPort", "LoadPort", "Empty");
+        loadPortNode.IsExpanded = true;
+        rootNode.Children.Add(loadPortNode);
+
+        // Add Carrier node under LoadPort
+        var carrierNode = new StateTreeNode("CARRIER_001", "Carrier 001", "Carrier", "NotPresent");
+        carrierNode.IsExpanded = true;
+        loadPortNode.Children.Add(carrierNode);
+
+        // Add substrate nodes for Carrier (all wafers) with E90 states
+        int totalWafers = _settings.InitialWaferCount;
+
+        for (int i = 0; i < totalWafers; i++)
+        {
+            var substrateNode = new StateTreeNode($"WAFER_W{i + 1}", $"Wafer {i + 1}", "Substrate", "WaitingForHost");
+            substrateNode.IsExpanded = false; // Collapse by default to reduce clutter
+
+            // Add E90 substrate lifecycle states as children
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_WaitingForHost", "WaitingForHost", "State") { IsActive = true });
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_InCarrier", "InCarrier", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_NeedsProcessing", "NeedsProcessing", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Aligning", "Aligning", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_ReadyToProcess", "ReadyToProcess", "State"));
+
+            // InProcess is a hierarchical state with Polishing and Cleaning sub-states
+            var inProcessNode = new StateTreeNode($"WAFER_W{i + 1}_InProcess", "InProcess", "State");
+            inProcessNode.IsExpanded = true; // Expand to show Polishing and Cleaning
+
+            // Polishing is a hierarchical state with Loading, Chucking, Polishing, Dechucking, Unloading sub-states
+            var polishingNode = new StateTreeNode($"WAFER_W{i + 1}_Polishing", "Polishing", "State");
+            polishingNode.IsExpanded = true; // Expand to show sub-states
+            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Loading", "Loading", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Chucking", "Chucking", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Polishing_Substep", "Polishing", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Dechucking", "Dechucking", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Unloading", "Unloading", "State"));
+            inProcessNode.Children.Add(polishingNode);
+
+            inProcessNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Cleaning", "Cleaning", "State"));
+            substrateNode.Children.Add(inProcessNode);
+
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Processed", "Processed", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Aborted", "Aborted", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Stopped", "Stopped", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Rejected", "Rejected", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Skipped", "Skipped", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Complete", "Complete", "State"));
+
+            carrierNode.Children.Add(substrateNode);
+        }
+
+        // Add Robot nodes with all possible states
+        var r1Node = new StateTreeNode("R1", "Robot R1", "Robot", "idle");
+        r1Node.Children.Add(new StateTreeNode("R1_idle", "idle", "State") { IsActive = true });
+        r1Node.Children.Add(new StateTreeNode("R1_pickingUp", "pickingUp", "State"));
+        r1Node.Children.Add(new StateTreeNode("R1_holding", "holding", "State"));
+        r1Node.Children.Add(new StateTreeNode("R1_placingDown", "placingDown", "State"));
+        r1Node.Children.Add(new StateTreeNode("R1_returning", "returning", "State"));
+        rootNode.Children.Add(r1Node);
+
+        var r2Node = new StateTreeNode("R2", "Robot R2", "Robot", "idle");
+        r2Node.Children.Add(new StateTreeNode("R2_idle", "idle", "State") { IsActive = true });
+        r2Node.Children.Add(new StateTreeNode("R2_pickingUp", "pickingUp", "State"));
+        r2Node.Children.Add(new StateTreeNode("R2_holding", "holding", "State"));
+        r2Node.Children.Add(new StateTreeNode("R2_placingDown", "placingDown", "State"));
+        r2Node.Children.Add(new StateTreeNode("R2_returning", "returning", "State"));
+        rootNode.Children.Add(r2Node);
+
+        var r3Node = new StateTreeNode("R3", "Robot R3", "Robot", "idle");
+        r3Node.Children.Add(new StateTreeNode("R3_idle", "idle", "State") { IsActive = true });
+        r3Node.Children.Add(new StateTreeNode("R3_pickingUp", "pickingUp", "State"));
+        r3Node.Children.Add(new StateTreeNode("R3_holding", "holding", "State"));
+        r3Node.Children.Add(new StateTreeNode("R3_placingDown", "placingDown", "State"));
+        r3Node.Children.Add(new StateTreeNode("R3_returning", "returning", "State"));
+        rootNode.Children.Add(r3Node);
+
+        // Add Process Station nodes with all possible states
+        var polisherNode = new StateTreeNode("Polisher", "Polisher", "Polisher", "empty");
+        polisherNode.Children.Add(new StateTreeNode("Polisher_empty", "empty", "State") { IsActive = true });
+
+        // Processing is a hierarchical state with sub-states
+        var polisherProcessingNode = new StateTreeNode("Polisher_processing", "processing", "State");
+        polisherProcessingNode.IsExpanded = true; // Expand to show sub-states
+        polisherProcessingNode.Children.Add(new StateTreeNode("Polisher_Loading", "Loading", "State"));
+        polisherProcessingNode.Children.Add(new StateTreeNode("Polisher_Chucking", "Chucking", "State"));
+        polisherProcessingNode.Children.Add(new StateTreeNode("Polisher_Polishing", "Polishing", "State"));
+        polisherProcessingNode.Children.Add(new StateTreeNode("Polisher_Dechucking", "Dechucking", "State"));
+        polisherProcessingNode.Children.Add(new StateTreeNode("Polisher_Unloading", "Unloading", "State"));
+        polisherNode.Children.Add(polisherProcessingNode);
+
+        polisherNode.Children.Add(new StateTreeNode("Polisher_done", "done", "State"));
+        rootNode.Children.Add(polisherNode);
+
+        var cleanerNode = new StateTreeNode("Cleaner", "Cleaner", "Cleaner", "empty");
+        cleanerNode.Children.Add(new StateTreeNode("Cleaner_empty", "empty", "State") { IsActive = true });
+        cleanerNode.Children.Add(new StateTreeNode("Cleaner_processing", "processing", "State"));
+        cleanerNode.Children.Add(new StateTreeNode("Cleaner_done", "done", "State"));
+        rootNode.Children.Add(cleanerNode);
+
+        // Add Buffer node with all possible states
+        var bufferNode = new StateTreeNode("Buffer", "Buffer", "Buffer", "empty");
+        bufferNode.Children.Add(new StateTreeNode("Buffer_empty", "empty", "State") { IsActive = true });
+        bufferNode.Children.Add(new StateTreeNode("Buffer_occupied", "occupied", "State"));
+        rootNode.Children.Add(bufferNode);
+
+        // Add root node to tree
+        StateTreeControl.RootNodes.Add(rootNode);
+
+        Log("✓ State tree initialized with hierarchical component structure");
+    }
+
+    private void UpdateStateTree()
+    {
+        // Helper function to extract state name from hierarchical state (e.g., "#polisher.processing" → "processing")
+        static string ExtractStateName(string fullState)
+        {
+            if (string.IsNullOrEmpty(fullState)) return fullState;
+
+            // Check if it contains the hierarchical delimiter
+            if (fullState.Contains("."))
+            {
+                return fullState.Substring(fullState.LastIndexOf('.') + 1);
+            }
+
+            return fullState;
+        }
+
+        // Update station states in the tree (extract just the state name from hierarchical path)
+        StateTreeControl.UpdateNodeState("R1", ExtractStateName(_controller.R1Status), false);
+        StateTreeControl.UpdateNodeState("R2", ExtractStateName(_controller.R2Status), false);
+        StateTreeControl.UpdateNodeState("R3", ExtractStateName(_controller.R3Status), false);
+        StateTreeControl.UpdateNodeState("Polisher", ExtractStateName(_controller.PolisherStatus), false);
+        StateTreeControl.UpdateNodeState("Cleaner", ExtractStateName(_controller.CleanerStatus), false);
+        StateTreeControl.UpdateNodeState("Buffer", ExtractStateName(_controller.BufferStatus), false);
+
+        // Update LoadPort and Carrier status (carrier-based processing)
+        var loadPortWafers = _controller.Wafers.Where(w => w.CurrentStation == "LoadPort").ToList();
+        int loadPortPending = loadPortWafers.Count(w => !w.IsCompleted);
+        int loadPortCompleted = loadPortWafers.Count(w => w.IsCompleted);
+
+        // Get current carrier information from scheduler (if available)
+        string currentCarrierId = "CARRIER_001"; // Default
+        string loadPortState = "Empty";
+        string carrierState = "NotPresent";
+
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            // Access scheduler properties to get current carrier status
+            // For now, show based on wafer status (will be updated with scheduler property access)
+            if (loadPortPending > 0)
+            {
+                loadPortState = $"Processing (Carrier docked, {loadPortPending} pending)";
+                carrierState = $"Docked ({loadPortPending}/{orchestratedController.TOTAL_WAFERS} pending)";
+            }
+            else if (loadPortCompleted > 0)
+            {
+                loadPortState = $"Complete (Carrier undocking, {loadPortCompleted} done)";
+                carrierState = $"Complete ({loadPortCompleted}/{orchestratedController.TOTAL_WAFERS} done)";
+            }
+            else
+            {
+                loadPortState = "Empty (Waiting for next carrier)";
+                carrierState = "NotPresent";
+            }
+        }
+
+        StateTreeControl.UpdateNodeState("LoadPort", loadPortState, loadPortPending > 0);
+        StateTreeControl.UpdateNodeState(currentCarrierId, carrierState, loadPortPending > 0);
+
+        // Clear all highlights first
+        StateTreeControl.ClearAllHighlights();
+
+        // Highlight active/processing nodes
+        if (_controller.PolisherStatus.Contains("Processing") || _controller.PolisherStatus.Contains("Busy"))
+        {
+            StateTreeControl.UpdateNodeState("Polisher", _controller.PolisherStatus, true);
+        }
+
+        if (_controller.CleanerStatus.Contains("Processing") || _controller.CleanerStatus.Contains("Busy"))
+        {
+            StateTreeControl.UpdateNodeState("Cleaner", _controller.CleanerStatus, true);
+        }
+
+        if (_controller.R1Status.Contains("Transferring") || _controller.R1Status.Contains("Busy"))
+        {
+            StateTreeControl.UpdateNodeState("R1", _controller.R1Status, true);
+        }
+
+        if (_controller.R2Status.Contains("Transferring") || _controller.R2Status.Contains("Busy"))
+        {
+            StateTreeControl.UpdateNodeState("R2", _controller.R2Status, true);
+        }
+
+        if (_controller.R3Status.Contains("Transferring") || _controller.R3Status.Contains("Busy"))
+        {
+            StateTreeControl.UpdateNodeState("R3", _controller.R3Status, true);
+        }
+
+        // Update substrate (wafer) E90 states from their state machines
+        foreach (var wafer in _controller.Wafers)
+        {
+            string substrateId = $"WAFER_W{wafer.Id}";
+            string e90State = wafer.E90State ?? "WaitingForHost";
+            bool isHighlighted = wafer.CurrentStation != "LoadPort" && !wafer.IsCompleted;
+
+            StateTreeControl.UpdateNodeState(substrateId, e90State, isHighlighted);
+        }
+    }
+
     private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // Handle Ctrl+Click for panning
@@ -362,7 +584,7 @@ public partial class MainWindow : Window
         switch (stationName)
         {
             case "LoadPort":
-                ShowLoadPortProperties();
+                ShowLoadPortProperties(stationName);
                 break;
             case "R1":
             case "R2":
@@ -379,11 +601,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowLoadPortProperties()
+    private void ShowLoadPortProperties(string stationName)
     {
+        LoadPortControl loadPortControl = LoadPortControl;
+        StationGeometry geometry = _settings.LoadPort;
+
         AddPropertyRow("Type", "LoadPort Station");
         AddPropertyRow("Capacity", "25 wafers (5x5 grid)");
-        AddPropertyRow("Current Status", LoadPortControl.StatusText);
+        AddPropertyRow("Current Status", loadPortControl.StatusText);
         AddPropertyRow("Function", "Load/Unload wafers");
 
         // Add separator before wafer count section
@@ -420,25 +645,25 @@ public partial class MainWindow : Window
         PropertyGridContainer.Children.Add(applyWaferButton);
 
         // Add Geometry section
-        AddGeometrySection(_settings.LoadPort);
+        AddGeometrySection(geometry);
 
         // Show connections
-        if (LoadPortControl.NextForward.Count > 0)
+        if (loadPortControl.NextForward.Count > 0)
         {
-            var forwardStations = string.Join(", ", LoadPortControl.NextForward.Select(s => s.StationName));
+            var forwardStations = string.Join(", ", loadPortControl.NextForward.Select(s => s.StationName));
             AddPropertyRow("Next (Forward)", forwardStations);
-            if (LoadPortControl.NextForward.Count > 1)
+            if (loadPortControl.NextForward.Count > 1)
             {
-                AddPropertyRow("  ↳ Routing", LoadPortControl.ForwardRoutingStrategy.ToString());
+                AddPropertyRow("  ↳ Routing", loadPortControl.ForwardRoutingStrategy.ToString());
             }
         }
-        if (LoadPortControl.NextBackward.Count > 0)
+        if (loadPortControl.NextBackward.Count > 0)
         {
-            var backwardStations = string.Join(", ", LoadPortControl.NextBackward.Select(s => s.StationName));
+            var backwardStations = string.Join(", ", loadPortControl.NextBackward.Select(s => s.StationName));
             AddPropertyRow("Next (Backward)", backwardStations);
-            if (LoadPortControl.NextBackward.Count > 1)
+            if (loadPortControl.NextBackward.Count > 1)
             {
-                AddPropertyRow("  ↳ Routing", LoadPortControl.BackwardRoutingStrategy.ToString());
+                AddPropertyRow("  ↳ Routing", loadPortControl.BackwardRoutingStrategy.ToString());
             }
         }
     }
@@ -927,6 +1152,7 @@ public partial class MainWindow : Window
     {
         // Already on UI thread (called from Dispatcher.Invoke in UIUpdateService)
         UpdateStationDisplays();
+        UpdateStateTree();
     }
 
     private void Log(string message)
@@ -1116,6 +1342,9 @@ public partial class MainWindow : Window
             // Apply zoom to CMP System
             _zoomTransform.ScaleX = _currentZoom;
             _zoomTransform.ScaleY = _currentZoom;
+
+            // Redraw grid with new zoom level to adjust dot size inversely
+            CMPSystem.RedrawGrid(_currentZoom);
         }
     }
 

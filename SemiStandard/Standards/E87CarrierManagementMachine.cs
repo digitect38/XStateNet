@@ -72,7 +72,7 @@ public class E87CarrierManagementMachine
         await _orchestrator.SendEventAsync(
             MachineId,
             $"E84_HANDOFF_{portId}",
-            "CARRIER_ARRIVED",
+            "E84_CARRIER_ARRIVED",
             new JObject
             {
                 ["carrierId"] = carrierId,
@@ -129,7 +129,7 @@ public class E87CarrierManagementMachine
                     await _orchestrator.SendEventAsync(
                         MachineId,
                         $"E90_TRACKING_{_equipmentId}",
-                        "SUBSTRATE_IN_CARRIER",
+                        "E90_SUBSTRATE_IN_CARRIER",
                         new JObject
                         {
                             ["substrateId"] = substrateId,
@@ -171,7 +171,7 @@ public class E87CarrierManagementMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 $"E90_TRACKING_{_equipmentId}",
-                "CARRIER_ACCESS_STARTED",
+                "E87_CARRIER_ACCESS_STARTED",
                 new JObject
                 {
                     ["carrierId"] = carrierId
@@ -197,7 +197,7 @@ public class E87CarrierManagementMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 $"E40_PROCESS_JOB",
-                "CARRIER_PROCESSING_COMPLETE",
+                "E87_CARRIER_PROCESSING_COMPLETE",
                 new JObject
                 {
                     ["carrierId"] = carrierId,
@@ -233,7 +233,7 @@ public class E87CarrierManagementMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 $"E84_HANDOFF_{carrier.LoadPortId}",
-                "CARRIER_DEPARTED",
+                "E84_CARRIER_DEPARTED",
                 new JObject
                 {
                     ["carrierId"] = carrierId
@@ -377,28 +377,28 @@ public class CarrierMachine
                 NotPresent: {
                     entry: 'logNotPresent',
                     on: {
-                        CARRIER_DETECTED: 'WaitingForHost'
+                        E87_CARRIER_DETECTED: 'WaitingForHost'
                     }
                 },
                 WaitingForHost: {
                     entry: 'logWaitingForHost',
                     on: {
-                        HOST_PROCEED: 'Mapping',
-                        HOST_CANCEL: 'CarrierOut'
+                        E87_HOST_PROCEED: 'Mapping',
+                        E87_HOST_CANCEL: 'CarrierOut'
                     }
                 },
                 Mapping: {
                     entry: 'startMapping',
                     on: {
-                        MAPPING_COMPLETE: 'MappingVerification',
-                        MAPPING_ERROR: 'WaitingForHost'
+                        E87_MAPPING_COMPLETE: 'MappingVerification',
+                        E87_MAPPING_ERROR: 'WaitingForHost'
                     }
                 },
                 MappingVerification: {
                     entry: 'logMappingVerification',
                     on: {
-                        VERIFY_OK: 'ReadyToAccess',
-                        VERIFY_FAIL: 'Mapping'
+                        E87_VERIFY_OK: 'ReadyToAccess',
+                        E87_VERIFY_FAIL: 'Mapping'
                     },
                     after: {
                         '500': {
@@ -409,28 +409,28 @@ public class CarrierMachine
                 ReadyToAccess: {
                     entry: 'logReadyToAccess',
                     on: {
-                        START_ACCESS: 'InAccess',
-                        HOST_CANCEL: 'Complete'
+                        E87_START_ACCESS: 'InAccess',
+                        E87_HOST_CANCEL: 'Complete'
                     }
                 },
                 InAccess: {
                     entry: 'logInAccess',
                     on: {
-                        ACCESS_COMPLETE: 'Complete',
-                        ACCESS_ERROR: 'AccessPaused'
+                        E87_ACCESS_COMPLETE: 'Complete',
+                        E87_ACCESS_ERROR: 'AccessPaused'
                     }
                 },
                 AccessPaused: {
                     entry: 'logAccessPaused',
                     on: {
-                        RESUME_ACCESS: 'InAccess',
-                        ABORT_ACCESS: 'Complete'
+                        E87_RESUME_ACCESS: 'InAccess',
+                        E87_ABORT_ACCESS: 'Complete'
                     }
                 },
                 Complete: {
                     entry: 'logComplete',
                     on: {
-                        CARRIER_REMOVED: 'CarrierOut'
+                        E87_CARRIER_REMOVED: 'CarrierOut'
                     }
                 },
                 CarrierOut: {
@@ -453,7 +453,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] ⏳ Waiting for host authorization");
 
-                ctx.RequestSend("HOST_SYSTEM", "CARRIER_AWAITING_APPROVAL", new JObject
+                ctx.RequestSend("HOST_SYSTEM", "E87_CARRIER_AWAITING_APPROVAL", new JObject
                 {
                     ["carrierId"] = Id,
                     ["loadPortId"] = LoadPortId,
@@ -465,7 +465,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] 🗺️ Starting slot mapping");
 
-                ctx.RequestSend("MAPPING_SYSTEM", "START_CARRIER_MAPPING", new JObject
+                ctx.RequestSend("MAPPING_SYSTEM", "E87_START_CARRIER_MAPPING", new JObject
                 {
                     ["carrierId"] = Id,
                     ["slotCount"] = SlotCount
@@ -481,7 +481,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Ready to access ({SubstrateCount} substrates)");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "CARRIER_READY", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E87_CARRIER_READY", new JObject
                 {
                     ["carrierId"] = Id,
                     ["substrateCount"] = SubstrateCount
@@ -492,7 +492,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] 🔧 Accessing carrier substrates");
 
-                ctx.RequestSend("E90_TRACKING", "CARRIER_ACCESS_IN_PROGRESS", new JObject
+                ctx.RequestSend("E90_TRACKING", "E87_CARRIER_ACCESS_IN_PROGRESS", new JObject
                 {
                     ["carrierId"] = Id
                 });
@@ -502,7 +502,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] ⏸️ Access paused (error recovery)");
 
-                ctx.RequestSend("ALARM_SYSTEM", "CARRIER_ACCESS_PAUSED", new JObject
+                ctx.RequestSend("ALARM_SYSTEM", "E87_CARRIER_ACCESS_PAUSED", new JObject
                 {
                     ["carrierId"] = Id,
                     ["reason"] = "ACCESS_ERROR"
@@ -513,7 +513,7 @@ public class CarrierMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Carrier access complete");
 
-                ctx.RequestSend("E94_CONTROL_JOB", "CARRIER_COMPLETE", new JObject
+                ctx.RequestSend("E94_CONTROL_JOB", "E87_CARRIER_COMPLETE", new JObject
                 {
                     ["carrierId"] = Id,
                     ["substrateCount"] = SubstrateCount
@@ -554,7 +554,7 @@ public class CarrierMachine
         var state = await _machine.StartAsync();
         await Task.Delay(50);
         // Automatically detect carrier
-        await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_DETECTED", null);
+        await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_CARRIER_DETECTED", null);
         return state;
     }
 
@@ -566,43 +566,43 @@ public class CarrierMachine
     // Public API methods
     public async Task<EventResult> HostProceedAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "HOST_PROCEED", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_HOST_PROCEED", null);
         return result;
     }
 
     public async Task<EventResult> MappingCompleteAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "MAPPING_COMPLETE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_MAPPING_COMPLETE", null);
         return result;
     }
 
     public async Task<EventResult> VerifyOkAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_OK", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_VERIFY_OK", null);
         return result;
     }
 
     public async Task<EventResult> VerifyFailAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "VERIFY_FAIL", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_VERIFY_FAIL", null);
         return result;
     }
 
     public async Task<EventResult> StartAccessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_ACCESS", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_START_ACCESS", null);
         return result;
     }
 
     public async Task<EventResult> AccessCompleteAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ACCESS_COMPLETE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_ACCESS_COMPLETE", null);
         return result;
     }
 
     public async Task<EventResult> RemoveAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_REMOVED", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_CARRIER_REMOVED", null);
         return result;
     }
 }
@@ -649,22 +649,22 @@ public class LoadPortMachine
                 Empty: {
                     entry: 'logEmpty',
                     on: {
-                        CARRIER_PLACED: 'Loading',
-                        RESERVE: 'Reserved'
+                        E87_CARRIER_PLACED: 'Loading',
+                        E87_RESERVE: 'Reserved'
                     }
                 },
                 Reserved: {
                     entry: 'logReserved',
                     on: {
-                        CARRIER_PLACED: 'Loading',
-                        UNRESERVE: 'Empty'
+                        E87_CARRIER_PLACED: 'Loading',
+                        E87_UNRESERVE: 'Empty'
                     }
                 },
                 Loading: {
                     entry: 'logLoading',
                     on: {
-                        LOAD_COMPLETE: 'Loaded',
-                        LOAD_ERROR: 'Error'
+                        E87_LOAD_COMPLETE: 'Loaded',
+                        E87_LOAD_ERROR: 'Error'
                     },
                     after: {
                         '1000': {
@@ -675,42 +675,42 @@ public class LoadPortMachine
                 Loaded: {
                     entry: 'logLoaded',
                     on: {
-                        START_MAPPING: 'Mapping',
-                        CARRIER_REMOVED: 'Unloading'
+                        E87_START_MAPPING: 'Mapping',
+                        E87_CARRIER_REMOVED: 'Unloading'
                     }
                 },
                 Mapping: {
                     entry: 'logMapping',
                     on: {
-                        MAPPING_COMPLETE: 'Ready',
-                        MAPPING_ERROR: 'Error'
+                        E87_MAPPING_COMPLETE: 'Ready',
+                        E87_MAPPING_ERROR: 'Error'
                     }
                 },
                 Ready: {
                     entry: 'logReady',
                     on: {
-                        START_ACCESS: 'InAccess',
-                        CARRIER_REMOVED: 'Unloading'
+                        E87_START_ACCESS: 'InAccess',
+                        E87_CARRIER_REMOVED: 'Unloading'
                     }
                 },
                 InAccess: {
                     entry: 'logInAccess',
                     on: {
-                        ACCESS_COMPLETE: 'ReadyToUnload',
-                        ACCESS_ERROR: 'Error'
+                        E87_ACCESS_COMPLETE: 'ReadyToUnload',
+                        E87_ACCESS_ERROR: 'Error'
                     }
                 },
                 ReadyToUnload: {
                     entry: 'logReadyToUnload',
                     on: {
-                        CARRIER_REMOVED: 'Unloading'
+                        E87_CARRIER_REMOVED: 'Unloading'
                     }
                 },
                 Unloading: {
                     entry: 'logUnloading',
                     on: {
-                        UNLOAD_COMPLETE: 'Empty',
-                        UNLOAD_ERROR: 'Error'
+                        E87_UNLOAD_COMPLETE: 'Empty',
+                        E87_UNLOAD_ERROR: 'Error'
                     },
                     after: {
                         '500': {
@@ -721,8 +721,8 @@ public class LoadPortMachine
                 Error: {
                     entry: 'logError',
                     on: {
-                        CLEAR_ERROR: 'Empty',
-                        RECOVER: 'Loaded'
+                        E87_CLEAR_ERROR: 'Empty',
+                        E87_RECOVER: 'Loaded'
                     }
                 }
             }
@@ -747,7 +747,7 @@ public class LoadPortMachine
             {
                 Console.WriteLine($"[{MachineId}] ⏳ Loading carrier...");
 
-                ctx.RequestSend("E84_HANDOFF", "LOAD_PORT_LOADING", new JObject
+                ctx.RequestSend("E84_HANDOFF", "E87_LOAD_PORT_LOADING", new JObject
                 {
                     ["portId"] = Id
                 });
@@ -757,7 +757,7 @@ public class LoadPortMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Carrier loaded");
 
-                ctx.RequestSend("E84_HANDOFF", "LOAD_PORT_LOADED", new JObject
+                ctx.RequestSend("E84_HANDOFF", "E87_LOAD_PORT_LOADED", new JObject
                 {
                     ["portId"] = Id,
                     ["carrierId"] = CurrentCarrierId
@@ -793,7 +793,7 @@ public class LoadPortMachine
             {
                 Console.WriteLine($"[{MachineId}] ❌ Load port error");
 
-                ctx.RequestSend("ALARM_SYSTEM", "LOAD_PORT_ERROR", new JObject
+                ctx.RequestSend("ALARM_SYSTEM", "E87_LOAD_PORT_ERROR", new JObject
                 {
                     ["portId"] = Id
                 });
@@ -822,27 +822,27 @@ public class LoadPortMachine
     // Public API methods
     public async Task<EventResult> CarrierPlacedAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_PLACED", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_CARRIER_PLACED", null);
         return result;
     }
 
     public async Task<EventResult> CarrierRemovedAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "CARRIER_REMOVED", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_CARRIER_REMOVED", null);
         return result;
     }
 
     public async Task<EventResult> ReserveAsync()
     {
         IsReserved = true;
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESERVE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_RESERVE", null);
         return result;
     }
 
     public async Task<EventResult> UnreserveAsync()
     {
         IsReserved = false;
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "UNRESERVE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E87_UNRESERVE", null);
         return result;
     }
 }

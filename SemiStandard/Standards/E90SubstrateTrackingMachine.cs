@@ -47,7 +47,7 @@ public class E90SubstrateTrackingMachine
         await _orchestrator.SendEventAsync(
             MachineId,
             "E87_CARRIER_MANAGEMENT",
-            "SUBSTRATE_REGISTERED",
+            "E90_SUBSTRATE_REGISTERED",
             new JObject
             {
                 ["substrateId"] = substrateId,
@@ -101,7 +101,7 @@ public class E90SubstrateTrackingMachine
         await _orchestrator.SendEventAsync(
             MachineId,
             "E87_CARRIER_MANAGEMENT",
-            "SUBSTRATE_LOCATION_CHANGED",
+            "E90_SUBSTRATE_LOCATION_CHANGED",
             new JObject
             {
                 ["substrateId"] = substrateId,
@@ -126,7 +126,7 @@ public class E90SubstrateTrackingMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 "E40_PROCESS_JOB",
-                "SUBSTRATE_PROCESSING_STARTED",
+                "E90_SUBSTRATE_PROCESSING_STARTED",
                 new JObject
                 {
                     ["substrateId"] = substrateId,
@@ -157,7 +157,7 @@ public class E90SubstrateTrackingMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 "E40_PROCESS_JOB",
-                success ? "SUBSTRATE_PROCESSING_COMPLETE" : "SUBSTRATE_PROCESSING_ABORTED",
+                success ? "E90_SUBSTRATE_PROCESSING_COMPLETE" : "E90_SUBSTRATE_PROCESSING_ABORTED",
                 new JObject
                 {
                     ["substrateId"] = substrateId,
@@ -186,7 +186,7 @@ public class E90SubstrateTrackingMachine
             await _orchestrator.SendEventAsync(
                 MachineId,
                 "E87_CARRIER_MANAGEMENT",
-                "SUBSTRATE_REMOVED",
+                "E90_SUBSTRATE_REMOVED",
                 new JObject
                 {
                     ["substrateId"] = substrateId
@@ -298,91 +298,91 @@ public class SubstrateMachine
                 WaitingForHost: {
                     entry: 'logWaitingForHost',
                     on: {
-                        ACQUIRE: 'InCarrier',
-                        PLACED_IN_CARRIER: 'InCarrier',
-                        REMOVE: 'Removed'
+                        E90_ACQUIRE: 'InCarrier',
+                        E90_PLACED_IN_CARRIER: 'InCarrier',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 InCarrier: {
                     entry: 'logInCarrier',
                     on: {
-                        SELECT_FOR_PROCESS: 'NeedsProcessing',
-                        SKIP: 'Skipped',
-                        REJECT: 'Rejected',
-                        REMOVE: 'Removed'
+                        E90_SELECT_FOR_PROCESS: 'NeedsProcessing',
+                        E90_SKIP: 'Skipped',
+                        E90_REJECT: 'Rejected',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 NeedsProcessing: {
                     entry: 'logNeedsProcessing',
                     on: {
-                        PLACED_IN_PROCESS_MODULE: 'ReadyToProcess',
-                        PLACED_IN_ALIGNER: 'Aligning',
-                        ABORT: 'Aborted'
+                        E90_PLACED_IN_PROCESS_MODULE: 'ReadyToProcess',
+                        E90_PLACED_IN_ALIGNER: 'Aligning',
+                        E90_ABORT: 'Aborted'
                     }
                 },
                 Aligning: {
                     entry: 'logAligning',
                     on: {
-                        ALIGN_COMPLETE: 'ReadyToProcess',
-                        ALIGN_FAIL: 'Rejected'
+                        E90_ALIGN_COMPLETE: 'ReadyToProcess',
+                        E90_ALIGN_FAIL: 'Rejected'
                     }
                 },
                 ReadyToProcess: {
                     entry: 'logReadyToProcess',
                     on: {
-                        START_PROCESS: 'InProcess',
-                        ABORT: 'Aborted'
+                        E90_START_PROCESS: 'InProcess',
+                        E90_ABORT: 'Aborted'
                     }
                 },
                 InProcess: {
                     entry: 'recordProcessStart',
                     exit: 'recordProcessEnd',
                     on: {
-                        PROCESS_COMPLETE: 'Processed',
-                        PROCESS_ABORT: 'Aborted',
-                        PROCESS_STOP: 'Stopped',
-                        PROCESS_ERROR: 'Rejected'
+                        E90_PROCESS_COMPLETE: 'Processed',
+                        E90_PROCESS_ABORT: 'Aborted',
+                        E90_PROCESS_STOP: 'Stopped',
+                        E90_PROCESS_ERROR: 'Rejected'
                     }
                 },
                 Processed: {
                     entry: 'logProcessed',
                     on: {
-                        PLACED_IN_CARRIER: 'Complete',
-                        REMOVE: 'Removed'
+                        E90_PLACED_IN_CARRIER: 'Complete',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 Aborted: {
                     entry: 'logAborted',
                     on: {
-                        PLACED_IN_CARRIER: 'Complete',
-                        REMOVE: 'Removed'
+                        E90_PLACED_IN_CARRIER: 'Complete',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 Stopped: {
                     entry: 'logStopped',
                     on: {
-                        RESUME: 'InProcess',
-                        ABORT: 'Aborted'
+                        E90_RESUME: 'InProcess',
+                        E90_ABORT: 'Aborted'
                     }
                 },
                 Rejected: {
                     entry: 'logRejected',
                     on: {
-                        PLACED_IN_CARRIER: 'Complete',
-                        REMOVE: 'Removed'
+                        E90_PLACED_IN_CARRIER: 'Complete',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 Skipped: {
                     entry: 'logSkipped',
                     on: {
-                        PLACED_IN_CARRIER: 'Complete',
-                        REMOVE: 'Removed'
+                        E90_PLACED_IN_CARRIER: 'Complete',
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 Complete: {
                     entry: 'logComplete',
                     on: {
-                        REMOVE: 'Removed'
+                        E90_REMOVE: 'Removed'
                     }
                 },
                 Removed: {
@@ -405,7 +405,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] 📦 Substrate in carrier (Lot: {LotId}, Slot: {SlotNumber})");
 
-                ctx.RequestSend("E87_CARRIER_MANAGEMENT", "SUBSTRATE_IN_CARRIER", new JObject
+                ctx.RequestSend("E87_CARRIER_MANAGEMENT", "E90_SUBSTRATE_IN_CARRIER", new JObject
                 {
                     ["substrateId"] = Id,
                     ["lotId"] = LotId,
@@ -417,7 +417,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] 🎯 Substrate selected for processing");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_NEEDS_PROCESSING", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_NEEDS_PROCESSING", new JObject
                 {
                     ["substrateId"] = Id,
                     ["lotId"] = LotId
@@ -428,7 +428,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] 🔄 Substrate aligning");
 
-                ctx.RequestSend("ALIGNER_MODULE", "ALIGN_SUBSTRATE", new JObject
+                ctx.RequestSend("ALIGNER_MODULE", "E90_ALIGN_SUBSTRATE", new JObject
                 {
                     ["substrateId"] = Id
                 });
@@ -438,7 +438,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Substrate ready to process");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_READY", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_READY", new JObject
                 {
                     ["substrateId"] = Id
                 });
@@ -449,7 +449,7 @@ public class SubstrateMachine
                 ProcessStartTime = DateTime.UtcNow;
                 Console.WriteLine($"[{MachineId}] 🔧 Processing started at {ProcessStartTime}");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_PROCESSING", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_PROCESSING", new JObject
                 {
                     ["substrateId"] = Id,
                     ["recipeId"] = RecipeId,
@@ -471,13 +471,13 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Processing completed successfully");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_PROCESSED", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_PROCESSED", new JObject
                 {
                     ["substrateId"] = Id,
                     ["processTime"] = ProcessingTime?.TotalSeconds
                 });
 
-                ctx.RequestSend("E94_CONTROL_JOB", "SUBSTRATE_COMPLETE", new JObject
+                ctx.RequestSend("E94_CONTROL_JOB", "E90_SUBSTRATE_COMPLETE", new JObject
                 {
                     ["substrateId"] = Id,
                     ["status"] = "SUCCESS"
@@ -488,12 +488,12 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ❌ Processing aborted");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_ABORTED", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_ABORTED", new JObject
                 {
                     ["substrateId"] = Id
                 });
 
-                ctx.RequestSend("E94_CONTROL_JOB", "SUBSTRATE_COMPLETE", new JObject
+                ctx.RequestSend("E94_CONTROL_JOB", "E90_SUBSTRATE_COMPLETE", new JObject
                 {
                     ["substrateId"] = Id,
                     ["status"] = "ABORTED"
@@ -504,7 +504,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ⏸️ Processing stopped");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_STOPPED", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_STOPPED", new JObject
                 {
                     ["substrateId"] = Id
                 });
@@ -514,12 +514,12 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ⛔ Substrate rejected");
 
-                ctx.RequestSend("E40_PROCESS_JOB", "SUBSTRATE_REJECTED", new JObject
+                ctx.RequestSend("E40_PROCESS_JOB", "E90_SUBSTRATE_REJECTED", new JObject
                 {
                     ["substrateId"] = Id
                 });
 
-                ctx.RequestSend("E94_CONTROL_JOB", "SUBSTRATE_COMPLETE", new JObject
+                ctx.RequestSend("E94_CONTROL_JOB", "E90_SUBSTRATE_COMPLETE", new JObject
                 {
                     ["substrateId"] = Id,
                     ["status"] = "REJECTED"
@@ -530,7 +530,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ⏭️ Substrate skipped");
 
-                ctx.RequestSend("E94_CONTROL_JOB", "SUBSTRATE_COMPLETE", new JObject
+                ctx.RequestSend("E94_CONTROL_JOB", "E90_SUBSTRATE_COMPLETE", new JObject
                 {
                     ["substrateId"] = Id,
                     ["status"] = "SKIPPED"
@@ -541,7 +541,7 @@ public class SubstrateMachine
             {
                 Console.WriteLine($"[{MachineId}] ✅ Substrate lifecycle complete");
 
-                ctx.RequestSend("E87_CARRIER_MANAGEMENT", "SUBSTRATE_COMPLETE", new JObject
+                ctx.RequestSend("E87_CARRIER_MANAGEMENT", "E90_SUBSTRATE_COMPLETE", new JObject
                 {
                     ["substrateId"] = Id
                 });
@@ -576,85 +576,85 @@ public class SubstrateMachine
 
     public async Task<EventResult> AcquireAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ACQUIRE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_ACQUIRE", null);
         return result;
     }
 
     public async Task<EventResult> PlacedInCarrierAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_CARRIER", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PLACED_IN_CARRIER", null);
         return result;
     }
 
     public async Task<EventResult> SelectForProcessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SELECT_FOR_PROCESS", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_SELECT_FOR_PROCESS", null);
         return result;
     }
 
     public async Task<EventResult> PlacedInProcessModuleAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_PROCESS_MODULE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PLACED_IN_PROCESS_MODULE", null);
         return result;
     }
 
     public async Task<EventResult> PlacedInAlignerAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PLACED_IN_ALIGNER", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PLACED_IN_ALIGNER", null);
         return result;
     }
 
     public async Task<EventResult> AlignCompleteAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "ALIGN_COMPLETE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_ALIGN_COMPLETE", null);
         return result;
     }
 
     public async Task<EventResult> StartProcessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "START_PROCESS", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_START_PROCESS", null);
         return result;
     }
 
     public async Task<EventResult> CompleteProcessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_COMPLETE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PROCESS_COMPLETE", null);
         return result;
     }
 
     public async Task<EventResult> AbortProcessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_ABORT", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PROCESS_ABORT", null);
         return result;
     }
 
     public async Task<EventResult> StopProcessAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "PROCESS_STOP", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_PROCESS_STOP", null);
         return result;
     }
 
     public async Task<EventResult> ResumeAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "RESUME", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_RESUME", null);
         return result;
     }
 
     public async Task<EventResult> RejectAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REJECT", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_REJECT", null);
         return result;
     }
 
     public async Task<EventResult> SkipAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "SKIP", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_SKIP", null);
         return result;
     }
 
     public async Task<EventResult> RemoveAsync()
     {
-        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "REMOVE", null);
+        var result = await _orchestrator.SendEventAsync("SYSTEM", MachineId, "E90_REMOVE", null);
         return result;
     }
 }

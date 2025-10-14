@@ -91,6 +91,7 @@ public class ParallelSchedulerController : IForwardPriorityController
     private void InitializeStations()
     {
         _stations["LoadPort"] = new StationPosition("LoadPort", 46, 256, 108, 108, 25);
+        _stations["LoadPort2"] = new StationPosition("LoadPort2", 180, 256, 108, 108, 25);
         _stations["R1"] = new StationPosition("R1", 250, 270, 80, 80, 0);
         _stations["Polisher"] = new StationPosition("Polisher", 420, 250, 120, 120, 1);
         _stations["R2"] = new StationPosition("R2", 590, 270, 80, 80, 0);
@@ -103,7 +104,11 @@ public class ParallelSchedulerController : IForwardPriorityController
     {
         var colors = GenerateDistinctColors(TOTAL_WAFERS);
 
-        for (int i = 0; i < TOTAL_WAFERS; i++)
+        // Distribute wafers between LoadPort and LoadPort2 (split evenly)
+        int halfWafers = TOTAL_WAFERS / 2;
+
+        // First half goes to LoadPort
+        for (int i = 0; i < halfWafers; i++)
         {
             var wafer = new Wafer(i + 1, colors[i]);
             var loadPort = _stations["LoadPort"];
@@ -112,10 +117,28 @@ public class ParallelSchedulerController : IForwardPriorityController
             wafer.X = x;
             wafer.Y = y;
             wafer.CurrentStation = "LoadPort";
+            wafer.OriginLoadPort = "LoadPort";
 
             Wafers.Add(wafer);
             _waferOriginalSlots[wafer.Id] = i;
             _stations["LoadPort"].AddWafer(wafer.Id);
+        }
+
+        // Second half goes to LoadPort2
+        for (int i = halfWafers; i < TOTAL_WAFERS; i++)
+        {
+            var wafer = new Wafer(i + 1, colors[i]);
+            var loadPort2 = _stations["LoadPort2"];
+            var (x, y) = loadPort2.GetWaferPosition(i - halfWafers); // Slot position within LoadPort2
+
+            wafer.X = x;
+            wafer.Y = y;
+            wafer.CurrentStation = "LoadPort2";
+            wafer.OriginLoadPort = "LoadPort2";
+
+            Wafers.Add(wafer);
+            _waferOriginalSlots[wafer.Id] = i - halfWafers; // Store relative slot position
+            _stations["LoadPort2"].AddWafer(wafer.Id);
         }
     }
 
@@ -270,9 +293,13 @@ public class ParallelSchedulerController : IForwardPriorityController
                 var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
                 if (wafer != null)
                 {
-                    wafer.CurrentStation = "LoadPort";
+                    // Return wafer to its origin LoadPort
+                    string originLoadPort = wafer.OriginLoadPort;
+                    wafer.CurrentStation = originLoadPort;
+
                     var slot = _waferOriginalSlots[waferId];
-                    var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                    var loadPortStation = _stations[originLoadPort];
+                    var (x, y) = loadPortStation.GetWaferPosition(slot);
                     wafer.X = x;
                     wafer.Y = y;
 

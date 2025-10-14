@@ -33,6 +33,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private bool _useDeclarativeScheduler = true; // Toggle between old and new scheduler
     private LoadPortMachine? _loadPort;
     private readonly List<CarrierMachine> _carrierMachines = new();
+    private readonly Dictionary<int, WaferMachine> _waferMachines = new(); // E90 substrate tracking state machines
     private PolisherMachine? _polisher;
     private CleanerMachine? _cleaner;
     private BufferMachine? _buffer;
@@ -211,6 +212,26 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             wafer.CurrentStation = "LoadPort";
             wafer.OriginLoadPort = "LoadPort";
 
+            // Create E90 substrate tracking state machine for this wafer
+            var waferMachine = new WaferMachine(
+                waferId: $"W{wafer.Id}",
+                orchestrator: _orchestrator,
+                onStateChanged: (waferId, newState) =>
+                {
+                    // Update wafer E90 state when state machine transitions
+                    Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        wafer.E90State = newState;
+                        Log($"[Wafer {wafer.Id}] E90 State → {newState}");
+
+                        // Trigger UI update to refresh the state tree in realtime
+                        OnStationStatusChanged();
+                    }));
+                });
+
+            wafer.StateMachine = waferMachine;
+            _waferMachines[wafer.Id] = waferMachine;
+
             Wafers.Add(wafer);
             carrier1Wafers.Add(wafer);
             _waferOriginalSlots[wafer.Id] = i;
@@ -263,8 +284,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             Log("✓ Using original SchedulerMachine (hardcoded logic)");
         }
 
-        // Create station state machines
-        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
+        // Create station state machines (pass wafer machines to polisher for sub-state progression)
+        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log, _waferMachines);
         _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING, Log);
         _buffer = new BufferMachine(_orchestrator, Log);
         _r1 = new RobotMachine("R1", _orchestrator, TRANSFER, Log);
@@ -458,7 +479,19 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             Log("✓ E87/E90 Carrier initialized");
         }
 
-        // Start all state machines in parallel to avoid sequential startup delay
+        // CRITICAL: Start scheduler FIRST so it's ready to receive events from other machines
+        if (_useDeclarativeScheduler)
+        {
+            await _declarativeScheduler!.StartAsync();
+            Log("✓ DeclarativeScheduler started and ready to receive events");
+        }
+        else
+        {
+            await _scheduler!.StartAsync();
+            Log("✓ Scheduler started and ready to receive events");
+        }
+
+        // Now start all other state machines in parallel
         var startTasks = new List<Task>
         {
             _loadPort!.StartAsync(),
@@ -470,25 +503,30 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             _r3!.StartAsync()
         };
 
-        // Add scheduler based on configuration
-        if (_useDeclarativeScheduler)
-        {
-            startTasks.Add(_declarativeScheduler!.StartAsync());
-        }
-        else
-        {
-            startTasks.Add(_scheduler!.StartAsync());
-        }
-
         // Start all carrier machines
         foreach (var carrier in _carrierMachines)
         {
             startTasks.Add(carrier.StartAsync());
         }
 
+        // Start all wafer state machines (E90 substrate tracking)
+        foreach (var kvp in _waferMachines)
+        {
+            startTasks.Add(kvp.Value.StartAsync());
+        }
+
         await Task.WhenAll(startTasks);
 
-        Log("✓ All state machines started");
+        Log("✓ All state machines started (including E90 substrate tracking)");
+
+        // Initialize all wafers to InCarrier state
+        foreach (var wafer in Wafers)
+        {
+            if (wafer.StateMachine != null)
+            {
+                await wafer.StateMachine.AcquireAsync();
+            }
+        }
 
         // Start carrier workflow: Move first carrier to LoadPort
         if (_carrierMachines.Count > 0)
@@ -683,7 +721,15 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                     // Mark completed wafers
                     if (completedWafers.Contains(waferId))
                     {
-                        wafer.IsCompleted = true;
+                        if (!wafer.IsCompleted)
+                        {
+                            wafer.IsCompleted = true;
+                            // E90: Wafer returned to carrier → Complete
+                            if (wafer.E90State == "Processed")
+                            {
+                                _ = wafer.StateMachine?.PlacedInCarrierAsync();
+                            }
+                        }
                     }
                 }
             }
@@ -695,7 +741,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r1.HeldWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "R1";
+                if (wafer.CurrentStation != "R1")
+                {
+                    wafer.CurrentStation = "R1";
+                    // E90: Wafer picked up from LoadPort → NeedsProcessing
+                    _ = wafer.StateMachine?.SelectForProcessAsync();
+                }
                 var pos = _stations["R1"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -708,7 +759,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _polisher.CurrentWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "Polisher";
+                if (wafer.CurrentStation != "Polisher")
+                {
+                    wafer.CurrentStation = "Polisher";
+                    // E90: Wafer placed in process module → ReadyToProcess
+                    _ = wafer.StateMachine?.PlacedInProcessModuleAsync();
+                    // E90: Start processing → InProcess
+                    _ = wafer.StateMachine?.StartProcessAsync();
+                }
                 var pos = _stations["Polisher"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -721,7 +779,15 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r2.HeldWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "R2";
+                if (wafer.CurrentStation != "R2")
+                {
+                    wafer.CurrentStation = "R2";
+                    // E90: Polishing complete → Cleaning
+                    if (wafer.E90State == "Polishing")
+                    {
+                        _ = wafer.StateMachine?.CompletePolishingAsync();
+                    }
+                }
                 var pos = _stations["R2"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -734,7 +800,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _cleaner.CurrentWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "Cleaner";
+                if (wafer.CurrentStation != "Cleaner")
+                {
+                    wafer.CurrentStation = "Cleaner";
+                    // Note: wafer is already in Cleaning sub-state from Polishing transition
+                    // No additional transition needed here - the wafer is in InProcess.Cleaning
+                }
                 var pos = _stations["Cleaner"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -747,7 +818,15 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r3.HeldWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "R3";
+                if (wafer.CurrentStation != "R3")
+                {
+                    wafer.CurrentStation = "R3";
+                    // E90: Cleaning complete → Processed
+                    if (wafer.E90State == "Cleaning")
+                    {
+                        _ = wafer.StateMachine?.CompleteCleaningAsync();
+                    }
+                }
                 var pos = _stations["R3"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -760,7 +839,11 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _buffer.CurrentWafer);
             if (wafer != null)
             {
-                wafer.CurrentStation = "Buffer";
+                if (wafer.CurrentStation != "Buffer")
+                {
+                    wafer.CurrentStation = "Buffer";
+                    // E90: Wafer in buffer → ReadyToProcess (waiting for return)
+                }
                 var pos = _stations["Buffer"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
@@ -774,7 +857,19 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         for (int i = 0; i < count; i++)
         {
             double hue = (360.0 / count) * i;
-            var color = ColorFromHSV(hue, 0.8, 0.9);
+
+            // NEVER use yellow with white font - adjust brightness for yellow hues (45-75 degrees)
+            double saturation = 0.6;
+            double value = 0.65;
+
+            // Yellow range (45-75°) needs to be much darker to contrast with white text
+            if (hue >= 45 && hue <= 75)
+            {
+                value = 0.45; // Much darker for yellow hues
+                saturation = 0.7; // Slightly more saturated to maintain color richness
+            }
+
+            var color = ColorFromHSV(hue, saturation, value);
             colors.Add(color);
         }
         return colors;
@@ -805,6 +900,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private void Log(string message)
     {
         LogMessage?.Invoke(this, message);
+    }
+
+    /// <summary>
+    /// Helper method to trigger station status changed event
+    /// </summary>
+    private void OnStationStatusChanged()
+    {
+        StationStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void UpdateProgress(object? state)

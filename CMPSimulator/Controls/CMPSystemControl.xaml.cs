@@ -213,7 +213,8 @@ namespace CMPSimulator.Controls
         /// Draw grid lines and dots at intersections based on display mode
         /// Uses optimized rendering for better performance
         /// </summary>
-        private void DrawGrid()
+        /// <param name="zoomLevel">Current zoom level - dot size will be adjusted inversely to maintain 1px appearance</param>
+        private void DrawGrid(double zoomLevel = 1.0)
         {
             try
             {
@@ -264,13 +265,16 @@ namespace CMPSimulator.Controls
                     // Draw dots if mode is Dot or Both
                     if (_gridDisplayMode == GridDisplayMode.Dot || _gridDisplayMode == GridDisplayMode.Both)
                     {
-                        const double dotSize = 1.0; // 1 pixel dot
+                        // Calculate inverse dot size to maintain 1px appearance at any zoom level
+                        // At 2x zoom: 0.5px dots × 2x transform = 1px on screen
+                        // At 0.5x zoom: 2px dots × 0.5x transform = 1px on screen
+                        double dotSize = Math.Max(0.5, 1.0 / zoomLevel); // Minimum 0.5px to prevent disappearing dots
 
                         for (double x = 0; x <= width; x += GridSize)
                         {
                             for (double y = 0; y <= height; y += GridSize)
                             {
-                                // Draw 1x1 pixel rectangle for sharp black dot
+                                // Draw rectangle for sharp black dot
                                 dc.DrawRectangle(dotBrush, null, new Rect(x, y, dotSize, dotSize));
                             }
                         }
@@ -397,5 +401,14 @@ namespace CMPSimulator.Controls
         /// Access the internal canvas for advanced operations
         /// </summary>
         public Canvas Canvas => StationCanvas;
+
+        /// <summary>
+        /// Redraw grid with the specified zoom level to adjust dot size
+        /// </summary>
+        /// <param name="zoomLevel">Current zoom level</param>
+        public void RedrawGrid(double zoomLevel)
+        {
+            DrawGrid(zoomLevel);
+        }
     }
 }

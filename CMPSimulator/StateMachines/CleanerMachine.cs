@@ -29,7 +29,7 @@ public class CleanerMachine
         get
         {
             // CurrentState can be "#cleaner.processing" or just "processing"
-            if (!CurrentState.Contains("processing")) return 0;
+            if (string.IsNullOrEmpty(CurrentState) || !CurrentState.Contains("processing")) return 0;
             var elapsed = (DateTime.Now - _processingStartTime).TotalMilliseconds;
             var remaining = _processingTimeMs - elapsed;
             return Math.Max(0, (int)remaining);

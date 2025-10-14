@@ -13,12 +13,10 @@
             </Border.Effect>
         </Border>
 
-        <!-- Grid lines canvas (behind stations) - NOT affected by zoom -->
+        <!-- Grid lines canvas (behind stations) -->
         <Canvas x:Name="GridCanvas" Background="Transparent" MaxWidth="1920" MaxHeight="1080"/>
 
-        <!-- Canvas for placing stations - Zoomable via StationCanvas property -->
-        <Canvas x:Name="StationCanvas" Background="Transparent" MaxWidth="1920" MaxHeight="1080">
-            <!-- Zoom transform will be applied to this canvas -->
-        </Canvas>
+        <!-- Canvas for placing stations -->
+        <Canvas x:Name="StationCanvas" Background="Transparent" MaxWidth="1920" MaxHeight="1080"/>
     </Grid>
 </UserControl>

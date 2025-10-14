@@ -28,9 +28,10 @@ public class ParallelSchedulerMachine
     private readonly Dictionary<string, int?> _robotWafers = new();
     private readonly Dictionary<string, string> _robotWaitingFor = new();
 
-    // LoadPort queue management
-    private readonly List<int> _lPending = new();
-    private readonly List<int> _lCompleted = new();
+    // Multi-LoadPort FOUP queue management
+    private readonly Dictionary<string, List<int>> _loadPortPending = new();
+    private readonly Dictionary<string, List<int>> _loadPortCompleted = new();
+    private readonly Dictionary<int, string> _waferToLoadPort = new(); // Track which LoadPort each wafer came from
 
     // Track pending commands
     private readonly HashSet<string> _robotsWithPendingCommands = new();
@@ -55,11 +56,27 @@ public class ParallelSchedulerMachine
         _orchestrator = orchestrator;
         _totalWafers = totalWafers;
 
-        // Initialize LoadPort queue with wafers
-        for (int i = 1; i <= _totalWafers; i++)
+        // Initialize multi-LoadPort FOUP queues (2 LoadPorts for now)
+        _loadPortPending["LoadPort"] = new List<int>();
+        _loadPortPending["LoadPort2"] = new List<int>();
+        _loadPortCompleted["LoadPort"] = new List<int>();
+        _loadPortCompleted["LoadPort2"] = new List<int>();
+
+        // Distribute wafers between LoadPorts (split evenly)
+        // LoadPort gets first half, LoadPort2 gets second half
+        int halfWafers = _totalWafers / 2;
+        for (int i = 1; i <= halfWafers; i++)
         {
-            _lPending.Add(i);
+            _loadPortPending["LoadPort"].Add(i);
+            _waferToLoadPort[i] = "LoadPort";
         }
+        for (int i = halfWafers + 1; i <= _totalWafers; i++)
+        {
+            _loadPortPending["LoadPort2"].Add(i);
+            _waferToLoadPort[i] = "LoadPort2";
+        }
+
+        _logger($"[Scheduler] Initialized with {_totalWafers} wafers: LoadPort={_loadPortPending["LoadPort"].Count}, LoadPort2={_loadPortPending["LoadPort2"].Count}");
 
         var definition = """
         {
@@ -604,25 +621,71 @@ public class ParallelSchedulerMachine
     private bool CanExecuteLtoHold()
     {
         var r1State = GetRobotState("R1");
-        return _lPending.Count > 0 && r1State == "idle";
+        // Check if any LoadPort has pending wafers
+        return GetTotalPendingWafers() > 0 && r1State == "idle";
     }
 
     private void ExecuteLtoHold(OrchestratedContext ctx)
     {
-        if (_lPending.Count == 0) return;
+        // Find first available FOUP (LoadPort with pending wafers)
+        string? selectedLoadPort = FindFirstAvailableFOUP();
+        if (selectedLoadPort == null) return;
 
-        int waferId = _lPending[0];
-        _lPending.RemoveAt(0);
+        var pendingList = _loadPortPending[selectedLoadPort];
+        if (pendingList.Count == 0) return;
 
-        _logger($"[Scheduler::R1Manager] [P4] L→HOLD: Commanding R1 to pick wafer {waferId} from LoadPort (Pending: {_lPending.Count} left)");
+        int waferId = pendingList[0];
+        pendingList.RemoveAt(0);
+
+        int totalPending = GetTotalPendingWafers();
+        _logger($"[Scheduler::R1Manager] [P2] L→HOLD: Commanding R1 to pick wafer {waferId} from {selectedLoadPort} (Pending: {totalPending} left, {selectedLoadPort}={pendingList.Count})");
         _robotsWithPendingCommands.Add("R1");
 
         ctx.RequestSend("R1", "TRANSFER", new JObject
         {
             ["waferId"] = waferId,
-            ["from"] = "LoadPort",
+            ["from"] = selectedLoadPort,
             ["to"] = "polisher"
         });
+    }
+
+    /// <summary>
+    /// Find first available FOUP (LoadPort with pending wafers)
+    /// Priority: Check LoadPort first, then LoadPort2, then any other LoadPorts
+    /// </summary>
+    private string? FindFirstAvailableFOUP()
+    {
+        // Priority order: LoadPort → LoadPort2 → others
+        var priorityOrder = new[] { "LoadPort", "LoadPort2" };
+
+        foreach (var loadPortName in priorityOrder)
+        {
+            if (_loadPortPending.ContainsKey(loadPortName) && _loadPortPending[loadPortName].Count > 0)
+            {
+                return loadPortName;
+            }
+        }
+
+        // Fallback: check any other LoadPorts
+        foreach (var kvp in _loadPortPending)
+        {
+            if (kvp.Value.Count > 0)
+            {
+                return kvp.Key;
+            }
+        }
+
+        return null;
+    }
+
+    private int GetTotalPendingWafers()
+    {
+        return _loadPortPending.Values.Sum(list => list.Count);
+    }
+
+    private int GetTotalCompletedWafers()
+    {
+        return _loadPortCompleted.Values.Sum(list => list.Count);
     }
 
     private bool CanExecuteBtoL()
@@ -636,20 +699,29 @@ public class ParallelSchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("buffer");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler::R1Manager] [P3] B→L: Commanding R1 to return wafer {waferId}");
+        // Find which LoadPort this wafer came from
+        string originLoadPort = _waferToLoadPort.GetValueOrDefault(waferId.Value, "LoadPort");
+
+        _logger($"[Scheduler::R1Manager] [P1] B→L: Commanding R1 to return wafer {waferId} to {originLoadPort}");
         _robotsWithPendingCommands.Add("R1");
 
         ctx.RequestSend("R1", "TRANSFER", new JObject
         {
             ["waferId"] = waferId.Value,
             ["from"] = "buffer",
-            ["to"] = "LoadPort"
+            ["to"] = originLoadPort
         });
 
-        _lCompleted.Add(waferId.Value);
-        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{_totalWafers})");
+        // Mark as completed in the correct LoadPort
+        if (_loadPortCompleted.ContainsKey(originLoadPort))
+        {
+            _loadPortCompleted[originLoadPort].Add(waferId.Value);
+        }
 
-        if (_lCompleted.Count >= _totalWafers)
+        int totalCompleted = GetTotalCompletedWafers();
+        _logger($"[Scheduler] ✓ Wafer {waferId} completed and returned to {originLoadPort} ({totalCompleted}/{_totalWafers})");
+
+        if (totalCompleted >= _totalWafers)
         {
             _logger($"[Scheduler] ✅ All {_totalWafers} wafers completed!");
             AllWafersCompleted?.Invoke(this, EventArgs.Empty);
@@ -671,7 +743,18 @@ public class ParallelSchedulerMachine
     }
 
     // Public accessors
-    public int PendingCount => _lPending.Count;
-    public int CompletedCount => _lCompleted.Count;
-    public IReadOnlyList<int> Completed => _lCompleted.AsReadOnly();
+    public int PendingCount => GetTotalPendingWafers();
+    public int CompletedCount => GetTotalCompletedWafers();
+    public IReadOnlyList<int> Completed => _loadPortCompleted.Values.SelectMany(x => x).ToList().AsReadOnly();
+
+    // Multi-LoadPort specific accessors
+    public IReadOnlyDictionary<string, int> GetPendingByLoadPort()
+    {
+        return _loadPortPending.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Count);
+    }
+
+    public IReadOnlyDictionary<string, int> GetCompletedByLoadPort()
+    {
+        return _loadPortCompleted.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Count);
+    }
 }

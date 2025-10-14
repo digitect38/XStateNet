@@ -20,6 +20,7 @@ public class PolisherMachine
     private StateMachine? _underlyingMachine;
     private int? _currentWafer;
     private DateTime _processingStartTime;
+    private readonly Dictionary<int, WaferMachine>? _waferMachines;
 
     public string StationName => _stationName;
     public string CurrentState => _machine.CurrentState;
@@ -29,7 +30,7 @@ public class PolisherMachine
         get
         {
             // CurrentState can be "#polisher.processing" or just "processing"
-            if (!CurrentState.Contains("processing")) return 0;
+            if (string.IsNullOrEmpty(CurrentState) || !CurrentState.Contains("processing")) return 0;
             var elapsed = (DateTime.Now - _processingStartTime).TotalMilliseconds;
             var remaining = _processingTimeMs - elapsed;
             return Math.Max(0, (int)remaining);
@@ -47,11 +48,13 @@ public class PolisherMachine
         string stationName,
         EventBusOrchestrator orchestrator,
         int processingTimeMs,
-        Action<string> logger)
+        Action<string> logger,
+        Dictionary<int, WaferMachine>? waferMachines = null)
     {
         _stationName = stationName;
         _processingTimeMs = processingTimeMs;
         _orchestrator = orchestrator;
+        _waferMachines = waferMachines;
 
         var definition = $$"""
         {
@@ -69,11 +72,45 @@ public class PolisherMachine
                 },
                 "processing": {
                     "entry": ["reportProcessing"],
-                    "invoke": {
-                        "src": "processWafer",
-                        "onDone": {
-                            "target": "done",
-                            "actions": ["onDone"]
+                    "initial": "Loading",
+                    "states": {
+                        "Loading": {
+                            "entry": ["reportSubState"],
+                            "invoke": {
+                                "src": "loadingStep",
+                                "onDone": "Chucking"
+                            }
+                        },
+                        "Chucking": {
+                            "entry": ["reportSubState"],
+                            "invoke": {
+                                "src": "chuckingStep",
+                                "onDone": "Polishing"
+                            }
+                        },
+                        "Polishing": {
+                            "entry": ["reportSubState"],
+                            "invoke": {
+                                "src": "polishingStep",
+                                "onDone": "Dechucking"
+                            }
+                        },
+                        "Dechucking": {
+                            "entry": ["reportSubState"],
+                            "invoke": {
+                                "src": "dechuckingStep",
+                                "onDone": "Unloading"
+                            }
+                        },
+                        "Unloading": {
+                            "entry": ["reportSubState"],
+                            "invoke": {
+                                "src": "unloadingStep",
+                                "onDone": {
+                                    "target": "#{{stationName}}.done",
+                                    "actions": ["onDone"]
+                                }
+                            }
                         }
                     }
                 },
@@ -138,6 +175,14 @@ public class PolisherMachine
                 });
             },
 
+            ["reportSubState"] = (ctx) =>
+            {
+                // Extract the sub-state name from the current state
+                var currentState = _machine.CurrentState;
+                var subState = currentState.Contains(".") ? currentState.Substring(currentState.LastIndexOf('.') + 1) : currentState;
+                logger($"[{_stationName}] Sub-state: {subState} (wafer {_currentWafer})");
+            },
+
             ["onDone"] = (ctx) =>
             {
                 logger($"[{_stationName}] Processing complete for wafer {_currentWafer}");
@@ -175,9 +220,73 @@ public class PolisherMachine
 
         var services = new Dictionary<string, Func<StateMachine, CancellationToken, Task<object>>>
         {
-            ["processWafer"] = async (sm, ct) =>
+            ["loadingStep"] = async (sm, ct) =>
             {
-                await Task.Delay(_processingTimeMs, ct);
+                int timePerStep = _processingTimeMs / 5;
+                await Task.Delay(timePerStep, ct);
+
+                // Also update wafer machine if available
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    await _waferMachines[_currentWafer.Value].CompleteLoadingAsync();
+                }
+
+                return new { status = "SUCCESS" };
+            },
+
+            ["chuckingStep"] = async (sm, ct) =>
+            {
+                int timePerStep = _processingTimeMs / 5;
+                await Task.Delay(timePerStep, ct);
+
+                // Also update wafer machine if available
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    await _waferMachines[_currentWafer.Value].CompleteChuckingAsync();
+                }
+
+                return new { status = "SUCCESS" };
+            },
+
+            ["polishingStep"] = async (sm, ct) =>
+            {
+                int timePerStep = _processingTimeMs / 5;
+                await Task.Delay(timePerStep, ct);
+
+                // Also update wafer machine if available
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    await _waferMachines[_currentWafer.Value].CompletePolishingSubstepAsync();
+                }
+
+                return new { status = "SUCCESS" };
+            },
+
+            ["dechuckingStep"] = async (sm, ct) =>
+            {
+                int timePerStep = _processingTimeMs / 5;
+                await Task.Delay(timePerStep, ct);
+
+                // Also update wafer machine if available
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    await _waferMachines[_currentWafer.Value].CompleteDechuckingAsync();
+                }
+
+                return new { status = "SUCCESS" };
+            },
+
+            ["unloadingStep"] = async (sm, ct) =>
+            {
+                int timePerStep = _processingTimeMs / 5;
+                await Task.Delay(timePerStep, ct);
+
+                // Also update wafer machine if available
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    await _waferMachines[_currentWafer.Value].CompleteUnloadingAsync();
+                }
+
                 return new { status = "SUCCESS" };
             }
         };
