@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
 using CMPSimulator.Models;
+using CMPSimulator.Services;
 using CMPSimulator.StateMachines;
 using XStateNet.Orchestration;
 using Newtonsoft.Json.Linq;
@@ -21,8 +22,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private readonly Dictionary<int, int> _waferOriginalSlots;
     private readonly CancellationTokenSource _cts;
 
+    // E87 Carrier Management
+    private CarrierManager? _carrierManager;
+    private readonly Dictionary<string, Carrier> _carriers = new();
+
     // State Machines
     private SchedulerMachine? _scheduler;
+    private LoadPortMachine? _loadPort;
+    private readonly List<CarrierMachine> _carrierMachines = new();
     private PolisherMachine? _polisher;
     private CleanerMachine? _cleaner;
     private BufferMachine? _buffer;
@@ -54,6 +61,15 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public event PropertyChangedEventHandler? PropertyChanged;
 
     // Status properties (read from state machines) - Show full state path
+    public string LoadPortStatus => _loadPort?.CurrentState ?? "Unknown";
+    public string CurrentCarrierStatus
+    {
+        get
+        {
+            var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort" || c.CurrentState == "transferring");
+            return currentCarrier?.CurrentState ?? "None";
+        }
+    }
     public string PolisherStatus => _polisher?.CurrentState ?? "Unknown";
     public string CleanerStatus => _cleaner?.CurrentState ?? "Unknown";
     public string BufferStatus => _buffer?.CurrentState ?? "Unknown";
@@ -145,6 +161,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Wafers = new ObservableCollection<Wafer>();
         _cts = new CancellationTokenSource();
 
+        // Initialize CarrierManager (E87/E90)
+        _carrierManager = new CarrierManager("CMP_TOOL_001", _orchestrator);
+
         InitializeStations();
         InitializeWafers();
         InitializeStateMachines();
@@ -153,12 +172,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log("CMP Tool Simulator - Orchestrated Forward Priority");
         Log("Using XStateNet State Machines + EventBusOrchestrator");
         Log("Architecture: Pub/Sub pattern for state updates (no polling)");
+        Log("SEMI Standards: E87 Carrier Management + E90 Substrate Tracking");
         Log($"Configuration: {TOTAL_WAFERS} wafers, Transfer={TRANSFER}ms, Polish={POLISHING}ms, Clean={CLEANING}ms");
         Log("═══════════════════════════════════════════════════════════");
     }
 
     private void InitializeStations()
     {
+        // Initialize single LoadPort
         _stations["LoadPort"] = new StationPosition("LoadPort", 46, 256, 108, 108, 25);
         _stations["R1"] = new StationPosition("R1", 250, 270, 80, 80, 0);
         _stations["Polisher"] = new StationPosition("Polisher", 420, 250, 120, 120, 1);
@@ -172,6 +193,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     {
         var colors = GenerateDistinctColors(TOTAL_WAFERS);
 
+        // Create all wafers for single LoadPort (Carrier 1)
+        var carrier1Wafers = new List<Wafer>();
         for (int i = 0; i < TOTAL_WAFERS; i++)
         {
             var wafer = new Wafer(i + 1, colors[i]);
@@ -181,10 +204,20 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             wafer.X = x;
             wafer.Y = y;
             wafer.CurrentStation = "LoadPort";
+            wafer.OriginLoadPort = "LoadPort";
 
             Wafers.Add(wafer);
+            carrier1Wafers.Add(wafer);
             _waferOriginalSlots[wafer.Id] = i;
             _stations["LoadPort"].AddWafer(wafer.Id);
+        }
+
+        // Initialize E87/E90 carrier (single carrier)
+        _carriers["CARRIER_001"] = new Carrier("CARRIER_001") { CurrentLoadPort = "LoadPort" };
+
+        foreach (var wafer in carrier1Wafers)
+        {
+            _carriers["CARRIER_001"].AddWafer(wafer);
         }
     }
 
@@ -193,14 +226,52 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Unsubscribe from old state machines if they exist
         UnsubscribeFromStateUpdates();
 
-        // Create state machines
+        // Create LoadPort state machine
+        _loadPort = new LoadPortMachine("LoadPort", _orchestrator, Log);
+
+        // Create Carrier state machines
+        // Default: 2 carriers with 5 wafers each (adjust based on TOTAL_WAFERS)
+        int wafersPerCarrier = TOTAL_WAFERS / 2;
+        int totalCarriers = 2;
+
+        _carrierMachines.Clear();
+        for (int i = 0; i < totalCarriers; i++)
+        {
+            string carrierId = $"CARRIER_{i + 1:D3}";
+            var waferIds = Enumerable.Range(i * wafersPerCarrier + 1, wafersPerCarrier).ToList();
+            var carrierMachine = new CarrierMachine(carrierId, waferIds, _orchestrator, Log);
+            _carrierMachines.Add(carrierMachine);
+        }
+
+        // Create scheduler with original simple parameter (total wafers)
         _scheduler = new SchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
+
+        // Create station state machines
         _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
         _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING, Log);
         _buffer = new BufferMachine(_orchestrator, Log);
         _r1 = new RobotMachine("R1", _orchestrator, TRANSFER, Log);
         _r2 = new RobotMachine("R2", _orchestrator, TRANSFER, Log);
         _r3 = new RobotMachine("R3", _orchestrator, TRANSFER, Log);
+
+        // Subscribe to LoadPort events
+        _loadPort.CarrierDocked += (s, carrierId) =>
+        {
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                Log($"[LoadPort] 📦 Carrier {carrierId} docked");
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+        };
+
+        _loadPort.CarrierUndocked += (s, carrierId) =>
+        {
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                Log($"[LoadPort] 📤 Carrier {carrierId} undocked");
+                StationStatusChanged?.Invoke(this, EventArgs.Empty);
+            });
+        };
 
         // Subscribe to scheduler completion event
         _scheduler.AllWafersCompleted += (s, e) =>
@@ -209,10 +280,21 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             {
                 Log($"✅ All {TOTAL_WAFERS} wafers completed!");
                 LogTimingStatistics();
+
+                // Notify LoadPort and Carrier about completion
+                if (_loadPort != null && _carrierMachines.Count > 0)
+                {
+                    var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
+                    if (currentCarrier != null)
+                    {
+                        currentCarrier.SendAllComplete();
+                    }
+                    _loadPort.SendComplete();
+                }
             });
         };
 
-        Log("✓ State machines created");
+        Log($"✓ State machines created (LoadPort + {totalCarriers} Carriers + Scheduler)");
 
         // Subscribe to state updates
         SubscribeToStateUpdates();
@@ -221,6 +303,11 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private void SubscribeToStateUpdates()
     {
         // Subscribe to state machine StateChanged events (direct Pub/Sub pattern)
+        _loadPort!.StateChanged += OnStateChanged;
+        foreach (var carrier in _carrierMachines)
+        {
+            carrier.StateChanged += OnStateChanged;
+        }
         _polisher!.StateChanged += OnStateChanged;
         _cleaner!.StateChanged += OnStateChanged;
         _buffer!.StateChanged += OnStateChanged;
@@ -234,6 +321,11 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private void UnsubscribeFromStateUpdates()
     {
         // Unsubscribe from old state machines if they exist
+        if (_loadPort != null) _loadPort.StateChanged -= OnStateChanged;
+        foreach (var carrier in _carrierMachines)
+        {
+            carrier.StateChanged -= OnStateChanged;
+        }
         if (_polisher != null) _polisher.StateChanged -= OnStateChanged;
         if (_cleaner != null) _cleaner.StateChanged -= OnStateChanged;
         if (_buffer != null) _buffer.StateChanged -= OnStateChanged;
@@ -253,12 +345,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             // Get the current state for the machine that changed
             string currentState = e.StateMachineId switch
             {
+                "LoadPort" => LoadPortStatus,
                 "polisher" => PolisherStatus,
                 "cleaner" => CleanerStatus,
                 "buffer" => BufferStatus,
                 "R1" => R1Status,
                 "R2" => R2Status,
                 "R3" => R3Status,
+                _ when e.StateMachineId.StartsWith("CARRIER_") => CurrentCarrierStatus,
                 _ => "Unknown"
             };
 
@@ -269,6 +363,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             StationStatusChanged?.Invoke(this, EventArgs.Empty);
 
             // Notify property changes for status properties
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LoadPortStatus)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentCarrierStatus)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PolisherStatus)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CleanerStatus)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BufferStatus)));
@@ -283,9 +379,33 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Record start time for statistics
         _simulationStartTime = DateTime.Now;
 
-        // Start all state machines in parallel to avoid sequential startup delay
-        var startTasks = new[]
+        // Initialize E87/E90 Load Port and Carrier
+        if (_carrierManager != null)
         {
+            Log("🔧 Initializing SEMI E87/E90 Load Port and Carrier...");
+            await _carrierManager.InitializeLoadPortsAsync("LoadPort");
+
+            // Register carrier with E87/E90
+            foreach (var kvp in _carriers)
+            {
+                var carrierId = kvp.Key;
+                var carrier = kvp.Value;
+                var loadPortId = carrier.CurrentLoadPort ?? "LoadPort";
+
+                Log($"📦 Registering Carrier {carrierId} at {loadPortId} with {carrier.Wafers.Count} wafers");
+
+                // Create a copy of wafers list for E87/E90 registration
+                var wafersList = carrier.Wafers.ToList();
+                await _carrierManager.CreateAndPlaceCarrierAsync(carrierId, loadPortId, wafersList);
+            }
+
+            Log("✓ E87/E90 Carrier initialized");
+        }
+
+        // Start all state machines in parallel to avoid sequential startup delay
+        var startTasks = new List<Task>
+        {
+            _loadPort!.StartAsync(),
             _scheduler!.StartAsync(),
             _polisher!.StartAsync(),
             _cleaner!.StartAsync(),
@@ -295,9 +415,31 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             _r3!.StartAsync()
         };
 
+        // Start all carrier machines
+        foreach (var carrier in _carrierMachines)
+        {
+            startTasks.Add(carrier.StartAsync());
+        }
+
         await Task.WhenAll(startTasks);
 
         Log("✓ All state machines started");
+
+        // Start carrier workflow: Move first carrier to LoadPort
+        if (_carrierMachines.Count > 0)
+        {
+            var firstCarrier = _carrierMachines[0];
+            firstCarrier.SendMoveToLoadPort();
+            await Task.Delay(50); // Small delay for state transition
+            firstCarrier.SendArriveAtLoadPort();
+            await Task.Delay(50);
+            _loadPort.SendCarrierArrive(firstCarrier.CarrierId);
+            await Task.Delay(50);
+            _loadPort.SendDock();
+            await Task.Delay(50);
+            _loadPort.SendStartProcessing();
+        }
+
         Log("▶ Simulation started (Event-driven mode - no polling)");
 
         // Start progress update timer (100ms intervals)
@@ -399,10 +541,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             // Reset wafer positions and completion status
             foreach (var wafer in Wafers)
             {
-                wafer.CurrentStation = "LoadPort";
+                // Reset to origin LoadPort (not always "LoadPort"!)
+                wafer.CurrentStation = wafer.OriginLoadPort;
                 wafer.IsCompleted = false;
                 var slot = _waferOriginalSlots[wafer.Id];
-                var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                var loadPortStation = _stations[wafer.OriginLoadPort];
+                var (x, y) = loadPortStation.GetWaferPosition(slot);
                 wafer.X = x;
                 wafer.Y = y;
             }
@@ -415,10 +559,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             // No config changes, just reset wafer positions
             foreach (var wafer in Wafers)
             {
-                wafer.CurrentStation = "LoadPort";
+                // Reset to origin LoadPort (not always "LoadPort"!)
+                wafer.CurrentStation = wafer.OriginLoadPort;
                 wafer.IsCompleted = false;
                 var slot = _waferOriginalSlots[wafer.Id];
-                var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                var loadPortStation = _stations[wafer.OriginLoadPort];
+                var (x, y) = loadPortStation.GetWaferPosition(slot);
                 wafer.X = x;
                 wafer.Y = y;
             }
@@ -449,9 +595,13 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
                 if (wafer != null)
                 {
-                    wafer.CurrentStation = "LoadPort";
+                    // Return wafer to its origin LoadPort
+                    string originLoadPort = wafer.OriginLoadPort;
+                    wafer.CurrentStation = originLoadPort;
+
                     var slot = _waferOriginalSlots[waferId];
-                    var (x, y) = _stations["LoadPort"].GetWaferPosition(slot);
+                    var loadPortStation = _stations[originLoadPort];
+                    var (x, y) = loadPortStation.GetWaferPosition(slot);
                     wafer.X = x;
                     wafer.Y = y;
 
