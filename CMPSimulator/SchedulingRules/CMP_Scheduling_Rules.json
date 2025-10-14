@@ -1,0 +1,295 @@
+{
+  "$schema": "./scheduling-rules-schema.json",
+  "id": "CMP_Forward_Priority_Scheduling",
+  "version": "1.0.0",
+  "description": "Forward Priority Scheduling for CMP Tool (LoadPort → Polisher → Cleaner → Buffer → LoadPort)",
+
+  "configuration": {
+    "mode": "parallel",
+    "conflictResolution": "priority",
+    "enableParallelExecution": true
+  },
+
+  "resources": {
+    "robots": ["R1", "R2", "R3"],
+    "stations": ["LoadPort", "polisher", "cleaner", "buffer"],
+    "queues": ["LoadPort.Pending", "LoadPort.Completed"]
+  },
+
+  "rules": [
+    {
+      "id": "P1_CleanerToBuffer",
+      "priority": 1,
+      "description": "Transfer wafer from Cleaner to Buffer using R3",
+      "robot": "R3",
+      "from": "cleaner",
+      "to": "buffer",
+
+      "conditions": {
+        "type": "and",
+        "rules": [
+          {
+            "type": "stationState",
+            "station": "cleaner",
+            "operator": "equals",
+            "value": "done"
+          },
+          {
+            "type": "robotState",
+            "robot": "R3",
+            "operator": "equals",
+            "value": "idle"
+          }
+        ]
+      },
+
+      "action": {
+        "type": "transfer",
+        "command": "TRANSFER",
+        "parameters": {
+          "robot": "R3",
+          "from": "cleaner",
+          "to": "buffer",
+          "waferId": "@cleaner.waferId"
+        }
+      },
+
+      "behavior": {
+        "pickImmediately": true,
+        "waitForDestination": true,
+        "waitInHoldingState": true
+      }
+    },
+
+    {
+      "id": "P2_PolisherToCleaner",
+      "priority": 2,
+      "description": "Transfer wafer from Polisher to Cleaner using R2",
+      "robot": "R2",
+      "from": "polisher",
+      "to": "cleaner",
+
+      "conditions": {
+        "type": "and",
+        "rules": [
+          {
+            "type": "or",
+            "rules": [
+              {
+                "type": "stationState",
+                "station": "polisher",
+                "operator": "equals",
+                "value": "done"
+              },
+              {
+                "type": "stationState",
+                "station": "polisher",
+                "operator": "equals",
+                "value": "COMPLETE"
+              }
+            ]
+          },
+          {
+            "type": "robotState",
+            "robot": "R2",
+            "operator": "equals",
+            "value": "idle"
+          },
+          {
+            "type": "or",
+            "rules": [
+              {
+                "type": "stationState",
+                "station": "cleaner",
+                "operator": "equals",
+                "value": "empty"
+              },
+              {
+                "type": "stationState",
+                "station": "cleaner",
+                "operator": "equals",
+                "value": "done"
+              }
+            ]
+          }
+        ]
+      },
+
+      "action": {
+        "type": "transfer",
+        "command": "TRANSFER",
+        "parameters": {
+          "robot": "R2",
+          "from": "polisher",
+          "to": "cleaner",
+          "waferId": "@polisher.waferId"
+        }
+      }
+    },
+
+    {
+      "id": "P3_BufferToLoadPort",
+      "priority": 3,
+      "description": "Return completed wafer from Buffer to LoadPort using R1 (HIGHEST PRIORITY for R1)",
+      "robot": "R1",
+      "from": "buffer",
+      "to": "LoadPort",
+
+      "conditions": {
+        "type": "and",
+        "rules": [
+          {
+            "type": "stationState",
+            "station": "buffer",
+            "operator": "equals",
+            "value": "occupied"
+          },
+          {
+            "type": "robotState",
+            "robot": "R1",
+            "operator": "equals",
+            "value": "idle"
+          }
+        ]
+      },
+
+      "action": {
+        "type": "transfer",
+        "command": "TRANSFER",
+        "parameters": {
+          "robot": "R1",
+          "from": "buffer",
+          "to": "LoadPort",
+          "waferId": "@buffer.waferId"
+        }
+      },
+
+      "effects": [
+        {
+          "type": "queueOperation",
+          "operation": "add",
+          "queue": "LoadPort.Completed",
+          "value": "@buffer.waferId"
+        },
+        {
+          "type": "checkCompletion",
+          "condition": "LoadPort.Completed.Count >= TotalWafers",
+          "event": "ALL_WAFERS_COMPLETED"
+        }
+      ]
+    },
+
+    {
+      "id": "P4_LoadPortToHold",
+      "priority": 4,
+      "description": "Proactively pick wafer from LoadPort to hold (R1 should always hold a wafer ready for Polisher)",
+      "robot": "R1",
+      "from": "LoadPort",
+      "to": "polisher",
+
+      "conditions": {
+        "type": "and",
+        "rules": [
+          {
+            "type": "queueCount",
+            "queue": "LoadPort.Pending",
+            "operator": "greaterThan",
+            "value": 0
+          },
+          {
+            "type": "robotState",
+            "robot": "R1",
+            "operator": "equals",
+            "value": "idle"
+          }
+        ]
+      },
+
+      "action": {
+        "type": "transfer",
+        "command": "TRANSFER",
+        "parameters": {
+          "robot": "R1",
+          "from": "LoadPort",
+          "to": "polisher",
+          "waferId": "@LoadPort.Pending[0]"
+        }
+      },
+
+      "effects": [
+        {
+          "type": "queueOperation",
+          "operation": "removeFirst",
+          "queue": "LoadPort.Pending"
+        }
+      ],
+
+      "behavior": {
+        "pickImmediately": true,
+        "waitForDestination": true,
+        "waitInHoldingState": true
+      }
+    },
+
+    {
+      "id": "P5_HoldToPolisher",
+      "priority": 5,
+      "description": "Deliver held wafer to Polisher when ready (handled automatically by holding state)",
+      "robot": "R1",
+      "from": "HOLD",
+      "to": "polisher",
+
+      "conditions": {
+        "type": "comment",
+        "value": "This is handled automatically by the robot's holding state logic. When R1 is holding and Polisher becomes ready, scheduler sends DESTINATION_READY event."
+      },
+
+      "action": {
+        "type": "automatic",
+        "description": "Handled by robot holding state machine"
+      }
+    }
+  ],
+
+  "robotBehaviors": {
+    "R1": {
+      "waitConditions": {
+        "polisher": {
+          "readyStates": ["empty", "idle", "IDLE"],
+          "description": "R1 can only place to Polisher when truly empty/idle"
+        },
+        "LoadPort": {
+          "alwaysReady": true,
+          "description": "LoadPort is always ready for completed wafer return"
+        }
+      }
+    },
+    "R2": {
+      "waitConditions": {
+        "cleaner": {
+          "readyStates": ["empty", "idle", "done"],
+          "description": "R2 can place to Cleaner when empty/idle OR done (overlapping with R3)"
+        }
+      }
+    },
+    "R3": {
+      "waitConditions": {
+        "buffer": {
+          "readyStates": ["empty", "idle"],
+          "description": "R3 must wait until Buffer is truly empty (no downstream robot)"
+        }
+      }
+    }
+  },
+
+  "stateMapping": {
+    "polisher": {
+      "done": ["done", "COMPLETE"],
+      "empty": ["empty", "idle", "IDLE"]
+    },
+    "cleaner": {
+      "done": ["done"],
+      "empty": ["empty", "idle"]
+    }
+  }
+}

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using CMPSimulator.Models;
@@ -28,6 +29,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     // State Machines
     private SchedulerMachine? _scheduler;
+    private DeclarativeSchedulerMachine? _declarativeScheduler;
+    private bool _useDeclarativeScheduler = true; // Toggle between old and new scheduler
     private LoadPortMachine? _loadPort;
     private readonly List<CarrierMachine> _carrierMachines = new();
     private PolisherMachine? _polisher;
@@ -96,7 +99,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         }
     }
 
-    public int CompletedWafers => _scheduler?.Completed.Count ?? 0;
+    public int CompletedWafers => _useDeclarativeScheduler
+        ? (_declarativeScheduler?.Completed.Count ?? 0)
+        : (_scheduler?.Completed.Count ?? 0);
     public int PendingWafers => TOTAL_WAFERS - CompletedWafers;
 
     public string TheoreticalMinTime
@@ -243,8 +248,20 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             _carrierMachines.Add(carrierMachine);
         }
 
-        // Create scheduler with original simple parameter (total wafers)
-        _scheduler = new SchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
+        // Create scheduler (either original or declarative)
+        if (_useDeclarativeScheduler)
+        {
+            // Use declarative scheduler with JSON rules
+            var rulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SchedulingRules", "CMP_Scheduling_Rules.json");
+            _declarativeScheduler = new DeclarativeSchedulerMachine(rulesPath, _orchestrator, Log, TOTAL_WAFERS);
+            Log($"✓ Using DeclarativeSchedulerMachine with rules from: {rulesPath}");
+        }
+        else
+        {
+            // Use original hardcoded scheduler
+            _scheduler = new SchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
+            Log("✓ Using original SchedulerMachine (hardcoded logic)");
+        }
 
         // Create station state machines
         _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
@@ -274,25 +291,50 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         };
 
         // Subscribe to scheduler completion event
-        _scheduler.AllWafersCompleted += (s, e) =>
+        if (_useDeclarativeScheduler)
         {
-            Application.Current?.Dispatcher.Invoke(() =>
+            _declarativeScheduler!.AllWafersCompleted += (s, e) =>
             {
-                Log($"✅ All {TOTAL_WAFERS} wafers completed!");
-                LogTimingStatistics();
-
-                // Notify LoadPort and Carrier about completion
-                if (_loadPort != null && _carrierMachines.Count > 0)
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
-                    if (currentCarrier != null)
+                    Log($"✅ All {TOTAL_WAFERS} wafers completed!");
+                    LogTimingStatistics();
+
+                    // Notify LoadPort and Carrier about completion
+                    if (_loadPort != null && _carrierMachines.Count > 0)
                     {
-                        currentCarrier.SendAllComplete();
+                        var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
+                        if (currentCarrier != null)
+                        {
+                            currentCarrier.SendAllComplete();
+                        }
+                        _loadPort.SendComplete();
                     }
-                    _loadPort.SendComplete();
-                }
-            });
-        };
+                });
+            };
+        }
+        else
+        {
+            _scheduler!.AllWafersCompleted += (s, e) =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    Log($"✅ All {TOTAL_WAFERS} wafers completed!");
+                    LogTimingStatistics();
+
+                    // Notify LoadPort and Carrier about completion
+                    if (_loadPort != null && _carrierMachines.Count > 0)
+                    {
+                        var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
+                        if (currentCarrier != null)
+                        {
+                            currentCarrier.SendAllComplete();
+                        }
+                        _loadPort.SendComplete();
+                    }
+                });
+            };
+        }
 
         Log($"✓ State machines created (LoadPort + {totalCarriers} Carriers + Scheduler)");
 
@@ -406,7 +448,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         var startTasks = new List<Task>
         {
             _loadPort!.StartAsync(),
-            _scheduler!.StartAsync(),
             _polisher!.StartAsync(),
             _cleaner!.StartAsync(),
             _buffer!.StartAsync(),
@@ -414,6 +455,16 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             _r2!.StartAsync(),
             _r3!.StartAsync()
         };
+
+        // Add scheduler based on configuration
+        if (_useDeclarativeScheduler)
+        {
+            startTasks.Add(_declarativeScheduler!.StartAsync());
+        }
+        else
+        {
+            startTasks.Add(_scheduler!.StartAsync());
+        }
 
         // Start all carrier machines
         foreach (var carrier in _carrierMachines)
@@ -580,10 +631,20 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     private void UpdateWaferPositions()
     {
-        // Update LoadPort wafers (get lists from SchedulerMachine)
-        if (_scheduler != null)
+        // Update LoadPort wafers (get lists from SchedulerMachine or DeclarativeSchedulerMachine)
+        IReadOnlyList<int>? completedWafers = null;
+
+        if (_useDeclarativeScheduler && _declarativeScheduler != null)
         {
-            var completedWafers = _scheduler.Completed;
+            completedWafers = _declarativeScheduler.Completed;
+        }
+        else if (_scheduler != null)
+        {
+            completedWafers = _scheduler.Completed;
+        }
+
+        if (completedWafers != null)
+        {
 
             // Pending wafers are wafers 1-TOTAL_WAFERS that haven't been completed yet
             var allWafers = Enumerable.Range(1, TOTAL_WAFERS);

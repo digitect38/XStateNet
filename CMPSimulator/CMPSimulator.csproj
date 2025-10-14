@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\XStateNet5Impl\XStateNet.csproj" />
+    <ProjectReference Include="..\SemiStandard\SemiStandard.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +25,13 @@
     <EmbeddedResource Remove="CMPSimulator.Tests\**" />
     <None Remove="CMPSimulator.Tests\**" />
     <Page Remove="CMPSimulator.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy SchedulingRules folder to output directory -->
+    <None Include="SchedulingRules\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
