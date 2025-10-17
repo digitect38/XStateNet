@@ -161,6 +161,10 @@ public class PolisherMachine
                 }
 
                 logger($"[{_stationName}] Wafer {_currentWafer} placed");
+
+                // NOTE: WaferMachine transitions are handled by UpdateWaferPositions when wafer is picked by R1
+                // SELECT_FOR_PROCESS is already sent when R1 holds the wafer (InCarrier → NeedsProcessing)
+                // We don't need to send it again here
             },
 
             ["reportProcessing"] = (ctx) =>
@@ -222,10 +226,29 @@ public class PolisherMachine
         {
             ["loadingStep"] = async (sm, ct) =>
             {
+                // DETERMINISTIC FIX: Ensure WaferMachine reaches Loading state before processing
+                // Send the complete transition sequence: InCarrier → NeedsProcessing → ReadyToProcess → Loading
+                if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
+                {
+                    var waferMachine = _waferMachines[_currentWafer.Value];
+
+                    // Send complete transition sequence using async/await (no deadlock):
+                    // 1. InCarrier → NeedsProcessing (if UpdateWaferPositions already sent this, it will be ignored)
+                    await _orchestrator.SendEventAsync("SYSTEM", waferMachine.MachineId, "SELECT_FOR_PROCESS", null);
+
+                    // 2. NeedsProcessing → ReadyToProcess
+                    await _orchestrator.SendEventAsync("SYSTEM", waferMachine.MachineId, "PLACED_IN_PROCESS_MODULE", null);
+
+                    // 3. ReadyToProcess → InProcess.Polishing.Loading
+                    await _orchestrator.SendEventAsync("SYSTEM", waferMachine.MachineId, "START_PROCESS", null);
+
+                    logger($"[{_stationName}] Wafer {_currentWafer} transitioned to {waferMachine.GetCurrentState()}");
+                }
+
                 int timePerStep = _processingTimeMs / 5;
                 await Task.Delay(timePerStep, ct);
 
-                // Also update wafer machine if available
+                // Send LOADING_COMPLETE event to WaferMachine
                 if (_waferMachines != null && _currentWafer.HasValue && _waferMachines.ContainsKey(_currentWafer.Value))
                 {
                     await _waferMachines[_currentWafer.Value].CompleteLoadingAsync();
@@ -323,5 +346,39 @@ public class PolisherMachine
     public void SetWafer(int waferId)
     {
         _currentWafer = waferId;
+    }
+
+    /// <summary>
+    /// Reset the station's wafer reference
+    /// Used during carrier swap to clear old wafer references
+    /// </summary>
+    public void ResetWafer()
+    {
+        _currentWafer = null;
+    }
+
+    /// <summary>
+    /// Broadcast current station status to scheduler
+    /// Used after carrier swap to inform scheduler of current state
+    /// </summary>
+    public void BroadcastStatus(OrchestratedContext context)
+    {
+        // Extract leaf state name (e.g., "#polisher.empty" → "empty")
+        var state = CurrentState;
+        if (state.Contains("."))
+        {
+            state = state.Substring(state.LastIndexOf('.') + 1);
+        }
+        else if (state.StartsWith("#"))
+        {
+            state = state.Substring(1);
+        }
+
+        context.RequestSend("scheduler", "STATION_STATUS", new JObject
+        {
+            ["station"] = _stationName,
+            ["state"] = state,
+            ["wafer"] = _currentWafer
+        });
     }
 }

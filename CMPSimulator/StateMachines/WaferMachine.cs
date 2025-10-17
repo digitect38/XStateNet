@@ -205,6 +205,12 @@ public class WaferMachine
                     stateName = currentState.Substring(currentState.LastIndexOf('.') + 1);
                 }
 
+                // DEBUG: Log state changes for wafers 2 and 10 to trace "Loading" bug
+                if (_waferId == "W2" || _waferId == "W10")
+                {
+                    Console.WriteLine($"[DEBUG WaferMachine] {_waferId} state change: {currentState} → extracted: {stateName}");
+                }
+
                 _onStateChanged?.Invoke(_waferId, stateName);
 
                 // Publish state change to event bus for other components

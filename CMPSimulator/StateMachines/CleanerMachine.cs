@@ -216,4 +216,38 @@ public class CleanerMachine
     {
         _currentWafer = waferId;
     }
+
+    /// <summary>
+    /// Reset the station's wafer reference
+    /// Used during carrier swap to clear old wafer references
+    /// </summary>
+    public void ResetWafer()
+    {
+        _currentWafer = null;
+    }
+
+    /// <summary>
+    /// Broadcast current station status to scheduler
+    /// Used after carrier swap to inform scheduler of current state
+    /// </summary>
+    public void BroadcastStatus(OrchestratedContext context)
+    {
+        // Extract leaf state name (e.g., "#cleaner.empty" → "empty")
+        var state = CurrentState;
+        if (state.Contains("."))
+        {
+            state = state.Substring(state.LastIndexOf('.') + 1);
+        }
+        else if (state.StartsWith("#"))
+        {
+            state = state.Substring(1);
+        }
+
+        context.RequestSend("scheduler", "STATION_STATUS", new JObject
+        {
+            ["station"] = _stationName,
+            ["state"] = state,
+            ["wafer"] = _currentWafer
+        });
+    }
 }
