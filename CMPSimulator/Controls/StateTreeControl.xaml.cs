@@ -25,11 +25,23 @@ public partial class StateTreeControl : UserControl
     /// </summary>
     public void UpdateNodeState(string nodeId, string newState, bool highlight = false)
     {
+        // DEBUG: Log updates for wafers 2 and 10 to trace "Loading" bug
+        if (nodeId.Contains("WAFER_W2") || nodeId.Contains("WAFER_W10"))
+        {
+            Console.WriteLine($"[DEBUG StateTreeControl] UpdateNodeState called: nodeId={nodeId}, newState={newState}");
+        }
+
         foreach (var root in RootNodes)
         {
             var node = root.FindNode(nodeId);
             if (node != null)
             {
+                // DEBUG: Log when node is found for wafers 2 and 10
+                if (nodeId.Contains("WAFER_W2") || nodeId.Contains("WAFER_W10"))
+                {
+                    Console.WriteLine($"[DEBUG StateTreeControl] Node FOUND: {nodeId}, updating to state={newState}");
+                }
+
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
                     node.CurrentState = newState;
@@ -44,6 +56,12 @@ public partial class StateTreeControl : UserControl
                 return;
             }
         }
+
+        // DEBUG: Log when node is NOT found for wafers 2 and 10
+        if (nodeId.Contains("WAFER_W2") || nodeId.Contains("WAFER_W10"))
+        {
+            Console.WriteLine($"[DEBUG StateTreeControl] Node NOT FOUND: {nodeId}");
+        }
     }
 
     /// <summary>
@@ -55,6 +73,7 @@ public partial class StateTreeControl : UserControl
         {
             // Check if this state matches the target
             bool isMatch = (stateNode.DisplayName == targetState);
+
             stateNode.IsActive = isMatch;
 
             // If this node has state children, recursively check them
@@ -92,6 +111,29 @@ public partial class StateTreeControl : UserControl
         {
             ClearHighlightsRecursive(child);
         }
+    }
+
+    /// <summary>
+    /// Remove a carrier node from the LoadPort in the state tree
+    /// </summary>
+    public void RemoveCarrierNode(string carrierId)
+    {
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            // Find the LoadPort node
+            var rootNode = RootNodes.FirstOrDefault(n => n.Id == "CMP_SYSTEM");
+            if (rootNode == null) return;
+
+            var loadPortNode = rootNode.Children.FirstOrDefault(n => n.Id == "LoadPort");
+            if (loadPortNode == null) return;
+
+            // Find and remove the carrier node
+            var carrierNode = loadPortNode.Children.FirstOrDefault(n => n.Id == carrierId);
+            if (carrierNode != null)
+            {
+                loadPortNode.Children.Remove(carrierNode);
+            }
+        });
     }
 }
 

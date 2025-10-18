@@ -89,6 +89,7 @@
                     <Button x:Name="StepButton" Content="⏭ Step" Style="{StaticResource ControlButtonStyle}" Click="StepButton_Click"/>
                     <Button x:Name="StopButton" Content="⏸ Pause" Style="{StaticResource ControlButtonStyle}" Click="StopButton_Click" IsEnabled="False"/>
                     <Button x:Name="ResetButton" Content="↻ Reset" Style="{StaticResource ControlButtonStyle}" Click="ResetButton_Click"/>
+                    <Button x:Name="SeeLogButton" Content="📄 See Log" Style="{StaticResource ControlButtonStyle}" Click="SeeLogButton_Click"/>
 
                     <!-- Edit Mode Toggle -->
                     <Border Background="#E8E8E8" CornerRadius="4" Padding="10,5" Margin="15,0,0,0">
@@ -124,23 +125,33 @@
             </Grid>
         </Border>
 
-        <!-- Main Content Area (Simulation + Log) -->
+        <!-- Main Content Area (State Tree + Simulation + Log) -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" MinWidth="200"/>
+                <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="*" MinWidth="400"/>
                 <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="400" MinWidth="250"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Simulation Area (Left) -->
-            <ScrollViewer x:Name="SimulationScrollViewer" Grid.Column="0"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      Background="#E8E8E8">
-                <controls:CMPSystemControl x:Name="CMPSystem" Width="1920" Height="1080" MaxWidth="1920" MaxHeight="1080"/>
-            </ScrollViewer>
+            <!-- State Tree Panel (Left) -->
+            <Border Grid.Column="0" Background="White" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-            <!-- GridSplitter for resizing -->
+                    <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                        <TextBlock Text="State Tree" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <controls:StateTreeControl x:Name="StateTreeControl" Grid.Row="1"/>
+                </Grid>
+            </Border>
+
+            <!-- GridSplitter for resizing State Tree -->
             <GridSplitter Grid.Column="1"
                           Width="5"
                           HorizontalAlignment="Stretch"
@@ -149,13 +160,39 @@
                           ShowsPreview="False"
                           Cursor="SizeWE"/>
 
-            <!-- TabControl Panel (Right) - Property and Log -->
-            <Border Grid.Column="2" Background="White" BorderBrush="#CCCCCC" BorderThickness="1,0,0,0">
-                <TabControl>
-                    <!-- Property Tab -->
-                    <TabItem Header="Property">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="15">
+            <!-- Simulation Area (Center) -->
+            <ScrollViewer x:Name="SimulationScrollViewer" Grid.Column="2"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#E8E8E8">
+                <controls:CMPSystemControl x:Name="CMPSystem" Width="1920" Height="1080" MaxWidth="1920" MaxHeight="1080"/>
+            </ScrollViewer>
+
+            <!-- GridSplitter for resizing Simulation -->
+            <GridSplitter Grid.Column="3"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="#CCCCCC"
+                          ShowsPreview="False"
+                          Cursor="SizeWE"/>
+
+            <!-- Property Panel (Right) -->
+            <Border Grid.Column="4" Background="White" BorderBrush="#CCCCCC" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                        <TextBlock Text="Property" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Property Content -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="15">
                                 <!-- Selected Object Info -->
                                 <TextBlock x:Name="SelectedObjectNameText" Text="No Object Selected"
                                           FontWeight="Bold" FontSize="16" Margin="0,0,0,15"
@@ -286,79 +323,9 @@
                                 <Button x:Name="ApplySettingsButton" Content="Apply Settings"
                                         Style="{StaticResource ControlButtonStyle}"
                                         Click="ApplySettingsButton_Click"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- State Tree Tab -->
-                    <TabItem Header="State Tree">
-                        <controls:StateTreeControl x:Name="StateTreeControl"/>
-                    </TabItem>
-
-                    <!-- Log Tab -->
-                    <TabItem Header="Log">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="30"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-
-                            <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
-                                <Grid>
-                                    <TextBlock Text="Simulation Log" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
-                                    <Button x:Name="OpenLogButton" Content="📄 Open Log"
-                                            HorizontalAlignment="Right"
-                                            Margin="0,0,10,0"
-                                            Padding="8,3"
-                                            FontSize="10"
-                                            Background="#007ACC"
-                                            Foreground="White"
-                                            BorderThickness="0"
-                                            Cursor="Hand"
-                                            Click="OpenLogButton_Click">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="{TemplateBinding Background}"
-                                                                    CornerRadius="3"
-                                                                    Padding="{TemplateBinding Padding}">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#005A9E"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </Grid>
-                            </Border>
-
-                            <TextBox x:Name="LogTextBlock" Grid.Row="1"
-                                     FontFamily="Consolas" FontSize="11"
-                                     Margin="10" Foreground="#333333"
-                                     TextWrapping="Wrap"
-                                     IsReadOnly="True"
-                                     VerticalScrollBarVisibility="Auto"
-                                     HorizontalScrollBarVisibility="Disabled"
-                                     Background="White"
-                                     BorderThickness="0">
-                                <TextBox.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="전체 선택(_A)" Click="SelectAllLog_Click" InputGestureText="Ctrl+A"/>
-                                        <MenuItem Header="복사(_C)" Click="CopyLog_Click" InputGestureText="Ctrl+C"/>
-                                    </ContextMenu>
-                                </TextBox.ContextMenu>
-                            </TextBox>
-                        </Grid>
-                    </TabItem>
-                </TabControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

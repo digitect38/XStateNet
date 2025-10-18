@@ -16,10 +16,38 @@ public class Wafer : INotifyPropertyChanged
     private string _currentStation;
     private bool _isCompleted;
     private string _e90State;
+    private Color _color;
+    private Brush _brush;
 
     public int Id { get; init; }
-    public Color Color { get; init; }
-    public Brush Brush { get; init; }
+
+    public Color Color
+    {
+        get => _color;
+        set
+        {
+            if (_color != value)
+            {
+                _color = value;
+                _brush = new SolidColorBrush(value);
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Brush));
+            }
+        }
+    }
+
+    public Brush Brush
+    {
+        get => _brush;
+        set
+        {
+            if (_brush != value)
+            {
+                _brush = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     /// <summary>
     /// E90 substrate tracking state machine for this wafer
@@ -38,6 +66,7 @@ public class Wafer : INotifyPropertyChanged
             {
                 _e90State = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(TextColor)); // Update font color when E90 state changes
             }
         }
     }
@@ -47,6 +76,12 @@ public class Wafer : INotifyPropertyChanged
     /// Used to return wafer to correct FOUP after processing
     /// </summary>
     public string OriginLoadPort { get; set; } = "LoadPort";
+
+    /// <summary>
+    /// Carrier ID this wafer belongs to (e.g., "CARRIER_001", "CARRIER_002")
+    /// Used to track which carrier this wafer came from for state tree updates
+    /// </summary>
+    public string CarrierId { get; set; } = "CARRIER_001";
 
     public bool IsCompleted
     {
@@ -62,8 +97,33 @@ public class Wafer : INotifyPropertyChanged
         }
     }
 
-    // Font color: Black before processing, White after completion
-    public Brush TextColor => IsCompleted ? Brushes.White : Brushes.Black;
+    /// <summary>
+    /// Font color based on E90 processing state:
+    /// - Black: Not processed (WaitingForHost, InCarrier, NeedsProcessing, Aligning, ReadyToProcess, InProcess.Polishing sub-states)
+    /// - Yellow: Polished (after Polishing complete, during Cleaning)
+    /// - White: Cleaned (after Cleaning complete, Processed, Complete)
+    /// </summary>
+    public Brush TextColor
+    {
+        get
+        {
+            // Check if wafer has completed cleaning (white)
+            if (E90State == "Processed" || E90State == "Complete")
+            {
+                return Brushes.White;
+            }
+            // Check if wafer has completed polishing but not cleaning yet (yellow)
+            else if (E90State == "Cleaning")
+            {
+                return Brushes.Yellow;
+            }
+            // Wafer has not completed polishing yet (black)
+            else
+            {
+                return Brushes.Black;
+            }
+        }
+    }
 
     public double X
     {
@@ -113,8 +173,8 @@ public class Wafer : INotifyPropertyChanged
     public Wafer(int id, Color color)
     {
         Id = id;
-        Color = color;
-        Brush = new SolidColorBrush(color);
+        _color = color;
+        _brush = new SolidColorBrush(color);
         _currentStation = "LoadPort";
         _e90State = "WaitingForHost";
     }

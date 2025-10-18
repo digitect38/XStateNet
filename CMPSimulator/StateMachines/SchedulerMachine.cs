@@ -611,4 +611,28 @@ public class SchedulerMachine
     public int PendingCount => _lPending.Count;
     public int CompletedCount => _lCompleted.Count;
     public IReadOnlyList<int> Completed => _lCompleted.AsReadOnly();
+
+    /// <summary>
+    /// Reset the scheduler for a new carrier batch
+    /// </summary>
+    public void Reset()
+    {
+        // Reset queues
+        _lPending.Clear();
+        _lCompleted.Clear();
+        for (int i = 1; i <= _totalWafers; i++)
+        {
+            _lPending.Add(i);
+        }
+
+        // Clear tracking states
+        _stationStates.Clear();
+        _stationWafers.Clear();
+        _robotStates.Clear();
+        _robotWafers.Clear();
+        _robotWaitingFor.Clear();
+        _robotsWithPendingCommands.Clear();
+
+        _logger("[Scheduler] ↻ Reset complete - ready for next carrier");
+    }
 }

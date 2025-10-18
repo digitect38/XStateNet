@@ -182,7 +182,7 @@
     {
       "id": "P4_LoadPortToHold",
       "priority": 4,
-      "description": "Proactively pick wafer from LoadPort to hold (R1 should always hold a wafer ready for Polisher)",
+      "description": "Proactively pick wafer from LoadPort to hold (R1 should always hold a wafer ready for Polisher). Wafer i can only go when wafer i-3 is completed.",
       "robot": "R1",
       "from": "LoadPort",
       "to": "polisher",
@@ -201,6 +201,29 @@
             "robot": "R1",
             "operator": "equals",
             "value": "idle"
+          },
+          {
+            "type": "or",
+            "rules": [
+              {
+                "type": "comment",
+                "value": "Allow wafers 1, 2, 3 to go immediately (no i-3 constraint)"
+              },
+              {
+                "type": "queueCount",
+                "queue": "LoadPort.Pending",
+                "operator": "greaterThan",
+                "value": 21,
+                "description": "If > 21 pending, next wafer is 1/2/3 (no constraint)"
+              },
+              {
+                "type": "queueContains",
+                "queue": "LoadPort.Completed",
+                "operator": "contains",
+                "value": "@LoadPort.Pending[0]-3",
+                "description": "Wafer i-3 must be completed before wafer i can go"
+              }
+            ]
           }
         ]
       },

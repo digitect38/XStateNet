@@ -40,6 +40,9 @@ public class HsmsTransportTests : IAsyncDisposable
         // Act
         await ConnectActiveConnectionAsync();
 
+        // Wait for both connections to be fully established
+        await WaitForConnectionsAsync();
+
         // Assert
         Assert.True(_passiveConnection!.IsConnected);
         Assert.True(_activeConnection!.IsConnected);

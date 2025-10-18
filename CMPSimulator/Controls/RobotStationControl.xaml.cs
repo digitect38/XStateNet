@@ -58,7 +58,7 @@ public partial class RobotStationControl : StationControl
                 Text = wafer.Id.ToString(),
                 FontSize = 8,
                 FontWeight = FontWeights.Bold,
-                Foreground = wafer.IsCompleted ? Brushes.White : Brushes.Black,
+                Foreground = wafer.TextColor, // Uses E90 state-based color: Black → Yellow → White
                 TextAlignment = TextAlignment.Center
             };
 

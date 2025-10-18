@@ -414,7 +414,7 @@ namespace SemiStandard.Simulator.Wpf
             }
             else if (stateIndex == 1)
             {
-                color = Colors.Lime; // Very obvious green
+                color = Colors.Green; // Very obvious green
             }
             else
             {

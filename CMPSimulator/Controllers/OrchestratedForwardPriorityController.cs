@@ -26,6 +26,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     // E87 Carrier Management
     private CarrierManager? _carrierManager;
     private readonly Dictionary<string, Carrier> _carriers = new();
+    private int _nextCarrierNumber = 1; // Track next carrier number (increments forever)
 
     // State Machines
     private SchedulerMachine? _scheduler;
@@ -43,6 +44,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
     private bool _isInitialized = false;
     private System.Threading.Timer? _progressTimer;
+    private System.Threading.Timer? _stateTreeTimer; // Periodic state tree logging
     private DateTime _simulationStartTime;
     private ExecutionMode _executionMode = ExecutionMode.Async;
     private Queue<string> _pendingEvents = new Queue<string>();
@@ -63,6 +65,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public event EventHandler<string>? LogMessage;
     public event EventHandler? StationStatusChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler<string>? RemoveOldCarrierFromStateTree;
 
     // Status properties (read from state machines) - Show full state path
     public string LoadPortStatus => _loadPort?.CurrentState ?? "Unknown";
@@ -70,7 +73,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     {
         get
         {
-            var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort" || c.CurrentState == "transferring");
+            // E87 carrier states: NotPresent, WaitingForHost, Mapping, MappingVerification, ReadyToAccess, InAccess, AccessPaused, Complete, CarrierOut
+            var currentCarrier = _carrierMachines.FirstOrDefault(c =>
+                c.CurrentState != "NotPresent" && c.CurrentState != "CarrierOut");
             return currentCarrier?.CurrentState ?? "None";
         }
     }
@@ -211,6 +216,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             wafer.Y = y;
             wafer.CurrentStation = "LoadPort";
             wafer.OriginLoadPort = "LoadPort";
+            wafer.CarrierId = "CARRIER_001"; // Set initial carrier ID for state tree updates
 
             // Create E90 substrate tracking state machine for this wafer
             var waferMachine = new WaferMachine(
@@ -223,6 +229,12 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                     {
                         wafer.E90State = newState;
                         Log($"[Wafer {wafer.Id}] E90 State → {newState}");
+
+                        // DEBUG: Log callback for wafers 2 and 10 to trace "Loading" bug
+                        if (wafer.Id == 2 || wafer.Id == 10)
+                        {
+                            Console.WriteLine($"[DEBUG onStateChanged] Wafer {wafer.Id}: Setting E90State to {newState}, CarrierId={wafer.CarrierId}");
+                        }
 
                         // Trigger UI update to refresh the state tree in realtime
                         OnStationStatusChanged();
@@ -245,6 +257,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             _carriers["CARRIER_001"].AddWafer(wafer);
         }
+
+        Log($"📦 Initial carrier CARRIER_001 created with {TOTAL_WAFERS} wafers");
     }
 
     private void InitializeStateMachines()
@@ -256,15 +270,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         _loadPort = new LoadPortMachine("LoadPort", _orchestrator, Log);
 
         // Create Carrier state machines
-        // Default: 2 carriers with 5 wafers each (adjust based on TOTAL_WAFERS)
-        int wafersPerCarrier = TOTAL_WAFERS / 2;
-        int totalCarriers = 2;
+        // Start with 1 carrier containing all wafers (more carriers are added dynamically during endless processing)
+        int totalCarriers = 1;
 
         _carrierMachines.Clear();
         for (int i = 0; i < totalCarriers; i++)
         {
             string carrierId = $"CARRIER_{i + 1:D3}";
-            var waferIds = Enumerable.Range(i * wafersPerCarrier + 1, wafersPerCarrier).ToList();
+            var waferIds = Enumerable.Range(1, TOTAL_WAFERS).ToList();
             var carrierMachine = new CarrierMachine(carrierId, waferIds, _orchestrator, Log);
             _carrierMachines.Add(carrierMachine);
         }
@@ -311,47 +324,129 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             });
         };
 
+        // Subscribe to carrier wafer completion events
+        foreach (var carrier in _carrierMachines)
+        {
+            // Note: This will be called for each carrier that receives WAFER_COMPLETED events
+            // The carrier state machine filters events based on its wafer list
+        }
+
         // Subscribe to scheduler completion event
         if (_useDeclarativeScheduler)
         {
-            _declarativeScheduler!.AllWafersCompleted += (s, e) =>
+            _declarativeScheduler!.AllWafersCompleted += async (s, e) =>
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Application.Current?.Dispatcher.InvokeAsync(async () =>
                 {
                     Log($"✅ All {TOTAL_WAFERS} wafers completed!");
                     LogTimingStatistics();
 
-                    // Notify LoadPort and Carrier about completion
-                    if (_loadPort != null && _carrierMachines.Count > 0)
+                    // Get current carrier - might be in InAccess or Complete state
+                    var currentCarrier = _carrierMachines.FirstOrDefault(c =>
+                        c.CurrentState == "InAccess" ||
+                        c.CurrentState == "Complete" ||
+                        c.CurrentState == "ReadyToAccess");
+
+                    if (currentCarrier == null)
                     {
-                        var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
-                        if (currentCarrier != null)
-                        {
-                            currentCarrier.SendAllComplete();
-                        }
+                        // Fallback: get the first carrier (should be CARRIER_001)
+                        currentCarrier = _carrierMachines.FirstOrDefault();
+                        Log($"⚠ Warning: Could not find carrier in InAccess state, using first carrier: {currentCarrier?.CarrierId ?? "None"}");
+                    }
+
+                    if (currentCarrier != null)
+                    {
+                        LogFinalWaferStates(currentCarrier.CarrierId);
+                    }
+
+                    // Pause scheduler during carrier swap to prevent premature rule execution
+                    _declarativeScheduler?.Pause();
+
+                    // CRITICAL: Execute any pending deferred sends from scheduler BEFORE carrier swap
+                    // This prevents commands issued before pause from executing after reset
+                    var schedulerContext = _orchestrator.GetOrCreateContext("scheduler");
+                    await schedulerContext.ExecuteDeferredSends();
+                    await Task.Delay(200); // Wait for pending transfers to complete
+
+                    // E87: Complete carrier and start next one
+                    if (_loadPort != null && _carrierMachines.Count > 0 && currentCarrier != null)
+                    {
+                        Log($"🔄 Starting carrier swap for {currentCarrier.CarrierId}...");
+                        var carrierContext = _orchestrator.GetOrCreateContext(currentCarrier.CarrierId);
+                        var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
+
+                        // E87: InAccess → Complete
+                        currentCarrier.SendAccessComplete();
+                        await carrierContext.ExecuteDeferredSends();
+                        await Task.Delay(50);
+
                         _loadPort.SendComplete();
+                        await loadPortContext.ExecuteDeferredSends();
+                        await Task.Delay(50);
+
+                        // Undock current carrier
+                        _loadPort.SendUndock();
+                        await loadPortContext.ExecuteDeferredSends();
+                        await Task.Delay(50);
+
+                        // E87: Complete → CarrierOut
+                        currentCarrier.SendCarrierRemoved();
+                        await carrierContext.ExecuteDeferredSends();
+                        await Task.Delay(100);
+
+                        // Start next carrier (endless loop)
+                        await SwapToNextCarrierAsync();
                     }
                 });
             };
         }
         else
         {
-            _scheduler!.AllWafersCompleted += (s, e) =>
+            _scheduler!.AllWafersCompleted += async (s, e) =>
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Application.Current?.Dispatcher.InvokeAsync(async () =>
                 {
                     Log($"✅ All {TOTAL_WAFERS} wafers completed!");
                     LogTimingStatistics();
 
-                    // Notify LoadPort and Carrier about completion
+                    // Get current carrier ID for logging
+                    var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "InAccess");
+                    if (currentCarrier != null)
+                    {
+                        LogFinalWaferStates(currentCarrier.CarrierId);
+                    }
+
+                    // E87: Complete carrier and start next one
                     if (_loadPort != null && _carrierMachines.Count > 0)
                     {
-                        var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "atLoadPort");
+                        currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "InAccess");
                         if (currentCarrier != null)
                         {
-                            currentCarrier.SendAllComplete();
+                            var carrierContext = _orchestrator.GetOrCreateContext(currentCarrier.CarrierId);
+                            var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
+
+                            // E87: InAccess → Complete
+                            currentCarrier.SendAccessComplete();
+                            await carrierContext.ExecuteDeferredSends();
+                            await Task.Delay(50);
+
+                            _loadPort.SendComplete();
+                            await loadPortContext.ExecuteDeferredSends();
+                            await Task.Delay(50);
+
+                            // Undock current carrier
+                            _loadPort.SendUndock();
+                            await loadPortContext.ExecuteDeferredSends();
+                            await Task.Delay(50);
+
+                            // E87: Complete → CarrierOut
+                            currentCarrier.SendCarrierRemoved();
+                            await carrierContext.ExecuteDeferredSends();
+                            await Task.Delay(100);
                         }
-                        _loadPort.SendComplete();
+
+                        // Start next carrier (endless loop)
+                        await SwapToNextCarrierAsync();
                     }
                 });
             };
@@ -363,6 +458,40 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         SubscribeToStateUpdates();
     }
 
+    /// <summary>
+    /// Subscribe to state machine StateChanged events using direct Pub/Sub pattern
+    ///
+    /// ROLE: This method establishes real-time monitoring of ALL state machines in the simulator
+    /// by subscribing to their StateChanged events. This enables:
+    ///
+    /// 1. REAL-TIME UI UPDATES: Whenever any state machine transitions (e.g., Polisher: Idle → Processing),
+    ///    the OnStateChanged handler is immediately invoked to update the GUI without polling.
+    ///
+    /// 2. EVENT-DRIVEN ARCHITECTURE: Instead of polling state machines every N milliseconds to check
+    ///    if their state changed, we use the Observer pattern (Pub/Sub) to get notified automatically.
+    ///    This is more efficient and provides instant feedback.
+    ///
+    /// 3. COMPREHENSIVE MONITORING: Subscribes to ALL components:
+    ///    - LoadPort: Tracks carrier docking/undocking state changes
+    ///    - Carriers: Monitors E87 carrier lifecycle (NotPresent → WaitingForHost → Mapping → InAccess → Complete)
+    ///    - Scheduler: Tracks scheduling state changes (DeclarativeScheduler or original SchedulerMachine)
+    ///    - Stations (Polisher, Cleaner, Buffer): Monitors processing state changes
+    ///    - Robots (R1, R2, R3): Tracks transfer operations and wafer movement
+    ///
+    /// 4. LOGGING AND DIAGNOSTICS: OnStateChanged logs every state transition with format:
+    ///    "[StateChanged] '{machineId}': {oldState} → {newState} (Event: {triggerEvent})"
+    ///    This provides complete visibility into system behavior for debugging.
+    ///
+    /// 5. PROPERTY CHANGE NOTIFICATIONS: Triggers INotifyPropertyChanged events to update
+    ///    WPF bindings for status properties (PolisherStatus, CleanerStatus, etc.)
+    ///
+    /// WHEN CALLED:
+    /// - During InitializeStateMachines() after creating all state machines
+    /// - After SwapToNextCarrierAsync() when new carrier machines are created
+    ///
+    /// CLEANUP:
+    /// - UnsubscribeFromStateUpdates() is called before reinitializing to prevent memory leaks
+    /// </summary>
     private void SubscribeToStateUpdates()
     {
         // Subscribe to state machine StateChanged events (direct Pub/Sub pattern)
@@ -527,20 +656,46 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 await wafer.StateMachine.AcquireAsync();
             }
         }
+        Log("✓ All wafer machines initialized to InCarrier state");
 
-        // Start carrier workflow: Move first carrier to LoadPort
+        // Start E87 carrier workflow
         if (_carrierMachines.Count > 0)
         {
             var firstCarrier = _carrierMachines[0];
-            firstCarrier.SendMoveToLoadPort();
-            await Task.Delay(50); // Small delay for state transition
-            firstCarrier.SendArriveAtLoadPort();
+            var carrierContext = _orchestrator.GetOrCreateContext(firstCarrier.CarrierId);
+
+            Log($"▶ Starting processing for {firstCarrier.CarrierId}");
+
+            // E87: NotPresent → WaitingForHost
+            firstCarrier.SendCarrierDetected();
+            await carrierContext.ExecuteDeferredSends();
             await Task.Delay(50);
+
+            // E87: WaitingForHost → Mapping
+            firstCarrier.SendHostProceed();
+            await carrierContext.ExecuteDeferredSends();
+            await Task.Delay(50);
+
+            // E87: Mapping → MappingVerification → ReadyToAccess (auto-transition)
+            firstCarrier.SendMappingComplete();
+            await carrierContext.ExecuteDeferredSends();
+            await Task.Delay(600); // Wait for auto-transition through verification
+
+            // E87: ReadyToAccess → InAccess
+            firstCarrier.SendStartAccess();
+            await carrierContext.ExecuteDeferredSends();
+            await Task.Delay(50);
+
+            // Notify LoadPort
+            var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
             _loadPort.SendCarrierArrive(firstCarrier.CarrierId);
+            await loadPortContext.ExecuteDeferredSends();
             await Task.Delay(50);
             _loadPort.SendDock();
+            await loadPortContext.ExecuteDeferredSends();
             await Task.Delay(50);
             _loadPort.SendStartProcessing();
+            await loadPortContext.ExecuteDeferredSends();
         }
 
         Log("▶ Simulation started (Event-driven mode - no polling)");
@@ -551,6 +706,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             null,
             0,
             100  // Update every 100ms
+        );
+
+        // Start state tree snapshot timer (1000ms intervals)
+        _stateTreeTimer = new System.Threading.Timer(
+            LogPeriodicStateTreeSnapshot,
+            null,
+            1000,  // Start after 1 second
+            1000   // Log every 1 second
         );
 
         _isInitialized = true;
@@ -591,6 +754,11 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     public void StopSimulation()
     {
         _cts.Cancel();
+
+        // Stop state tree snapshot timer
+        _stateTreeTimer?.Dispose();
+        _stateTreeTimer = null;
+
         Log("⏸ Simulation stopped");
     }
 
@@ -599,6 +767,14 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Stop progress timer
         _progressTimer?.Dispose();
         _progressTimer = null;
+
+        // Stop state tree snapshot timer
+        _stateTreeTimer?.Dispose();
+        _stateTreeTimer = null;
+
+        // CRITICAL: Reset carrier tracking to initial state
+        _carriers.Clear();
+        _nextCarrierNumber = 1;
 
         // Reload settings to pick up any changes
         var settings = Helpers.SettingsManager.LoadSettings();
@@ -659,22 +835,36 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         }
         else
         {
-            // No config changes, just reset wafer positions
-            foreach (var wafer in Wafers)
+            // No config changes, but we still need to reinitialize state machines
+            // because we cleared _carriers and need to reset to single carrier
+            Log($"⚙ Resetting to initial state - recreating state machines");
+
+            // CRITICAL FIX: Clear existing wafers before reinitializing
+            // Otherwise InitializeWafers() will add NEW wafers to the existing collection, doubling the count
+            Application.Current?.Dispatcher.Invoke(() =>
             {
-                // Reset to origin LoadPort (not always "LoadPort"!)
-                wafer.CurrentStation = wafer.OriginLoadPort;
-                wafer.IsCompleted = false;
-                var slot = _waferOriginalSlots[wafer.Id];
-                var loadPortStation = _stations[wafer.OriginLoadPort];
-                var (x, y) = loadPortStation.GetWaferPosition(slot);
-                wafer.X = x;
-                wafer.Y = y;
-            }
+                Wafers.Clear();
+                _waferOriginalSlots.Clear();
+                _stations["LoadPort"].WaferSlots.Clear();
+            });
+
+            // Clear wafer machines
+            _waferMachines.Clear();
+
+            // Recreate carriers dictionary (cleared above) and state machines
+            InitializeWafers();
+            InitializeStateMachines();
         }
 
         // Reset initialization flag to allow settings updates
         _isInitialized = false;
+
+        // CRITICAL: Ensure scheduler is unpaused after manual reset
+        // This is necessary if the simulator was paused after completing all wafers
+        if (_useDeclarativeScheduler)
+        {
+            _declarativeScheduler?.Resume();
+        }
 
         Log("✓ Reset complete - ready to start");
     }
@@ -725,8 +915,26 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                         {
                             wafer.IsCompleted = true;
                             // E90: Wafer returned to carrier → Complete
+                            // Ensure proper E90 transition to Complete state
                             if (wafer.E90State == "Processed")
                             {
+                                // Wafer is in Processed state, can go directly to Complete
+                                _ = wafer.StateMachine?.PlacedInCarrierAsync();
+                            }
+                            else if (wafer.E90State == "Cleaning")
+                            {
+                                // Wafer is still in Cleaning, first complete cleaning then return to carrier
+                                _ = Task.Run(async () =>
+                                {
+                                    await wafer.StateMachine?.CompleteCleaningAsync();
+                                    await Task.Delay(10); // Small delay to allow state transition
+                                    await wafer.StateMachine?.PlacedInCarrierAsync();
+                                });
+                            }
+                            else if (wafer.E90State != "Complete")
+                            {
+                                // For any other state, log warning but attempt transition
+                                Log($"⚠ Wafer {wafer.Id} marked completed but E90State={wafer.E90State} (expected Processed or Cleaning)");
                                 _ = wafer.StateMachine?.PlacedInCarrierAsync();
                             }
                         }
@@ -762,10 +970,8 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 if (wafer.CurrentStation != "Polisher")
                 {
                     wafer.CurrentStation = "Polisher";
-                    // E90: Wafer placed in process module → ReadyToProcess
-                    _ = wafer.StateMachine?.PlacedInProcessModuleAsync();
-                    // E90: Start processing → InProcess
-                    _ = wafer.StateMachine?.StartProcessAsync();
+                    // E90: WaferMachine state transitions are now handled by PolisherMachine.onPlace action
+                    // This ensures deterministic ordering: transitions fire BEFORE sub-state processing starts
                 }
                 var pos = _stations["Polisher"];
                 wafer.X = pos.X + pos.Width / 2;
@@ -970,6 +1176,89 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         Log("═══════════════════════════════════════════════════════════");
     }
 
+    /// <summary>
+    /// Log final state tree values for all wafers (E90 states)
+    /// </summary>
+    private void LogFinalWaferStates(string carrierId)
+    {
+        Log("");
+        Log("═══════════════════════════════════════════════════════════");
+        Log($"          FINAL STATE TREE VALUES - {carrierId}          ");
+        Log("═══════════════════════════════════════════════════════════");
+        Log("");
+        Log("Wafer ID | E90 State      | Completed | Font Color");
+        Log("─────────┼────────────────┼───────────┼───────────");
+
+        foreach (var wafer in Wafers.OrderBy(w => w.Id))
+        {
+            string fontColor = wafer.TextColor == System.Windows.Media.Brushes.White ? "White" :
+                              wafer.TextColor == System.Windows.Media.Brushes.Yellow ? "Yellow" : "Black";
+            string e90State = wafer.E90State.PadRight(14);
+            string completed = wafer.IsCompleted ? "Yes" : "No ";
+
+            Log($"Wafer {wafer.Id,2}  | {e90State} | {completed,3}       | {fontColor}");
+        }
+
+        Log("─────────────────────────────────────────────────────────");
+
+        // Count wafers by E90 state
+        var stateGroups = Wafers.GroupBy(w => w.E90State).OrderBy(g => g.Key);
+        Log("");
+        Log("E90 State Distribution:");
+        foreach (var group in stateGroups)
+        {
+            Log($"  • {group.Key}: {group.Count()} wafers");
+        }
+
+        // Count wafers by font color
+        var colorGroups = Wafers.GroupBy(w =>
+            w.TextColor == System.Windows.Media.Brushes.White ? "White" :
+            w.TextColor == System.Windows.Media.Brushes.Yellow ? "Yellow" : "Black"
+        ).OrderBy(g => g.Key);
+        Log("");
+        Log("Font Color Distribution:");
+        foreach (var group in colorGroups)
+        {
+            Log($"  • {group.Key}: {group.Count()} wafers");
+        }
+
+        Log("═══════════════════════════════════════════════════════════");
+    }
+
+    /// <summary>
+    /// Log periodic state tree snapshot (called every 1 second)
+    /// Shows current E90 states of all wafers and carrier status
+    /// </summary>
+    private void LogPeriodicStateTreeSnapshot(object? state)
+    {
+        if (!_isInitialized) return;
+
+        // Capture timestamp immediately when timer fires (before dispatch latency)
+        var elapsed = (DateTime.Now - _simulationStartTime).TotalSeconds;
+
+        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            // Get current carrier
+            var currentCarrier = _carrierMachines.FirstOrDefault(c =>
+                c.CurrentState == "InAccess" || c.CurrentState == "ReadyToAccess");
+            var carrierId = currentCarrier?.CarrierId ?? "None";
+            var carrierState = currentCarrier?.CurrentState ?? "N/A";
+
+            // Group wafers by E90 state
+            var stateDistribution = Wafers
+                .GroupBy(w => w.E90State)
+                .OrderBy(g => g.Key)
+                .Select(g => $"{g.Key}:{g.Count()}")
+                .ToList();
+
+            var completedCount = CompletedWafers;
+            // Use captured timestamp instead of calculating here (avoids dispatch latency)
+
+            Log($"[StateTree] t={elapsed:F1}s | Carrier={carrierId}({carrierState}) | " +
+                $"States: {string.Join(", ", stateDistribution)} | Completed: {completedCount}/{TOTAL_WAFERS}");
+        }), System.Windows.Threading.DispatcherPriority.Normal);
+    }
+
     public void SetExecutionMode(ExecutionMode mode)
     {
         _executionMode = mode;
@@ -1022,6 +1311,254 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         });
     }
 
+    /// <summary>
+    /// Swap to next carrier for endless processing
+    /// CONCEPT: Remove old carrier completely, create fresh new carrier with new wafer objects
+    /// </summary>
+    private async Task SwapToNextCarrierAsync()
+    {
+        Log("🔄 Swapping to next carrier...");
+
+        // Remember old carrier ID before incrementing
+        string oldCarrierId = $"CARRIER_{_nextCarrierNumber:D3}";
+
+        // Generate new carrier ID with sequential number
+        _nextCarrierNumber++;
+        string newCarrierId = $"CARRIER_{_nextCarrierNumber:D3}";
+
+        Log($"🗑️ Removing old carrier {oldCarrierId} and all its wafer objects from system...");
+
+        // Notify UI to remove old carrier from state tree
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            RemoveOldCarrierFromStateTree?.Invoke(this, oldCarrierId);
+        });
+
+        // STEP 1: Clear old carrier's wafer objects completely
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            // Remove all old wafer objects from the observable collection
+            Wafers.Clear();
+        });
+
+        // Clear old wafer machines
+        _waferMachines.Clear();
+        _waferOriginalSlots.Clear();
+        _stations["LoadPort"].WaferSlots.Clear();
+
+        // CRITICAL FIX: Reset robot and station wafer references
+        // This prevents old carrier wafers from lingering in the system
+        // Without this, robots/stations still hold references to old wafer objects from previous carrier
+        // Bug discovered: After CARRIER_001 completed, CARRIER_002 was loaded but R1 was still holding
+        // wafer 1 from CARRIER_001 instead of the new wafer 2 from CARRIER_002
+        if (_r1 != null) _r1.ResetWafer();
+        if (_r2 != null) _r2.ResetWafer();
+        if (_r3 != null) _r3.ResetWafer();
+
+        // Reset stations as well - they also persist across carrier swaps
+        if (_polisher != null) _polisher.ResetWafer();
+        if (_cleaner != null) _cleaner.ResetWafer();
+        if (_buffer != null) _buffer.ResetWafer();
+
+        Log($"✓ Old carrier removed from system (robots and stations reset)");
+        Log($"📦 Creating new carrier: {newCarrierId} with fresh wafer objects");
+
+        // Reset scheduler for next batch
+        if (_useDeclarativeScheduler)
+        {
+            _declarativeScheduler?.Reset(newCarrierId);
+        }
+        else
+        {
+            _scheduler?.Reset();
+        }
+
+        // STEP 2: Create completely new wafer objects for the new carrier
+        var newColors = GenerateDistinctColors(TOTAL_WAFERS);
+        var newCarrierWafers = new List<Wafer>();
+
+        // Create fresh wafer objects on UI thread
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            for (int i = 0; i < TOTAL_WAFERS; i++)
+            {
+                // Create a BRAND NEW wafer object (not reusing old ones)
+                var wafer = new Wafer(i + 1, newColors[i]);
+                var loadPort = _stations["LoadPort"];
+                var (x, y) = loadPort.GetWaferPosition(i);
+
+                wafer.X = x;
+                wafer.Y = y;
+                wafer.CurrentStation = "LoadPort";
+                wafer.OriginLoadPort = "LoadPort";
+                wafer.CarrierId = newCarrierId; // Set carrier ID for state tree updates
+
+                // Create NEW E90 substrate tracking state machine for this wafer
+                var waferMachine = new WaferMachine(
+                    waferId: $"W{wafer.Id}",
+                    orchestrator: _orchestrator,
+                    onStateChanged: (waferId, newState) =>
+                    {
+                        // Update wafer E90 state when state machine transitions
+                        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            wafer.E90State = newState;
+                            Log($"[Wafer {wafer.Id}] E90 State → {newState}");
+
+                            // DEBUG: Log callback for wafers 2 and 10 to trace "Loading" bug
+                            if (wafer.Id == 2 || wafer.Id == 10)
+                            {
+                                Console.WriteLine($"[DEBUG onStateChanged] Wafer {wafer.Id}: Setting E90State to {newState}, CarrierId={wafer.CarrierId}");
+                            }
+
+                            // Trigger UI update to refresh the state tree in realtime
+                            OnStationStatusChanged();
+                        }));
+                    });
+
+                wafer.StateMachine = waferMachine;
+                _waferMachines[wafer.Id] = waferMachine;
+
+                Wafers.Add(wafer);
+                newCarrierWafers.Add(wafer);
+                _waferOriginalSlots[wafer.Id] = i;
+                _stations["LoadPort"].AddWafer(wafer.Id);
+            }
+        });
+
+        // Start all NEW wafer state machines (E90 substrate tracking)
+        foreach (var kvp in _waferMachines)
+        {
+            await kvp.Value.StartAsync();
+        }
+
+        // Initialize all NEW wafers to InCarrier state
+        foreach (var wafer in newCarrierWafers)
+        {
+            if (wafer.StateMachine != null)
+            {
+                await wafer.StateMachine.AcquireAsync();
+            }
+        }
+
+        Log($"✓ Created {TOTAL_WAFERS} fresh wafer objects for {newCarrierId}");
+
+        // Create new carrier machine
+        var waferIds = Enumerable.Range(1, TOTAL_WAFERS).ToList();
+        var newCarrierMachine = new CarrierMachine(newCarrierId, waferIds, _orchestrator, Log);
+
+        // Subscribe to state changes for the new carrier
+        newCarrierMachine.StateChanged += OnStateChanged;
+
+        // Start the new carrier machine
+        await newCarrierMachine.StartAsync();
+
+        // Add to carrier machines list (keep for event handling)
+        _carrierMachines.Add(newCarrierMachine);
+
+        // Register carrier with E87/E90
+        var newCarrier = new Carrier(newCarrierId) { CurrentLoadPort = "LoadPort" };
+        foreach (var wafer in newCarrierWafers)
+        {
+            newCarrier.AddWafer(wafer);
+        }
+        _carriers[newCarrierId] = newCarrier;
+
+        if (_carrierManager != null)
+        {
+            await _carrierManager.CreateAndPlaceCarrierAsync(newCarrierId, "LoadPort", newCarrierWafers);
+        }
+
+        Log($"✓ Carrier {newCarrierId} created with {TOTAL_WAFERS} wafers");
+
+        Log($"▶ Starting processing for {newCarrierId}");
+
+        // Start E87 carrier workflow
+        var newCarrierContext = _orchestrator.GetOrCreateContext(newCarrierId);
+        var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
+
+        // E87: NotPresent → WaitingForHost
+        newCarrierMachine.SendCarrierDetected();
+        await newCarrierContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+
+        // E87: WaitingForHost → Mapping
+        newCarrierMachine.SendHostProceed();
+        await newCarrierContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+
+        // E87: Mapping → MappingVerification → ReadyToAccess (auto-transition)
+        newCarrierMachine.SendMappingComplete();
+        await newCarrierContext.ExecuteDeferredSends();
+        await Task.Delay(600); // Wait for auto-transition through verification
+
+        // E87: ReadyToAccess → InAccess
+        newCarrierMachine.SendStartAccess();
+        await newCarrierContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+
+        // Notify LoadPort
+        _loadPort?.SendCarrierArrive(newCarrierId);
+        await loadPortContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+        _loadPort?.SendDock();
+        await loadPortContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+        _loadPort?.SendStartProcessing();
+        await loadPortContext.ExecuteDeferredSends();
+        await Task.Delay(50);
+
+        Log($"✓ Carrier {newCarrierId} is now in access mode (E87: InAccess)");
+
+        // Reset simulation start time for new batch
+        _simulationStartTime = DateTime.Now;
+
+        // Resume scheduler now that carrier swap is complete
+        if (_useDeclarativeScheduler)
+        {
+            _declarativeScheduler?.Resume(newCarrierId);
+        }
+        else
+        {
+            // For original scheduler (if we add Pause/Resume there too)
+        }
+
+        // CRITICAL: Broadcast current station/robot states to scheduler to trigger first rule execution
+        // After resume, scheduler needs status updates to know what's available for processing
+        Log($"📡 Broadcasting station and robot states to scheduler for {newCarrierId}...");
+
+        var schedulerContext = _orchestrator.GetOrCreateContext("scheduler");
+
+        // Broadcast all station states
+        Log($"   → Polisher state: {_polisher?.CurrentState}");
+        _polisher?.BroadcastStatus(schedulerContext);
+
+        Log($"   → Cleaner state: {_cleaner?.CurrentState}");
+        _cleaner?.BroadcastStatus(schedulerContext);
+
+        Log($"   → Buffer state: {_buffer?.CurrentState}");
+        _buffer?.BroadcastStatus(schedulerContext);
+
+        // Broadcast all robot states
+        Log($"   → R1 state: {_r1?.CurrentState}");
+        _r1?.BroadcastStatus(schedulerContext);
+
+        Log($"   → R2 state: {_r2?.CurrentState}");
+        _r2?.BroadcastStatus(schedulerContext);
+
+        Log($"   → R3 state: {_r3?.CurrentState}");
+        _r3?.BroadcastStatus(schedulerContext);
+
+        // Execute all deferred sends to deliver status updates
+        Log("   → Executing deferred sends...");
+        await schedulerContext.ExecuteDeferredSends();
+
+        Log("✓ Status broadcast complete - scheduler should begin processing");
+
+        // Trigger UI update
+        StationStatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Dispose()
     {
         _cts.Cancel();
@@ -1030,7 +1567,18 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Dispose progress timer
         _progressTimer?.Dispose();
 
+        // Dispose state tree snapshot timer
+        _stateTreeTimer?.Dispose();
+
         // Unsubscribe from state change events
         UnsubscribeFromStateUpdates();
+    }
+
+    /// <summary>
+    /// Get the carrier manager for accessing carrier information
+    /// </summary>
+    public CarrierManager? GetCarrierManager()
+    {
+        return _carrierManager;
     }
 }

@@ -62,8 +62,8 @@ public partial class MainWindow : Window
         // Subscribe to simulation completion event (only for orchestrated controller)
         if (_controller is OrchestratedForwardPriorityController orchestratedController)
         {
-            // Access the internal scheduler's completion event through reflection or add public event
-            // For now, we'll monitor completion in the timer itself
+            // Subscribe to carrier removal event
+            orchestratedController.RemoveOldCarrierFromStateTree += Controller_RemoveOldCarrierFromStateTree;
         }
 
         // Apply zoom transform to entire CMP System (grid zooms, but dot size stays fixed via inverse transform)
@@ -238,54 +238,18 @@ public partial class MainWindow : Window
         // Add LoadPort hierarchy
         var loadPortNode = new StateTreeNode("LoadPort", "LoadPort", "LoadPort", "Empty");
         loadPortNode.IsExpanded = true;
+
+        // Add E84 LoadPort state children
+        loadPortNode.Children.Add(new StateTreeNode("LoadPort_empty", "empty", "State") { IsActive = true });
+        loadPortNode.Children.Add(new StateTreeNode("LoadPort_carrierArrived", "carrierArrived", "State"));
+        loadPortNode.Children.Add(new StateTreeNode("LoadPort_docked", "docked", "State"));
+        loadPortNode.Children.Add(new StateTreeNode("LoadPort_processing", "processing", "State"));
+        loadPortNode.Children.Add(new StateTreeNode("LoadPort_unloading", "unloading", "State"));
+
         rootNode.Children.Add(loadPortNode);
 
-        // Add Carrier node under LoadPort
-        var carrierNode = new StateTreeNode("CARRIER_001", "Carrier 001", "Carrier", "NotPresent");
-        carrierNode.IsExpanded = true;
-        loadPortNode.Children.Add(carrierNode);
-
-        // Add substrate nodes for Carrier (all wafers) with E90 states
-        int totalWafers = _settings.InitialWaferCount;
-
-        for (int i = 0; i < totalWafers; i++)
-        {
-            var substrateNode = new StateTreeNode($"WAFER_W{i + 1}", $"Wafer {i + 1}", "Substrate", "WaitingForHost");
-            substrateNode.IsExpanded = false; // Collapse by default to reduce clutter
-
-            // Add E90 substrate lifecycle states as children
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_WaitingForHost", "WaitingForHost", "State") { IsActive = true });
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_InCarrier", "InCarrier", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_NeedsProcessing", "NeedsProcessing", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Aligning", "Aligning", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_ReadyToProcess", "ReadyToProcess", "State"));
-
-            // InProcess is a hierarchical state with Polishing and Cleaning sub-states
-            var inProcessNode = new StateTreeNode($"WAFER_W{i + 1}_InProcess", "InProcess", "State");
-            inProcessNode.IsExpanded = true; // Expand to show Polishing and Cleaning
-
-            // Polishing is a hierarchical state with Loading, Chucking, Polishing, Dechucking, Unloading sub-states
-            var polishingNode = new StateTreeNode($"WAFER_W{i + 1}_Polishing", "Polishing", "State");
-            polishingNode.IsExpanded = true; // Expand to show sub-states
-            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Loading", "Loading", "State"));
-            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Chucking", "Chucking", "State"));
-            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Polishing_Substep", "Polishing", "State"));
-            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Dechucking", "Dechucking", "State"));
-            polishingNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Unloading", "Unloading", "State"));
-            inProcessNode.Children.Add(polishingNode);
-
-            inProcessNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Cleaning", "Cleaning", "State"));
-            substrateNode.Children.Add(inProcessNode);
-
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Processed", "Processed", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Aborted", "Aborted", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Stopped", "Stopped", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Rejected", "Rejected", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Skipped", "Skipped", "State"));
-            substrateNode.Children.Add(new StateTreeNode($"WAFER_W{i + 1}_Complete", "Complete", "State"));
-
-            carrierNode.Children.Add(substrateNode);
-        }
+        // Note: Carrier nodes will be added dynamically as carriers are created
+        // Initial carrier (CARRIER_001) will be added when simulation starts
 
         // Add Robot nodes with all possible states
         var r1Node = new StateTreeNode("R1", "Robot R1", "Robot", "idle");
@@ -347,6 +311,114 @@ public partial class MainWindow : Window
         Log("✓ State tree initialized with hierarchical component structure");
     }
 
+    /// <summary>
+    /// Dynamically add a carrier node to the state tree
+    /// </summary>
+    private void AddCarrierToStateTree(string carrierId)
+    {
+        Console.WriteLine($"[DEBUG AddCarrierToStateTree] Called for {carrierId}");
+
+        // Find the LoadPort node
+        var rootNode = StateTreeControl.RootNodes.FirstOrDefault(n => n.Id == "CMP_SYSTEM");
+        if (rootNode == null)
+        {
+            Console.WriteLine($"[DEBUG AddCarrierToStateTree] ERROR: Root node CMP_SYSTEM not found!");
+            return;
+        }
+
+        var loadPortNode = rootNode.Children.FirstOrDefault(n => n.Id == "LoadPort");
+        if (loadPortNode == null)
+        {
+            Console.WriteLine($"[DEBUG AddCarrierToStateTree] ERROR: LoadPort node not found!");
+            return;
+        }
+
+        // Check if carrier already exists
+        if (loadPortNode.Children.Any(n => n.Id == carrierId))
+        {
+            Console.WriteLine($"[DEBUG AddCarrierToStateTree] Carrier {carrierId} already exists, skipping");
+            Log($"⚠ Carrier node {carrierId} already exists in state tree");
+            return;
+        }
+
+        // Extract carrier number from ID (e.g., "CARRIER_001" → "001")
+        string carrierNumber = carrierId.Replace("CARRIER_", "");
+        int carrierNum = int.Parse(carrierNumber);
+
+        // Create carrier node
+        var carrierNode = new StateTreeNode(carrierId, $"Carrier {carrierNum:D3}", "Carrier", "NotPresent");
+        carrierNode.IsExpanded = true;
+
+        // Add E87 carrier state children
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_NotPresent", "NotPresent", "State") { IsActive = true });
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_WaitingForHost", "WaitingForHost", "State"));
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_Mapping", "Mapping", "State"));
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_MappingVerification", "MappingVerification", "State"));
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_ReadyToAccess", "ReadyToAccess", "State"));
+
+        // InAccess is a hierarchical state containing all substrates (wafers)
+        var inAccessNode = new StateTreeNode($"{carrierId}_InAccess", "InAccess", "State");
+        inAccessNode.IsExpanded = true; // Expand to show wafers during access
+
+        // Add substrate nodes under InAccess state (E87: substrates are accessed during InAccess)
+        int totalWafers = _settings.InitialWaferCount;
+
+        for (int i = 0; i < totalWafers; i++)
+        {
+            // Include carrier ID in wafer node IDs to make them unique per carrier
+            var substrateNode = new StateTreeNode($"{carrierId}_WAFER_W{i + 1}", $"Wafer {i + 1}", "Substrate", "WaitingForHost");
+            substrateNode.IsExpanded = false; // Collapse by default to reduce clutter
+
+            // Add E90 substrate lifecycle states as children
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_WaitingForHost", "WaitingForHost", "State") { IsActive = true });
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_InCarrier", "InCarrier", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_NeedsProcessing", "NeedsProcessing", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Aligning", "Aligning", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_ReadyToProcess", "ReadyToProcess", "State"));
+
+            // InProcess is a hierarchical state with Polishing and Cleaning sub-states
+            var inProcessNode = new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_InProcess", "InProcess", "State");
+            inProcessNode.IsExpanded = true; // Expand to show Polishing and Cleaning
+
+            // Polishing is a hierarchical state with Loading, Chucking, Polishing, Dechucking, Unloading sub-states
+            var polishingNode = new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Polishing", "Polishing", "State");
+            polishingNode.IsExpanded = true; // Expand to show sub-states
+            polishingNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Loading", "Loading", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Chucking", "Chucking", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Polishing_Substep", "Polishing", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Dechucking", "Dechucking", "State"));
+            polishingNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Unloading", "Unloading", "State"));
+            inProcessNode.Children.Add(polishingNode);
+
+            inProcessNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Cleaning", "Cleaning", "State"));
+            substrateNode.Children.Add(inProcessNode);
+
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Processed", "Processed", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Aborted", "Aborted", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Stopped", "Stopped", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Rejected", "Rejected", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Skipped", "Skipped", "State"));
+            substrateNode.Children.Add(new StateTreeNode($"{carrierId}_WAFER_W{i + 1}_Complete", "Complete", "State"));
+
+            // Add wafer to InAccess node (E87: substrates are accessible only during InAccess)
+            inAccessNode.Children.Add(substrateNode);
+        }
+
+        // Add InAccess node (with all wafers as children) to carrier
+        carrierNode.Children.Add(inAccessNode);
+
+        // Add remaining E87 carrier state children (after InAccess)
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_AccessPaused", "AccessPaused", "State"));
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_Complete", "Complete", "State"));
+        carrierNode.Children.Add(new StateTreeNode($"{carrierId}_CarrierOut", "CarrierOut", "State"));
+
+        // Add carrier to LoadPort
+        loadPortNode.Children.Add(carrierNode);
+
+        Console.WriteLine($"[DEBUG AddCarrierToStateTree] SUCCESS: {carrierId} node added to state tree. LoadPort now has {loadPortNode.Children.Count} children");
+        Log($"✓ Added {carrierId} node to state tree");
+    }
+
     private void UpdateStateTree()
     {
         // Helper function to extract state name from hierarchical state (e.g., "#polisher.processing" → "processing")
@@ -371,39 +443,68 @@ public partial class MainWindow : Window
         StateTreeControl.UpdateNodeState("Cleaner", ExtractStateName(_controller.CleanerStatus), false);
         StateTreeControl.UpdateNodeState("Buffer", ExtractStateName(_controller.BufferStatus), false);
 
-        // Update LoadPort and Carrier status (carrier-based processing)
-        var loadPortWafers = _controller.Wafers.Where(w => w.CurrentStation == "LoadPort").ToList();
-        int loadPortPending = loadPortWafers.Count(w => !w.IsCompleted);
-        int loadPortCompleted = loadPortWafers.Count(w => w.IsCompleted);
-
-        // Get current carrier information from scheduler (if available)
-        string currentCarrierId = "CARRIER_001"; // Default
-        string loadPortState = "Empty";
-        string carrierState = "NotPresent";
-
+        // Update LoadPort and Carrier E87 states from actual state machines
         if (_controller is OrchestratedForwardPriorityController orchestratedController)
         {
-            // Access scheduler properties to get current carrier status
-            // For now, show based on wafer status (will be updated with scheduler property access)
-            if (loadPortPending > 0)
+            // Get LoadPort E84 state
+            string loadPortState = ExtractStateName(orchestratedController.LoadPortStatus);
+            bool loadPortActive = loadPortState == "processing" || loadPortState == "carrierArrived" || loadPortState == "docked";
+            StateTreeControl.UpdateNodeState("LoadPort", loadPortState, loadPortActive);
+
+            // Update ALL carrier states dynamically by checking CarrierManager
+            var carrierManager = orchestratedController.GetCarrierManager();
+            if (carrierManager != null)
             {
-                loadPortState = $"Processing (Carrier docked, {loadPortPending} pending)";
-                carrierState = $"Docked ({loadPortPending}/{orchestratedController.TOTAL_WAFERS} pending)";
-            }
-            else if (loadPortCompleted > 0)
-            {
-                loadPortState = $"Complete (Carrier undocking, {loadPortCompleted} done)";
-                carrierState = $"Complete ({loadPortCompleted}/{orchestratedController.TOTAL_WAFERS} done)";
+                // Get all carriers from CarrierManager
+                var allCarriers = carrierManager.GetAllCarriers().ToList();
+
+                // DEBUG: Log how many carriers exist
+                if (allCarriers.Count > 0)
+                {
+                    var carrierIds = string.Join(", ", allCarriers.Select(c => c.Id));
+                    Console.WriteLine($"[DEBUG UpdateStateTree] Found {allCarriers.Count} carriers in CarrierManager: {carrierIds}");
+                }
+
+                // Find LoadPort node to check for carrier nodes
+                var rootNode = StateTreeControl.RootNodes.FirstOrDefault(n => n.Id == "CMP_SYSTEM");
+                var loadPortNode = rootNode?.Children.FirstOrDefault(n => n.Id == "LoadPort");
+
+                if (loadPortNode != null)
+                {
+                    var existingCarrierIds = string.Join(", ", loadPortNode.Children.Where(n => n.NodeType == "Carrier").Select(n => n.Id));
+                    Console.WriteLine($"[DEBUG UpdateStateTree] Existing carrier nodes in state tree: {existingCarrierIds}");
+                }
+
+                foreach (var carrier in allCarriers)
+                {
+                    string carrierId = carrier.Id;
+
+                    // Ensure carrier node exists in state tree
+                    if (loadPortNode != null && !loadPortNode.Children.Any(n => n.Id == carrierId))
+                    {
+                        // Carrier node doesn't exist yet, add it
+                        Console.WriteLine($"[DEBUG UpdateStateTree] Carrier node {carrierId} NOT FOUND in state tree, adding it now...");
+                        AddCarrierToStateTree(carrierId);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[DEBUG UpdateStateTree] Carrier node {carrierId} already exists in state tree");
+                    }
+
+                    string carrierState = ExtractStateName(carrier.CurrentState ?? "NotPresent");
+                    bool carrierActive = carrierState != "NotPresent" && carrierState != "CarrierOut" && carrierState != "None";
+
+                    Console.WriteLine($"[DEBUG UpdateStateTree] Updating {carrierId} state to: {carrierState} (active={carrierActive})");
+
+                    // Update the node state
+                    StateTreeControl.UpdateNodeState(carrierId, carrierState, carrierActive);
+                }
             }
             else
             {
-                loadPortState = "Empty (Waiting for next carrier)";
-                carrierState = "NotPresent";
+                Console.WriteLine("[DEBUG UpdateStateTree] CarrierManager is NULL!");
             }
         }
-
-        StateTreeControl.UpdateNodeState("LoadPort", loadPortState, loadPortPending > 0);
-        StateTreeControl.UpdateNodeState(currentCarrierId, carrierState, loadPortPending > 0);
 
         // Clear all highlights first
         StateTreeControl.ClearAllHighlights();
@@ -437,9 +538,25 @@ public partial class MainWindow : Window
         // Update substrate (wafer) E90 states from their state machines
         foreach (var wafer in _controller.Wafers)
         {
-            string substrateId = $"WAFER_W{wafer.Id}";
+            // Include carrier ID in the substrate node ID (e.g., "CARRIER_001_WAFER_W1")
+            string substrateId = $"{wafer.CarrierId}_WAFER_W{wafer.Id}";
             string e90State = wafer.E90State ?? "WaitingForHost";
             bool isHighlighted = wafer.CurrentStation != "LoadPort" && !wafer.IsCompleted;
+
+            // Debug: Log font color state for monitoring
+            // Font colors: Black (not processed) → Yellow (polished) → White (cleaned)
+            string fontColorState = e90State switch
+            {
+                "Processed" or "Complete" => "White (Cleaned)",
+                "Cleaning" => "Yellow (Polished)",
+                _ => "Black (Not Processed)"
+            };
+
+            // DEBUG: Log state updates for wafers 2 and 10 to trace "Loading" bug
+            if (wafer.Id == 2 || wafer.Id == 10)
+            {
+                Console.WriteLine($"[DEBUG UpdateStateTree] Wafer {wafer.Id}: CarrierId={wafer.CarrierId}, E90State={e90State}, FontColor={fontColorState}, SubstrateId={substrateId}");
+            }
 
             StateTreeControl.UpdateNodeState(substrateId, e90State, isHighlighted);
         }
@@ -1155,16 +1272,49 @@ public partial class MainWindow : Window
         UpdateStateTree();
     }
 
+    private void Controller_RemoveOldCarrierFromStateTree(object? sender, string carrierId)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            StateTreeControl.RemoveCarrierNode(carrierId);
+            Log($"🗑️ Removed {carrierId} from state tree");
+        });
+    }
+
+    // Static file logger (shared with SchedulingRuleEngine)
+    private static readonly string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "recent processing history.log");
+    private static readonly object _logFileLock = new object();
+
     private void Log(string message)
     {
         // Calculate elapsed time since simulation start
         var elapsed = DateTime.Now - _simulationStartTime;
         string timestamp = $"[{elapsed.TotalSeconds:000.000}] ";
 
-        LogTextBlock.Text += timestamp + message + Environment.NewLine;
+        // Write to log file (same file used by SchedulingRuleEngine)
+        try
+        {
+            lock (_logFileLock)
+            {
+                File.AppendAllText(_logFilePath, timestamp + message + Environment.NewLine);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainWindow.Log] Failed to write to log file: {ex.Message}");
+        }
 
-        // Auto-scroll to bottom (TextBox has built-in scroll support)
-        LogTextBlock.ScrollToEnd();
+        // Detect carrier creation and add to state tree
+        if (message.Contains("Creating new carrier:") || message.Contains("Registering Carrier"))
+        {
+            // Extract carrier ID from message (e.g., "Creating new carrier: CARRIER_002" or "Registering Carrier CARRIER_001")
+            var match = System.Text.RegularExpressions.Regex.Match(message, @"CARRIER_\d{3}");
+            if (match.Success)
+            {
+                string carrierId = match.Value;
+                AddCarrierToStateTree(carrierId);
+            }
+        }
 
         // Update station displays when relevant events occur
         if (message.Contains("LoadPort") || message.Contains("Polisher") || message.Contains("Cleaner"))
@@ -1176,6 +1326,16 @@ public partial class MainWindow : Window
     private void UpdateStationDisplays()
     {
         // Update all station controls with current wafer data
+        // Set carrier information for LoadPort if available
+        if (_controller is OrchestratedForwardPriorityController orchestratedController)
+        {
+            var carrierManager = orchestratedController.GetCarrierManager();
+            if (carrierManager != null)
+            {
+                LoadPortControl.CurrentCarrier = carrierManager.GetCarrierAtLoadPort("LoadPort");
+            }
+        }
+
         LoadPortControl.UpdateWafers(_controller.Wafers);
         R1Control.UpdateWafers(_controller.Wafers);
         R1Control.StatusText = _controller.R1Status;
@@ -1200,110 +1360,21 @@ public partial class MainWindow : Window
         CMPSystem.UpdateTotalWaferCount(_controller.Wafers);
     }
 
-    private void SelectAllLog_Click(object sender, RoutedEventArgs e)
-    {
-        LogTextBlock.SelectAll();
-    }
-
-    private void CopyLog_Click(object sender, RoutedEventArgs e)
+    private void SeeLogButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            string textToCopy;
+            // Path to the log file written by SchedulingRuleEngine
+            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "recent processing history.log");
 
-            if (!string.IsNullOrEmpty(LogTextBlock.SelectedText))
+            if (!File.Exists(logFilePath))
             {
-                textToCopy = LogTextBlock.SelectedText;
-            }
-            else
-            {
-                // If no text is selected, copy all text
-                textToCopy = LogTextBlock.Text;
-            }
-
-            if (string.IsNullOrEmpty(textToCopy))
+                MessageBox.Show($"Log file not found.\n\nPath: {logFilePath}\n\nRun the simulation first to generate the log.",
+                    "Log File Not Found", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
-
-            // Check if text is too large (> 10MB can cause clipboard issues)
-            const int MaxClipboardSize = 10 * 1024 * 1024; // 10MB
-
-            if (textToCopy.Length > MaxClipboardSize)
-            {
-                // Copy only the last N lines to avoid clipboard overflow
-                var lines = textToCopy.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-                int linesToCopy = Math.Min(5000, lines.Length); // Last 5000 lines
-
-                var result = MessageBox.Show(
-                    $"로그가 너무 큽니다 ({textToCopy.Length:N0} 문자).\n마지막 {linesToCopy}줄만 복사하시겠습니까?",
-                    "클립보드 크기 초과",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    var lastLines = lines.Skip(lines.Length - linesToCopy).ToArray();
-                    textToCopy = string.Join(Environment.NewLine, lastLines);
-                }
-                else
-                {
-                    return;
-                }
             }
 
-            // Retry clipboard operation (CLIPBRD_E_CANT_OPEN workaround)
-            bool success = false;
-            int retries = 5;
-            for (int i = 0; i < retries; i++)
-            {
-                try
-                {
-                    Clipboard.SetText(textToCopy);
-                    success = true;
-                    break;
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    if (i < retries - 1)
-                    {
-                        System.Threading.Thread.Sleep(100); // Wait 100ms before retry
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
-
-            if (success)
-            {
-                MessageBox.Show($"로그가 클립보드에 복사되었습니다.\n({textToCopy.Length:N0} 문자)",
-                    "복사 완료", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"클립보드 복사 실패: {ex.Message}\n\n다시 시도해주세요.",
-                "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void OpenLogButton_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            // Create temp directory if not exists
-            string tempDir = Path.Combine(Path.GetTempPath(), "CMPSimulator");
-            Directory.CreateDirectory(tempDir);
-
-            // Generate timestamped filename
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string logFileName = $"CMPSimulator_Log_{timestamp}.txt";
-            string logFilePath = Path.Combine(tempDir, logFileName);
-
-            // Write log to file
-            File.WriteAllText(logFilePath, LogTextBlock.Text);
-
-            // Open with default editor
+            // Open with default text editor
             var processStartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = logFilePath,
@@ -1315,8 +1386,8 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"로그 파일 열기 실패: {ex.Message}",
-                "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Failed to open log file: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

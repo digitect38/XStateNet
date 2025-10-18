@@ -94,12 +94,23 @@ public partial class LoadPortControl : StationControl
         }
     }
 
+    /// <summary>
+    /// Carrier information for drawing carrier boxes
+    /// </summary>
+    public Carrier? CurrentCarrier { get; set; }
+
     public override void UpdateWafers(IEnumerable<Wafer> allWafers)
     {
         WaferCanvas.Children.Clear();
 
         // Filter wafers that belong to this LoadPort
         var loadPortWafers = allWafers.Where(w => w.CurrentStation == "LoadPort").ToList();
+
+        // Draw carrier box if carrier is present
+        if (CurrentCarrier != null && CurrentCarrier.Wafers.Count > 0)
+        {
+            DrawCarrierBox(CurrentCarrier);
+        }
 
         foreach (var wafer in loadPortWafers)
         {
@@ -143,7 +154,7 @@ public partial class LoadPortControl : StationControl
                 Text = wafer.Id.ToString(),
                 FontSize = 8,
                 FontWeight = FontWeights.Bold,
-                Foreground = wafer.IsCompleted ? Brushes.White : Brushes.Black,
+                Foreground = wafer.TextColor, // Uses E90 state-based color: Black → Yellow → White
                 TextAlignment = TextAlignment.Center
             };
 
@@ -168,5 +179,81 @@ public partial class LoadPortControl : StationControl
         int pendingCount = loadPortWafers.Count(w => !w.IsCompleted);
         int completedCount = loadPortWafers.Count(w => w.IsCompleted);
         StatusText = $"{pendingCount}/{completedCount}";
+    }
+
+    /// <summary>
+    /// Draw a rounded rectangle box around wafers belonging to a carrier
+    /// </summary>
+    private void DrawCarrierBox(Carrier carrier)
+    {
+        var waferIds = carrier.Wafers.Select(w => w.Id).ToList();
+        if (waferIds.Count == 0) return;
+
+        // Calculate bounding box for all wafers in this carrier
+        int minRow = int.MaxValue, maxRow = int.MinValue;
+        int minCol = int.MaxValue, maxCol = int.MinValue;
+
+        foreach (var waferId in waferIds)
+        {
+            int slotIndex = waferId - 1;
+            if (slotIndex < 0 || slotIndex >= MaxWafers) continue;
+
+            int row = slotIndex / GridCols;
+            int col = slotIndex % GridCols;
+
+            minRow = Math.Min(minRow, row);
+            maxRow = Math.Max(maxRow, row);
+            minCol = Math.Min(minCol, col);
+            maxCol = Math.Max(maxCol, col);
+        }
+
+        // Calculate box position and size with padding
+        const double innerPadding = 2;
+        const double extraPadding = 4; // Additional 4pt padding in all directions
+        double boxX = minCol * CellWidth + innerPadding - extraPadding;
+        double boxY = minRow * CellHeight + innerPadding - extraPadding;
+        double boxWidth = (maxCol - minCol + 1) * CellWidth - (innerPadding * 2) + (extraPadding * 2);
+        double boxHeight = (maxRow - minRow + 1) * CellHeight - (innerPadding * 2) + (extraPadding * 2);
+
+        // Create rounded rectangle for carrier box
+        var carrierBox = new System.Windows.Shapes.Rectangle
+        {
+            Width = boxWidth,
+            Height = boxHeight,
+            Stroke = new SolidColorBrush(Color.FromRgb(0, 122, 204)), // Blue outline
+            StrokeThickness = 2,
+            Fill = Brushes.Transparent,
+            RadiusX = 8,
+            RadiusY = 8,
+            StrokeDashArray = new DoubleCollection { 4, 2 } // Dashed line
+        };
+
+        carrierBox.Effect = new DropShadowEffect
+        {
+            ShadowDepth = 0,
+            BlurRadius = 8,
+            Opacity = 0.4,
+            Color = Color.FromRgb(0, 122, 204)
+        };
+
+        Canvas.SetLeft(carrierBox, boxX);
+        Canvas.SetTop(carrierBox, boxY);
+        Canvas.SetZIndex(carrierBox, -1); // Put box behind wafers
+        WaferCanvas.Children.Insert(0, carrierBox);
+
+        // Add carrier label
+        var labelText = new TextBlock
+        {
+            Text = carrier.Id,
+            FontSize = 9,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204)),
+            Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255))
+        };
+
+        Canvas.SetLeft(labelText, boxX + 4);
+        Canvas.SetTop(labelText, boxY - 12);
+        Canvas.SetZIndex(labelText, 10); // Put label on top
+        WaferCanvas.Children.Add(labelText);
     }
 }

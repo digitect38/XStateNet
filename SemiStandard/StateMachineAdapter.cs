@@ -117,7 +117,7 @@ namespace SemiStandard
                 );
 #pragma warning restore CS0618
                 await _stateMachine.StartAsync();
-                await UpdateCurrentStateAsync();
+                UpdateCurrentState();
             }
         }
 
@@ -137,7 +137,7 @@ namespace SemiStandard
             if (_stateMachine != null)
             {
                 await _stateMachine.SendAsync(eventName);
-                await UpdateCurrentStateAsync();
+                UpdateCurrentState();
             }
         }
 
@@ -151,16 +151,11 @@ namespace SemiStandard
                     _context["_eventData"] = machineEvent.Data;
                 }
                 await _stateMachine.SendAsync(machineEvent.Name, machineEvent.Data);
-                await UpdateCurrentStateAsync();
+                UpdateCurrentState();
             }
         }
 
         private void UpdateCurrentState()
-        {
-            UpdateCurrentStateAsync().GetAwaiter().GetResult();
-        }
-
-        private async Task UpdateCurrentStateAsync()
         {
             if (_stateMachine != null)
             {

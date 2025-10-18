@@ -118,6 +118,14 @@ namespace XStateNet.Orchestration
             while (_deferredSends.Count > 0)
             {
                 var send = _deferredSends.Dequeue();
+
+                // Defensive check for null toMachineId
+                if (string.IsNullOrEmpty(send.ToMachineId))
+                {
+                    Console.WriteLine($"[OrchestratedContext] WARNING: Skipping deferred send with null toMachineId. Event={send.EventName}, From={_machineId}");
+                    continue;
+                }
+
                 await _orchestrator.SendEventFireAndForgetAsync(
                     _machineId,
                     send.ToMachineId,

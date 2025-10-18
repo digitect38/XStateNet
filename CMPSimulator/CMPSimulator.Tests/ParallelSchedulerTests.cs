@@ -55,7 +55,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Simulate buffer has completed wafer
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "buffer",
             ["state"] = "occupied",
@@ -63,7 +63,7 @@ public class ParallelSchedulerTests
         });
 
         // Simulate R1 is idle
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R1",
             ["state"] = "idle",
@@ -91,7 +91,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Simulate polisher done
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "polisher",
             ["state"] = "COMPLETE",
@@ -99,7 +99,7 @@ public class ParallelSchedulerTests
         });
 
         // Simulate cleaner empty
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "cleaner",
             ["state"] = "empty",
@@ -107,7 +107,7 @@ public class ParallelSchedulerTests
         });
 
         // Simulate R2 is idle
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R2",
             ["state"] = "idle",
@@ -131,7 +131,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Simulate cleaner done
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "cleaner",
             ["state"] = "done",
@@ -139,7 +139,7 @@ public class ParallelSchedulerTests
         });
 
         // Simulate R3 is idle
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R3",
             ["state"] = "idle",
@@ -163,7 +163,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Simulate R1 is idle (wafers are already in queue from initialization)
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R1",
             ["state"] = "idle",
@@ -187,35 +187,35 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Setup: All robots idle, stations in different states
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "polisher",
             ["state"] = "COMPLETE",
             ["wafer"] = 1
         });
 
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "cleaner",
             ["state"] = "done",
             ["wafer"] = 2
         });
 
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R1",
             ["state"] = "idle",
             ["wafer"] = (int?)null
         });
 
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R2",
             ["state"] = "idle",
             ["wafer"] = (int?)null
         });
 
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R3",
             ["state"] = "idle",
@@ -245,7 +245,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // Setup: Buffer occupied (should be highest priority for R1)
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "buffer",
             ["state"] = "occupied",
@@ -253,7 +253,7 @@ public class ParallelSchedulerTests
         });
 
         // R1 becomes idle
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R1",
             ["state"] = "idle",
@@ -277,7 +277,7 @@ public class ParallelSchedulerTests
         await scheduler.StartAsync();
 
         // R2 is holding wafer, waiting for cleaner
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R2",
             ["state"] = "holding",
@@ -289,7 +289,7 @@ public class ParallelSchedulerTests
         _logs.Clear(); // Clear logs to focus on next action
 
         // Cleaner becomes ready
-        await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
         {
             ["station"] = "cleaner",
             ["state"] = "empty",
@@ -320,14 +320,14 @@ public class ParallelSchedulerTests
         // Simulate completing all 10 wafers by returning them from buffer
         for (int i = 1; i <= 10; i++)
         {
-            await orchestrator.SendEventAsync("parallelScheduler", "STATION_STATUS", new JObject
+            await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "STATION_STATUS", new JObject
             {
                 ["station"] = "buffer",
                 ["state"] = "occupied",
                 ["wafer"] = i
             });
 
-            await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+            await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
             {
                 ["robot"] = "R1",
                 ["state"] = "idle",
@@ -353,7 +353,7 @@ public class ParallelSchedulerTests
         _logs.Clear();
 
         // Send R1 status - should be handled by R1Manager only
-        await orchestrator.SendEventAsync("parallelScheduler", "ROBOT_STATUS", new JObject
+        await orchestrator.SendEventAsync("SYSTEM", "parallelScheduler", "ROBOT_STATUS", new JObject
         {
             ["robot"] = "R1",
             ["state"] = "idle",

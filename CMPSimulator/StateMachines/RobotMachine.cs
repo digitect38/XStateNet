@@ -273,4 +273,41 @@ public class RobotMachine
         _pickFrom = from;
         _placeTo = to;
     }
+
+    /// <summary>
+    /// Reset the robot's wafer reference
+    /// Used during carrier swap to clear old wafer references
+    /// </summary>
+    public void ResetWafer()
+    {
+        _heldWafer = null;
+        _pickFrom = null;
+        _placeTo = null;
+    }
+
+    /// <summary>
+    /// Broadcast current robot status to scheduler
+    /// Used after carrier swap to inform scheduler of current state
+    /// </summary>
+    public void BroadcastStatus(OrchestratedContext context)
+    {
+        // Extract leaf state name (e.g., "#R1.idle" → "idle")
+        var state = CurrentState;
+        if (state.Contains("."))
+        {
+            state = state.Substring(state.LastIndexOf('.') + 1);
+        }
+        else if (state.StartsWith("#"))
+        {
+            state = state.Substring(1);
+        }
+
+        context.RequestSend("scheduler", "ROBOT_STATUS", new JObject
+        {
+            ["robot"] = _robotName,
+            ["state"] = state,
+            ["wafer"] = _heldWafer,
+            ["waitingFor"] = _placeTo
+        });
+    }
 }

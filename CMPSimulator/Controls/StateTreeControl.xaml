@@ -47,6 +47,7 @@
                     <Border CornerRadius="3"
                             Padding="5,2"
                             Margin="2"
+                            Background="Transparent"
                             BorderThickness="{Binding IsHighlighted, Converter={StaticResource HighlightConverter}}">
                         <Border.Style>
                             <Style TargetType="Border">
@@ -81,14 +82,14 @@
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <!-- State nodes: make active ones bold green, inactive ones gray -->
+                                        <!-- State nodes: make active ones bold blue, inactive ones gray -->
                                         <Style.Triggers>
                                             <MultiDataTrigger>
                                                 <MultiDataTrigger.Conditions>
                                                     <Condition Binding="{Binding NodeType}" Value="State"/>
                                                     <Condition Binding="{Binding IsActive}" Value="True"/>
                                                 </MultiDataTrigger.Conditions>
-                                                <Setter Property="Foreground" Value="#22C55E"/>
+                                                <Setter Property="Foreground" Value="#0078D7"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                             </MultiDataTrigger>
                                             <MultiDataTrigger>

@@ -149,7 +149,7 @@ public class StateTreeNode : INotifyPropertyChanged
             "Mapping" => new SolidColorBrush(Color.FromRgb(100, 149, 237)),  // Cornflower blue - no yellow
             "MappingVerification" => new SolidColorBrush(Color.FromRgb(100, 149, 237)),  // Cornflower blue - no yellow
             "ReadyToAccess" => Brushes.LightGreen,
-            "InAccess" => Brushes.Lime,
+            "InAccess" => Brushes.Green,
             "Complete" => new SolidColorBrush(Color.FromRgb(0, 100, 0)),  // Dark green - used by both
             "CarrierOut" => Brushes.DarkGray,
 
@@ -158,7 +158,7 @@ public class StateTreeNode : INotifyPropertyChanged
             "Reserved" => Brushes.Orange,
             "Loading" => new SolidColorBrush(Color.FromRgb(135, 206, 250)),  // Light sky blue - no yellow
             "Loaded" => Brushes.LightGreen,
-            "Ready" => Brushes.Lime,
+            "Ready" => Brushes.Green,
             "Unloading" => new SolidColorBrush(Color.FromRgb(135, 206, 250)),  // Light sky blue - no yellow
             "Error" => Brushes.Red,
 
@@ -177,7 +177,7 @@ public class StateTreeNode : INotifyPropertyChanged
 
             // Station states
             "Idle" => Brushes.LightGray,
-            "Processing" => Brushes.Lime,
+            "Processing" => Brushes.Green,
             "Busy" => new SolidColorBrush(Color.FromRgb(100, 149, 237)),  // Cornflower blue - no yellow
 
             _ => Brushes.Gray

@@ -70,6 +70,9 @@ public class DeclarativeSchedulerMachine
                         },
                         "LOADPORT_STATUS": {
                             "actions": ["onLoadPortStatus"]
+                        },
+                        "CARRIER_WAFER_COMPLETED": {
+                            "actions": ["onCarrierWaferCompleted"]
                         }
                     }
                 }
@@ -150,6 +153,27 @@ public class DeclarativeSchedulerMachine
                 {
                     _logger($"[DeclarativeScheduler] 🚪 LOADPORT_STATUS: {station} = {state}");
                 }
+            },
+
+            ["onCarrierWaferCompleted"] = (ctx) =>
+            {
+                // Forward wafer completion to active carrier (E87)
+                if (_underlyingMachine?.ContextMap == null) return;
+                var data = _underlyingMachine.ContextMap["_event"] as JObject;
+                if (data == null) return;
+
+                var waferId = data["waferId"]?.ToObject<int>() ?? 0;
+                if (waferId > 0)
+                {
+                    _logger($"[DeclarativeScheduler] ✅ Wafer {waferId} completed - notifying carrier");
+
+                    // Forward to all active carriers (they'll filter based on their wafer list)
+                    // In E87, carriers track their own wafer completion
+                    ctx.RequestSend("*", "WAFER_COMPLETED", new JObject
+                    {
+                        ["waferId"] = waferId
+                    });
+                }
             }
         };
 
@@ -182,4 +206,28 @@ public class DeclarativeSchedulerMachine
     public int PendingCount => _ruleEngine.PendingCount;
     public int CompletedCount => _ruleEngine.CompletedCount;
     public IReadOnlyList<int> Completed => _ruleEngine.Completed;
+
+    /// <summary>
+    /// Reset the scheduler for a new carrier batch
+    /// </summary>
+    public void Reset(string? carrierId = null)
+    {
+        _ruleEngine.Reset(carrierId);
+    }
+
+    /// <summary>
+    /// Pause scheduler (prevents rule execution during carrier swap)
+    /// </summary>
+    public void Pause()
+    {
+        _ruleEngine.Pause();
+    }
+
+    /// <summary>
+    /// Resume scheduler (allows rule execution to continue)
+    /// </summary>
+    public void Resume(string? carrierId = null)
+    {
+        _ruleEngine.Resume(carrierId);
+    }
 }
