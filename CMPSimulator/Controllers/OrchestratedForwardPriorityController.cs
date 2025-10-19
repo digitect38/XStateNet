@@ -1445,6 +1445,18 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         Log($"✓ Created {TOTAL_WAFERS} fresh wafer objects for {newCarrierId}");
 
+        // CRITICAL: Remove old carrier machine from list BEFORE adding new one
+        // Without this, the list accumulates carriers (CARRIER_001, CARRIER_002, CARRIER_003, ...)
+        // causing memory leaks and incorrect carrier selection in LogPeriodicStateTreeSnapshot
+        var oldCarrierMachine = _carrierMachines.FirstOrDefault(c => c.CarrierId == oldCarrierId);
+        if (oldCarrierMachine != null)
+        {
+            // Unsubscribe from old carrier's state change events to prevent memory leak
+            oldCarrierMachine.StateChanged -= OnStateChanged;
+            _carrierMachines.Remove(oldCarrierMachine);
+            Log($"✓ Removed {oldCarrierId} machine from active carrier list");
+        }
+
         // Create new carrier machine
         var waferIds = Enumerable.Range(1, TOTAL_WAFERS).ToList();
         var newCarrierMachine = new CarrierMachine(newCarrierId, waferIds, _orchestrator, Log);
@@ -1455,7 +1467,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Start the new carrier machine
         await newCarrierMachine.StartAsync();
 
-        // Add to carrier machines list (keep for event handling)
+        // Add to carrier machines list (now contains only the active carrier)
         _carrierMachines.Add(newCarrierMachine);
 
         // Register carrier with E87/E90
