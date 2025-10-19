@@ -949,23 +949,25 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r1.HeldWafer);
             if (wafer != null)
             {
-                if (wafer.CurrentStation != "R1")
-                {
-                    wafer.CurrentStation = "R1";
-                    // E90: Wafer picked up from LoadPort → NeedsProcessing
-                    // ONLY transition when R1 is actually holding the wafer (not during pickingUp)
-                    // This prevents premature state transition during the pick operation
-                    var r1State = _r1.CurrentState;
-                    var isHolding = r1State.Contains("holding"); // Check for "holding" or "#R1.holding"
+                // Check R1's current state to determine if it's actually holding the wafer
+                var r1State = _r1.CurrentState;
+                var isHolding = r1State.Contains("holding") || r1State.Contains("placingDown"); // Holding or placing
 
-                    if (isHolding)
+                // ONLY update visual position and state when R1 has actually picked up the wafer
+                // This prevents the wafer from "teleporting" to R1 during the pickup animation
+                if (isHolding)
+                {
+                    if (wafer.CurrentStation != "R1")
                     {
+                        wafer.CurrentStation = "R1";
+                        // E90: Wafer picked up from LoadPort → NeedsProcessing
                         _ = wafer.StateMachine?.SelectForProcessAsync();
                     }
+                    var pos = _stations["R1"];
+                    wafer.X = pos.X + pos.Width / 2;
+                    wafer.Y = pos.Y + pos.Height / 2;
                 }
-                var pos = _stations["R1"];
-                wafer.X = pos.X + pos.Width / 2;
-                wafer.Y = pos.Y + pos.Height / 2;
+                // else: R1 is still pickingUp - leave wafer in its current position (LoadPort/Carrier)
             }
         }
 
