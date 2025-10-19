@@ -196,10 +196,12 @@ public class WaferMachine
                     currentState = _machine.CurrentState;
                 }
 
-                // If currentState is empty or null, we're in initial state
+                // If currentState is empty or null during transition, skip notification
+                // This prevents spurious "WaitingForHost" notifications during compound state transitions
                 if (string.IsNullOrEmpty(currentState))
                 {
-                    currentState = "WaitingForHost"; // Default initial state
+                    // Don't notify - state machine is in transition
+                    return;
                 }
 
                 // Extract just the state name without the machine ID prefix (e.g., "#WAFER_W1.InCarrier" → "InCarrier")
