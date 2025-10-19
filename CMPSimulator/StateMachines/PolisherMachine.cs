@@ -349,12 +349,13 @@ public class PolisherMachine
     }
 
     /// <summary>
-    /// Reset the station's wafer reference
+    /// Reset the station's wafer reference and processing timer
     /// Used during carrier swap to clear old wafer references
     /// </summary>
     public void ResetWafer()
     {
         _currentWafer = null;
+        _processingStartTime = DateTime.MinValue; // Reset timer to prevent stale remaining time
     }
 
     /// <summary>
