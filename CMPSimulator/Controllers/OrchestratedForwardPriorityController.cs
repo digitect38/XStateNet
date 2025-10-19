@@ -1238,9 +1238,11 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
         {
-            // Get current carrier
-            var currentCarrier = _carrierMachines.FirstOrDefault(c =>
-                c.CurrentState == "InAccess" || c.CurrentState == "ReadyToAccess");
+            // Get current active carrier (prioritize InAccess, then ReadyToAccess, then any active state)
+            var currentCarrier = _carrierMachines.FirstOrDefault(c => c.CurrentState == "InAccess")
+                              ?? _carrierMachines.FirstOrDefault(c => c.CurrentState == "ReadyToAccess")
+                              ?? _carrierMachines.FirstOrDefault(c => c.CurrentState == "WaitingForHost" || c.CurrentState == "Mapping")
+                              ?? _carrierMachines.LastOrDefault(); // Fallback to most recent carrier
             var carrierId = currentCarrier?.CarrierId ?? "None";
             var carrierState = currentCarrier?.CurrentState ?? "N/A";
 
