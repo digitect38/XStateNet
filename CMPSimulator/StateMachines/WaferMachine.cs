@@ -112,8 +112,12 @@ public class WaferMachine
                                 Unloading: {
                                     entry: 'notifyStateChange',
                                     on: {
-                                        UNLOADING_COMPLETE: '#{{MachineId}}.InProcess.Cleaning'
+                                        UNLOADING_COMPLETE: 'PolishingComplete'
                                     }
+                                },
+                                PolishingComplete: {
+                                    entry: 'notifyStateChange',
+                                    type: 'final'
                                 }
                             },
                             on: {

@@ -989,7 +989,10 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 {
                     wafer.CurrentStation = "R2";
                     // E90: Polishing complete → Cleaning
-                    if (wafer.E90State == "Polishing")
+                    // Check for any polishing sub-state (Loading, Chucking, Polishing, Dechucking, Unloading, PolishingComplete)
+                    if (wafer.E90State == "Polishing" || wafer.E90State == "PolishingComplete" ||
+                        wafer.E90State == "Loading" || wafer.E90State == "Chucking" ||
+                        wafer.E90State == "Dechucking" || wafer.E90State == "Unloading")
                     {
                         _ = wafer.StateMachine?.CompletePolishingAsync();
                     }
