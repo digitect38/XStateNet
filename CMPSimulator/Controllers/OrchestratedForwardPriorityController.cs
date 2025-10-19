@@ -1330,7 +1330,20 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         Log($"🗑️ Removing old carrier {oldCarrierId} and all its wafer objects from system...");
 
-        // Notify UI to remove old carrier from state tree
+        // CRITICAL: Remove old carrier from CarrierManager FIRST (before UI tree removal)
+        // This prevents UpdateStateTree() from re-adding the carrier when it runs between
+        // the UI removal and CarrierManager removal operations.
+        // TIMING BUG FIX: Previously, carrier was removed from UI tree at line 1336,
+        // then UpdateStateTree() would run (triggered by StationStatusChanged events),
+        // see the carrier still exists in CarrierManager, and RE-ADD it to the tree.
+        // By removing from CarrierManager first, UpdateStateTree() won't find the old carrier.
+        if (_carrierManager != null)
+        {
+            await _carrierManager.RemoveCarrierAsync(oldCarrierId);
+            Log($"✓ Removed {oldCarrierId} from CarrierManager (prevents re-addition to state tree)");
+        }
+
+        // Now remove from UI state tree (safe because CarrierManager no longer has it)
         Application.Current?.Dispatcher.Invoke(() =>
         {
             RemoveOldCarrierFromStateTree?.Invoke(this, oldCarrierId);
@@ -1478,16 +1491,10 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         }
         _carriers[newCarrierId] = newCarrier;
 
-        // CRITICAL: Remove old carrier from CarrierManager to prevent state tree from showing multiple carriers
-        // The CarrierManager._carriers dictionary keeps ALL carriers ever created unless we explicitly remove them
-        // Without this call, UpdateStateTree() will keep adding old carriers back via GetAllCarriers()
+        // Add the new carrier to CarrierManager
+        // (Old carrier was already removed at the top of this method)
         if (_carrierManager != null)
         {
-            // Remove old carrier from CarrierManager
-            await _carrierManager.RemoveCarrierAsync(oldCarrierId);
-            Log($"✓ Removed {oldCarrierId} from CarrierManager");
-
-            // Now add the new carrier
             await _carrierManager.CreateAndPlaceCarrierAsync(newCarrierId, "LoadPort", newCarrierWafers);
         }
 
