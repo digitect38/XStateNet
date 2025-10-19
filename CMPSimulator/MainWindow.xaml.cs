@@ -480,20 +480,39 @@ public partial class MainWindow : Window
                     string carrierId = carrier.Id;
                     string carrierState = ExtractStateName(carrier.CurrentState ?? "NotPresent");
 
-                    // SKIP carriers that are no longer active (CarrierOut or NotPresent)
-                    // This prevents old carriers from being re-added to the state tree
-                    if (carrierState == "CarrierOut" || carrierState == "NotPresent")
+                    // CRITICAL FIX: SKIP carriers that are no longer active OR don't exist in the tree
+                    // This prevents old carriers from being re-added after they've been explicitly removed
+                    // during carrier swap via RemoveCarrierNode()
+                    bool carrierExistsInTree = loadPortNode != null && loadPortNode.Children.Any(n => n.Id == carrierId);
+                    bool isInactiveState = carrierState == "CarrierOut" || carrierState == "NotPresent" || carrierState == "Complete";
+
+                    // If carrier was removed from tree (doesn't exist), DON'T re-add it
+                    // This is the KEY fix: only add carriers that are NEW (haven't been added yet)
+                    // Don't re-add carriers that were explicitly removed during carrier swap
+                    if (!carrierExistsInTree && isInactiveState)
                     {
-                        Console.WriteLine($"[DEBUG UpdateStateTree] SKIPPING {carrierId} (state={carrierState}) - not active");
+                        Console.WriteLine($"[DEBUG UpdateStateTree] SKIPPING {carrierId} (state={carrierState}, notInTree) - old carrier removed");
                         continue;
                     }
 
-                    // Ensure carrier node exists in state tree (only for active carriers)
-                    if (loadPortNode != null && !loadPortNode.Children.Any(n => n.Id == carrierId))
+                    // Only ADD carriers that are in active states (WaitingForHost, Mapping, ReadyToAccess, InAccess)
+                    // Don't add carriers in terminal states (Complete, CarrierOut, NotPresent)
+                    if (!carrierExistsInTree)
                     {
-                        // Carrier node doesn't exist yet, add it
-                        Console.WriteLine($"[DEBUG UpdateStateTree] Carrier node {carrierId} NOT FOUND in state tree, adding it now...");
-                        AddCarrierToStateTree(carrierId);
+                        // Check if this is truly a NEW carrier (in early lifecycle states)
+                        if (carrierState == "WaitingForHost" || carrierState == "Mapping" ||
+                            carrierState == "MappingVerification" || carrierState == "ReadyToAccess" || carrierState == "InAccess")
+                        {
+                            // This is a new carrier starting its lifecycle - add it
+                            Console.WriteLine($"[DEBUG UpdateStateTree] NEW carrier {carrierId} detected (state={carrierState}), adding to tree...");
+                            AddCarrierToStateTree(carrierId);
+                        }
+                        else
+                        {
+                            // Carrier is in terminal state and not in tree - was removed, don't re-add
+                            Console.WriteLine($"[DEBUG UpdateStateTree] SKIPPING {carrierId} (state={carrierState}) - old removed carrier");
+                            continue;
+                        }
                     }
                     else
                     {
