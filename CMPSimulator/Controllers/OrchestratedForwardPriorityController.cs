@@ -953,7 +953,15 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 {
                     wafer.CurrentStation = "R1";
                     // E90: Wafer picked up from LoadPort → NeedsProcessing
-                    _ = wafer.StateMachine?.SelectForProcessAsync();
+                    // ONLY transition when R1 is actually holding the wafer (not during pickingUp)
+                    // This prevents premature state transition during the pick operation
+                    var r1State = _r1.CurrentState;
+                    var isHolding = r1State.Contains("holding"); // Check for "holding" or "#R1.holding"
+
+                    if (isHolding)
+                    {
+                        _ = wafer.StateMachine?.SelectForProcessAsync();
+                    }
                 }
                 var pos = _stations["R1"];
                 wafer.X = pos.X + pos.Width / 2;
