@@ -943,11 +943,29 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             }
         }
 
-        // Update R1
+        // Update Polisher (check stations BEFORE robots to give priority to destination)
+        if (_polisher?.CurrentWafer != null)
+        {
+            var wafer = Wafers.FirstOrDefault(w => w.Id == _polisher.CurrentWafer);
+            if (wafer != null)
+            {
+                if (wafer.CurrentStation != "Polisher")
+                {
+                    wafer.CurrentStation = "Polisher";
+                    // E90: WaferMachine state transitions are now handled by PolisherMachine.onPlace action
+                    // This ensures deterministic ordering: transitions fire BEFORE sub-state processing starts
+                }
+                var pos = _stations["Polisher"];
+                wafer.X = pos.X + pos.Width / 2;
+                wafer.Y = pos.Y + pos.Height / 2;
+            }
+        }
+
+        // Update R1 (only if wafer is not already at a station)
         if (_r1?.HeldWafer != null)
         {
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r1.HeldWafer);
-            if (wafer != null)
+            if (wafer != null && wafer.CurrentStation != "Polisher" && wafer.CurrentStation != "Cleaner")
             {
                 // Check R1's current state to determine if it's actually holding the wafer
                 var r1State = _r1.CurrentState;
@@ -971,29 +989,29 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             }
         }
 
-        // Update Polisher
-        if (_polisher?.CurrentWafer != null)
+        // Update Cleaner (check station BEFORE R2)
+        if (_cleaner?.CurrentWafer != null)
         {
-            var wafer = Wafers.FirstOrDefault(w => w.Id == _polisher.CurrentWafer);
+            var wafer = Wafers.FirstOrDefault(w => w.Id == _cleaner.CurrentWafer);
             if (wafer != null)
             {
-                if (wafer.CurrentStation != "Polisher")
+                if (wafer.CurrentStation != "Cleaner")
                 {
-                    wafer.CurrentStation = "Polisher";
-                    // E90: WaferMachine state transitions are now handled by PolisherMachine.onPlace action
-                    // This ensures deterministic ordering: transitions fire BEFORE sub-state processing starts
+                    wafer.CurrentStation = "Cleaner";
+                    // Note: wafer is already in Cleaning sub-state from Polishing transition
+                    // No additional transition needed here - the wafer is in InProcess.Cleaning
                 }
-                var pos = _stations["Polisher"];
+                var pos = _stations["Cleaner"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
             }
         }
 
-        // Update R2
+        // Update R2 (only if wafer is not already at Cleaner)
         if (_r2?.HeldWafer != null)
         {
             var wafer = Wafers.FirstOrDefault(w => w.Id == _r2.HeldWafer);
-            if (wafer != null)
+            if (wafer != null && wafer.CurrentStation != "Cleaner")
             {
                 if (wafer.CurrentStation != "R2")
                 {
@@ -1013,46 +1031,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             }
         }
 
-        // Update Cleaner
-        if (_cleaner?.CurrentWafer != null)
-        {
-            var wafer = Wafers.FirstOrDefault(w => w.Id == _cleaner.CurrentWafer);
-            if (wafer != null)
-            {
-                if (wafer.CurrentStation != "Cleaner")
-                {
-                    wafer.CurrentStation = "Cleaner";
-                    // Note: wafer is already in Cleaning sub-state from Polishing transition
-                    // No additional transition needed here - the wafer is in InProcess.Cleaning
-                }
-                var pos = _stations["Cleaner"];
-                wafer.X = pos.X + pos.Width / 2;
-                wafer.Y = pos.Y + pos.Height / 2;
-            }
-        }
-
-        // Update R3
-        if (_r3?.HeldWafer != null)
-        {
-            var wafer = Wafers.FirstOrDefault(w => w.Id == _r3.HeldWafer);
-            if (wafer != null)
-            {
-                if (wafer.CurrentStation != "R3")
-                {
-                    wafer.CurrentStation = "R3";
-                    // E90: Cleaning complete → Processed
-                    if (wafer.E90State == "Cleaning")
-                    {
-                        _ = wafer.StateMachine?.CompleteCleaningAsync();
-                    }
-                }
-                var pos = _stations["R3"];
-                wafer.X = pos.X + pos.Width / 2;
-                wafer.Y = pos.Y + pos.Height / 2;
-            }
-        }
-
-        // Update Buffer
+        // Update Buffer (check station BEFORE R3)
         if (_buffer?.CurrentWafer != null)
         {
             var wafer = Wafers.FirstOrDefault(w => w.Id == _buffer.CurrentWafer);
@@ -1064,6 +1043,27 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                     // E90: Wafer in buffer → ReadyToProcess (waiting for return)
                 }
                 var pos = _stations["Buffer"];
+                wafer.X = pos.X + pos.Width / 2;
+                wafer.Y = pos.Y + pos.Height / 2;
+            }
+        }
+
+        // Update R3 (only if wafer is not already at Buffer or LoadPort)
+        if (_r3?.HeldWafer != null)
+        {
+            var wafer = Wafers.FirstOrDefault(w => w.Id == _r3.HeldWafer);
+            if (wafer != null && wafer.CurrentStation != "Buffer" && wafer.CurrentStation != "LoadPort")
+            {
+                if (wafer.CurrentStation != "R3")
+                {
+                    wafer.CurrentStation = "R3";
+                    // E90: Cleaning complete → Processed
+                    if (wafer.E90State == "Cleaning")
+                    {
+                        _ = wafer.StateMachine?.CompleteCleaningAsync();
+                    }
+                }
+                var pos = _stations["R3"];
                 wafer.X = pos.X + pos.Width / 2;
                 wafer.Y = pos.Y + pos.Height / 2;
             }
