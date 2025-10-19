@@ -478,8 +478,17 @@ public partial class MainWindow : Window
                 foreach (var carrier in allCarriers)
                 {
                     string carrierId = carrier.Id;
+                    string carrierState = ExtractStateName(carrier.CurrentState ?? "NotPresent");
 
-                    // Ensure carrier node exists in state tree
+                    // SKIP carriers that are no longer active (CarrierOut or NotPresent)
+                    // This prevents old carriers from being re-added to the state tree
+                    if (carrierState == "CarrierOut" || carrierState == "NotPresent")
+                    {
+                        Console.WriteLine($"[DEBUG UpdateStateTree] SKIPPING {carrierId} (state={carrierState}) - not active");
+                        continue;
+                    }
+
+                    // Ensure carrier node exists in state tree (only for active carriers)
                     if (loadPortNode != null && !loadPortNode.Children.Any(n => n.Id == carrierId))
                     {
                         // Carrier node doesn't exist yet, add it
@@ -491,7 +500,6 @@ public partial class MainWindow : Window
                         Console.WriteLine($"[DEBUG UpdateStateTree] Carrier node {carrierId} already exists in state tree");
                     }
 
-                    string carrierState = ExtractStateName(carrier.CurrentState ?? "NotPresent");
                     bool carrierActive = carrierState != "NotPresent" && carrierState != "CarrierOut" && carrierState != "None";
 
                     Console.WriteLine($"[DEBUG UpdateStateTree] Updating {carrierId} state to: {carrierState} (active={carrierActive})");
@@ -1304,17 +1312,9 @@ public partial class MainWindow : Window
             Console.WriteLine($"[MainWindow.Log] Failed to write to log file: {ex.Message}");
         }
 
-        // Detect carrier creation and add to state tree
-        if (message.Contains("Creating new carrier:") || message.Contains("Registering Carrier"))
-        {
-            // Extract carrier ID from message (e.g., "Creating new carrier: CARRIER_002" or "Registering Carrier CARRIER_001")
-            var match = System.Text.RegularExpressions.Regex.Match(message, @"CARRIER_\d{3}");
-            if (match.Success)
-            {
-                string carrierId = match.Value;
-                AddCarrierToStateTree(carrierId);
-            }
-        }
+        // NOTE: Carrier creation detection REMOVED - carriers are now added dynamically via UpdateStateTree()
+        // based on CarrierManager state, not log messages. This prevents old carriers from being re-added
+        // when log messages mention them.
 
         // Update station displays when relevant events occur
         if (message.Contains("LoadPort") || message.Contains("Polisher") || message.Contains("Cleaner"))

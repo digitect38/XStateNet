@@ -260,9 +260,8 @@ public class RobotMachine
     {
         var result = await _machine.StartAsync();
 
-        // Execute deferred sends from entry actions
-        var context = _orchestrator.GetOrCreateContext(_robotName);
-        await context.ExecuteDeferredSends();
+        // NOTE: ExecuteDeferredSends is now automatically handled by StateChanged event
+        // Do NOT call it manually here or messages will be sent twice!
 
         return result;
     }

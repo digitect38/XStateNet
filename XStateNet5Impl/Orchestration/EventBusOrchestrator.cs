@@ -22,6 +22,10 @@ namespace XStateNet.Orchestration
         // Configuration
         private readonly OrchestratorConfig _config;
 
+        // File-based debug logging (bypasses Console.WriteLine in WPF apps)
+        private static readonly object _logLock = new object();
+        private static readonly string _debugLogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "orchestrator_debug.log");
+
         // Monitoring and observability
         private readonly OrchestratorMetrics _metrics;
         private readonly OrchestratorLogger _logger;
@@ -103,11 +107,29 @@ namespace XStateNet.Orchestration
             _machines[machineId] = managed;
 
             // Subscribe to StateChanged events for automatic ExecuteDeferredSends
-            // This is needed for internal transitions (like invoke service onDone)
+            // This is CRITICAL for internal transitions (like invoke service onDone events)
             // that don't go through ProcessEventAsync
+            StateMachine? underlyingMachine = null;
+
+            // Handle both direct StateMachine and PureStateMachineAdapter
             if (machine is StateMachine sm)
             {
-                sm.StateChanged += async (newState) =>
+                underlyingMachine = sm;
+            }
+            else if (machine is IStateMachine &&
+                     machine.GetType().Name == "PureStateMachineAdapter")
+            {
+                // PureStateMachineAdapter has a GetUnderlying() method
+                var getUnderlyingMethod = machine.GetType().GetMethod("GetUnderlying");
+                if (getUnderlyingMethod != null)
+                {
+                    underlyingMachine = getUnderlyingMethod.Invoke(machine, null) as StateMachine;
+                }
+            }
+
+            if (underlyingMachine != null)
+            {
+                underlyingMachine.StateChanged += async (newState) =>
                 {
                     if (_machineContexts.TryGetValue(machineId, out var context))
                     {
@@ -135,13 +157,16 @@ namespace XStateNet.Orchestration
         /// </summary>
         public void RegisterMachineWithContext(string machineId, IStateMachine machine, OrchestratedContext? context = null)
         {
-            RegisterMachine(machineId, machine);
-
-            // Store the context if provided
+            // CRITICAL: Store context BEFORE calling RegisterMachine
+            // RegisterMachine subscribes to StateChanged which immediately looks up the context
+            // If we store context after, the StateChanged handler won't find it (race condition)
             if (context != null)
             {
                 _machineContexts[machineId] = context;
             }
+
+            // Now register the machine (this subscribes to StateChanged with context already available)
+            RegisterMachine(machineId, machine);
         }
 
         /// <summary>
@@ -367,16 +392,33 @@ namespace XStateNet.Orchestration
         }
 
         /// <summary>
+        /// Write debug message to file (bypasses Console.WriteLine for WPF apps)
+        /// </summary>
+        private static void DebugLog(string message)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    File.AppendAllText(_debugLogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+                }
+            }
+            catch { /* Ignore logging errors */ }
+        }
+
+        /// <summary>
         /// Process an event from the event bus
         /// </summary>
         private async Task ProcessEventAsync(OrchestratedEvent evt)
         {
+            DebugLog($"[ProcessEventAsync] START: {evt.FromMachineId} → {evt.ToMachineId}.{evt.EventName}");
             EventResult result;
 
             try
             {
                 if (!_machines.TryGetValue(evt.ToMachineId, out var targetMachine))
                 {
+                    DebugLog($"[ProcessEventAsync] ERROR: Machine '{evt.ToMachineId}' not found");
                     result = new EventResult
                     {
                         Success = false,
@@ -386,21 +428,14 @@ namespace XStateNet.Orchestration
                 }
                 else
                 {
-                    // Log self-sends for debugging
-                    if (evt.IsSelfSend)
-                    {
-                       // Console.WriteLine($"[Orchestrator] Processing self-send: {evt.EventName} for {evt.ToMachineId}");
-                    }
-
                     // Send event to the state machine
                     var newState = await targetMachine.Machine.SendAsync(evt.EventName, evt.EventData);
+                    DebugLog($"[ProcessEventAsync] Machine.SendAsync completed: {evt.ToMachineId} newState={newState}");
 
-                    // Check if this machine has an orchestrated context with deferred sends
-                    if (_machineContexts.TryGetValue(evt.ToMachineId, out var context))
-                    {
-                        // Execute any deferred sends that were queued during the action
-                        await context.ExecuteDeferredSends();
-                    }
+                    // NOTE: We do NOT call ExecuteDeferredSends here anymore!
+                    // ExecuteDeferredSends is now ONLY called by the StateChanged event handler.
+                    // This prevents duplicate sends and ensures deferred sends are executed
+                    // AFTER the state transition fully completes and StateChanged fires.
 
                     result = new EventResult
                     {

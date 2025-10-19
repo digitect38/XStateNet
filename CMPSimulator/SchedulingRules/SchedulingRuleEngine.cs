@@ -166,7 +166,7 @@ public class SchedulingRuleEngine
         _stationWafers[station] = waferId;
 
         // Only log meaningful state changes
-        if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE")
+        if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE" || state == "occupied")
         {
             _logger($"[RuleEngine] 📥 STATION_STATUS: {station} = {state} (wafer: {waferId})");
         }
@@ -177,11 +177,9 @@ public class SchedulingRuleEngine
             CheckWaitingRobots(ctx, station);
         }
 
-        // Check if any rules can be executed
-        if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE")
-        {
-            CheckAndExecuteRules(ctx);
-        }
+        // Check if any rules can be executed (ALWAYS check, regardless of state)
+        // This is critical for rules like P3_BufferToLoadPort which trigger on "occupied" state
+        CheckAndExecuteRules(ctx);
     }
 
     /// <summary>

@@ -388,8 +388,10 @@ public class ParallelSchedulerMachine
     public async Task<string> StartAsync()
     {
         var result = await _machine.StartAsync();
-        var context = _orchestrator.GetOrCreateContext("parallelScheduler");
-        await context.ExecuteDeferredSends();
+
+        // NOTE: ExecuteDeferredSends is now automatically handled by StateChanged event
+        // Do NOT call it manually here or messages will be sent twice!
+
         return result;
     }
 

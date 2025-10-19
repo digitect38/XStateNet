@@ -80,10 +80,26 @@ namespace XStateNet.Orchestration
         private readonly string _machineId;
         private readonly Queue<DeferredSend> _deferredSends = new();
 
+        // File-based debug logging (shared with EventBusOrchestrator)
+        private static readonly object _logLock = new object();
+        private static readonly string _debugLogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "orchestrator_debug.log");
+
         public OrchestratedContext(EventBusOrchestrator orchestrator, string machineId)
         {
             _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _machineId = machineId ?? throw new ArgumentNullException(nameof(machineId));
+        }
+
+        private static void DebugLog(string message)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    File.AppendAllText(_debugLogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+                }
+            }
+            catch { /* Ignore logging errors */ }
         }
 
         /// <summary>
@@ -115,6 +131,12 @@ namespace XStateNet.Orchestration
         /// </summary>
         public async Task ExecuteDeferredSends()
         {
+            var count = _deferredSends.Count;
+            if (count > 0)
+            {
+                DebugLog($"[OrchestratedContext] ExecuteDeferredSends called for {_machineId}: {count} pending sends");
+            }
+
             while (_deferredSends.Count > 0)
             {
                 var send = _deferredSends.Dequeue();
@@ -122,10 +144,11 @@ namespace XStateNet.Orchestration
                 // Defensive check for null toMachineId
                 if (string.IsNullOrEmpty(send.ToMachineId))
                 {
-                    Console.WriteLine($"[OrchestratedContext] WARNING: Skipping deferred send with null toMachineId. Event={send.EventName}, From={_machineId}");
+                    DebugLog($"[OrchestratedContext] WARNING: Skipping deferred send with null toMachineId. Event={send.EventName}, From={_machineId}");
                     continue;
                 }
 
+                DebugLog($"[OrchestratedContext] Sending deferred: {_machineId} → {send.ToMachineId}.{send.EventName}");
                 await _orchestrator.SendEventFireAndForgetAsync(
                     _machineId,
                     send.ToMachineId,

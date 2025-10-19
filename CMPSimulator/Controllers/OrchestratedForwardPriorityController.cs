@@ -558,7 +558,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 "R1" => R1Status,
                 "R2" => R2Status,
                 "R3" => R3Status,
-                _ when e.StateMachineId.StartsWith("CARRIER_") => CurrentCarrierStatus,
+                _ when e.StateMachineId.StartsWith("CARRIER_") => _carrierMachines.FirstOrDefault(c => c.CarrierId == e.StateMachineId)?.CurrentState ?? "Unknown",
                 _ => "Unknown"
             };
 
@@ -1464,8 +1464,16 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         }
         _carriers[newCarrierId] = newCarrier;
 
+        // CRITICAL: Remove old carrier from CarrierManager to prevent state tree from showing multiple carriers
+        // The CarrierManager._carriers dictionary keeps ALL carriers ever created unless we explicitly remove them
+        // Without this call, UpdateStateTree() will keep adding old carriers back via GetAllCarriers()
         if (_carrierManager != null)
         {
+            // Remove old carrier from CarrierManager
+            await _carrierManager.RemoveCarrierAsync(oldCarrierId);
+            Log($"✓ Removed {oldCarrierId} from CarrierManager");
+
+            // Now add the new carrier
             await _carrierManager.CreateAndPlaceCarrierAsync(newCarrierId, "LoadPort", newCarrierWafers);
         }
 

@@ -196,8 +196,8 @@ public class DeclarativeSchedulerMachine
     {
         var result = await _machine.StartAsync();
 
-        var context = _orchestrator.GetOrCreateContext("scheduler");
-        await context.ExecuteDeferredSends();
+        // NOTE: ExecuteDeferredSends is now automatically handled by StateChanged event
+        // Do NOT call it manually here or messages will be sent twice!
 
         return result;
     }

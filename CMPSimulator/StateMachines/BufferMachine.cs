@@ -89,12 +89,14 @@ public class BufferMachine
 
             ["reportOccupied"] = (ctx) =>
             {
+                logger($"[Buffer] → reportOccupied: Sending STATION_STATUS (wafer {_currentWafer})");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = "buffer",
                     ["state"] = "occupied",
                     ["wafer"] = _currentWafer
                 });
+                logger($"[Buffer] → reportOccupied: STATION_STATUS queued in deferred sends");
             },
 
             ["onPick"] = (ctx) =>
@@ -128,9 +130,8 @@ public class BufferMachine
     {
         var result = await _machine.StartAsync();
 
-        // Execute deferred sends from entry actions
-        var context = _orchestrator.GetOrCreateContext("buffer");
-        await context.ExecuteDeferredSends();
+        // NOTE: ExecuteDeferredSends is now automatically handled by StateChanged event
+        // Do NOT call it manually here or messages will be sent twice!
 
         return result;
     }

@@ -103,8 +103,8 @@ public class SchedulerMachine
                 _stationStates[station] = state;
                 _stationWafers[station] = wafer;
 
-                // Only log meaningful state changes (empty, done) to reduce log noise
-                if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE")
+                // Log meaningful state changes (empty, done, occupied) to reduce log noise
+                if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE" || state == "occupied")
                 {
                     _logger($"[Scheduler] 📥 STATION_STATUS: {station} = {state} (wafer: {wafer})");
                 }
@@ -116,9 +116,9 @@ public class SchedulerMachine
                     CheckWaitingRobots(ctx, station);
                 }
 
-                // Only check priorities when station becomes empty or done (meaningful state changes)
-                // Don't check on "processing" or "idle" transitions to reduce overhead
-                if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE")
+                // Check priorities when station state changes meaningfully
+                // IMPORTANT: Check on "occupied" too - P3_BufferToLoadPort needs to fire when buffer becomes occupied!
+                if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE" || state == "occupied")
                 {
                     CheckPriorities(ctx);
                 }
