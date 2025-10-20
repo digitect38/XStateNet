@@ -366,7 +366,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                     // This prevents commands issued before pause from executing after reset
                     var schedulerContext = _orchestrator.GetOrCreateContext("scheduler");
                     await schedulerContext.ExecuteDeferredSends();
-                    await Task.Delay(200); // Wait for pending transfers to complete
 
                     // E87: Complete carrier and start next one
                     if (_loadPort != null && _carrierMachines.Count > 0 && currentCarrier != null)
@@ -378,21 +377,17 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                         // E87: InAccess → Complete
                         currentCarrier.SendAccessComplete();
                         await carrierContext.ExecuteDeferredSends();
-                        await Task.Delay(50);
 
                         _loadPort.SendComplete();
                         await loadPortContext.ExecuteDeferredSends();
-                        await Task.Delay(50);
 
                         // Undock current carrier
                         _loadPort.SendUndock();
                         await loadPortContext.ExecuteDeferredSends();
-                        await Task.Delay(50);
 
                         // E87: Complete → CarrierOut
                         currentCarrier.SendCarrierRemoved();
                         await carrierContext.ExecuteDeferredSends();
-                        await Task.Delay(100);
 
                         // Start next carrier (endless loop)
                         await SwapToNextCarrierAsync();
@@ -428,21 +423,17 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                             // E87: InAccess → Complete
                             currentCarrier.SendAccessComplete();
                             await carrierContext.ExecuteDeferredSends();
-                            await Task.Delay(50);
 
                             _loadPort.SendComplete();
                             await loadPortContext.ExecuteDeferredSends();
-                            await Task.Delay(50);
 
                             // Undock current carrier
                             _loadPort.SendUndock();
                             await loadPortContext.ExecuteDeferredSends();
-                            await Task.Delay(50);
 
                             // E87: Complete → CarrierOut
                             currentCarrier.SendCarrierRemoved();
                             await carrierContext.ExecuteDeferredSends();
-                            await Task.Delay(100);
                         }
 
                         // Start next carrier (endless loop)
@@ -669,31 +660,25 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
             // E87: NotPresent → WaitingForHost
             firstCarrier.SendCarrierDetected();
             await carrierContext.ExecuteDeferredSends();
-            await Task.Delay(50);
 
             // E87: WaitingForHost → Mapping
             firstCarrier.SendHostProceed();
             await carrierContext.ExecuteDeferredSends();
-            await Task.Delay(50);
 
             // E87: Mapping → MappingVerification → ReadyToAccess (auto-transition)
             firstCarrier.SendMappingComplete();
             await carrierContext.ExecuteDeferredSends();
-            await Task.Delay(600); // Wait for auto-transition through verification
 
             // E87: ReadyToAccess → InAccess
             firstCarrier.SendStartAccess();
             await carrierContext.ExecuteDeferredSends();
-            await Task.Delay(50);
 
             // Notify LoadPort
             var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
             _loadPort.SendCarrierArrive(firstCarrier.CarrierId);
             await loadPortContext.ExecuteDeferredSends();
-            await Task.Delay(50);
             _loadPort.SendDock();
             await loadPortContext.ExecuteDeferredSends();
-            await Task.Delay(50);
             _loadPort.SendStartProcessing();
             await loadPortContext.ExecuteDeferredSends();
         }
@@ -898,15 +883,31 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                 var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
                 if (wafer != null)
                 {
-                    // Return wafer to its origin LoadPort
-                    string originLoadPort = wafer.OriginLoadPort;
-                    wafer.CurrentStation = originLoadPort;
+                    // CRITICAL: Do NOT place wafer in carrier if ANY robot or station is holding it
+                    // A wafer should ONLY appear in the carrier if it's:
+                    // 1. Actually in the carrier (not yet picked up), OR
+                    // 2. Completed and returned by R3
+                    bool isBeingHeldOrProcessed =
+                        _r1?.HeldWafer == waferId ||
+                        _polisher?.CurrentWafer == waferId ||
+                        _r2?.HeldWafer == waferId ||
+                        _cleaner?.CurrentWafer == waferId ||
+                        _r3?.HeldWafer == waferId ||
+                        _buffer?.CurrentWafer == waferId;
 
-                    var slot = _waferOriginalSlots[waferId];
-                    var loadPortStation = _stations[originLoadPort];
-                    var (x, y) = loadPortStation.GetWaferPosition(slot);
-                    wafer.X = x;
-                    wafer.Y = y;
+                    // Only update wafer position to LoadPort if it's NOT being held or processed
+                    if (!isBeingHeldOrProcessed)
+                    {
+                        // Return wafer to its origin LoadPort
+                        string originLoadPort = wafer.OriginLoadPort;
+                        wafer.CurrentStation = originLoadPort;
+
+                        var slot = _waferOriginalSlots[waferId];
+                        var loadPortStation = _stations[originLoadPort];
+                        var (x, y) = loadPortStation.GetWaferPosition(slot);
+                        wafer.X = x;
+                        wafer.Y = y;
+                    }
 
                     // Mark completed wafers
                     if (completedWafers.Contains(waferId))
@@ -927,7 +928,6 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
                                 _ = Task.Run(async () =>
                                 {
                                     await wafer.StateMachine?.CompleteCleaningAsync();
-                                    await Task.Delay(10); // Small delay to allow state transition
                                     await wafer.StateMachine?.PlacedInCarrierAsync();
                                 });
                             }
@@ -1522,33 +1522,30 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // E87: NotPresent → WaitingForHost
         newCarrierMachine.SendCarrierDetected();
         await newCarrierContext.ExecuteDeferredSends();
-        await Task.Delay(50);
 
         // E87: WaitingForHost → Mapping
         newCarrierMachine.SendHostProceed();
         await newCarrierContext.ExecuteDeferredSends();
-        await Task.Delay(50);
 
         // E87: Mapping → MappingVerification → ReadyToAccess (auto-transition)
         newCarrierMachine.SendMappingComplete();
         await newCarrierContext.ExecuteDeferredSends();
-        await Task.Delay(600); // Wait for auto-transition through verification
+
+        // CRITICAL: Wait for MappingVerification auto-transition (500ms) to complete before sending START_ACCESS
+        // Otherwise START_ACCESS arrives while still in MappingVerification, causing incorrect state transition
+        await Task.Delay(600);
 
         // E87: ReadyToAccess → InAccess
         newCarrierMachine.SendStartAccess();
         await newCarrierContext.ExecuteDeferredSends();
-        await Task.Delay(50);
 
         // Notify LoadPort
         _loadPort?.SendCarrierArrive(newCarrierId);
         await loadPortContext.ExecuteDeferredSends();
-        await Task.Delay(50);
         _loadPort?.SendDock();
         await loadPortContext.ExecuteDeferredSends();
-        await Task.Delay(50);
         _loadPort?.SendStartProcessing();
         await loadPortContext.ExecuteDeferredSends();
-        await Task.Delay(50);
 
         Log($"✓ Carrier {newCarrierId} is now in access mode (E87: InAccess)");
 
