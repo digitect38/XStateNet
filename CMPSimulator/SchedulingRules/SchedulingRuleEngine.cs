@@ -24,6 +24,9 @@ public class SchedulingRuleEngine
     private readonly Dictionary<string, string> _robotWaitingFor = new();
     private readonly HashSet<string> _robotsWithPendingCommands = new();
 
+    // Performance optimization: Track state signature to skip redundant evaluations
+    private string _lastStateSignature = "";
+
     // Queue management
     private readonly Dictionary<string, List<int>> _queues = new();
 
@@ -316,6 +319,24 @@ public class SchedulingRuleEngine
             _logger("[RuleEngine] ⏸ CheckAndExecuteRules blocked - scheduler is paused");
             return;
         }
+
+        // PERFORMANCE OPTIMIZATION: Skip evaluation if state hasn't changed
+        // Generate state signature from robot/station states and queue counts
+        var currentSignature = $"R1:{_robotStates.GetValueOrDefault("R1")}:{_robotWafers.GetValueOrDefault("R1")}|" +
+                              $"R2:{_robotStates.GetValueOrDefault("R2")}:{_robotWafers.GetValueOrDefault("R2")}|" +
+                              $"R3:{_robotStates.GetValueOrDefault("R3")}:{_robotWafers.GetValueOrDefault("R3")}|" +
+                              $"P:{_stationStates.GetValueOrDefault("polisher")}:{_stationWafers.GetValueOrDefault("polisher")}|" +
+                              $"C:{_stationStates.GetValueOrDefault("cleaner")}:{_stationWafers.GetValueOrDefault("cleaner")}|" +
+                              $"B:{_stationStates.GetValueOrDefault("buffer")}:{_stationWafers.GetValueOrDefault("buffer")}|" +
+                              $"Q:{_queues.GetValueOrDefault("LoadPort.Pending")?.Count ?? 0}";
+
+        if (currentSignature == _lastStateSignature)
+        {
+            // State hasn't changed - skip evaluation to save CPU cycles
+            return;
+        }
+
+        _lastStateSignature = currentSignature;
 
         // Sort rules by priority (lower number = higher priority)
         var sortedRules = _config.Rules
