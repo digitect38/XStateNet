@@ -23,7 +23,7 @@ public class RobotMachine
     private string? _placeTo;
 
     public string RobotName => _robotName;
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public int? HeldWafer => _heldWafer;
 
     // Expose StateChanged event for Pub/Sub

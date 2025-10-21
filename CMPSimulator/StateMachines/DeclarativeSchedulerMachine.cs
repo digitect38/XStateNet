@@ -21,7 +21,7 @@ public class DeclarativeSchedulerMachine
 
     private readonly SchedulingRuleEngine _ruleEngine;
 
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
 
     // Expose StateChanged event for Pub/Sub
     public event EventHandler<StateTransitionEventArgs>? StateChanged

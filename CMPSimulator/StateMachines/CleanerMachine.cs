@@ -22,7 +22,7 @@ public class CleanerMachine
     private DateTime _processingStartTime;
 
     public string StationName => _stationName;
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public int? CurrentWafer => _currentWafer;
     public int RemainingTimeMs
     {

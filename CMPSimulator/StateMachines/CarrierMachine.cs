@@ -21,7 +21,7 @@ public class CarrierMachine
     private StateMachine? _underlyingMachine;
 
     public string CarrierId { get; }
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public List<int> WaferIds { get; private set; }
     public List<int> CompletedWafers { get; private set; }
 

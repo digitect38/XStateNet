@@ -18,7 +18,7 @@ public class BufferMachine
     private StateMachine? _underlyingMachine; // Access to underlying machine for ContextMap
     private int? _currentWafer;
 
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public int? CurrentWafer => _currentWafer;
 
     // Expose StateChanged event for Pub/Sub

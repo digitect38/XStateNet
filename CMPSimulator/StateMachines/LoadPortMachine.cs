@@ -18,7 +18,7 @@ public class LoadPortMachine
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine;
 
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public string? DockedCarrierId { get; private set; }
 
     // Expose StateChanged event for Pub/Sub

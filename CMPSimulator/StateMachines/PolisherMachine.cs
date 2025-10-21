@@ -23,7 +23,7 @@ public class PolisherMachine
     private readonly Dictionary<int, WaferMachine>? _waferMachines;
 
     public string StationName => _stationName;
-    public string CurrentState => _machine.CurrentState;
+    public string CurrentState => _machine?.CurrentState ?? "initializing";
     public int? CurrentWafer => _currentWafer;
     public int RemainingTimeMs
     {
