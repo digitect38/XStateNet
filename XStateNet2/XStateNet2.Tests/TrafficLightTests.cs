@@ -165,8 +165,7 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        // Act
-        await Task.Delay(300);
+        // Act - GetState Ask ensures all initialization is complete
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
@@ -187,12 +186,8 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        //await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("TIMER"));
-        await Task.Delay(300);
-
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
@@ -212,12 +207,8 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("TIMER"));
-        await Task.Delay(300);
-
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert - Should remain in red because guard condition fails
@@ -246,11 +237,9 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("TIMER"));
-        await Task.Delay(300);
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
         Assert.Contains("Exiting red.bright", _exitActions);
@@ -270,12 +259,8 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("PUSH_BUTTON"));
-        await Task.Delay(300);
-
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert - Both parallel regions should be active
@@ -295,12 +280,8 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("TIMER")); // red -> green
-        await Task.Delay(300);
-
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert - Should be in nested green.bright state
@@ -319,13 +300,11 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
+        // Get initial state (ensures initialization is complete)
         var before = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
-        // Act
+        // Act - Tell invalid event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("INVALID_EVENT"));
-        await Task.Delay(300);
-
         var after = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert - State should remain unchanged
@@ -346,11 +325,9 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("NO_TARGET"));
-        await Task.Delay(300);
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
         Assert.Contains("No target action executed", _noTargetActions);
@@ -368,12 +345,8 @@ public class TrafficLightTests : TestKit
             .RegisterBasicActions()
             .BuildAndStart();
 
-        await Task.Delay(200);
-
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("IMPLICIT_TARGET"));
-        await Task.Delay(300);
-
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
