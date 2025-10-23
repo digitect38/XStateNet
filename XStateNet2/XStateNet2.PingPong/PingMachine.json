@@ -1,0 +1,37 @@
+{
+  "id": "ping",
+  "initial": "idle",
+  "context": {
+    "count": 0,
+    "maxCount": 100000
+  },
+  "states": {
+    "idle": {
+      "entry": ["onIdle"],
+      "on": {
+        "START": "pinging"
+      }
+    },
+    "pinging": {
+      "entry": [
+        "incrementCount",
+        "sendPing"
+      ],
+      "on": {
+        "PONG": [
+          {
+            "target": "done",
+            "cond": "isMaxReached"
+          },
+          {
+            "target": "pinging"
+          }
+        ]
+      }
+    },
+    "done": {
+      "entry": ["onDone"],
+      "type": "final"
+    }
+  }
+}

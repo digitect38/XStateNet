@@ -1,0 +1,137 @@
+{
+  "id": "robot",
+  "initial": "idle",
+  "context": {
+    "heldWafer": null,
+    "pickFrom": null,
+    "placeTo": null
+  },
+  "on": {
+    "RESET": {
+      "target": ".idle",
+      "actions": [
+        {
+          "type": "assign",
+          "assignment": {
+            "heldWafer": null,
+            "pickFrom": null,
+            "placeTo": null
+          }
+        },
+        "logReset"
+      ]
+    }
+  },
+  "states": {
+    "idle": {
+      "entry": [
+        "logIdle",
+        {
+          "type": "send",
+          "event": "ROBOT_STATUS",
+          "to": "scheduler",
+          "data": {
+            "robot": "R1",
+            "state": "idle",
+            "wafer": null
+          }
+        }
+      ],
+      "on": {
+        "TRANSFER": {
+          "target": "pickingUp",
+          "actions": [
+            {
+              "type": "assign",
+              "assignment": {
+                "heldWafer": "eventData.heldWafer",
+                "pickFrom": "eventData.pickFrom",
+                "placeTo": "eventData.placeTo"
+              }
+            },
+            "storeTransferInfo",
+            "logTransferCommand"
+          ]
+        }
+      }
+    },
+    "pickingUp": {
+      "entry": ["logPickingUp"],
+      "invoke": {
+        "src": "moveToPickup",
+        "onDone": {
+          "target": "holding",
+          "actions": [
+            "logPickedWafer",
+            {
+              "type": "send",
+              "event": "PICK",
+              "to": "pickFromStation"
+            }
+          ]
+        }
+      }
+    },
+    "holding": {
+      "entry": [
+        "logHolding",
+        {
+          "type": "send",
+          "event": "ROBOT_STATUS",
+          "to": "scheduler",
+          "data": {
+            "robot": "R1",
+            "state": "holding",
+            "wafer": "contextWaferId",
+            "waitingFor": "contextPlaceTo"
+          }
+        }
+      ],
+      "on": {
+        "DESTINATION_READY": "placingDown"
+      }
+    },
+    "placingDown": {
+      "entry": ["logPlacingDown"],
+      "invoke": {
+        "src": "moveToPlace",
+        "onDone": {
+          "target": "returning",
+          "actions": [
+            "logPlacedWafer",
+            {
+              "type": "send",
+              "event": "PLACE",
+              "to": "placeToStation"
+            },
+            {
+              "type": "assign",
+              "assignment": {
+                "heldWafer": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "returning": {
+      "entry": ["logReturning"],
+      "invoke": {
+        "src": "returnToIdle",
+        "onDone": {
+          "target": "idle",
+          "actions": [
+            "logTransferComplete",
+            {
+              "type": "assign",
+              "assignment": {
+                "pickFrom": null,
+                "placeTo": null
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
