@@ -37,9 +37,9 @@ public class BasicStateMachineTests : TestKit
             .WithAction("onRunning", (ctx, _) => runningActionExecuted = true)
             .BuildAndStart();
 
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("START"));
-        await Task.Delay(200);
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
         Assert.True(runningActionExecuted);
@@ -83,9 +83,9 @@ public class BasicStateMachineTests : TestKit
             .WithAction("checkCount", (ctx, _) => count = ctx.Get<int?>("count"))
             .BuildAndStart();
 
-        // Act
+        // Act - Tell event then Ask for state (ensures event is processed)
         machine.Tell(new SendEvent("INCREMENT"));
-        await Task.Delay(200);
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
         Assert.Equal(1, count);
@@ -136,7 +136,8 @@ public class BasicStateMachineTests : TestKit
             .WithContext("priority", 10)
             .BuildAndStart();
 
-        await Task.Delay(200);
+        // Act - Ask for state (ensures always transition is processed)
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert
         Assert.True(highPriorityCalled);
@@ -197,11 +198,14 @@ public class BasicStateMachineTests : TestKit
             .WithAction("onTask2Done", (ctx, _) => task2Done = true)
             .BuildAndStart();
 
-        // Act
-        await Task.Delay(300);
+        // Act - Wait for both after transitions to complete (100ms + 150ms)
+        // Use AwaitAssertAsync for deterministic waiting on action execution
+        await AwaitAssertAsync(() =>
+        {
+            Assert.True(task1Done);
+            Assert.True(task2Done);
+        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
 
-        // Assert
-        Assert.True(task1Done);
-        Assert.True(task2Done);
+        // Assert - verified by AwaitAssertAsync above
     }
 }

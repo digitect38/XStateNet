@@ -45,7 +45,6 @@ public class ConcurrencyTests : TestKit
             })
             .BuildAndStart();
 
-        await Task.Delay(200);
 
         // Act - Send 100 concurrent INCREMENT events
         var tasks = new List<Task>();
@@ -55,7 +54,7 @@ public class ConcurrencyTests : TestKit
         }
 
         await Task.WhenAll(tasks);
-        await Task.Delay(500);
+        // Wait for all events to be processed
 
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
