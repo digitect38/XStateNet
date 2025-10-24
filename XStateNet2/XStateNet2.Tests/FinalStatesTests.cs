@@ -111,7 +111,8 @@ public class FinalStatesTests : TestKit
         Assert.Equal(0, count); // Action should not execute
     }
 
-    [Fact(Skip = "onDone transitions from parallel final states not yet fully implemented")]
+    //[Fact(Skip = "onDone transitions from parallel final states not yet fully implemented")]
+    [Fact]
     public async Task ParentFinalState_AllChildrenMustBeFinal()
     {
         // Arrange
@@ -183,10 +184,8 @@ public class FinalStatesTests : TestKit
         snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
         // Assert - Now should transition to complete
-        // Note: This tests onDone behavior which may not be implemented yet
-        // For now, just verify both regions are in final states
-        Assert.Contains("region1.r1_done", snapshot.CurrentState);
-        Assert.Contains("region2.r2_done", snapshot.CurrentState);
+        Assert.Equal("complete", snapshot.CurrentState);
+        Assert.True(completeEntered);
     }
 
     [Fact]

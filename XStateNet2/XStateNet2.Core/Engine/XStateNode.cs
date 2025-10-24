@@ -43,4 +43,7 @@ public class XStateNode
     [JsonPropertyName("always")]
     [JsonConverter(typeof(AlwaysTransitionConverter))]
     public List<XStateTransition>? Always { get; set; }
+
+    [JsonPropertyName("onDone")]
+    public XStateTransition? OnDone { get; set; }
 }

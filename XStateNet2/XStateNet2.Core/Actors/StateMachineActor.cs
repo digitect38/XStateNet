@@ -1096,13 +1096,17 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         if (stateNode != null)
         {
             // For parallel states, check for an onDone transition
-            // This would be a transition from the parallel state itself
-            // In XState, this is usually specified at the state level
-            // For now, we'll just log completion
-            _log.Info($"[{_script.Id}] Parallel state '{_currentState}' reached completion");
-
-            // Notify subscribers
-            NotifyStateChanged(_currentState, $"{_currentState}.done", null);
+            if (stateNode.OnDone != null)
+            {
+                _log.Info($"[{_script.Id}] Processing onDone transition for parallel state '{_currentState}'");
+                ProcessTransition(stateNode.OnDone, new SendEvent("done", null));
+            }
+            else
+            {
+                _log.Info($"[{_script.Id}] Parallel state '{_currentState}' reached completion (no onDone transition)");
+                // Notify subscribers
+                NotifyStateChanged(_currentState, $"{_currentState}.done", null);
+            }
         }
     }
 
