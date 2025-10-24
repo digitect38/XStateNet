@@ -217,6 +217,13 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
             }
         }
 
+        // If still not found, check root-level global transitions
+        if (!found && _script.On != null && _script.On.TryGetValue(evt.Type, out transitions))
+        {
+            found = true;
+            _log.Debug($"[{_script.Id}] Found global transition for '{evt.Type}' at root level");
+        }
+
         if (found && transitions != null)
         {
             // Try each transition in order until one succeeds
@@ -427,9 +434,18 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     /// - Current: "A.A1", Target: "A2" -> "A.A2" (sibling)
     /// - Current: "A.A1", Target: "B" -> "B" (root state)
     /// - Current: "A.A1.A1a", Target: "A1b" -> "A.A1.A1b" (sibling)
+    /// - Target: ".idle" -> "idle" (relative to root, remove leading dot)
     /// </summary>
     private string ResolveTargetPath(string targetState)
     {
+        // Handle relative paths starting with '.' (e.g., ".idle" means "idle" at root level)
+        if (targetState.StartsWith("."))
+        {
+            var resolvedState = targetState.Substring(1); // Remove leading dot
+            _log.Debug($"[{_script.Id}] Resolving relative path '{targetState}' to '{resolvedState}'");
+            return resolvedState;
+        }
+
         // If target contains '.', it's likely an absolute path or multi-level
         // If it doesn't contain '.', it could be a sibling or root state
 

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using XStateNet2.Core.Converters;
 
 namespace XStateNet2.Core.Engine;
 
@@ -18,6 +19,10 @@ public class XStateMachineScript
 
     [JsonPropertyName("context")]
     public Dictionary<string, object>? Context { get; set; }
+
+    [JsonPropertyName("on")]
+    [JsonConverter(typeof(TransitionDictionaryConverter))]
+    public Dictionary<string, List<XStateTransition>>? On { get; set; }
 
     [JsonPropertyName("states")]
     public Dictionary<string, XStateNode> States { get; set; } = new();

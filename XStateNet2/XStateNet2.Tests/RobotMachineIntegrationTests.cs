@@ -115,7 +115,8 @@ public class RobotMachineIntegrationTests : TestKit
         Assert.True(transferComplete, "Transfer should be complete");
     }
 
-    [Fact(Skip = "Global events during invoke services not yet supported - future enhancement")]
+    //[Fact(Skip = "Global events during invoke services not yet supported - future enhancement")]
+    [Fact]
     public async Task RobotMachine_ResetCommand_ShouldClearContext()
     {
         // Arrange

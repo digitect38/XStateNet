@@ -49,7 +49,6 @@ public class FinalStatesTests : TestKit
         Assert.True(doneEntered);
     }
 
-    //[Fact(Skip = "Final states don't yet block transitions in XStateNet2")]
     [Fact]
     public async Task FinalState_NoFurtherTransitions()
     {
@@ -111,7 +110,6 @@ public class FinalStatesTests : TestKit
         Assert.Equal(0, count); // Action should not execute
     }
 
-    //[Fact(Skip = "onDone transitions from parallel final states not yet fully implemented")]
     [Fact]
     public async Task ParentFinalState_AllChildrenMustBeFinal()
     {
