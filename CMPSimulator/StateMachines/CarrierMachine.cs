@@ -3,6 +3,7 @@ using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -16,7 +17,6 @@ public class CarrierMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
-    private readonly Action<string> _logger;
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine;
 
@@ -39,7 +39,7 @@ public class CarrierMachine
         remove => _monitor.StateTransitioned -= value;
     }
 
-    public CarrierMachine(string carrierId, List<int> waferIds, EventBusOrchestrator orchestrator, Action<string> logger)
+    public CarrierMachine(string carrierId, List<int> waferIds, EventBusOrchestrator orchestrator)
     {
         CarrierId = carrierId;
         WaferIds = waferIds;
@@ -47,7 +47,6 @@ public class CarrierMachine
         SlotMap = new ConcurrentDictionary<int, SlotState>();
         SubstrateCount = waferIds.Count;
         ArrivedTime = DateTime.Now;
-        _logger = logger;
         _orchestrator = orchestrator;
 
         // Initialize slot map - all slots have wafers present
@@ -178,17 +177,17 @@ public class CarrierMachine
         {
             ["logNotPresent"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 📦 Not present");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 📦 Not present");
             },
 
             ["onCarrierDetected"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🔍 Carrier detected at LoadPort");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🔍 Carrier detected at LoadPort");
             },
 
             ["logWaitingForHost"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ⏳ Waiting for host authorization ({WaferIds.Count} wafers)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ⏳ Waiting for host authorization ({WaferIds.Count} wafers)");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -200,17 +199,17 @@ public class CarrierMachine
 
             ["onHostProceed"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ✅ Host authorized - proceeding to mapping");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ Host authorized - proceeding to mapping");
             },
 
             ["onHostCancel"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ❌ Host cancelled carrier processing");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ❌ Host cancelled carrier processing");
             },
 
             ["startMapping"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🗺️  Starting slot mapping ({SlotMap.Count} slots)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🗺️  Starting slot mapping ({SlotMap.Count} slots)");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -222,32 +221,32 @@ public class CarrierMachine
             ["onMappingComplete"] = (ctx) =>
             {
                 MappingCompleteTime = DateTime.Now;
-                _logger($"[Carrier {CarrierId}] ✅ Slot mapping complete - {SubstrateCount} substrates detected");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ Slot mapping complete - {SubstrateCount} substrates detected");
             },
 
             ["onMappingError"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ❌ Mapping error - retrying");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ❌ Mapping error - retrying");
             },
 
             ["logMappingVerification"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🔍 Verifying slot map...");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🔍 Verifying slot map...");
             },
 
             ["onVerifyOk"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ✅ Slot map verified");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ Slot map verified");
             },
 
             ["onVerifyFail"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ❌ Verification failed - remapping");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ❌ Verification failed - remapping");
             },
 
             ["logReadyToAccess"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ✅ Ready to access ({SubstrateCount} wafers available)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ Ready to access ({SubstrateCount} wafers available)");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -259,12 +258,12 @@ public class CarrierMachine
 
             ["onStartAccess"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🔧 Starting wafer access");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🔧 Starting wafer access");
             },
 
             ["logInAccess"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🔧 Accessing wafers ({WaferIds.Count} total)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🔧 Accessing wafers ({WaferIds.Count} total)");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -284,7 +283,7 @@ public class CarrierMachine
                     if (waferId > 0 && !CompletedWafers.Contains(waferId))
                     {
                         CompletedWafers.Add(waferId);
-                        _logger($"[Carrier {CarrierId}] ✓ Wafer {waferId} completed ({CompletedWafers.Count}/{WaferIds.Count})");
+                        LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✓ Wafer {waferId} completed ({CompletedWafers.Count}/{WaferIds.Count})");
 
                         // Send status update
                         ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
@@ -300,17 +299,17 @@ public class CarrierMachine
 
             ["onAccessComplete"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ✅ All wafers accessed - {CompletedWafers.Count}/{WaferIds.Count} completed");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ All wafers accessed - {CompletedWafers.Count}/{WaferIds.Count} completed");
             },
 
             ["onAccessError"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ❌ Access error - pausing");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ❌ Access error - pausing");
             },
 
             ["logAccessPaused"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ⏸️  Access paused (error recovery mode)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ⏸️  Access paused (error recovery mode)");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -321,17 +320,17 @@ public class CarrierMachine
 
             ["onResumeAccess"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ▶️  Resuming access");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ▶️  Resuming access");
             },
 
             ["onAbortAccess"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ⛔ Access aborted");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ⛔ Access aborted");
             },
 
             ["logComplete"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] ✅ Processing complete - ready to unload");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] ✅ Processing complete - ready to unload");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {
@@ -345,12 +344,12 @@ public class CarrierMachine
             {
                 DepartedTime = DateTime.Now;
                 var duration = (DepartedTime.Value - ArrivedTime).TotalSeconds;
-                _logger($"[Carrier {CarrierId}] 📤 Carrier removed (Total time: {duration:F1}s)");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 📤 Carrier removed (Total time: {duration:F1}s)");
             },
 
             ["logCarrierOut"] = (ctx) =>
             {
-                _logger($"[Carrier {CarrierId}] 🚪 Carrier departed from system");
+                LoggerHelper.Logger.Instance.Log($"[Carrier {CarrierId}] 🚪 Carrier departed from system");
 
                 ctx.RequestSend("scheduler", "CARRIER_STATUS", new JObject
                 {

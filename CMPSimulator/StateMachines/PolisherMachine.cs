@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -48,7 +49,6 @@ public class PolisherMachine
         string stationName,
         EventBusOrchestrator orchestrator,
         int processingTimeMs,
-        Action<string> logger,
         Dictionary<int, WaferMachine>? waferMachines = null)
     {
         _stationName = stationName;
@@ -139,7 +139,7 @@ public class PolisherMachine
         {
             ["reportEmpty"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: empty");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: empty");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -160,7 +160,7 @@ public class PolisherMachine
                     }
                 }
 
-                logger($"[{_stationName}] Wafer {_currentWafer} placed");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Wafer {_currentWafer} placed");
 
                 // NOTE: WaferMachine transitions are handled by UpdateWaferPositions when wafer is picked by R1
                 // SELECT_FOR_PROCESS is already sent when R1 holds the wafer (InCarrier → NeedsProcessing)
@@ -170,7 +170,7 @@ public class PolisherMachine
             ["reportProcessing"] = (ctx) =>
             {
                 _processingStartTime = DateTime.Now;
-                logger($"[{_stationName}] State: processing (wafer {_currentWafer})");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: processing (wafer {_currentWafer})");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -184,17 +184,17 @@ public class PolisherMachine
                 // Extract the sub-state name from the current state
                 var currentState = _machine.CurrentState;
                 var subState = currentState.Contains(".") ? currentState.Substring(currentState.LastIndexOf('.') + 1) : currentState;
-                logger($"[{_stationName}] Sub-state: {subState} (wafer {_currentWafer})");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Sub-state: {subState} (wafer {_currentWafer})");
             },
 
             ["onDone"] = (ctx) =>
             {
-                logger($"[{_stationName}] Processing complete for wafer {_currentWafer}");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Processing complete for wafer {_currentWafer}");
             },
 
             ["reportDone"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: done (wafer {_currentWafer} ready for pickup)");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: done (wafer {_currentWafer} ready for pickup)");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -206,13 +206,13 @@ public class PolisherMachine
             ["onPick"] = (ctx) =>
             {
                 int pickedWafer = _currentWafer ?? 0;
-                logger($"[{_stationName}] Wafer {pickedWafer} picked");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Wafer {pickedWafer} picked");
                 _currentWafer = null;
             },
 
             ["reportIdle"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: idle");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: idle");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -242,7 +242,7 @@ public class PolisherMachine
                     // 3. ReadyToProcess → InProcess.Polishing.Loading
                     await _orchestrator.SendEventAsync("SYSTEM", waferMachine.MachineId, "START_PROCESS", null);
 
-                    logger($"[{_stationName}] Wafer {_currentWafer} transitioned to {waferMachine.GetCurrentState()}");
+                    LoggerHelper.Logger.Instance.Log($"[{_stationName}] Wafer {_currentWafer} transitioned to {waferMachine.GetCurrentState()}");
                 }
 
                 int timePerStep = _processingTimeMs / 5;

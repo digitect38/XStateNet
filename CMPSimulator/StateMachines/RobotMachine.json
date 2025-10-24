@@ -1,0 +1,111 @@
+{
+  "id": "robot",
+  "initial": "idle",
+  "context": {
+    "heldWafer": null,
+    "pickFrom": null,
+    "placeTo": null
+  },
+  "on": {
+    "RESET": {
+      "target": ".idle",
+      "actions": [
+        {
+          "type": "assign",
+          "assignment": {
+            "heldWafer": null,
+            "pickFrom": null,
+            "placeTo": null
+          }
+        },
+        "onReset"
+      ]
+    }
+  },
+  "states": {
+    "idle": {
+      "entry": [
+        "onIdle",
+        {
+          "type": "send",
+          "event": "ROBOT_STATUS",
+          "to": "scheduler",
+          "data": {
+            "robot": "R1",
+            "state": "idle",
+            "wafer": null
+          }
+        }
+      ],
+      "on": {
+        "TRANSFER": {
+          "target": "pickingUp",
+          "actions": [
+            "storeTransferInfo",
+            "onTransferCommand"
+          ]
+        }
+      }
+    },
+    "pickingUp": {
+      "entry": ["onPickingUp"],
+      "invoke": {
+        "src": "moveToPickup",
+        "onDone": {
+          "target": "holding",
+          "actions": ["onPickedWafer"]
+        }
+      }
+    },
+    "holding": {
+      "entry": [
+        "onHolding",
+        {
+          "type": "send",
+          "event": "ROBOT_STATUS",
+          "to": "scheduler"
+        }
+      ],
+      "on": {
+        "DESTINATION_READY": "placingDown"
+      }
+    },
+    "placingDown": {
+      "entry": ["onPlacingDown"],
+      "invoke": {
+        "src": "moveToPlace",
+        "onDone": {
+          "target": "returning",
+          "actions": [
+            "onPlacedWafer",
+            {
+              "type": "assign",
+              "assignment": {
+                "heldWafer": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "returning": {
+      "entry": ["onReturning"],
+      "invoke": {
+        "src": "returnToIdle",
+        "onDone": {
+          "target": "idle",
+          "actions": [
+            "onTransferComplete",
+            {
+              "type": "assign",
+              "assignment": {
+                "pickFrom": null,
+                "placeTo": null
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

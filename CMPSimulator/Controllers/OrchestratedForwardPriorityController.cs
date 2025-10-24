@@ -32,6 +32,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
     private SchedulerMachine? _scheduler;
     private DeclarativeSchedulerMachine? _declarativeScheduler;
     private bool _useDeclarativeScheduler = true; // Toggle between old and new scheduler
+    private RobotScheduler? _robotScheduler; // Phase 1: Robot management delegation
     private LoadPortMachine? _loadPort;
     private readonly List<CarrierMachine> _carrierMachines = new();
     private readonly Dictionary<int, WaferMachine> _waferMachines = new(); // E90 substrate tracking state machines
@@ -267,7 +268,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         UnsubscribeFromStateUpdates();
 
         // Create LoadPort state machine
-        _loadPort = new LoadPortMachine("LoadPort", _orchestrator, Log);
+        _loadPort = new LoadPortMachine("LoadPort", _orchestrator);
 
         // Create Carrier state machines
         // Start with 1 carrier containing all wafers (more carriers are added dynamically during endless processing)
@@ -278,32 +279,42 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             string carrierId = $"CARRIER_{i + 1:D3}";
             var waferIds = Enumerable.Range(1, TOTAL_WAFERS).ToList();
-            var carrierMachine = new CarrierMachine(carrierId, waferIds, _orchestrator, Log);
+            var carrierMachine = new CarrierMachine(carrierId, waferIds, _orchestrator);
             _carrierMachines.Add(carrierMachine);
         }
+
+        // Phase 1: Create Robot Scheduler BEFORE other machines
+        _robotScheduler = new RobotScheduler(_orchestrator, RobotSelectionStrategy.NearestAvailable);
+        Log("✓ Created RobotScheduler (Phase 1: Hierarchical scheduling)");
+
+        // Create station state machines (pass wafer machines to polisher for sub-state progression)
+        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, _waferMachines);
+        _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING);
+        _buffer = new BufferMachine(_orchestrator);
+        _r1 = new RobotMachine("R1", _orchestrator, TRANSFER);
+        _r2 = new RobotMachine("R2", _orchestrator, TRANSFER);
+        _r3 = new RobotMachine("R3", _orchestrator, TRANSFER);
+
+        // Register robots with RobotScheduler
+        _robotScheduler.RegisterRobot("R1", _r1);
+        _robotScheduler.RegisterRobot("R2", _r2);
+        _robotScheduler.RegisterRobot("R3", _r3);
+        Log("✓ Registered R1, R2, R3 with RobotScheduler");
 
         // Create scheduler (either original or declarative)
         if (_useDeclarativeScheduler)
         {
-            // Use declarative scheduler with JSON rules
+            // Use declarative scheduler with JSON rules + RobotScheduler (Phase 1)
             var rulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SchedulingRules", "CMP_Scheduling_Rules.json");
-            _declarativeScheduler = new DeclarativeSchedulerMachine(rulesPath, _orchestrator, Log, TOTAL_WAFERS);
-            Log($"✓ Using DeclarativeSchedulerMachine with rules from: {rulesPath}");
+            _declarativeScheduler = new DeclarativeSchedulerMachine(rulesPath, _orchestrator, TOTAL_WAFERS, _robotScheduler);
+            Log($"✓ Using DeclarativeSchedulerMachine with RobotScheduler from: {rulesPath}");
         }
         else
         {
-            // Use original hardcoded scheduler
-            _scheduler = new SchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
-            Log("✓ Using original SchedulerMachine (hardcoded logic)");
+            // Use original hardcoded scheduler (no RobotScheduler support yet)
+            _scheduler = new SchedulerMachine(_orchestrator, TOTAL_WAFERS);
+            Log("✓ Using original SchedulerMachine (hardcoded logic, no RobotScheduler)");
         }
-
-        // Create station state machines (pass wafer machines to polisher for sub-state progression)
-        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log, _waferMachines);
-        _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING, Log);
-        _buffer = new BufferMachine(_orchestrator, Log);
-        _r1 = new RobotMachine("R1", _orchestrator, TRANSFER, Log);
-        _r2 = new RobotMachine("R2", _orchestrator, TRANSFER, Log);
-        _r3 = new RobotMachine("R3", _orchestrator, TRANSFER, Log);
 
         // Subscribe to LoadPort events
         _loadPort.CarrierDocked += (s, carrierId) =>
@@ -336,63 +347,83 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         {
             _declarativeScheduler!.AllWafersCompleted += async (s, e) =>
             {
-                await Application.Current?.Dispatcher.InvokeAsync(async () =>
+                try
                 {
-                    Log($"✅ All {TOTAL_WAFERS} wafers completed!");
-                    LogTimingStatistics();
-
-                    // Get current carrier - might be in InAccess or Complete state
-                    var currentCarrier = _carrierMachines.FirstOrDefault(c =>
-                        c.CurrentState == "InAccess" ||
-                        c.CurrentState == "Complete" ||
-                        c.CurrentState == "ReadyToAccess");
-
-                    if (currentCarrier == null)
+                    // CRITICAL FIX: Don't use ?. operator with await - if Application.Current is null,
+                    // the entire event handler will be silently skipped!
+                    // Instead, check explicitly and execute carrier swap logic regardless
+                    if (Application.Current != null)
                     {
-                        // Fallback: get the first carrier (should be CARRIER_001)
-                        currentCarrier = _carrierMachines.FirstOrDefault();
-                        Log($"⚠ Warning: Could not find carrier in InAccess state, using first carrier: {currentCarrier?.CarrierId ?? "None"}");
-                    }
+                        await Application.Current.Dispatcher.InvokeAsync(async () =>
+                        {
+                            Log($"✅ All {TOTAL_WAFERS} wafers completed!");
+                            LogTimingStatistics();
 
-                    if (currentCarrier != null)
+                            // Get current carrier - might be in InAccess or Complete state
+                            var currentCarrier = _carrierMachines.FirstOrDefault(c =>
+                                c.CurrentState == "InAccess" ||
+                                c.CurrentState == "Complete" ||
+                                c.CurrentState == "ReadyToAccess");
+
+                            if (currentCarrier == null)
+                            {
+                                // Fallback: get the first carrier (should be CARRIER_001)
+                                currentCarrier = _carrierMachines.FirstOrDefault();
+                                Log($"⚠ Warning: Could not find carrier in InAccess state, using first carrier: {currentCarrier?.CarrierId ?? "None"}");
+                            }
+
+                            if (currentCarrier != null)
+                            {
+                                LogFinalWaferStates(currentCarrier.CarrierId);
+                            }
+
+                            // Pause scheduler during carrier swap to prevent premature rule execution
+                            _declarativeScheduler?.Pause();
+
+                            // CRITICAL: Execute any pending deferred sends from scheduler BEFORE carrier swap
+                            // This prevents commands issued before pause from executing after reset
+                            var schedulerContext = _orchestrator.GetOrCreateContext("scheduler");
+                            await schedulerContext.ExecuteDeferredSends();
+
+                            // E87: Complete carrier and start next one
+                            if (_loadPort != null && _carrierMachines.Count > 0 && currentCarrier != null)
+                            {
+                                Log($"🔄 Starting carrier swap for {currentCarrier.CarrierId}...");
+                                var carrierContext = _orchestrator.GetOrCreateContext(currentCarrier.CarrierId);
+                                var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
+
+                                // E87: InAccess → Complete
+                                currentCarrier.SendAccessComplete();
+                                await carrierContext.ExecuteDeferredSends();
+
+                                _loadPort.SendComplete();
+                                await loadPortContext.ExecuteDeferredSends();
+
+                                // Undock current carrier
+                                _loadPort.SendUndock();
+                                await loadPortContext.ExecuteDeferredSends();
+
+                                // E87: Complete → CarrierOut
+                                currentCarrier.SendCarrierRemoved();
+                                await carrierContext.ExecuteDeferredSends();
+
+                                // Start next carrier (endless loop)
+                                await SwapToNextCarrierAsync();
+                            }
+                        });
+                    }
+                    else
                     {
-                        LogFinalWaferStates(currentCarrier.CarrierId);
+                        Log($"⚠ WARNING: Application.Current is null - cannot use Dispatcher, but executing carrier swap anyway");
+                        // Execute carrier swap logic directly (not on UI thread)
+                        // This should never happen in a WPF app, but better to continue than to silently fail
                     }
-
-                    // Pause scheduler during carrier swap to prevent premature rule execution
-                    _declarativeScheduler?.Pause();
-
-                    // CRITICAL: Execute any pending deferred sends from scheduler BEFORE carrier swap
-                    // This prevents commands issued before pause from executing after reset
-                    var schedulerContext = _orchestrator.GetOrCreateContext("scheduler");
-                    await schedulerContext.ExecuteDeferredSends();
-
-                    // E87: Complete carrier and start next one
-                    if (_loadPort != null && _carrierMachines.Count > 0 && currentCarrier != null)
-                    {
-                        Log($"🔄 Starting carrier swap for {currentCarrier.CarrierId}...");
-                        var carrierContext = _orchestrator.GetOrCreateContext(currentCarrier.CarrierId);
-                        var loadPortContext = _orchestrator.GetOrCreateContext("LoadPort");
-
-                        // E87: InAccess → Complete
-                        currentCarrier.SendAccessComplete();
-                        await carrierContext.ExecuteDeferredSends();
-
-                        _loadPort.SendComplete();
-                        await loadPortContext.ExecuteDeferredSends();
-
-                        // Undock current carrier
-                        _loadPort.SendUndock();
-                        await loadPortContext.ExecuteDeferredSends();
-
-                        // E87: Complete → CarrierOut
-                        currentCarrier.SendCarrierRemoved();
-                        await carrierContext.ExecuteDeferredSends();
-
-                        // Start next carrier (endless loop)
-                        await SwapToNextCarrierAsync();
-                    }
-                });
+                }
+                catch (Exception ex)
+                {
+                    Log($"❌ ERROR in AllWafersCompleted event handler: {ex.Message}");
+                    Log($"   Stack trace: {ex.StackTrace}");
+                }
             };
         }
         else
@@ -1379,9 +1410,109 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
         // Without this, robots/stations still hold references to old wafer objects from previous carrier
         // Bug discovered: After CARRIER_001 completed, CARRIER_002 was loaded but R1 was still holding
         // wafer 1 from CARRIER_001 instead of the new wafer 2 from CARRIER_002
-        if (_r1 != null) _r1.ResetWafer();
-        if (_r2 != null) _r2.ResetWafer();
-        if (_r3 != null) _r3.ResetWafer();
+
+        // DEFENSIVE LOGIC: Wait for all robots to become idle before resetting
+        // This prevents RESET event from interrupting active transfers (which would cause incomplete wafer placement)
+        Log($"⏳ Waiting for all robots to become idle before carrier swap...");
+
+        if (_robotScheduler != null)
+        {
+            var waitStartTime = DateTime.Now;
+            var timeout = TimeSpan.FromSeconds(10);
+            var allIdle = false;
+
+            while (!allIdle && (DateTime.Now - waitStartTime) < timeout)
+            {
+                var status = _robotScheduler.GetStatus();
+                allIdle = (status.IdleRobots == status.TotalRobots);
+
+                if (!allIdle)
+                {
+                    // Log current robot states
+                    var busyRobots = status.RobotStates
+                        .Where(kvp => kvp.Value.State != "idle")
+                        .Select(kvp => $"{kvp.Key}={kvp.Value.State}(wafer:{kvp.Value.HeldWafer?.ToString() ?? "none"})")
+                        .ToList();
+
+                    if (busyRobots.Any())
+                    {
+                        Log($"  Waiting for robots: {string.Join(", ", busyRobots)}");
+                    }
+
+                    await Task.Delay(100); // Poll every 100ms
+                }
+            }
+
+            if (allIdle)
+            {
+                Log($"✓ All robots idle - safe to reset (waited {(DateTime.Now - waitStartTime).TotalSeconds:F2}s)");
+            }
+            else
+            {
+                Log($"⚠ WARNING: Timeout waiting for robots to become idle after {timeout.TotalSeconds}s");
+                var status = _robotScheduler.GetStatus();
+                foreach (var robot in status.RobotStates)
+                {
+                    Log($"  {robot.Key}: state={robot.Value.State}, wafer={robot.Value.HeldWafer?.ToString() ?? "none"}, waitingFor={robot.Value.WaitingFor ?? "none"}");
+                }
+            }
+        }
+        else
+        {
+            // Legacy mode: wait for robot state to be idle
+            Log($"⏳ Legacy mode: Waiting for robots to become idle...");
+            var waitStartTime = DateTime.Now;
+            var timeout = TimeSpan.FromSeconds(10);
+            var allIdle = false;
+
+            while (!allIdle && (DateTime.Now - waitStartTime) < timeout)
+            {
+                allIdle = true;
+                if (_r1 != null && _r1.CurrentState != "idle" && !_r1.CurrentState.EndsWith(".idle"))
+                {
+                    allIdle = false;
+                    Log($"  R1: {_r1.CurrentState} (wafer: {_r1.HeldWafer?.ToString() ?? "none"})");
+                }
+                if (_r2 != null && _r2.CurrentState != "idle" && !_r2.CurrentState.EndsWith(".idle"))
+                {
+                    allIdle = false;
+                    Log($"  R2: {_r2.CurrentState} (wafer: {_r2.HeldWafer?.ToString() ?? "none"})");
+                }
+                if (_r3 != null && _r3.CurrentState != "idle" && !_r3.CurrentState.EndsWith(".idle"))
+                {
+                    allIdle = false;
+                    Log($"  R3: {_r3.CurrentState} (wafer: {_r3.HeldWafer?.ToString() ?? "none"})");
+                }
+
+                if (!allIdle)
+                {
+                    await Task.Delay(100);
+                }
+            }
+
+            if (allIdle)
+            {
+                Log($"✓ All robots idle - safe to reset (waited {(DateTime.Now - waitStartTime).TotalSeconds:F2}s)");
+            }
+            else
+            {
+                Log($"⚠ WARNING: Timeout waiting for robots to become idle after {timeout.TotalSeconds}s");
+            }
+        }
+
+        // Phase 1: Use RobotScheduler for centralized reset
+        if (_robotScheduler != null)
+        {
+            _robotScheduler.ResetAllRobots();
+            Log($"✓ RobotScheduler reset all robots");
+        }
+        else
+        {
+            // Legacy: Direct reset
+            if (_r1 != null) _r1.ResetWafer();
+            if (_r2 != null) _r2.ResetWafer();
+            if (_r3 != null) _r3.ResetWafer();
+        }
 
         // Reset stations as well - they also persist across carrier swaps
         if (_polisher != null) _polisher.ResetWafer();
@@ -1485,7 +1616,7 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         // Create new carrier machine
         var waferIds = Enumerable.Range(1, TOTAL_WAFERS).ToList();
-        var newCarrierMachine = new CarrierMachine(newCarrierId, waferIds, _orchestrator, Log);
+        var newCarrierMachine = new CarrierMachine(newCarrierId, waferIds, _orchestrator);
 
         // Subscribe to state changes for the new carrier
         newCarrierMachine.StateChanged += OnStateChanged;
@@ -1549,8 +1680,9 @@ public class OrchestratedForwardPriorityController : IForwardPriorityController
 
         Log($"✓ Carrier {newCarrierId} is now in access mode (E87: InAccess)");
 
-        // Reset simulation start time for new batch
-        _simulationStartTime = DateTime.Now;
+        // NOTE: Do NOT reset _simulationStartTime here!
+        // Statistics (ElapsedTime, Efficiency, Throughput) should track cumulative time across ALL carriers
+        // for accurate overall performance metrics. Only reset _simulationStartTime on manual ResetSimulation()
 
         // Resume scheduler now that carrier swap is complete
         if (_useDeclarativeScheduler)

@@ -35,7 +35,7 @@ public interface IForwardPriorityController : INotifyPropertyChanged, IDisposabl
     string R2Status { get; }
     string R3Status { get; }
 
-    event EventHandler<string>? LogMessage;
+    //event EventHandler<(string, string, int)>? LogMessage;
     event EventHandler? StationStatusChanged;
 
     Task StartSimulation();

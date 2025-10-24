@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -28,7 +29,7 @@ public class BufferMachine
         remove => _monitor.StateTransitioned -= value;
     }
 
-    public BufferMachine(EventBusOrchestrator orchestrator, Action<string> logger)
+    public BufferMachine(EventBusOrchestrator orchestrator)
     {
         _orchestrator = orchestrator;
 
@@ -63,7 +64,7 @@ public class BufferMachine
         {
             ["reportEmpty"] = (ctx) =>
             {
-                logger("[Buffer] Empty");
+                LoggerHelper.Logger.Instance.Log("[Buffer] Empty");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = "buffer",
@@ -84,25 +85,25 @@ public class BufferMachine
                     }
                 }
 
-                logger($"[Buffer] Wafer {_currentWafer} placed");
+                LoggerHelper.Logger.Instance.Log($"[Buffer] Wafer {_currentWafer} placed");
             },
 
             ["reportOccupied"] = (ctx) =>
             {
-                logger($"[Buffer] → reportOccupied: Sending STATION_STATUS (wafer {_currentWafer})");
+                LoggerHelper.Logger.Instance.Log($"[Buffer] → reportOccupied: Sending STATION_STATUS (wafer {_currentWafer})");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = "buffer",
                     ["state"] = "occupied",
                     ["wafer"] = _currentWafer
                 });
-                logger($"[Buffer] → reportOccupied: STATION_STATUS queued in deferred sends");
+                LoggerHelper.Logger.Instance.Log($"[Buffer] → reportOccupied: STATION_STATUS queued in deferred sends");
             },
 
             ["onPick"] = (ctx) =>
             {
                 int pickedWafer = _currentWafer ?? 0;
-                logger($"[Buffer] Wafer {pickedWafer} picked");
+                LoggerHelper.Logger.Instance.Log($"[Buffer] Wafer {pickedWafer} picked");
                 _currentWafer = null;
             }
         };

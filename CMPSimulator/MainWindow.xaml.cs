@@ -1,13 +1,13 @@
+using CMPSimulator.Controllers;
+using CMPSimulator.Controls;
+using CMPSimulator.Helpers;
+using CMPSimulator.Models;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Controls;
-using CMPSimulator.Controllers;
-using CMPSimulator.Models;
-using CMPSimulator.Controls;
-using CMPSimulator.Helpers;
 
 namespace CMPSimulator;
 
@@ -56,7 +56,7 @@ public partial class MainWindow : Window
         DataContext = _controller;
 
         // Subscribe to events
-        _controller.LogMessage += Controller_LogMessage;
+        //_controller.LogMessage += Controller_LogMessage;
         _controller.StationStatusChanged += Controller_StationStatusChanged;
 
         // Subscribe to simulation completion event (only for orchestrated controller)
@@ -1255,6 +1255,7 @@ public partial class MainWindow : Window
             ThroughputText.Text = "0.00 wafers/s";
             TheoreticalMinText.Text = orchestratedController.TheoreticalMinTime;
             EfficiencyText.Text = "0.0%";
+            EfficiencyProgressBar.Value = 0.0;
         }
 
         // Update station status displays
@@ -1276,6 +1277,13 @@ public partial class MainWindow : Window
             ThroughputText.Text = orchestratedController.Throughput;
             TheoreticalMinText.Text = orchestratedController.TheoreticalMinTime;
             EfficiencyText.Text = orchestratedController.Efficiency;
+
+            // Update efficiency progress bar (parse percentage from string like "85.3%")
+            string efficiencyStr = orchestratedController.Efficiency;
+            if (efficiencyStr.EndsWith("%") && double.TryParse(efficiencyStr.TrimEnd('%'), out double efficiencyValue))
+            {
+                EfficiencyProgressBar.Value = Math.Min(efficiencyValue, 100.0); // Cap at 100%
+            }
 
             // Stop timer when all wafers are completed
             if (orchestratedController.CompletedWafers >= orchestratedController.TOTAL_WAFERS)
@@ -1308,28 +1316,10 @@ public partial class MainWindow : Window
         });
     }
 
-    // Static file logger (shared with SchedulingRuleEngine)
-    private static readonly string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "recent processing history.log");
-    private static readonly object _logFileLock = new object();
-
     private void Log(string message)
     {
-        // Calculate elapsed time since simulation start
-        var elapsed = DateTime.Now - _simulationStartTime;
-        string timestamp = $"[{elapsed.TotalSeconds:000.000}] ";
-
-        // Write to log file (same file used by SchedulingRuleEngine)
-        try
-        {
-            lock (_logFileLock)
-            {
-                File.AppendAllText(_logFilePath, timestamp + message + Environment.NewLine);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MainWindow.Log] Failed to write to log file: {ex.Message}");
-        }
+        // Use singleton logger for centralized timeline management
+        Logger.Instance.Log(message);
 
         // NOTE: Carrier creation detection REMOVED - carriers are now added dynamically via UpdateStateTree()
         // based on CarrierManager state, not log messages. This prevents old carriers from being re-added

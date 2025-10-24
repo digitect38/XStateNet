@@ -31,7 +31,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
 
         // Act
         var initialState = await scheduler.StartAsync();
@@ -51,7 +51,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Simulate buffer has completed wafer
@@ -87,7 +87,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Simulate polisher done
@@ -127,7 +127,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Simulate cleaner done
@@ -159,7 +159,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Simulate R1 is idle (wafers are already in queue from initialization)
@@ -183,7 +183,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Setup: All robots idle, stations in different states
@@ -241,7 +241,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // Setup: Buffer occupied (should be highest priority for R1)
@@ -273,7 +273,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         // R2 is holding wafer, waiting for cleaner
@@ -307,7 +307,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         bool completionEventTriggered = false;
 
         scheduler.AllWafersCompleted += (s, e) =>
@@ -347,7 +347,7 @@ public class ParallelSchedulerTests
     {
         // Arrange
         var orchestrator = new EventBusOrchestrator(new OrchestratorConfig { EnableLogging = false });
-        var scheduler = new ParallelSchedulerMachine(orchestrator, Log);
+        var scheduler = new ParallelSchedulerMachine(orchestrator);
         await scheduler.StartAsync();
 
         _logs.Clear();

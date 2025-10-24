@@ -3,6 +3,8 @@ using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
 using CMPSimulator.SchedulingRules;
+using CMPSimulator.Controllers;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -15,7 +17,6 @@ public class DeclarativeSchedulerMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
-    private readonly Action<string> _logger;
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine;
 
@@ -36,14 +37,13 @@ public class DeclarativeSchedulerMachine
     public DeclarativeSchedulerMachine(
         string rulesFilePath,
         EventBusOrchestrator orchestrator,
-        Action<string> logger,
-        int totalWafers = 10)
+        int totalWafers = 10,
+        RobotScheduler? robotScheduler = null)
     {
-        _logger = logger;
         _orchestrator = orchestrator;
 
-        // Load scheduling rules from JSON file
-        _ruleEngine = SchedulingRuleEngine.LoadFromFile(rulesFilePath, orchestrator, logger, totalWafers);
+        // Load scheduling rules from JSON file with RobotScheduler (Phase 1)
+        _ruleEngine = SchedulingRuleEngine.LoadFromFile(rulesFilePath, orchestrator, totalWafers, robotScheduler);
 
         // Subscribe to rule engine events
         _ruleEngine.AllWafersCompleted += (s, e) =>
@@ -84,8 +84,8 @@ public class DeclarativeSchedulerMachine
         {
             ["reportRunning"] = (ctx) =>
             {
-                _logger("[DeclarativeScheduler] Running (Event-driven mode with declarative rules)");
-                _logger("[DeclarativeScheduler] Scheduling logic loaded from JSON configuration");
+                LoggerHelper.Logger.Instance.Log("[DeclarativeScheduler] Running (Event-driven mode with declarative rules)");
+                LoggerHelper.Logger.Instance.Log("[DeclarativeScheduler] Scheduling logic loaded from JSON configuration");
             },
 
             ["onStationStatus"] = (ctx) =>
@@ -135,7 +135,7 @@ public class DeclarativeSchedulerMachine
 
                 if (carrierId != null && state != null)
                 {
-                    _logger($"[DeclarativeScheduler] 📦 CARRIER_STATUS: {carrierId} = {state}");
+                    LoggerHelper.Logger.Instance.Log($"[DeclarativeScheduler] 📦 CARRIER_STATUS: {carrierId} = {state}");
                 }
             },
 
@@ -151,7 +151,7 @@ public class DeclarativeSchedulerMachine
 
                 if (station != null && state != null)
                 {
-                    _logger($"[DeclarativeScheduler] 🚪 LOADPORT_STATUS: {station} = {state}");
+                    LoggerHelper.Logger.Instance.Log($"[DeclarativeScheduler] 🚪 LOADPORT_STATUS: {station} = {state}");
                 }
             },
 
@@ -165,7 +165,7 @@ public class DeclarativeSchedulerMachine
                 var waferId = data["waferId"]?.ToObject<int>() ?? 0;
                 if (waferId > 0)
                 {
-                    _logger($"[DeclarativeScheduler] ✅ Wafer {waferId} completed - notifying carrier");
+                    LoggerHelper.Logger.Instance.Log($"[DeclarativeScheduler] ✅ Wafer {waferId} completed - notifying carrier");
 
                     // Forward to all active carriers (they'll filter based on their wafer list)
                     // In E87, carriers track their own wafer completion

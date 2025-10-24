@@ -225,6 +225,7 @@
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
 
                                             <!-- Elapsed Time -->
@@ -247,8 +248,14 @@
                                             <TextBlock x:Name="TheoreticalMinText" Grid.Row="4" Grid.Column="1" Text="0.0s" FontFamily="Consolas" Margin="0,0,0,5"/>
 
                                             <!-- Efficiency -->
-                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Efficiency:" FontWeight="SemiBold" Margin="0,0,0,0"/>
-                                            <TextBlock x:Name="EfficiencyText" Grid.Row="5" Grid.Column="1" Text="0.0%" FontFamily="Consolas" Margin="0,0,0,0" Foreground="#28A745" FontWeight="Bold"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Efficiency:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="EfficiencyText" Grid.Row="5" Grid.Column="1" Text="0.0%" FontFamily="Consolas" Margin="0,0,0,5" Foreground="#28A745" FontWeight="Bold"/>
+
+                                            <!-- Efficiency Progress Bar -->
+                                            <TextBlock Grid.Row="6" Grid.Column="0" Text="" Margin="0,0,0,0"/>
+                                            <ProgressBar x:Name="EfficiencyProgressBar" Grid.Row="6" Grid.Column="1"
+                                                         Height="20" Minimum="0" Maximum="100" Value="0"
+                                                         Margin="0,0,0,0" Foreground="#28A745" BorderBrush="#CCCCCC" BorderThickness="1"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>

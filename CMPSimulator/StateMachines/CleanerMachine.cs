@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -46,12 +47,14 @@ public class CleanerMachine
     public CleanerMachine(
         string stationName,
         EventBusOrchestrator orchestrator,
-        int processingTimeMs,
-        Action<string> logger)
+        int processingTimeMs)
     {
         _stationName = stationName;
         _processingTimeMs = processingTimeMs;
         _orchestrator = orchestrator;
+
+        // DEBUG: Log the processing time to verify it's being set correctly
+        LoggerHelper.Logger.Instance.Log($"[{_stationName}] Initialized with processing time: {_processingTimeMs} ms");
 
         var definition = $$"""
         {
@@ -102,7 +105,7 @@ public class CleanerMachine
         {
             ["reportEmpty"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: empty");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: empty");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -123,13 +126,13 @@ public class CleanerMachine
                     }
                 }
 
-                logger($"[{_stationName}] Wafer {_currentWafer} placed");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Wafer {_currentWafer} placed");
             },
 
             ["reportProcessing"] = (ctx) =>
             {
                 _processingStartTime = DateTime.Now;
-                logger($"[{_stationName}] State: processing (wafer {_currentWafer})");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: processing (wafer {_currentWafer})");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -140,12 +143,12 @@ public class CleanerMachine
 
             ["onDone"] = (ctx) =>
             {
-                logger($"[{_stationName}] Processing complete for wafer {_currentWafer}");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Processing complete for wafer {_currentWafer}");
             },
 
             ["reportDone"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: done (wafer {_currentWafer} ready for pickup)");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: done (wafer {_currentWafer} ready for pickup)");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -157,13 +160,13 @@ public class CleanerMachine
             ["onPick"] = (ctx) =>
             {
                 int pickedWafer = _currentWafer ?? 0;
-                logger($"[{_stationName}] Wafer {pickedWafer} picked");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Wafer {pickedWafer} picked");
                 _currentWafer = null;
             },
 
             ["reportIdle"] = (ctx) =>
             {
-                logger($"[{_stationName}] State: idle");
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] State: idle");
                 ctx.RequestSend("scheduler", "STATION_STATUS", new JObject
                 {
                     ["station"] = _stationName,
@@ -177,7 +180,11 @@ public class CleanerMachine
         {
             ["processWafer"] = async (sm, ct) =>
             {
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] Starting processWafer service with delay: {_processingTimeMs} ms");
+                var startTime = DateTime.Now;
                 await Task.Delay(_processingTimeMs, ct);
+                var actualDelay = (DateTime.Now - startTime).TotalMilliseconds;
+                LoggerHelper.Logger.Instance.Log($"[{_stationName}] processWafer service completed after {actualDelay:F1} ms (expected {_processingTimeMs} ms)");
                 return new { status = "SUCCESS" };
             }
         };

@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -36,8 +37,7 @@ public class RobotMachine
     public RobotMachine(
         string robotName,
         EventBusOrchestrator orchestrator,
-        int transferTimeMs,
-        Action<string> logger)
+        int transferTimeMs)
     {
         _robotName = robotName;
         _transferTimeMs = transferTimeMs;
@@ -47,6 +47,12 @@ public class RobotMachine
         {
             "id": "{{robotName}}",
             "initial": "idle",
+            "on": {
+                "RESET": {
+                    "target": ".idle",
+                    "actions": ["clearTransferInfo"]
+                }
+            },
             "states": {
                 "idle": {
                     "entry": ["reportIdle"],
@@ -111,7 +117,7 @@ public class RobotMachine
         {
             ["reportIdle"] = (ctx) =>
             {
-                logger($"[{_robotName}] Idle");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Idle");
                 ctx.RequestSend("scheduler", "ROBOT_STATUS", new JObject
                 {
                     ["robot"] = _robotName,
@@ -134,19 +140,27 @@ public class RobotMachine
                     }
                 }
 
-                logger($"[{_robotName}] Transfer command: {_pickFrom} → {_placeTo} (Wafer {_heldWafer})");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Transfer command: {_pickFrom} → {_placeTo} (Wafer {_heldWafer})");
             },
 
             ["logPickingUp"] = (ctx) =>
             {
-                logger($"[{_robotName}] Moving to pick from {_pickFrom}...");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Moving to pick from {_pickFrom}...");
             },
 
             ["pickWafer"] = (ctx) =>
             {
-                logger($"[{_robotName}] Picked wafer {_heldWafer} from {_pickFrom}");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Picked wafer {_heldWafer} from {_pickFrom}");
+
+                // Defensive check: Ensure _pickFrom is not null
+                if (string.IsNullOrEmpty(_pickFrom))
+                {
+                    LoggerHelper.Logger.Instance.Log($"[{_robotName}] ⚠ WARNING: Cannot send PICK - _pickFrom is null (wafer: {_heldWafer})");
+                    return;
+                }
+
                 // Notify source station to update
-                ctx.RequestSend(_pickFrom!, "PICK", new JObject { ["wafer"] = _heldWafer });
+                ctx.RequestSend(_pickFrom, "PICK", new JObject { ["wafer"] = _heldWafer });
             },
 
             ["reportHolding"] = (ctx) =>
@@ -162,12 +176,12 @@ public class RobotMachine
 
             ["logHolding"] = (ctx) =>
             {
-                logger($"[{_robotName}] Holding wafer {_heldWafer} (waiting for Scheduler to confirm destination ready)");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Holding wafer {_heldWafer} (waiting for Scheduler to confirm destination ready)");
             },
 
             ["logWaitingDestination"] = (ctx) =>
             {
-                logger($"[{_robotName}] ⏸ Waiting for destination '{_placeTo}' to become empty (holding wafer {_heldWafer})");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] ⏸ Waiting for destination '{_placeTo}' to become empty (holding wafer {_heldWafer})");
                 ctx.RequestSend("scheduler", "ROBOT_STATUS", new JObject
                 {
                     ["robot"] = _robotName,
@@ -179,16 +193,24 @@ public class RobotMachine
 
             ["logPlacingDown"] = (ctx) =>
             {
-                logger($"[{_robotName}] Moving to place at {_placeTo}...");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Moving to place at {_placeTo}...");
             },
 
             ["placeWafer"] = (ctx) =>
             {
                 int placedWafer = _heldWafer ?? 0;
-                logger($"[{_robotName}] Placed wafer {placedWafer} at {_placeTo}");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Placed wafer {placedWafer} at {_placeTo}");
+
+                // Defensive check: Ensure _placeTo is not null
+                if (string.IsNullOrEmpty(_placeTo))
+                {
+                    LoggerHelper.Logger.Instance.Log($"[{_robotName}] ⚠ WARNING: Cannot send PLACE - _placeTo is null (wafer: {placedWafer})");
+                    _heldWafer = null;  // Clear wafer even if we can't send
+                    return;
+                }
 
                 // Send event to destination station with wafer info
-                ctx.RequestSend(_placeTo!, "PLACE", new JObject
+                ctx.RequestSend(_placeTo, "PLACE", new JObject
                 {
                     ["wafer"] = placedWafer
                 });
@@ -199,14 +221,38 @@ public class RobotMachine
 
             ["logReturning"] = (ctx) =>
             {
-                logger($"[{_robotName}] Returning to idle position...");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Returning to idle position...");
             },
 
             ["completeTransfer"] = (ctx) =>
             {
-                logger($"[{_robotName}] Transfer complete");
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] Transfer complete");
                 // _heldWafer is already cleared in placeWafer
                 // Clear transfer info
+                _pickFrom = null;
+                _placeTo = null;
+            },
+
+            ["clearTransferInfo"] = (ctx) =>
+            {
+                // Log current state before reset to help debug interrupted transitions
+                var currentState = CurrentState;
+                if (currentState.Contains("."))
+                {
+                    currentState = currentState.Substring(currentState.LastIndexOf('.') + 1);
+                }
+
+                var waferInfo = _heldWafer.HasValue ? $"wafer {_heldWafer}" : "no wafer";
+                var transferInfo = "";
+                if (!string.IsNullOrEmpty(_pickFrom) || !string.IsNullOrEmpty(_placeTo))
+                {
+                    transferInfo = $" (transfer: {_pickFrom ?? "?"} → {_placeTo ?? "?"})";
+                }
+
+                LoggerHelper.Logger.Instance.Log($"[{_robotName}] 🔄 RESET from state '{currentState}' with {waferInfo}{transferInfo}");
+
+                // Clear all transfer info
+                _heldWafer = null;
                 _pickFrom = null;
                 _placeTo = null;
             }
@@ -274,14 +320,17 @@ public class RobotMachine
     }
 
     /// <summary>
-    /// Reset the robot's wafer reference
+    /// Reset the robot's wafer reference and state machine
     /// Used during carrier swap to clear old wafer references
     /// </summary>
     public void ResetWafer()
     {
-        _heldWafer = null;
-        _pickFrom = null;
-        _placeTo = null;
+        // Send RESET event to transition state machine back to idle
+        var context = _orchestrator.GetOrCreateContext("RobotReset");
+        context.RequestSend(_robotName, "RESET", null);
+
+        // Execute deferred sends immediately
+        _ = Task.Run(async () => await context.ExecuteDeferredSends());
     }
 
     /// <summary>

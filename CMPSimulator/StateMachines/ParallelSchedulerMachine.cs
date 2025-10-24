@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -17,7 +18,6 @@ public class ParallelSchedulerMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
-    private readonly Action<string> _logger;
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine;
 
@@ -50,9 +50,8 @@ public class ParallelSchedulerMachine
 
     private readonly int _totalWafers;
 
-    public ParallelSchedulerMachine(EventBusOrchestrator orchestrator, Action<string> logger, int totalWafers = 10)
+    public ParallelSchedulerMachine(EventBusOrchestrator orchestrator, int totalWafers = 10)
     {
-        _logger = logger;
         _orchestrator = orchestrator;
         _totalWafers = totalWafers;
 
@@ -76,7 +75,7 @@ public class ParallelSchedulerMachine
             _waferToLoadPort[i] = "LoadPort2";
         }
 
-        _logger($"[Scheduler] Initialized with {_totalWafers} wafers: LoadPort={_loadPortPending["LoadPort"].Count}, LoadPort2={_loadPortPending["LoadPort2"].Count}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] Initialized with {_totalWafers} wafers: LoadPort={_loadPortPending["LoadPort"].Count}, LoadPort2={_loadPortPending["LoadPort2"].Count}");
 
         var definition = """
         {
@@ -158,22 +157,22 @@ public class ParallelSchedulerMachine
         {
             ["initR1"] = (ctx) =>
             {
-                _logger("[Scheduler::R1Manager] Initialized - Managing R1 priorities (B‚ÜíL, L‚ÜíHOLD, HOLD‚ÜíP)");
+                LoggerHelper.Logger.Instance.Log("[Scheduler::R1Manager] Initialized - Managing R1 priorities (B?íL, L?íHOLD, HOLD?íP)");
             },
 
             ["initR2"] = (ctx) =>
             {
-                _logger("[Scheduler::R2Manager] Initialized - Managing R2 priorities (P‚ÜíC)");
+                LoggerHelper.Logger.Instance.Log("[Scheduler::R2Manager] Initialized - Managing R2 priorities (P?íC)");
             },
 
             ["initR3"] = (ctx) =>
             {
-                _logger("[Scheduler::R3Manager] Initialized - Managing R3 priorities (C‚ÜíB)");
+                LoggerHelper.Logger.Instance.Log("[Scheduler::R3Manager] Initialized - Managing R3 priorities (C?íB)");
             },
 
             ["initCoordinator"] = (ctx) =>
             {
-                _logger("[Scheduler::GlobalCoordinator] Initialized - Coordinating cross-robot dependencies");
+                LoggerHelper.Logger.Instance.Log("[Scheduler::GlobalCoordinator] Initialized - Coordinating cross-robot dependencies");
             },
 
             ["onStationStatusR1"] = (ctx) =>
@@ -413,7 +412,7 @@ public class ParallelSchedulerMachine
 
         if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE")
         {
-            _logger($"[Scheduler] üì• STATION_STATUS: {station} = {state} (wafer: {wafer})");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler] ?ì• STATION_STATUS: {station} = {state} (wafer: {wafer})");
         }
     }
 
@@ -434,21 +433,21 @@ public class ParallelSchedulerMachine
 
         if (state == "holding" || state == "idle")
         {
-            _logger($"[Scheduler] üì• ROBOT_STATUS: {robot} = {state} (wafer: {wafer})");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler] ?ì• ROBOT_STATUS: {robot} = {state} (wafer: {wafer})");
         }
     }
 
-    // R1 Priority Logic: B‚ÜíL (P1), L‚ÜíHOLD (P2), HOLD‚ÜíP (handled by destination ready)
+    // R1 Priority Logic: B?íL (P1), L?íHOLD (P2), HOLD?íP (handled by destination ready)
     private void CheckR1Priorities(OrchestratedContext ctx)
     {
-        // Priority 1: B‚ÜíL (return completed wafers)
+        // Priority 1: B?íL (return completed wafers)
         if (CanExecuteBtoL())
         {
             ExecuteBtoL(ctx);
             return;
         }
 
-        // Priority 2: L‚ÜíHOLD (proactively pick from LoadPort)
+        // Priority 2: L?íHOLD (proactively pick from LoadPort)
         if (CanExecuteLtoHold())
         {
             ExecuteLtoHold(ctx);
@@ -480,17 +479,17 @@ public class ParallelSchedulerMachine
 
         if (destReady)
         {
-            _logger($"[Scheduler::R1Manager] ‚úì Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R1Manager] ??Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
             ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
             _robotWaitingFor.Remove(robot);
         }
         else
         {
-            _logger($"[Scheduler::R1Manager] ‚è∏ Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R1Manager] ??Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
         }
     }
 
-    // R2 Priority Logic: P‚ÜíC
+    // R2 Priority Logic: P?íC
     private void CheckR2Priorities(OrchestratedContext ctx)
     {
         if (CanExecutePtoC())
@@ -519,17 +518,17 @@ public class ParallelSchedulerMachine
 
         if (destReady)
         {
-            _logger($"[Scheduler::R2Manager] ‚úì Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R2Manager] ??Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
             ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
             _robotWaitingFor.Remove(robot);
         }
         else
         {
-            _logger($"[Scheduler::R2Manager] ‚è∏ Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R2Manager] ??Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
         }
     }
 
-    // R3 Priority Logic: C‚ÜíB
+    // R3 Priority Logic: C?íB
     private void CheckR3Priorities(OrchestratedContext ctx)
     {
         if (CanExecuteCtoB())
@@ -558,13 +557,13 @@ public class ParallelSchedulerMachine
 
         if (destReady)
         {
-            _logger($"[Scheduler::R3Manager] ‚úì Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R3Manager] ??Destination {waitingFor} ready! Sending DESTINATION_READY to {robot}");
             ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
             _robotWaitingFor.Remove(robot);
         }
         else
         {
-            _logger($"[Scheduler::R3Manager] ‚è∏ Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler::R3Manager] ??Destination {waitingFor} not ready (state={destState ?? "N/A"}). {robot} waiting.");
         }
     }
 
@@ -580,7 +579,7 @@ public class ParallelSchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("cleaner");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler::R3Manager] [P1] C‚ÜíB: Commanding R3 to transfer wafer {waferId}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler::R3Manager] [P1] C?íB: Commanding R3 to transfer wafer {waferId}");
         _robotsWithPendingCommands.Add("R3");
 
         ctx.RequestSend("R3", "TRANSFER", new JObject
@@ -609,7 +608,7 @@ public class ParallelSchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("polisher");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler::R2Manager] [P2] P‚ÜíC: Commanding R2 to transfer wafer {waferId}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler::R2Manager] [P2] P?íC: Commanding R2 to transfer wafer {waferId}");
         _robotsWithPendingCommands.Add("R2");
 
         ctx.RequestSend("R2", "TRANSFER", new JObject
@@ -640,7 +639,7 @@ public class ParallelSchedulerMachine
         pendingList.RemoveAt(0);
 
         int totalPending = GetTotalPendingWafers();
-        _logger($"[Scheduler::R1Manager] [P2] L‚ÜíHOLD: Commanding R1 to pick wafer {waferId} from {selectedLoadPort} (Pending: {totalPending} left, {selectedLoadPort}={pendingList.Count})");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler::R1Manager] [P2] L?íHOLD: Commanding R1 to pick wafer {waferId} from {selectedLoadPort} (Pending: {totalPending} left, {selectedLoadPort}={pendingList.Count})");
         _robotsWithPendingCommands.Add("R1");
 
         ctx.RequestSend("R1", "TRANSFER", new JObject
@@ -657,7 +656,7 @@ public class ParallelSchedulerMachine
     /// </summary>
     private string? FindFirstAvailableFOUP()
     {
-        // Priority order: LoadPort ‚Üí LoadPort2 ‚Üí others
+        // Priority order: LoadPort ??LoadPort2 ??others
         var priorityOrder = new[] { "LoadPort", "LoadPort2" };
 
         foreach (var loadPortName in priorityOrder)
@@ -704,7 +703,7 @@ public class ParallelSchedulerMachine
         // Find which LoadPort this wafer came from
         string originLoadPort = _waferToLoadPort.GetValueOrDefault(waferId.Value, "LoadPort");
 
-        _logger($"[Scheduler::R1Manager] [P1] B‚ÜíL: Commanding R1 to return wafer {waferId} to {originLoadPort}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler::R1Manager] [P1] B?íL: Commanding R1 to return wafer {waferId} to {originLoadPort}");
         _robotsWithPendingCommands.Add("R1");
 
         ctx.RequestSend("R1", "TRANSFER", new JObject
@@ -721,11 +720,11 @@ public class ParallelSchedulerMachine
         }
 
         int totalCompleted = GetTotalCompletedWafers();
-        _logger($"[Scheduler] ‚úì Wafer {waferId} completed and returned to {originLoadPort} ({totalCompleted}/{_totalWafers})");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] ??Wafer {waferId} completed and returned to {originLoadPort} ({totalCompleted}/{_totalWafers})");
 
         if (totalCompleted >= _totalWafers)
         {
-            _logger($"[Scheduler] ‚úÖ All {_totalWafers} wafers completed!");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler] ??All {_totalWafers} wafers completed!");
             AllWafersCompleted?.Invoke(this, EventArgs.Empty);
         }
     }

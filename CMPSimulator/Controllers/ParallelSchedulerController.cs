@@ -145,13 +145,13 @@ public class ParallelSchedulerController : IForwardPriorityController
     private void InitializeStateMachines()
     {
         // Use ParallelSchedulerMachine instead of SchedulerMachine
-        _scheduler = new ParallelSchedulerMachine(_orchestrator, Log, TOTAL_WAFERS);
-        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING, Log);
-        _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING, Log);
-        _buffer = new BufferMachine(_orchestrator, Log);
-        _r1 = new RobotMachine("R1", _orchestrator, TRANSFER, Log);
-        _r2 = new RobotMachine("R2", _orchestrator, TRANSFER, Log);
-        _r3 = new RobotMachine("R3", _orchestrator, TRANSFER, Log);
+        _scheduler = new ParallelSchedulerMachine(_orchestrator, TOTAL_WAFERS);
+        _polisher = new PolisherMachine("polisher", _orchestrator, POLISHING);
+        _cleaner = new CleanerMachine("cleaner", _orchestrator, CLEANING);
+        _buffer = new BufferMachine(_orchestrator);
+        _r1 = new RobotMachine("R1", _orchestrator, TRANSFER);
+        _r2 = new RobotMachine("R2", _orchestrator, TRANSFER);
+        _r3 = new RobotMachine("R3", _orchestrator, TRANSFER);
 
         _scheduler.AllWafersCompleted += (s, e) =>
         {

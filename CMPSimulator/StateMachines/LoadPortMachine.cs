@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -14,7 +15,6 @@ public class LoadPortMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
-    private readonly Action<string> _logger;
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine;
 
@@ -32,9 +32,8 @@ public class LoadPortMachine
     public event EventHandler<string>? CarrierDocked;
     public event EventHandler<string>? CarrierUndocked;
 
-    public LoadPortMachine(string id, EventBusOrchestrator orchestrator, Action<string> logger)
+    public LoadPortMachine(string id, EventBusOrchestrator orchestrator)
     {
-        _logger = logger;
         _orchestrator = orchestrator;
 
         var definition = $$"""
@@ -96,7 +95,7 @@ public class LoadPortMachine
             ["reportEmpty"] = (ctx) =>
             {
                 DockedCarrierId = null;
-                _logger($"[LoadPort] Empty - waiting for carrier");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Empty - waiting for carrier");
 
                 // Send status update to orchestrator
                 ctx.RequestSend("scheduler", "LOADPORT_STATUS", new JObject
@@ -112,13 +111,13 @@ public class LoadPortMachine
                 if (_underlyingMachine?.ContextMap?["_event"] is JObject data)
                 {
                     DockedCarrierId = data["carrierId"]?.ToString();
-                    _logger($"[LoadPort] Carrier {DockedCarrierId} arrived at load port");
+                    LoggerHelper.Logger.Instance.Log($"[LoadPort] Carrier {DockedCarrierId} arrived at load port");
                 }
             },
 
             ["reportCarrierArrived"] = (ctx) =>
             {
-                _logger($"[LoadPort] Carrier {DockedCarrierId} ready to dock");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Carrier {DockedCarrierId} ready to dock");
 
                 // Send status update
                 ctx.RequestSend("scheduler", "LOADPORT_STATUS", new JObject
@@ -131,12 +130,12 @@ public class LoadPortMachine
 
             ["onDock"] = (ctx) =>
             {
-                _logger($"[LoadPort] Docking carrier {DockedCarrierId}");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Docking carrier {DockedCarrierId}");
             },
 
             ["reportDocked"] = (ctx) =>
             {
-                _logger($"[LoadPort] Carrier {DockedCarrierId} docked successfully");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Carrier {DockedCarrierId} docked successfully");
 
                 // Notify about carrier docking
                 CarrierDocked?.Invoke(this, DockedCarrierId ?? "UNKNOWN");
@@ -152,12 +151,12 @@ public class LoadPortMachine
 
             ["onStartProcessing"] = (ctx) =>
             {
-                _logger($"[LoadPort] Starting to process wafers from carrier {DockedCarrierId}");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Starting to process wafers from carrier {DockedCarrierId}");
             },
 
             ["reportProcessing"] = (ctx) =>
             {
-                _logger($"[LoadPort] Processing carrier {DockedCarrierId}");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Processing carrier {DockedCarrierId}");
 
                 // Send status update
                 ctx.RequestSend("scheduler", "LOADPORT_STATUS", new JObject
@@ -170,12 +169,12 @@ public class LoadPortMachine
 
             ["onComplete"] = (ctx) =>
             {
-                _logger($"[LoadPort] All wafers from carrier {DockedCarrierId} processed");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] All wafers from carrier {DockedCarrierId} processed");
             },
 
             ["reportUnloading"] = (ctx) =>
             {
-                _logger($"[LoadPort] Unloading carrier {DockedCarrierId}");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Unloading carrier {DockedCarrierId}");
 
                 // Send status update
                 ctx.RequestSend("scheduler", "LOADPORT_STATUS", new JObject
@@ -188,7 +187,7 @@ public class LoadPortMachine
 
             ["onUndock"] = (ctx) =>
             {
-                _logger($"[LoadPort] Undocking carrier {DockedCarrierId}");
+                LoggerHelper.Logger.Instance.Log($"[LoadPort] Undocking carrier {DockedCarrierId}");
 
                 // Notify about carrier undocking
                 CarrierUndocked?.Invoke(this, DockedCarrierId ?? "UNKNOWN");

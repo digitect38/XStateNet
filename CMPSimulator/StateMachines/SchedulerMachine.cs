@@ -2,6 +2,7 @@ using XStateNet;
 using XStateNet.Orchestration;
 using XStateNet.Monitoring;
 using Newtonsoft.Json.Linq;
+using LoggerHelper;
 
 namespace CMPSimulator.StateMachines;
 
@@ -15,7 +16,6 @@ public class SchedulerMachine
 {
     private readonly IPureStateMachine _machine;
     private readonly StateMachineMonitor _monitor;
-    private readonly Action<string> _logger;
     private readonly EventBusOrchestrator _orchestrator;
     private StateMachine? _underlyingMachine; // Access to underlying machine for Context Map
 
@@ -47,9 +47,8 @@ public class SchedulerMachine
 
     private readonly int _totalWafers;
 
-    public SchedulerMachine(EventBusOrchestrator orchestrator, Action<string> logger, int totalWafers = 10)
+    public SchedulerMachine(EventBusOrchestrator orchestrator, int totalWafers = 10)
     {
-        _logger = logger;
         _orchestrator = orchestrator;
         _totalWafers = totalWafers;
 
@@ -83,7 +82,7 @@ public class SchedulerMachine
         {
             ["reportRunning"] = (ctx) =>
             {
-                _logger("[Scheduler] Running (Event-driven mode)");
+                LoggerHelper.Logger.Instance.Log("[Scheduler] Running (Event-driven mode)");
             },
 
             ["onStationStatus"] = (ctx) =>
@@ -106,7 +105,7 @@ public class SchedulerMachine
                 // Log meaningful state changes (empty, done, occupied) to reduce log noise
                 if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE" || state == "occupied")
                 {
-                    _logger($"[Scheduler] 📥 STATION_STATUS: {station} = {state} (wafer: {wafer})");
+                    LoggerHelper.Logger.Instance.Log($"[Scheduler] 📥 STATION_STATUS: {station} = {state} (wafer: {wafer})");
                 }
 
                 // Check if any robot is waiting for this station to become empty/ready
@@ -148,7 +147,7 @@ public class SchedulerMachine
                 // Only log important state transitions (holding, idle) to reduce log noise
                 if (state == "holding" || state == "idle")
                 {
-                    _logger($"[Scheduler] 📥 ROBOT_STATUS: {robot} = {state} (wafer: {wafer})");
+                    LoggerHelper.Logger.Instance.Log($"[Scheduler] 📥 ROBOT_STATUS: {robot} = {state} (wafer: {wafer})");
                 }
 
                 // When robot enters holding state, check priorities (especially for R3 holding triggering R1)
@@ -209,13 +208,13 @@ public class SchedulerMachine
 
                         if (destReady)
                         {
-                            _logger($"[Scheduler] ✓ Destination {waitingFor} is ready! Sending DESTINATION_READY to {robot}");
+                            LoggerHelper.Logger.Instance.Log($"[Scheduler] ✓ Destination {waitingFor} is ready! Sending DESTINATION_READY to {robot}");
                             ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
                             _robotWaitingFor.Remove(robot);
                         }
                         else
                         {
-                            _logger($"[Scheduler] ⏸ Destination {waitingFor} not ready (state={destState ?? "N/A"}). Robot {robot} will wait. [DEBUG: Robot={robot}, WaitingFor={waitingFor}, DestState={destState}]");
+                            LoggerHelper.Logger.Instance.Log($"[Scheduler] ⏸ Destination {waitingFor} not ready (state={destState ?? "N/A"}). Robot {robot} will wait. [DEBUG: Robot={robot}, WaitingFor={waitingFor}, DestState={destState}]");
                         }
                     }
                 }
@@ -260,7 +259,7 @@ public class SchedulerMachine
 
                     if (destReady)
                     {
-                        _logger($"[Scheduler] ✓ Destination {waitingFor} became ready! Sending DESTINATION_READY to {robot}");
+                        LoggerHelper.Logger.Instance.Log($"[Scheduler] ✓ Destination {waitingFor} became ready! Sending DESTINATION_READY to {robot}");
                         ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
                         _robotWaitingFor.Remove(robot);
                     }
@@ -349,13 +348,13 @@ public class SchedulerMachine
 
                 if (destReady)
                 {
-                    _logger($"[Scheduler] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
+                    LoggerHelper.Logger.Instance.Log($"[Scheduler] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
                     ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
                     _robotWaitingFor.Remove(robot);
                 }
                 else
                 {
-                    _logger($"[Scheduler] ⏸ Station {station} changed but not ready for {robot} (state={destState ?? "N/A"})");
+                    LoggerHelper.Logger.Instance.Log($"[Scheduler] ⏸ Station {station} changed but not ready for {robot} (state={destState ?? "N/A"})");
                 }
             }
         }
@@ -432,7 +431,7 @@ public class SchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("cleaner");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler] [P1] C→B: Commanding R3 to transfer wafer {waferId}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] [P1] C→B: Commanding R3 to transfer wafer {waferId}");
 
         // Mark robot as having pending command
         _robotsWithPendingCommands.Add("R3");
@@ -470,7 +469,7 @@ public class SchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("polisher");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler] [P2] P→C: Commanding R2 to transfer wafer {waferId}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] [P2] P→C: Commanding R2 to transfer wafer {waferId}");
 
         // Mark robot as having pending command
         _robotsWithPendingCommands.Add("R2");
@@ -503,7 +502,7 @@ public class SchedulerMachine
         int waferId = _lPending[0];
         _lPending.RemoveAt(0);
 
-        _logger($"[Scheduler] [P4] L→HOLD: Commanding R1 to pick wafer {waferId} from LoadPort (Pending: {_lPending.Count} left)");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] [P4] L→HOLD: Commanding R1 to pick wafer {waferId} from LoadPort (Pending: {_lPending.Count} left)");
 
         // Mark robot as having pending command
         _robotsWithPendingCommands.Add("R1");
@@ -566,7 +565,7 @@ public class SchedulerMachine
         int? waferId = _stationWafers.GetValueOrDefault("buffer");
         if (waferId == null || waferId == 0) return;
 
-        _logger($"[Scheduler] [P4] B→L: Commanding R1 to return wafer {waferId}");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] [P4] B→L: Commanding R1 to return wafer {waferId}");
 
         // Mark robot as having pending command
         _robotsWithPendingCommands.Add("R1");
@@ -581,12 +580,12 @@ public class SchedulerMachine
 
         // Mark as completed
         _lCompleted.Add(waferId.Value);
-        _logger($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{_totalWafers})");
+        LoggerHelper.Logger.Instance.Log($"[Scheduler] ✓ Wafer {waferId} completed ({_lCompleted.Count}/{_totalWafers})");
 
         // Check if all wafers completed
         if (_lCompleted.Count >= _totalWafers)
         {
-            _logger($"[Scheduler] ✅ All {_totalWafers} wafers completed!");
+            LoggerHelper.Logger.Instance.Log($"[Scheduler] ✅ All {_totalWafers} wafers completed!");
             AllWafersCompleted?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -633,6 +632,6 @@ public class SchedulerMachine
         _robotWaitingFor.Clear();
         _robotsWithPendingCommands.Clear();
 
-        _logger("[Scheduler] ↻ Reset complete - ready for next carrier");
+        LoggerHelper.Logger.Instance.Log("[Scheduler] ↻ Reset complete - ready for next carrier");
     }
 }

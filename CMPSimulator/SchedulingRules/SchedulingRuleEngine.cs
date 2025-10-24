@@ -1,6 +1,11 @@
-using System.IO;
+using CMPSimulator.Helpers;
+using CMPSimulator.Controllers;
+using CMPSimulator.Models;
+using LoggerHelper;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.IO;
+using System.Runtime.CompilerServices;
 using XStateNet.Orchestration;
 
 namespace CMPSimulator.SchedulingRules;
@@ -12,9 +17,8 @@ namespace CMPSimulator.SchedulingRules;
 public class SchedulingRuleEngine
 {
     private readonly SchedulingRulesConfiguration _config;
-    private readonly Action<string> _consoleLogger; // Original console logger
     private readonly EventBusOrchestrator _orchestrator;
-    private readonly Action<string> _logger; // Unified logger (console + file)
+    private readonly RobotScheduler? _robotScheduler; // Phase 1: Robot scheduling delegation
 
     // Runtime state tracking
     private readonly Dictionary<string, string> _stationStates = new();
@@ -33,45 +37,31 @@ public class SchedulingRuleEngine
     private int _totalWafers;
     private bool _isPaused = false; // Pause scheduler during carrier swap
 
-    // File logging
-    private static readonly string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "recent processing history.log");
-    private static readonly object _logFileLock = new object();
-    private DateTime _sessionStartTime;
-    private readonly bool _enableFileLogging;
-
     // Event for completion notification
     public event EventHandler? AllWafersCompleted;
 
     public SchedulingRuleEngine(
         SchedulingRulesConfiguration config,
         EventBusOrchestrator orchestrator,
-        Action<string> logger,
         int totalWafers,
-        bool enableFileLogging = true)
+        RobotScheduler? robotScheduler = null)
     {
         _config = config;
         _orchestrator = orchestrator;
-        _consoleLogger = logger;
         _totalWafers = totalWafers;
-        _sessionStartTime = DateTime.Now;
-        _enableFileLogging = enableFileLogging;
-
-        // Create unified logger that logs to both console and file (if enabled)
-        _logger = (message) =>
-        {
-            _consoleLogger(message);
-            if (_enableFileLogging)
-            {
-                LogToFile(message);
-            }
-        };
+        _robotScheduler = robotScheduler;
 
         InitializeQueues();
         LogConfiguration();
+        InitializeLogFile();
 
-        if (_enableFileLogging)
+        if (_robotScheduler != null)
         {
-            InitializeLogFile();
+            Log("[SchedulingRuleEngine] ✓ Using RobotScheduler for robot management (Phase 1)");
+        }
+        else
+        {
+            Log("[SchedulingRuleEngine] ⚠ Using legacy direct robot commands (consider upgrading to RobotScheduler)");
         }
     }
 
@@ -81,15 +71,14 @@ public class SchedulingRuleEngine
     public static SchedulingRuleEngine LoadFromFile(
         string filePath,
         EventBusOrchestrator orchestrator,
-        Action<string> logger,
         int totalWafers,
-        bool enableFileLogging = true)
+        RobotScheduler? robotScheduler = null)
     {
         var json = File.ReadAllText(filePath);
         var config = JsonConvert.DeserializeObject<SchedulingRulesConfiguration>(json)
             ?? throw new InvalidOperationException("Failed to parse scheduling rules JSON");
 
-        return new SchedulingRuleEngine(config, orchestrator, logger, totalWafers, enableFileLogging);
+        return new SchedulingRuleEngine(config, orchestrator, totalWafers, robotScheduler);
     }
 
     private void InitializeQueues()
@@ -101,62 +90,27 @@ public class SchedulingRuleEngine
 
     private void LogConfiguration()
     {
-        _logger($"[SchedulingRuleEngine] Loaded: {_config.Id} v{_config.Version}");
-        _logger($"[SchedulingRuleEngine] Rules: {_config.Rules.Count}, Mode: {_config.Configuration.Mode}");
-        _logger($"[SchedulingRuleEngine] Parallel Execution: {_config.Configuration.EnableParallelExecution}");
+        Log($"[SchedulingRuleEngine] Loaded: {_config.Id} v{_config.Version}");
+        Log($"[SchedulingRuleEngine] Rules: {_config.Rules.Count}, Mode: {_config.Configuration.Mode}");
+        Log($"[SchedulingRuleEngine] Parallel Execution: {_config.Configuration.EnableParallelExecution}");
     }
 
     /// <summary>
-    /// Initialize log file with session header
-    /// IMPORTANT: This clears any existing log file to prevent explosion
+    /// Initialize log file with session header using singleton logger
     /// </summary>
     private void InitializeLogFile()
     {
-        try
-        {
-            lock (_logFileLock)
-            {
-                // Create new log file (overwrite existing to prevent log explosion)
-                var header = new System.Text.StringBuilder();
-                header.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
-                header.AppendLine($"CMP Simulator - Processing History Log");
-                header.AppendLine($"Session Start: {_sessionStartTime:yyyy-MM-dd HH:mm:ss.fff}");
-                header.AppendLine($"Configuration: {_config.Id} v{_config.Version}");
-                header.AppendLine($"Total Wafers: {_totalWafers}");
-                header.AppendLine($"Log File: {_logFilePath}");
-                header.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
-                header.AppendLine();
-
-                // Use WriteAllText to overwrite existing file (clears previous sessions)
-                File.WriteAllText(_logFilePath, header.ToString());
-            }
-        }
-        catch (Exception ex)
-        {
-            _consoleLogger($"[RuleEngine] ⚠ Failed to initialize log file: {ex.Message}");
-        }
+        LoggerHelper.Logger.Instance.InitializeLog(_totalWafers);
     }
 
     /// <summary>
-    /// Log message to file with timestamp
+    /// Helper method to log using LoggerHelper
     /// </summary>
-    private void LogToFile(string message)
+    private void Log(string message,
+        string file = "",
+        int line = 0)
     {
-        try
-        {
-            var elapsed = DateTime.Now - _sessionStartTime;
-            var timestamp = $"[{elapsed.TotalSeconds:000.000}]";
-            var logEntry = $"{timestamp} {message}{Environment.NewLine}";
-
-            lock (_logFileLock)
-            {
-                File.AppendAllText(_logFilePath, logEntry);
-            }
-        }
-        catch
-        {
-            // Silently fail to avoid disrupting simulation
-        }
+        LoggerHelper.Logger.Instance.Log(message, file, line);
     }
 
     /// <summary>
@@ -171,7 +125,7 @@ public class SchedulingRuleEngine
         // Only log meaningful state changes
         if (state == "empty" || state == "done" || state == "IDLE" || state == "COMPLETE" || state == "occupied")
         {
-            _logger($"[RuleEngine] 📥 STATION_STATUS: {station} = {state} (wafer: {waferId})");
+            Log($"[RuleEngine] 📥 STATION_STATUS: {station} = {state} (wafer: {waferId})");
         }
 
         // Check if any robot is waiting for this station
@@ -190,6 +144,12 @@ public class SchedulingRuleEngine
     /// </summary>
     public void OnRobotStatus(string robot, string state, int? waferId, string? waitingFor, OrchestratedContext ctx)
     {
+        // Phase 1: Delegate to RobotScheduler first
+        if (_robotScheduler != null)
+        {
+            _robotScheduler.UpdateRobotStatus(robot, state, waferId, waitingFor);
+        }
+
         // Update tracking
         _robotStates[robot] = state;
         _robotWafers[robot] = waferId;
@@ -206,7 +166,7 @@ public class SchedulingRuleEngine
         // Only log important state transitions
         if (state == "holding" || state == "idle")
         {
-            _logger($"[RuleEngine] 📥 ROBOT_STATUS: {robot} = {state} (wafer: {waferId})");
+            Log($"[RuleEngine] 📥 ROBOT_STATUS: {robot} = {state} (wafer: {waferId})");
         }
 
         // When robot enters holding state, check priorities
@@ -247,14 +207,14 @@ public class SchedulingRuleEngine
 
         if (destReady)
         {
-            _logger($"[RuleEngine] ✓ Destination {destination} is ready! Sending DESTINATION_READY to {robot}");
+            Log($"[RuleEngine] ✓ Destination {destination} is ready! Sending DESTINATION_READY to {robot}");
             ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
             _robotWaitingFor.Remove(robot);
         }
         else
         {
             var destState = GetStationState(destination);
-            _logger($"[RuleEngine] ⏸ Destination {destination} not ready (state={destState ?? "N/A"}). Robot {robot} will wait.");
+            Log($"[RuleEngine] ⏸ Destination {destination} not ready (state={destState ?? "N/A"}). Robot {robot} will wait.");
         }
     }
 
@@ -272,7 +232,7 @@ public class SchedulingRuleEngine
 
                 if (destReady)
                 {
-                    _logger($"[RuleEngine] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
+                    Log($"[RuleEngine] ✓ Station {station} is now ready! Sending DESTINATION_READY to {robot}");
                     ctx.RequestSend(robot, "DESTINATION_READY", new JObject());
                     _robotWaitingFor.Remove(robot);
                 }
@@ -316,7 +276,7 @@ public class SchedulingRuleEngine
         // Don't execute rules if scheduler is paused (during carrier swap)
         if (_isPaused)
         {
-            _logger("[RuleEngine] ⏸ CheckAndExecuteRules blocked - scheduler is paused");
+            Log("[RuleEngine] ⏸ CheckAndExecuteRules blocked - scheduler is paused");
             return;
         }
 
@@ -368,7 +328,7 @@ public class SchedulingRuleEngine
                 var completed = _queues.GetValueOrDefault("LoadPort.Completed")?.Count ?? 0;
                 var nextWafer = pending > 0 ? _queues["LoadPort.Pending"][0] : 0;
                 var r1State = GetRobotState("R1");
-                _logger($"[RuleEngine] ⏸ P4 rule blocked: NextWafer={nextWafer}, R1={r1State}, Pending={pending}, Completed={completed}");
+                Log($"[RuleEngine] ⏸ P4 rule blocked: NextWafer={nextWafer}, R1={r1State}, Pending={pending}, Completed={completed}");
             }
 
             if (canExecute)
@@ -389,7 +349,7 @@ public class SchedulingRuleEngine
         {
             var pending = _queues.GetValueOrDefault("LoadPort.Pending")?.Count ?? 0;
             var completed = _queues.GetValueOrDefault("LoadPort.Completed")?.Count ?? 0;
-            _logger($"[RuleEngine] 🔍 No rules executed (evaluated {rulesEvaluated} rules, pending={pending}, completed={completed})");
+            Log($"[RuleEngine] 🔍 No rules executed (evaluated {rulesEvaluated} rules, pending={pending}, completed={completed})");
         }
     }
 
@@ -426,7 +386,7 @@ public class SchedulingRuleEngine
                 return false;
 
             default:
-                _logger($"[RuleEngine] ⚠ Unknown condition type: {condition.Type}");
+                Log($"[RuleEngine] ⚠ Unknown condition type: {condition.Type}");
                 return false;
         }
     }
@@ -543,11 +503,11 @@ public class SchedulingRuleEngine
         {
             if (contains)
             {
-                _logger($"[RuleEngine] ✓ Wafer i-3 constraint satisfied: Wafer {nextWafer} can go (wafer {searchValue} is completed)");
+                Log($"[RuleEngine] ✓ Wafer i-3 constraint satisfied: Wafer {nextWafer} can go (wafer {searchValue} is completed)");
             }
             else
             {
-                _logger($"[RuleEngine] ⏸ Wafer i-3 constraint BLOCKED: Wafer {nextWafer} must wait (wafer {searchValue} not yet completed)");
+                Log($"[RuleEngine] ⏸ Wafer i-3 constraint BLOCKED: Wafer {nextWafer} must wait (wafer {searchValue} not yet completed)");
             }
         }
 
@@ -565,7 +525,7 @@ public class SchedulingRuleEngine
     /// </summary>
     private void ExecuteRule(SchedulingRule rule, OrchestratedContext ctx)
     {
-        _logger($"[RuleEngine] [P{rule.Priority}] Executing rule: {rule.Id} ({rule.Description})");
+        Log($"[RuleEngine] [P{rule.Priority}] Executing rule: {rule.Id} ({rule.Description})");
 
         // Execute action
         if (rule.Action.Type == "transfer" && rule.Action.Parameters != null)
@@ -574,21 +534,46 @@ public class SchedulingRuleEngine
             var robot = parameters.GetValueOrDefault("robot")?.ToString() ?? rule.Robot;
             var waferId = Convert.ToInt32(parameters.GetValueOrDefault("waferId"));
 
-            _logger($"[RuleEngine] [P{rule.Priority}] {rule.From}→{rule.To}: Commanding {robot} to transfer wafer {waferId}");
+            Log($"[RuleEngine] [P{rule.Priority}] {rule.From}→{rule.To}: Commanding {robot} to transfer wafer {waferId}");
 
-            // Mark robot as having pending command
-            _robotsWithPendingCommands.Add(robot);
-
-            // Send command to robot
-            ctx.RequestSend(robot, rule.Action.Command ?? "TRANSFER", new JObject
+            // Phase 1: Use RobotScheduler if available
+            if (_robotScheduler != null)
             {
-                ["waferId"] = waferId,
-                ["from"] = rule.From,
-                ["to"] = rule.To
-            });
+                // NEW: Delegate to RobotScheduler (null-safe!)
+                try
+                {
+                    var request = new TransferRequest
+                    {
+                        WaferId = waferId,
+                        From = rule.From ?? throw new InvalidOperationException("Rule.From is null"),
+                        To = rule.To ?? throw new InvalidOperationException("Rule.To is null"),
+                        Priority = rule.Priority,
+                        PreferredRobotId = robot
+                    };
 
-            // DEBUG: Log TRANSFER command sent
-            _logger($"[RuleEngine] 📤 TRANSFER command sent: {robot} <- TRANSFER(wafer={waferId}, from={rule.From}, to={rule.To})");
+                    _robotScheduler.RequestTransfer(request);
+                    _robotsWithPendingCommands.Add(robot);
+                }
+                catch (ArgumentException ex)
+                {
+                    Log($"[RuleEngine] ❌ CRITICAL: Transfer request validation failed: {ex.Message}");
+                    Log($"[RuleEngine] ❌ Rule: {rule.Id}, WaferId: {waferId}, From: {rule.From ?? "NULL"}, To: {rule.To ?? "NULL"}");
+                }
+            }
+            else
+            {
+                // LEGACY: Direct robot command (old behavior)
+                _robotsWithPendingCommands.Add(robot);
+
+                ctx.RequestSend(robot, rule.Action.Command ?? "TRANSFER", new JObject
+                {
+                    ["waferId"] = waferId,
+                    ["from"] = rule.From,
+                    ["to"] = rule.To
+                });
+
+                Log($"[RuleEngine] 📤 TRANSFER command sent: {robot} <- TRANSFER(wafer={waferId}, from={rule.From}, to={rule.To})");
+            }
         }
 
         // Execute effects
@@ -689,7 +674,7 @@ public class SchedulingRuleEngine
                 break;
 
             default:
-                _logger($"[RuleEngine] ⚠ Unknown effect type: {effect.Type}");
+                Log($"[RuleEngine] ⚠ Unknown effect type: {effect.Type}");
                 break;
         }
     }
@@ -715,7 +700,7 @@ public class SchedulingRuleEngine
                     if (effect.Queue == "LoadPort.Completed")
                     {
                         var completedCount = queue.Count;
-                        _logger($"[RuleEngine] ✅ Wafer {waferId} completed ({completedCount}/{_totalWafers})");
+                        Log($"[RuleEngine] ✅ Wafer {waferId} completed ({completedCount}/{_totalWafers})");
                     }
 
                     // E87: Notify carrier when wafer completes
@@ -735,7 +720,7 @@ public class SchedulingRuleEngine
                 {
                     var removedItem = queue[0];
                     queue.RemoveAt(0);
-                    _logger($"[RuleEngine] 📤 Queue {effect.Queue} removed wafer {removedItem} (remaining: {queue.Count})");
+                    Log($"[RuleEngine] 📤 Queue {effect.Queue} removed wafer {removedItem} (remaining: {queue.Count})");
 
                     // DEBUG: Log for wafers 2 and 10 to trace "skipped" bug
                     if (removedItem == 2 || removedItem == 10)
@@ -745,7 +730,7 @@ public class SchedulingRuleEngine
                 }
                 else
                 {
-                    _logger($"[RuleEngine] ⚠ Attempted to removeFirst from empty queue: {effect.Queue}");
+                    Log($"[RuleEngine] ⚠ Attempted to removeFirst from empty queue: {effect.Queue}");
                 }
                 break;
 
@@ -769,11 +754,11 @@ public class SchedulingRuleEngine
         {
             var completedCount = _queues.GetValueOrDefault("LoadPort.Completed")?.Count ?? 0;
 
-            _logger($"[RuleEngine] 🔍 CheckCompletion: {completedCount}/{_totalWafers} wafers completed");
+            Log($"[RuleEngine] 🔍 CheckCompletion: {completedCount}/{_totalWafers} wafers completed");
 
             if (completedCount >= _totalWafers)
             {
-                _logger($"[RuleEngine] ✅ All {_totalWafers} wafers completed!");
+                Log($"[RuleEngine] ✅ All {_totalWafers} wafers completed!");
                 AllWafersCompleted?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -810,7 +795,7 @@ public class SchedulingRuleEngine
         var pendingBefore = _queues.GetValueOrDefault("LoadPort.Pending")?.Count ?? 0;
         var completedBefore = _queues.GetValueOrDefault("LoadPort.Completed")?.Count ?? 0;
         var carrierInfo = carrierId != null ? $" for {carrierId}" : "";
-        _logger($"[RuleEngine] 🔄 Reset starting{carrierInfo} - Before: Pending={pendingBefore}, Completed={completedBefore}, Paused={_isPaused}");
+        Log($"[RuleEngine] 🔄 Reset starting{carrierInfo} - Before: Pending={pendingBefore}, Completed={completedBefore}, Paused={_isPaused}");
 
         // Clear all completed wafers and reset to pending
         _queues["LoadPort.Pending"].Clear();
@@ -827,7 +812,7 @@ public class SchedulingRuleEngine
 
         // DEBUG: Log state after reset
         var pendingAfter = _queues["LoadPort.Pending"].Count;
-        _logger($"[RuleEngine] ↻ Reset complete{carrierInfo} - After: Pending={pendingAfter}, Completed=0, Paused={_isPaused} (ready for next carrier)");
+        Log($"[RuleEngine] ↻ Reset complete{carrierInfo} - After: Pending={pendingAfter}, Completed=0, Paused={_isPaused} (ready for next carrier)");
     }
 
     /// <summary>
@@ -836,7 +821,7 @@ public class SchedulingRuleEngine
     public void Pause()
     {
         _isPaused = true;
-        _logger("[RuleEngine] ⏸ Scheduler paused");
+        Log("[RuleEngine] ⏸ Scheduler paused");
     }
 
     /// <summary>
@@ -846,17 +831,17 @@ public class SchedulingRuleEngine
     {
         _isPaused = false;
         var carrierInfo = carrierId != null ? $" for {carrierId}" : "";
-        _logger($"[RuleEngine] ▶ Scheduler resumed{carrierInfo}");
+        Log($"[RuleEngine] ▶ Scheduler resumed{carrierInfo}");
 
         // DEBUG: Log queue state after resume
         var pending = _queues.GetValueOrDefault("LoadPort.Pending")?.Count ?? 0;
         var completed = _queues.GetValueOrDefault("LoadPort.Completed")?.Count ?? 0;
-        _logger($"[RuleEngine] 📊 Queue Status: Pending={pending}, Completed={completed}/{_totalWafers}");
+        Log($"[RuleEngine] 📊 Queue Status: Pending={pending}, Completed={completed}/{_totalWafers}");
 
         if (pending > 0)
         {
             var pendingWafers = string.Join(", ", _queues["LoadPort.Pending"].Take(5));
-            _logger($"[RuleEngine] 📊 Next wafers: {pendingWafers}{(pending > 5 ? "..." : "")}");
+            Log($"[RuleEngine] 📊 Next wafers: {pendingWafers}{(pending > 5 ? "..." : "")}");
         }
     }
 }

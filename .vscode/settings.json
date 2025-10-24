@@ -1,6 +1,25 @@
 {
+  // General Editor Font Settings
+  "editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', Monaco, monospace",
+  "editor.fontSize": 14,
+  "editor.fontLigatures": true,
+  "editor.unicodeHighlight.allowedCharacters": {
+    "🎯": true,
+    "✅": true,
+    "❌": true,
+    "⚠": true,
+    "📊": true,
+    "🚀": true,
+    "🔧": true,
+    "🤖": true
+  },
+
+  // Terminal Font Settings
+  "terminal.integrated.fontFamily": "'Cascadia Code', Consolas, monospace",
+  "terminal.integrated.fontSize": 14,
+
   // Markdown Preview Settings - Fixed-width font for diagrams
-  "markdown.preview.fontFamily": "Consolas, 'Courier New', Monaco, monospace",
+  "markdown.preview.fontFamily": "'Cascadia Code', Consolas, 'Courier New', Monaco, monospace",
   "markdown.preview.fontSize": 13,
   "markdown.preview.lineHeight": 1.2,
 
@@ -11,12 +30,9 @@
 
   // Editor Settings - Ensure monospace for markdown files
   "[markdown]": {
-    "editor.fontFamily": "Consolas, 'Courier New', Monaco, monospace",
+    "editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', Monaco, monospace",
     "editor.fontSize": 14,
     "editor.wordWrap": "off",
     "editor.renderWhitespace": "boundary"
-  },
-
-  // Ensure code blocks render properly
-  "editor.fontLigatures": false
+  }
 }
