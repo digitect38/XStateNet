@@ -24,6 +24,7 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     private IActorRef? _currentService;
     private bool _isRunning;
     private bool _isCompleted;
+    private Dictionary<string, string> _regionStates = new();
 
     public IStash Stash { get; set; } = null!;
 
@@ -61,6 +62,11 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
 
     private void Running()
     {
+        Receive<SendEventWithRegionStates>(msg =>
+        {
+            _regionStates = msg.RegionStates;
+            HandleEvent(msg.Event);
+        });
         Receive<SendEvent>(HandleEvent);
         Receive<GetState>(_ => Sender.Tell(CreateStateSnapshot()));
         Receive<ServiceDone>(HandleServiceDone);
@@ -161,6 +167,16 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
             if (!_context.EvaluateGuard(transition.Cond, evt?.Data))
             {
                 _log.Debug($"[Region:{_regionId}] Guard '{transition.Cond}' failed");
+                return false;
+            }
+        }
+
+        // Evaluate in-state condition
+        if (!string.IsNullOrEmpty(transition.In))
+        {
+            if (!IsInState(transition.In))
+            {
+                _log.Debug($"[Region:{_regionId}] In-state condition '{transition.In}' failed - not in that state");
                 return false;
             }
         }
@@ -528,6 +544,56 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     }
 
     #endregion
+
+    /// <summary>
+    /// Checks if the machine is currently in the specified state.
+    /// Supports absolute state paths like "#machineId.regionId.state"
+    /// </summary>
+    private bool IsInState(string statePath)
+    {
+        if (string.IsNullOrEmpty(statePath))
+            return false;
+
+        // Remove machine ID prefix if present (e.g., "#test.regionA.A2" -> "regionA.A2")
+        var targetState = statePath;
+        if (statePath.StartsWith("#"))
+        {
+            var parts = statePath.Split('.', 2);
+            if (parts.Length > 1)
+            {
+                targetState = parts[1]; // Remove "#machineId" prefix
+            }
+        }
+
+        // Check if target state is in a different region
+        if (targetState.Contains('.'))
+        {
+            var targetParts = targetState.Split('.', 2);
+            var targetRegion = targetParts[0];
+            var targetRegionState = targetParts.Length > 1 ? targetParts[1] : "";
+
+            // Check if we have state information for the target region
+            if (_regionStates.TryGetValue(targetRegion, out var regionState))
+            {
+                var matches = regionState == targetRegionState || regionState.StartsWith(targetRegionState + ".");
+                _log.Debug($"[Region:{_regionId}] In-state check: region '{targetRegion}' is in state '{regionState}' (checking '{targetRegionState}') = {matches}");
+                return matches;
+            }
+
+            _log.Debug($"[Region:{_regionId}] In-state check: no state information for region '{targetRegion}'");
+            return false;
+        }
+
+        // For non-region states, check current state
+        if (_currentState == targetState || _currentState.StartsWith(targetState + "."))
+        {
+            _log.Debug($"[Region:{_regionId}] In-state check: current state '{_currentState}' matches '{targetState}'");
+            return true;
+        }
+
+        _log.Debug($"[Region:{_regionId}] In-state check: current state '{_currentState}' does not match '{targetState}'");
+        return false;
+    }
 
     protected override void PreStart()
     {

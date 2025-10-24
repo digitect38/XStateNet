@@ -439,7 +439,8 @@ public class GuardsTests : TestKit
         Assert.True(activeEntered);
     }
 
-    [Fact(Skip = "In-state conditions not yet implemented in XStateNet2")]
+    //[Fact(Skip = "In-state conditions not yet implemented in XStateNet2")]
+    [Fact]
     public async Task InStateCondition_ChecksParallelRegion()
     {
         // Arrange

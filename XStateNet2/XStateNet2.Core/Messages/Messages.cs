@@ -82,3 +82,11 @@ public record BroadcastEvent(SendEvent Event) : IStateMachineMessage;
 /// Region state changed notification (for parallel states)
 /// </summary>
 public record RegionStateChanged(string RegionId, string State) : IStateMachineMessage;
+
+/// <summary>
+/// Send event with region states (for evaluating in-state conditions in parallel states)
+/// </summary>
+public record SendEventWithRegionStates(
+    SendEvent Event,
+    Dictionary<string, string> RegionStates
+) : IStateMachineMessage;

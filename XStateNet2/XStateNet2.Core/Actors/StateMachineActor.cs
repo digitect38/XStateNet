@@ -131,13 +131,14 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
 
         _log.Debug($"[{_script.Id}] Event '{evt.Type}' in state '{_currentState}'");
 
-        // If in parallel state, broadcast event to all regions
+        // If in parallel state, broadcast event to all regions with region states
         if (_isParallelState)
         {
             _log.Debug($"[{_script.Id}] Broadcasting event '{evt.Type}' to {_regions.Count} regions");
+            var eventWithRegions = new SendEventWithRegionStates(evt, _regionStates.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
             foreach (var region in _regions.Values)
             {
-                region.Tell(evt);
+                region.Tell(eventWithRegions);
             }
             return;
         }
@@ -257,6 +258,16 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
             if (!_context.EvaluateGuard(transition.Cond, evt?.Data))
             {
                 _log.Debug($"[{_script.Id}] Guard '{transition.Cond}' failed");
+                return false;
+            }
+        }
+
+        // Evaluate in-state condition
+        if (!string.IsNullOrEmpty(transition.In))
+        {
+            if (!IsInState(transition.In))
+            {
+                _log.Debug($"[{_script.Id}] In-state condition '{transition.In}' failed - not in that state");
                 return false;
             }
         }
@@ -1158,6 +1169,54 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         _completedRegions.Clear();
         _regionStates.Clear();
         _isParallelState = false;
+    }
+
+    /// <summary>
+    /// Checks if the machine is currently in the specified state.
+    /// Supports absolute state paths like "#machineId.state.substate"
+    /// </summary>
+    private bool IsInState(string statePath)
+    {
+        if (string.IsNullOrEmpty(statePath))
+            return false;
+
+        // Remove machine ID prefix if present (e.g., "#test.regionA.A2" -> "regionA.A2")
+        var targetState = statePath;
+        if (statePath.StartsWith("#"))
+        {
+            var parts = statePath.Split('.', 2);
+            if (parts.Length > 1)
+            {
+                targetState = parts[1]; // Remove "#machineId" prefix
+            }
+        }
+
+        // For parallel states, check if any region is in the target state
+        if (_isParallelState)
+        {
+            // Check region states
+            foreach (var (regionId, regionState) in _regionStates)
+            {
+                var fullRegionState = $"{regionId}.{regionState}";
+                if (fullRegionState == targetState || fullRegionState.StartsWith(targetState + "."))
+                {
+                    _log.Debug($"[{_script.Id}] In-state check: region '{regionId}' is in state '{regionState}' (matches '{targetState}')");
+                    return true;
+                }
+            }
+            _log.Debug($"[{_script.Id}] In-state check: no region matches '{targetState}'");
+            return false;
+        }
+
+        // For non-parallel states, check current state
+        if (_currentState == targetState || _currentState.StartsWith(targetState + "."))
+        {
+            _log.Debug($"[{_script.Id}] In-state check: current state '{_currentState}' matches '{targetState}'");
+            return true;
+        }
+
+        _log.Debug($"[{_script.Id}] In-state check: current state '{_currentState}' does not match '{targetState}'");
+        return false;
     }
 
     #endregion

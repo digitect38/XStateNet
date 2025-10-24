@@ -13,6 +13,9 @@ public class XStateTransition
     [JsonPropertyName("cond")]
     public string? Cond { get; set; }
 
+    [JsonPropertyName("in")]
+    public string? In { get; set; }
+
     [JsonPropertyName("actions")]
     public List<object>? Actions { get; set; }
 
