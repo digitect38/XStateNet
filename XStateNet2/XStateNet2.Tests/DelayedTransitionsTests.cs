@@ -267,7 +267,8 @@ public class DelayedTransitionsTests : TestKit
         }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
     }
 
-    [Fact(Skip = "Nested state relative path resolution for after transitions needs implementation")]
+    //[Fact(Skip = "Nested state relative path resolution for after transitions needs implementation")]
+    [Fact]
     public async Task AfterTransition_NestedStates_ShouldWork()
     {
         // Arrange

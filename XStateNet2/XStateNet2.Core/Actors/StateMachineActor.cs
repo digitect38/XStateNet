@@ -781,7 +781,8 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     {
         _log.Info($"[{_script.Id}] Service '{msg.ServiceId}' completed successfully");
 
-        if (!_script.States.TryGetValue(_currentState, out var stateNode))
+        var stateNode = GetStateNode(_currentState);
+        if (stateNode == null)
             return;
 
         if (stateNode.Invoke?.OnDone != null)
@@ -794,7 +795,8 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     {
         _log.Error(msg.Error, $"[{_script.Id}] Service '{msg.ServiceId}' failed");
 
-        if (!_script.States.TryGetValue(_currentState, out var stateNode))
+        var stateNode = GetStateNode(_currentState);
+        if (stateNode == null)
             return;
 
         if (stateNode.Invoke?.OnError != null)
@@ -836,12 +838,50 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         var key = $"after-{msg.Delay}";
         _delayedTransitions.Remove(key);
 
-        if (!_script.States.TryGetValue(_currentState, out var stateNode))
+        var stateNode = GetStateNode(_currentState);
+        if (stateNode == null)
             return;
 
         if (stateNode.After != null && stateNode.After.TryGetValue(msg.Delay, out var transition))
         {
             ProcessTransition(transition, null);
+        }
+    }
+
+    /// <summary>
+    /// Gets the state node for a given state path (handles both root and nested states)
+    /// </summary>
+    private XStateNode? GetStateNode(string statePath)
+    {
+        if (string.IsNullOrEmpty(statePath))
+            return null;
+
+        if (statePath.Contains('.'))
+        {
+            // Nested state - navigate through the hierarchy
+            var pathParts = statePath.Split('.');
+            var currentStates = _script.States;
+            XStateNode? node = null;
+
+            foreach (var part in pathParts)
+            {
+                if (currentStates != null && currentStates.TryGetValue(part, out node))
+                {
+                    currentStates = node.States;
+                }
+                else
+                {
+                    _log.Error($"[{_script.Id}] State '{statePath}' not found in hierarchy");
+                    return null;
+                }
+            }
+
+            return node;
+        }
+        else
+        {
+            // Root level state
+            return _script.States.TryGetValue(statePath, out var node) ? node : null;
         }
     }
 
@@ -1042,7 +1082,8 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         _isParallelState = false;
 
         // Trigger onDone transition if configured
-        if (_script.States.TryGetValue(_currentState, out var stateNode))
+        var stateNode = GetStateNode(_currentState);
+        if (stateNode != null)
         {
             // For parallel states, check for an onDone transition
             // This would be a transition from the parallel state itself
