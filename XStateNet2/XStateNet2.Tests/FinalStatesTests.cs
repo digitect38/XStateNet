@@ -49,7 +49,8 @@ public class FinalStatesTests : TestKit
         Assert.True(doneEntered);
     }
 
-    [Fact(Skip = "Final states don't yet block transitions in XStateNet2")]
+    //[Fact(Skip = "Final states don't yet block transitions in XStateNet2")]
+    [Fact]
     public async Task FinalState_NoFurtherTransitions()
     {
         // Arrange
@@ -101,7 +102,13 @@ public class FinalStatesTests : TestKit
         // Note: In XState V5, final states typically don't accept events
         // This behavior depends on implementation
         Assert.Equal("done", snapshot.CurrentState);
-        Assert.Equal(0, snapshot.Context["count"]); // Action should not execute
+
+        // Check context value with proper conversion
+        var countValue = snapshot.Context["count"];
+        int count = countValue is System.Text.Json.JsonElement element
+            ? element.GetInt32()
+            : Convert.ToInt32(countValue);
+        Assert.Equal(0, count); // Action should not execute
     }
 
     [Fact(Skip = "onDone transitions from parallel final states not yet fully implemented")]

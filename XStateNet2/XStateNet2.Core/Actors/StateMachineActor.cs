@@ -156,7 +156,17 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         // First check current state
         if (_currentTransitions != null && _currentTransitions.TryGetValue(evt.Type, out transitions))
         {
-            found = true;
+            // If current state is final, ignore transitions defined on it
+            // But still allow transitions from parent states
+            if (_currentStateNode?.Type == "final")
+            {
+                _log.Debug($"[{_script.Id}] Ignoring transition for '{evt.Type}' defined on final state '{_currentState}', checking parent states");
+                transitions = null; // Clear the found transitions, will check parents
+            }
+            else
+            {
+                found = true;
+            }
         }
 
         // If not found and this is a nested state, check parent states
