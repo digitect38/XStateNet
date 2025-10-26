@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using XStateNet2.Core.Converters;
 
 namespace XStateNet2.Core.Engine;
 
@@ -14,9 +15,11 @@ public class XStateInvoke
     public string Src { get; set; } = string.Empty;
 
     [JsonPropertyName("onDone")]
+    [JsonConverter(typeof(StringOrTransitionConverter))]
     public XStateTransition? OnDone { get; set; }
 
     [JsonPropertyName("onError")]
+    [JsonConverter(typeof(StringOrTransitionConverter))]
     public XStateTransition? OnError { get; set; }
 
     [JsonPropertyName("data")]

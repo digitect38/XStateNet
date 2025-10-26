@@ -28,15 +28,15 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
 
     public IStash Stash { get; set; } = null!;
 
-    public RegionActor(string regionId, XStateNode regionNode, InterpreterContext context)
+    public RegionActor(string regionId, XStateNode regionNode, InterpreterContext context, string? initialState = null)
     {
         _regionId = regionId ?? throw new ArgumentNullException(nameof(regionId));
         _regionNode = regionNode ?? throw new ArgumentNullException(nameof(regionNode));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _log = Context.GetLogger();
 
-        // Find initial state
-        _currentState = _regionNode.Initial ?? _regionNode.States?.Keys.FirstOrDefault() ?? "unknown";
+        // Use provided initial state (for history restoration) or find the default initial state
+        _currentState = initialState ?? _regionNode.Initial ?? _regionNode.States?.Keys.FirstOrDefault() ?? "unknown";
 
         Idle();
     }
@@ -68,6 +68,7 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
             HandleEvent(msg.Event);
         });
         Receive<SendEvent>(HandleEvent);
+        Receive<DirectTransition>(HandleDirectTransition);
         Receive<GetState>(_ => Sender.Tell(CreateStateSnapshot()));
         Receive<ServiceDone>(HandleServiceDone);
         Receive<ServiceError>(HandleServiceError);
@@ -134,6 +135,34 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     }
 
     /// <summary>
+    /// Handle direct transition command from parent (for multiple targets feature)
+    /// </summary>
+    private void HandleDirectTransition(DirectTransition msg)
+    {
+        if (!_isRunning)
+        {
+            _log.Warning($"[Region:{_regionId}] Received direct transition but region is not running");
+            return;
+        }
+
+        _log.Info($"[Region:{_regionId}] Direct transition: {_currentState} -> {msg.TargetState}");
+
+        var previousState = _currentState;
+
+        // Exit current state
+        ExitState(previousState, null);
+
+        // Update state
+        _currentState = msg.TargetState;
+
+        // Enter new state
+        EnterState(_currentState, null);
+
+        // Notify parent of state change
+        Context.Parent.Tell(new RegionStateChanged(_regionId, _currentState));
+    }
+
+    /// <summary>
     /// Find state node at given depth in the state path
     /// </summary>
     private XStateNode? FindStateNode(string[] statePath, int depth)
@@ -179,6 +208,15 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
                 _log.Debug($"[Region:{_regionId}] In-state condition '{transition.In}' failed - not in that state");
                 return false;
             }
+        }
+
+        // Check if this is a cross-region transition (absolute path starting with #)
+        if (!string.IsNullOrEmpty(transition.Target) && transition.Target.StartsWith("#"))
+        {
+            // This targets a state outside the region - notify parent
+            _log.Debug($"[Region:{_regionId}] Cross-region transition to '{transition.Target}' - notifying parent");
+            Context.Parent.Tell(new CrossRegionTransition(transition.Target, evt, transition.Actions));
+            return true; // Let parent handle it
         }
 
         // Execute transition

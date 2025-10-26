@@ -1,0 +1,505 @@
+using Akka.Actor;
+using System.Collections.ObjectModel;
+using System.Windows.Input;
+using System.Windows.Threading;
+using XStateNet2.Core.Factory;
+using XStateNet2.Core.Messages;
+using CMPSimXS2.StateMachines;
+using CMPSimXS2.Helpers;
+using CMPSimXS2.Models;
+using CMPSimXS2.Schedulers;
+
+namespace CMPSimXS2.ViewModels;
+
+public class MainViewModel : ViewModelBase
+{
+    private ActorSystem? _actorSystem;
+    private XStateMachineFactory? _factory;
+    private readonly DispatcherTimer _updateTimer;
+
+    // Hierarchical Schedulers
+    private RobotScheduler? _robotScheduler;
+    private WaferJourneyScheduler? _waferJourneyScheduler;
+
+    private bool _isRunning;
+    private int _waferCount = 25;
+    private int _processedWafers;
+    private string _status = "Ready";
+
+    public ObservableCollection<StationViewModel> Stations { get; }
+    public ObservableCollection<StationViewModel> Robots { get; }
+    public ObservableCollection<Wafer> Wafers { get; }
+
+    public bool IsRunning
+    {
+        get => _isRunning;
+        set => SetProperty(ref _isRunning, value);
+    }
+
+    public int WaferCount
+    {
+        get => _waferCount;
+        set => SetProperty(ref _waferCount, value);
+    }
+
+    public int ProcessedWafers
+    {
+        get => _processedWafers;
+        set => SetProperty(ref _processedWafers, value);
+    }
+
+    public string Status
+    {
+        get => _status;
+        set => SetProperty(ref _status, value);
+    }
+
+    public ICommand StartCommand { get; }
+    public ICommand StopCommand { get; }
+    public ICommand ResetCommand { get; }
+    public ICommand ProcessWaferCommand { get; }
+
+    public MainViewModel()
+    {
+        Stations = new ObservableCollection<StationViewModel>();
+        Robots = new ObservableCollection<StationViewModel>();
+        Wafers = new ObservableCollection<Wafer>();
+
+        StartCommand = new RelayCommand(Start, () => !IsRunning);
+        StopCommand = new RelayCommand(Stop, () => IsRunning);
+        ResetCommand = new RelayCommand(Reset);
+        ProcessWaferCommand = new RelayCommand(ProcessSingleWafer, () => IsRunning);
+
+        _updateTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _updateTimer.Tick += UpdateTimer_Tick;
+
+        // Log application startup
+        Logger.Instance.Info("Application", "=== CMPSimXS2 Application Started ===");
+        Logger.Instance.Info("Application", $"Log file location: {Logger.Instance.GetLogFilePath()}");
+        Logger.Instance.Info("Application", $"Version: 1.0.0");
+        Logger.Instance.Info("Application", $"Start time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+        InitializeActorSystem();
+        InitializeStations();
+        InitializeWafers();
+        InitializeSchedulers();
+    }
+
+    private void InitializeActorSystem()
+    {
+        Logger.Instance.Info("MainViewModel", "Initializing Actor System...");
+        _actorSystem = ActorSystem.Create("CMPSimulator");
+        _factory = new XStateMachineFactory(_actorSystem);
+        Status = "Actor system initialized";
+        Logger.Instance.Info("MainViewModel", "Actor System initialized successfully");
+    }
+
+    private void InitializeStations()
+    {
+        if (_factory == null) return;
+
+        Logger.Instance.Info("MainViewModel", "=== Initializing Stations ===");
+
+        // Create LoadPort
+        Logger.Instance.Info("LoadPort", "Creating LoadPort state machine...");
+        var loadPort = new StationViewModel("LoadPort");
+        loadPort.StateMachine = _factory.FromJson(MachineDefinitions.GetLoadPortMachine())
+            .WithAction("storeCarrier", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("carrier"))
+                {
+                    ctx.Set("carrier", data["carrier"]);
+                    Logger.Instance.Info("LoadPort", $"Carrier stored: {data["carrier"]}");
+                }
+            })
+            .WithAction("pickupWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("LoadPort", $"Wafer picked up: {data["wafer"]}");
+                }
+            })
+            .WithAction("clearCarrier", (ctx, _) =>
+            {
+                ctx.Set("carrier", null);
+                Logger.Instance.Info("LoadPort", "Carrier cleared");
+            })
+            .BuildAndStart();
+        Stations.Add(loadPort);
+        Logger.Instance.Info("LoadPort", "LoadPort initialized - State: empty");
+
+        // Create Carrier
+        Logger.Instance.Info("Carrier", "Creating Carrier state machine...");
+        var carrier = new StationViewModel("Carrier");
+        carrier.StateMachine = _factory.FromJson(MachineDefinitions.GetCarrierMachine())
+            .WithAction("removeWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("Carrier", $"Wafer removed: {data["wafer"]}");
+                }
+            })
+            .WithAction("addWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("Carrier", $"Wafer added: {data["wafer"]}");
+                }
+            })
+            .BuildAndStart();
+        Stations.Add(carrier);
+        Logger.Instance.Info("Carrier", "Carrier initialized - State: loaded");
+
+        // Create Polisher
+        Logger.Instance.Info("Polisher", "Creating Polisher state machine...");
+        var polisher = new StationViewModel("Polisher");
+        polisher.StateMachine = _factory.FromJson(MachineDefinitions.GetPolisherMachine())
+            .WithDelayService("PROCESS_DELAY", 2000) // 2 seconds for demo
+            .WithAction("storeWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("Polisher", $"Wafer loaded: {data["wafer"]}");
+                }
+            })
+            .WithAction("startProcessing", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                Logger.Instance.Info("Polisher", $"Started processing wafer: {wafer}");
+            })
+            .WithAction("completeProcessing", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                Logger.Instance.Info("Polisher", $"Completed processing wafer: {wafer}");
+            })
+            .WithAction("clearWafer", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                ctx.Set("currentWafer", null);
+                Logger.Instance.Info("Polisher", $"Wafer unloaded: {wafer}");
+            })
+            .BuildAndStart();
+        Stations.Add(polisher);
+        Logger.Instance.Info("Polisher", "Polisher initialized - State: idle");
+
+        // Create Cleaner
+        Logger.Instance.Info("Cleaner", "Creating Cleaner state machine...");
+        var cleaner = new StationViewModel("Cleaner");
+        cleaner.StateMachine = _factory.FromJson(MachineDefinitions.GetCleanerMachine())
+            .WithDelayService("CLEAN_DELAY", 1000) // 1 second for demo
+            .WithAction("storeWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("Cleaner", $"Wafer loaded: {data["wafer"]}");
+                }
+            })
+            .WithAction("startCleaning", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                Logger.Instance.Info("Cleaner", $"Started cleaning wafer: {wafer}");
+            })
+            .WithAction("completeCleaning", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                Logger.Instance.Info("Cleaner", $"Completed cleaning wafer: {wafer}");
+            })
+            .WithAction("clearWafer", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                ctx.Set("currentWafer", null);
+                Logger.Instance.Info("Cleaner", $"Wafer unloaded: {wafer}");
+            })
+            .BuildAndStart();
+        Stations.Add(cleaner);
+        Logger.Instance.Info("Cleaner", "Cleaner initialized - State: idle");
+
+        // Create Buffer
+        Logger.Instance.Info("Buffer", "Creating Buffer state machine...");
+        var buffer = new StationViewModel("Buffer");
+        buffer.StateMachine = _factory.FromJson(MachineDefinitions.GetBufferMachine())
+            .WithAction("storeWafer", (ctx, evt) =>
+            {
+                var data = evt as Dictionary<string, object>;
+                if (data != null && data.ContainsKey("wafer"))
+                {
+                    ctx.Set("currentWafer", data["wafer"]);
+                    Logger.Instance.Info("Buffer", $"Wafer stored: {data["wafer"]}");
+                }
+            })
+            .WithAction("clearWafer", (ctx, _) =>
+            {
+                var wafer = ctx.Get<object>("currentWafer");
+                ctx.Set("currentWafer", null);
+                Logger.Instance.Info("Buffer", $"Wafer retrieved: {wafer}");
+            })
+            .BuildAndStart();
+        Stations.Add(buffer);
+        Logger.Instance.Info("Buffer", "Buffer initialized - State: empty");
+
+        // Create Robots
+        Logger.Instance.Info("MainViewModel", "Creating 3 Robot state machines...");
+        for (int i = 1; i <= 3; i++)
+        {
+            var robotId = $"Robot {i}";
+            Logger.Instance.Info(robotId, $"Creating {robotId} state machine...");
+            var robot = new StationViewModel(robotId);
+            var capturedId = robotId; // Capture for closure
+            robot.StateMachine = _factory.FromJson(MachineDefinitions.GetRobotMachine())
+                .WithAction("pickupWafer", (ctx, evt) =>
+                {
+                    var data = evt as Dictionary<string, object>;
+                    if (data != null && data.ContainsKey("wafer"))
+                    {
+                        ctx.Set("currentWafer", data["wafer"]);
+                        Logger.Instance.Info(capturedId, $"Picked up wafer: {data["wafer"]} from {data.GetValueOrDefault("from", "?")} to {data.GetValueOrDefault("to", "?")}");
+                    }
+                })
+                .WithAction("placeWafer", (ctx, _) =>
+                {
+                    var wafer = ctx.Get<object>("currentWafer");
+                    Logger.Instance.Info(capturedId, $"Placed wafer: {wafer}");
+                })
+                .WithAction("clearWafer", (ctx, _) =>
+                {
+                    ctx.Set("currentWafer", null);
+                    Logger.Instance.Debug(capturedId, "Wafer cleared from robot");
+                })
+                .BuildAndStart($"robot{i}");
+            Robots.Add(robot);
+            Logger.Instance.Info(robotId, $"{robotId} initialized - State: idle");
+        }
+
+        Logger.Instance.Info("MainViewModel", "=== All Stations Initialized Successfully ===");
+        Status = "Stations initialized";
+    }
+
+    private void InitializeWafers()
+    {
+        Logger.Instance.Info("MainViewModel", "=== Initializing Wafers ===");
+
+        // Create 25 wafers (5x5 grid)
+        Wafers.Clear();
+        for (int i = 1; i <= 25; i++)
+        {
+            var wafer = new Wafer(i)
+            {
+                CurrentStation = "Carrier",
+                ProcessingState = "NotProcessed"
+            };
+            Wafers.Add(wafer);
+        }
+
+        Logger.Instance.Info("MainViewModel", $"Created {Wafers.Count} wafers in Carrier");
+        Logger.Instance.Info("MainViewModel", "=== Wafers Initialized Successfully ===");
+    }
+
+    private void InitializeSchedulers()
+    {
+        Logger.Instance.Info("MainViewModel", "=== Initializing Hierarchical Schedulers ===");
+
+        // Create Robot Scheduler
+        _robotScheduler = new RobotScheduler();
+
+        // Register robots with scheduler
+        foreach (var robot in Robots)
+        {
+            if (robot.StateMachine != null)
+            {
+                _robotScheduler.RegisterRobot(robot.Name, robot.StateMachine);
+            }
+        }
+
+        // Create Wafer Journey Scheduler (Master Scheduler)
+        _waferJourneyScheduler = new WaferJourneyScheduler(_robotScheduler, Wafers);
+
+        // Register stations with journey scheduler
+        foreach (var station in Stations)
+        {
+            _waferJourneyScheduler.RegisterStation(station.Name, station);
+        }
+
+        Logger.Instance.Info("MainViewModel", "=== Schedulers Initialized Successfully ===");
+        Logger.Instance.Info("MainViewModel", "Architecture: WaferJourneyScheduler → RobotScheduler → 3 Robots");
+    }
+
+    public void Start()
+    {
+        Logger.Instance.Info("MainViewModel", "=== SIMULATION STARTED ===");
+        IsRunning = true;
+        ProcessedWafers = 0;
+        _updateTimer.Start();
+        Status = "Running";
+        Logger.Instance.Info("MainViewModel", $"Starting wafer processing - Target: {WaferCount} wafers");
+    }
+
+    public void Stop()
+    {
+        Logger.Instance.Info("MainViewModel", "=== SIMULATION STOPPED ===");
+        IsRunning = false;
+        _updateTimer.Stop();
+        Status = "Stopped";
+        Logger.Instance.Info("MainViewModel", $"Wafers processed: {ProcessedWafers}/{WaferCount}");
+    }
+
+    public void Reset()
+    {
+        Logger.Instance.Info("MainViewModel", "=== RESET INITIATED ===");
+        Stop();
+        ProcessedWafers = 0;
+
+        // Reset schedulers
+        _waferJourneyScheduler?.Reset();
+
+        // Clear existing stations and robots
+        Logger.Instance.Info("MainViewModel", "Clearing stations and robots...");
+        Stations.Clear();
+        Robots.Clear();
+
+        // Terminate and recreate actor system to avoid duplicate actor names
+        Logger.Instance.Info("MainViewModel", "Terminating actor system...");
+        _actorSystem?.Terminate().Wait(TimeSpan.FromSeconds(3));
+        Logger.Instance.Info("MainViewModel", "Actor system terminated");
+
+        // Reinitialize actor system, stations, wafers, and schedulers
+        InitializeActorSystem();
+        InitializeStations();
+        InitializeWafers();
+        InitializeSchedulers();
+
+        Status = "Reset complete";
+        Logger.Instance.Info("MainViewModel", "=== RESET COMPLETE ===");
+    }
+
+    private void ProcessSingleWafer()
+    {
+        if (ProcessedWafers >= WaferCount) return;
+
+        var waferId = ProcessedWafers + 1;
+
+        Logger.Instance.Info("MainViewModel", $">>> Processing Wafer #{waferId}");
+
+        // Update wafer state
+        var wafer = Wafers.FirstOrDefault(w => w.Id == waferId);
+        if (wafer != null)
+        {
+            wafer.CurrentStation = "Polisher";
+        }
+
+        // Send wafer to polisher
+        var polisher = Stations.FirstOrDefault(s => s.Name == "Polisher");
+        if (polisher?.StateMachine != null)
+        {
+            Logger.Instance.Info("MainViewModel", $"Sending LOAD_WAFER event to Polisher for wafer #{waferId}");
+            polisher.StateMachine.Tell(new SendEvent("LOAD_WAFER", new Dictionary<string, object>
+            {
+                ["wafer"] = waferId
+            }));
+            Status = $"Processing wafer {waferId}";
+        }
+        else
+        {
+            Logger.Instance.Error("MainViewModel", "Polisher not found or not initialized!");
+        }
+
+        ProcessedWafers++;
+    }
+
+    private void UpdateTimer_Tick(object? sender, EventArgs e)
+    {
+        // Update all station states
+        foreach (var station in Stations)
+        {
+            station.UpdateState();
+        }
+
+        foreach (var robot in Robots)
+        {
+            robot.UpdateState();
+
+            // Update robot scheduler with current robot state
+            if (_robotScheduler != null)
+            {
+                // Map state to scheduler format
+                string schedulerState = robot.CurrentState switch
+                {
+                    "idle" => "idle",
+                    "carrying" => "busy",
+                    "moving" => "busy",
+                    _ => "busy"
+                };
+
+                _robotScheduler.UpdateRobotState(robot.Name, schedulerState, robot.CurrentWafer);
+            }
+        }
+
+        if (!IsRunning) return;
+
+        // Use hierarchical schedulers to process wafer journeys
+        _waferJourneyScheduler?.ProcessWaferJourneys();
+
+        // Update processed wafer count
+        int completedCount = Wafers.Count(w => w.IsCompleted);
+        if (completedCount != ProcessedWafers)
+        {
+            ProcessedWafers = completedCount;
+            Status = $"Processed: {ProcessedWafers}/{WaferCount}";
+
+            if (ProcessedWafers >= WaferCount)
+            {
+                Logger.Instance.Info("MainViewModel", $"=== ALL {WaferCount} WAFERS COMPLETED! ===");
+                Stop();
+            }
+        }
+    }
+
+    public void Shutdown()
+    {
+        Logger.Instance.Info("Application", "=== Shutting Down Application ===");
+        Logger.Instance.Info("Application", $"Shutdown time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        Logger.Instance.Info("Application", $"Total wafers processed: {ProcessedWafers}/{WaferCount}");
+
+        _updateTimer.Stop();
+        Logger.Instance.Info("Application", "Terminating actor system...");
+        _actorSystem?.Terminate().Wait(TimeSpan.FromSeconds(5));
+        Logger.Instance.Info("Application", "Actor system terminated");
+        Logger.Instance.Info("Application", "=== Application Shutdown Complete ===");
+    }
+}
+
+// Simple RelayCommand implementation
+public class RelayCommand : ICommand
+{
+    private readonly Action _execute;
+    private readonly Func<bool>? _canExecute;
+
+    public RelayCommand(Action execute, Func<bool>? canExecute = null)
+    {
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
+    }
+
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
+
+    public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
+
+    public void Execute(object? parameter) => _execute();
+}

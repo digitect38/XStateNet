@@ -45,5 +45,6 @@ public class XStateNode
     public List<XStateTransition>? Always { get; set; }
 
     [JsonPropertyName("onDone")]
+    [JsonConverter(typeof(StringOrTransitionConverter))]
     public XStateTransition? OnDone { get; set; }
 }

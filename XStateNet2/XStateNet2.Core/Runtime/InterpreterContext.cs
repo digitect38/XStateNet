@@ -166,6 +166,23 @@ public class InterpreterContext
                 }
                 break;
 
+            case "spawn":
+                if (actionDef.Src != null)
+                {
+                    // Spawn is handled by the state machine actor with access to ActorContext
+                    // Store spawn request in context for processing
+                    var spawnId = actionDef.Id ?? $"spawned_{Guid.NewGuid():N}";
+                    Set($"_spawn_request_{spawnId}", new { Src = actionDef.Src, Id = spawnId, Data = actionDef.Data });
+                }
+                break;
+
+            case "stop":
+                if (!string.IsNullOrEmpty(actionDef.Id))
+                {
+                    StopActor(actionDef.Id);
+                }
+                break;
+
             default:
                 // Try to execute as registered action
                 if (HasAction(actionDef.Type))
@@ -241,6 +258,37 @@ public class InterpreterContext
     public IActorRef? GetActor(string id)
     {
         return _actors.TryGetValue(id, out var actor) ? actor : null;
+    }
+
+    public void StopActor(string id)
+    {
+        if (_actors.TryGetValue(id, out var actor))
+        {
+            actor.Tell(Akka.Actor.PoisonPill.Instance);
+            _actors.Remove(id);
+        }
+    }
+
+    public List<string> GetPendingSpawnRequests()
+    {
+        return _context.Keys
+            .Where(k => k.StartsWith("_spawn_request_"))
+            .Select(k => k.Substring("_spawn_request_".Length))
+            .ToList();
+    }
+
+    public object? GetSpawnRequest(string id)
+    {
+        return Get<object>($"_spawn_request_{id}");
+    }
+
+    public void ClearSpawnRequest(string id)
+    {
+        var key = $"_spawn_request_{id}";
+        if (_context.ContainsKey(key))
+        {
+            _context.Remove(key);
+        }
     }
 
     public void SendTo(string targetId, string eventType, object? data = null, int? delayMs = null)

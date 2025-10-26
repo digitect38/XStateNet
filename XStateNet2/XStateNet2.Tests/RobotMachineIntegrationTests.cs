@@ -1,3 +1,4 @@
+using System.IO;
 using Akka.Actor;
 using Akka.TestKit.Xunit2;
 using Xunit;

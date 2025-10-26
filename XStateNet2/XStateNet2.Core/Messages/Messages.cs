@@ -90,3 +90,22 @@ public record SendEventWithRegionStates(
     SendEvent Event,
     Dictionary<string, string> RegionStates
 ) : IStateMachineMessage;
+
+/// <summary>
+/// Cross-region transition request (from region to parent)
+/// Indicates that a region wants to transition to a state outside the parallel state
+/// </summary>
+public record CrossRegionTransition(
+    string TargetState,
+    SendEvent TriggeringEvent,
+    List<object>? Actions
+) : IStateMachineMessage;
+
+/// <summary>
+/// Direct transition command (from parent to region)
+/// Forces a region to transition directly to a specific state
+/// Used for multiple targets feature
+/// </summary>
+public record DirectTransition(
+    string TargetState
+) : IStateMachineMessage;

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using XStateNet2.Core.Converters;
 
 namespace XStateNet2.Core.Engine;
 
@@ -7,8 +8,25 @@ namespace XStateNet2.Core.Engine;
 /// </summary>
 public class XStateTransition
 {
+    /// <summary>
+    /// Target state(s) for this transition.
+    /// Can be a single target (string) or multiple targets (array of strings).
+    /// Multiple targets allow transitioning multiple parallel regions simultaneously.
+    /// </summary>
     [JsonPropertyName("target")]
-    public string? Target { get; set; }
+    [JsonConverter(typeof(StringOrArrayConverter))]
+    public List<string>? Targets { get; set; }
+
+    /// <summary>
+    /// Legacy property for backward compatibility.
+    /// Returns the first target if multiple targets exist, or null.
+    /// </summary>
+    [JsonIgnore]
+    public string? Target
+    {
+        get => Targets?.FirstOrDefault();
+        set => Targets = value != null ? new List<string> { value } : null;
+    }
 
     [JsonPropertyName("cond")]
     public string? Cond { get; set; }
@@ -60,4 +78,18 @@ public class ActionDefinition
     /// </summary>
     [JsonPropertyName("delay")]
     public int? Delay { get; set; }
+
+    /// <summary>
+    /// For spawn action: source machine configuration
+    /// Can be a string reference to registered machine or inline configuration
+    /// </summary>
+    [JsonPropertyName("src")]
+    public object? Src { get; set; }
+
+    /// <summary>
+    /// For spawn action: ID to assign to spawned actor
+    /// Stored in context if specified
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
 }

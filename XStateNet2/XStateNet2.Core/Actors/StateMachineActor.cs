@@ -110,6 +110,7 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         Receive<DelayedTransition>(HandleDelayedTransition);
         Receive<RegionCompleted>(HandleRegionCompleted);
         Receive<RegionStateChanged>(HandleRegionStateChanged);
+        Receive<CrossRegionTransition>(HandleCrossRegionTransition);
         Receive<StopMachine>(_ =>
         {
             _log.Info($"[{_script.Id}] Stopping state machine");
@@ -131,43 +132,64 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
 
         _log.Debug($"[{_script.Id}] Event '{evt.Type}' in state '{_currentState}'");
 
-        // If in parallel state, broadcast event to all regions with region states
+        // If in parallel state, first check if there's a transition on the parallel state itself
+        // This allows transitions that exit the parallel state (e.g., CANCEL, SUCCESS)
         if (_isParallelState)
         {
-            _log.Debug($"[{_script.Id}] Broadcasting event '{evt.Type}' to {_regions.Count} regions");
-            var eventWithRegions = new SendEventWithRegionStates(evt, _regionStates.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
-            foreach (var region in _regions.Values)
+            // Check if the parallel state has transitions for this event
+            // For root-level parallel states, check _script.On; for nested parallel states, check _currentStateNode.On
+            bool hasParallelTransition = false;
+            if (_currentStateNode?.On != null && _currentStateNode.On.ContainsKey(evt.Type))
             {
-                region.Tell(eventWithRegions);
+                hasParallelTransition = true;
             }
-            return;
-        }
+            else if (_currentStateNode == null && _script.On != null && _script.On.ContainsKey(evt.Type))
+            {
+                // Root-level parallel state - transitions are in _script.On
+                hasParallelTransition = true;
+            }
 
-        // OPTIMIZATION: Use cached state node - no dictionary lookup!
-        if (_currentStateNode == null)
-        {
-            _log.Error($"[{_script.Id}] Current state '{_currentState}' node is null");
-            return;
+            // If parallel state has no transition for this event, broadcast to regions
+            if (!hasParallelTransition)
+            {
+                _log.Debug($"[{_script.Id}] Broadcasting event '{evt.Type}' to {_regions.Count} regions");
+                var eventWithRegions = new SendEventWithRegionStates(evt, _regionStates.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+                foreach (var region in _regions.Values)
+                {
+                    region.Tell(eventWithRegions);
+                }
+                return;
+            }
+            // Otherwise, fall through to handle the parallel state transition
+            _log.Debug($"[{_script.Id}] Parallel state '{_currentState}' has transition for '{evt.Type}'");
         }
 
         // Search for transition in current state and parent states hierarchy
         List<XStateTransition>? transitions = null;
         bool found = false;
 
-        // First check current state
-        if (_currentTransitions != null && _currentTransitions.TryGetValue(evt.Type, out transitions))
+        // For root-level parallel states, _currentStateNode is null, so use _script.On directly
+        if (_currentStateNode == null && _isParallelState)
         {
-            // If current state is final, ignore transitions defined on it
-            // But still allow transitions from parent states
-            if (_currentStateNode?.Type == "final")
-            {
-                _log.Debug($"[{_script.Id}] Ignoring transition for '{evt.Type}' defined on final state '{_currentState}', checking parent states");
-                transitions = null; // Clear the found transitions, will check parents
-            }
-            else
+            // Root-level parallel state - check _script.On for transitions
+            if (_script.On != null && _script.On.TryGetValue(evt.Type, out transitions))
             {
                 found = true;
             }
+        }
+        // For normal states, use cached state node - no dictionary lookup!
+        else if (_currentStateNode != null)
+        {
+            // First check current state
+            if (_currentTransitions != null && _currentTransitions.TryGetValue(evt.Type, out transitions))
+            {
+                found = true;
+            }
+        }
+        else
+        {
+            _log.Error($"[{_script.Id}] Current state '{_currentState}' node is null and not a parallel state");
+            return;
         }
 
         // If not found and this is a nested state, check parent states
@@ -280,16 +302,22 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         }
 
         // Execute transition
-        if (transition.Internal || string.IsNullOrEmpty(transition.Target))
+        if (transition.Internal || transition.Targets == null || transition.Targets.Count == 0)
         {
             // Internal transition - execute actions but don't change state
             _log.Debug($"[{_script.Id}] Internal transition in state '{_currentState}'");
             ExecuteActions(transition.Actions, evt?.Data);
         }
+        else if (transition.Targets.Count == 1)
+        {
+            // Single target - standard transition
+            Transition(transition.Targets[0], evt, transition.Actions);
+        }
         else
         {
-            // External transition - change state
-            Transition(transition.Target, evt, transition.Actions);
+            // Multiple targets - transition multiple regions in parallel state
+            _log.Info($"[{_script.Id}] Multiple target transition to {transition.Targets.Count} targets");
+            TransitionMultipleTargets(transition.Targets, evt, transition.Actions);
         }
 
         return true;
@@ -429,6 +457,63 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     }
 
     /// <summary>
+    /// Handles transitions to multiple targets simultaneously.
+    /// This is typically used in parallel states to transition multiple regions at once.
+    /// </summary>
+    private void TransitionMultipleTargets(List<string> targets, SendEvent? evt, List<object>? transitionActions)
+    {
+        _log.Info($"[{_script.Id}] Transitioning to {targets.Count} targets: {string.Join(", ", targets)}");
+
+        // Execute transition actions once (not per target)
+        ExecuteActions(transitionActions, evt?.Data);
+
+        // Check if we're in a parallel state
+        if (_isParallelState && _regions.Count > 0)
+        {
+            // Multiple targets in parallel state - transition each region
+            foreach (var target in targets)
+            {
+                var resolvedTarget = ResolveTargetPath(target);
+
+                // Parse the target to extract region ID and target state
+                // Format: "region1.state1" or ".region1.state1"
+                var targetPath = resolvedTarget.TrimStart('.');
+                var pathParts = targetPath.Split('.', 2);
+
+                if (pathParts.Length >= 1)
+                {
+                    var regionId = pathParts[0];
+                    var regionTargetState = pathParts.Length > 1 ? pathParts[1] : null;
+
+                    if (_regions.TryGetValue(regionId, out var regionActor))
+                    {
+                        // Send direct transition command to the specific region
+                        if (!string.IsNullOrEmpty(regionTargetState))
+                        {
+                            _log.Debug($"[{_script.Id}] Sending direct transition to region '{regionId}' -> '{regionTargetState}'");
+                            regionActor.Tell(new DirectTransition(regionTargetState));
+                        }
+                    }
+                    else
+                    {
+                        _log.Warning($"[{_script.Id}] Region '{regionId}' not found for target '{target}'");
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Not in a parallel state or targets might cross state boundaries
+            // For now, just transition to the first target (fallback behavior)
+            _log.Warning($"[{_script.Id}] Multiple targets specified but not in parallel state - using first target only");
+            if (targets.Count > 0)
+            {
+                Transition(targets[0], evt, null); // Actions already executed
+            }
+        }
+    }
+
+    /// <summary>
     /// Resolves relative target paths to absolute paths based on current state.
     /// Examples:
     /// - Current: "A.A1", Target: "A2" -> "A.A2" (sibling)
@@ -438,6 +523,19 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     /// </summary>
     private string ResolveTargetPath(string targetState)
     {
+        // Handle absolute paths starting with '#' (e.g., "#atm.idle" means "idle" at root level)
+        if (targetState.StartsWith("#"))
+        {
+            // Remove #machineId. prefix
+            var parts = targetState.Split('.', 2);
+            if (parts.Length > 1)
+            {
+                var resolvedState = parts[1]; // "#atm.idle" -> "idle"
+                _log.Debug($"[{_script.Id}] Resolving absolute path '{targetState}' to '{resolvedState}'");
+                return resolvedState;
+            }
+        }
+
         // Handle relative paths starting with '.' (e.g., ".idle" means "idle" at root level)
         if (targetState.StartsWith("."))
         {
@@ -787,6 +885,38 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
                 _log.Error(ex, $"[{_script.Id}] Error executing action: {action}");
             }
         }
+
+        // Process any pending spawn requests after actions execute
+        ProcessSpawnRequests();
+    }
+
+    private void ProcessSpawnRequests()
+    {
+        var pendingSpawns = _context.GetPendingSpawnRequests();
+        foreach (var spawnId in pendingSpawns)
+        {
+            try
+            {
+                var request = _context.GetSpawnRequest(spawnId);
+                if (request != null)
+                {
+                    // For now, we support spawning registered machines by name
+                    // In the future, this could support inline machine definitions
+                    _log.Info($"[{_script.Id}] Spawning actor: {spawnId}");
+
+                    // Store spawn metadata in context
+                    _context.Set($"_spawned_{spawnId}", true);
+
+                    // Clear the spawn request
+                    _context.ClearSpawnRequest(spawnId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex, $"[{_script.Id}] Error processing spawn request: {spawnId}");
+                _context.ClearSpawnRequest(spawnId);
+            }
+        }
     }
 
     #endregion
@@ -861,7 +991,7 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         var cancelable = Context.System.Scheduler.ScheduleTellOnceCancelable(
             TimeSpan.FromMilliseconds(delay),
             Self,
-            new DelayedTransition(delay, transition.Target),
+            new DelayedTransition(delay, transition.Target), // Use legacy Target property for delayed transitions (single target only)
             Self
         );
 
@@ -969,18 +1099,24 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
 
             if (shouldTransition)
             {
-                _log.Debug($"[{_script.Id}] Taking always transition to '{transition.Target}'");
+                var targetsDesc = transition.Targets != null ? string.Join(", ", transition.Targets) : "none";
+                _log.Debug($"[{_script.Id}] Taking always transition to '{targetsDesc}'");
 
                 // Execute the transition
-                if (transition.Internal || string.IsNullOrEmpty(transition.Target))
+                if (transition.Internal || transition.Targets == null || transition.Targets.Count == 0)
                 {
                     // Internal transition - execute actions but don't change state
                     ExecuteActions(transition.Actions, null);
                 }
+                else if (transition.Targets.Count == 1)
+                {
+                    // Single target - External transition - this will trigger CheckAlwaysTransitions again recursively
+                    Transition(transition.Targets[0], null, transition.Actions);
+                }
                 else
                 {
-                    // External transition - this will trigger CheckAlwaysTransitions again recursively
-                    Transition(transition.Target, null, transition.Actions);
+                    // Multiple targets
+                    TransitionMultipleTargets(transition.Targets, null, transition.Actions);
                 }
 
                 // Take only the first matching transition
@@ -1104,6 +1240,33 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         _regionStates[msg.RegionId] = msg.State;
     }
 
+    private void HandleCrossRegionTransition(CrossRegionTransition msg)
+    {
+        _log.Info($"[{_script.Id}] Cross-region transition to '{msg.TargetState}' triggered by event '{msg.TriggeringEvent.Type}'");
+
+        // Stop all parallel regions
+        StopParallelRegions();
+
+        // Execute transition actions
+        ExecuteActions(msg.Actions, msg.TriggeringEvent.Data);
+
+        // Resolve and transition to target state
+        var resolvedTarget = ResolveTargetPath(msg.TargetState);
+        var previousState = _currentState;
+
+        // Exit current parallel state
+        ExitState(previousState, msg.TriggeringEvent);
+
+        // Update state
+        _currentState = resolvedTarget;
+
+        // Enter new state
+        EnterState(_currentState, msg.TriggeringEvent);
+
+        // Notify subscribers
+        NotifyStateChanged(previousState, _currentState, msg.TriggeringEvent);
+    }
+
     private void OnAllRegionsCompleted()
     {
         _log.Info($"[{_script.Id}] Parallel state completed");
@@ -1150,15 +1313,33 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         // Create a region actor for each sub-state
         foreach (var (regionId, regionNode) in stateNode.States)
         {
+            // Check if we have saved history for this region
+            var historyKey = $"{_currentState}.{regionId}";
+            string initialState;
+
+            if (_stateHistory.TryGetValue(historyKey, out var savedState))
+            {
+                // Restore from history
+                initialState = savedState;
+                _log.Info($"[{_script.Id}] Restoring region '{regionId}' from history: {savedState}");
+            }
+            else
+            {
+                // Use the region's initial state
+                initialState = regionNode.Initial ?? regionNode.States?.Keys.FirstOrDefault() ?? "unknown";
+                _log.Debug($"[{_script.Id}] Starting region '{regionId}' with initial state: {initialState}");
+            }
+
+            // Use GUID to ensure unique actor names even when rapidly recreating parallel states
+            var uniqueName = $"region-{regionId}-{Guid.NewGuid():N}";
             var regionActor = Context.ActorOf(
-                Props.Create(() => new RegionActor(regionId, regionNode, _context)),
-                $"region-{regionId}"
+                Props.Create(() => new RegionActor(regionId, regionNode, _context, initialState)),
+                uniqueName
             );
 
             _regions[regionId] = regionActor;
 
             // Initialize region state (will be updated by RegionStateChanged messages)
-            var initialState = regionNode.Initial ?? regionNode.States?.Keys.FirstOrDefault() ?? "unknown";
             _regionStates[regionId] = initialState;
 
             // Start the region
@@ -1173,6 +1354,18 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     private void StopParallelRegions()
     {
         _log.Info($"[{_script.Id}] Stopping {_regions.Count} parallel regions");
+
+        // Save region states as history before clearing them
+        // This allows restoring the parallel state's previous region states
+        if (_regionStates.Count > 0)
+        {
+            foreach (var (regionId, regionState) in _regionStates)
+            {
+                var historyKey = $"{_currentState}.{regionId}";
+                _stateHistory[historyKey] = regionState;
+                _log.Debug($"[{_script.Id}] Saved parallel region history: {historyKey} -> {regionState}");
+            }
+        }
 
         foreach (var (regionId, regionActor) in _regions)
         {

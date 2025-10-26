@@ -50,7 +50,7 @@ public class FinalStatesTests : TestKit
     }
 
     [Fact]
-    public async Task FinalState_NoFurtherTransitions()
+    public async Task FinalState_CanHaveExplicitTransitions()
     {
         // Arrange
         var json = """
@@ -93,21 +93,19 @@ public class FinalStatesTests : TestKit
         var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
         Assert.Equal("done", snapshot.CurrentState);
 
-        // Try to transition from final state
+        // Try to transition from final state - XState V5 allows explicit transitions on final states
         machine.Tell(new SendEvent("RESTART"));
         snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
 
-        // Assert - Should still be in done state, event ignored
-        // Note: In XState V5, final states typically don't accept events
-        // This behavior depends on implementation
-        Assert.Equal("done", snapshot.CurrentState);
+        // Assert - Should transition back to active state since explicit transition is defined
+        Assert.Equal("active", snapshot.CurrentState);
 
-        // Check context value with proper conversion
+        // Check context value - action should have executed
         var countValue = snapshot.Context["count"];
         int count = countValue is System.Text.Json.JsonElement element
             ? element.GetInt32()
             : Convert.ToInt32(countValue);
-        Assert.Equal(0, count); // Action should not execute
+        Assert.Equal(1, count); // Action should execute once
     }
 
     [Fact]
