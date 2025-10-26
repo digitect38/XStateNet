@@ -96,8 +96,11 @@ public class MachineBuilder
         // OPTIMIZATION: Freeze context to convert dictionaries to FrozenDictionary for faster lookups
         _context.Freeze();
 
+        // Auto-generate unique actor name to prevent collisions in parallel tests
+        var uniqueActorName = actorName ?? $"{_script.Id}-{Guid.NewGuid():N}";
+
         var props = Props.Create(() => new StateMachineActor(_script, _context));
-        var actor = _actorSystem.ActorOf(props, actorName ?? _script.Id);
+        var actor = _actorSystem.ActorOf(props, uniqueActorName);
 
         // Start the machine
         actor.Tell(new StartMachine());
@@ -113,7 +116,10 @@ public class MachineBuilder
         // OPTIMIZATION: Freeze context to convert dictionaries to FrozenDictionary for faster lookups
         _context.Freeze();
 
+        // Auto-generate unique actor name to prevent collisions in parallel tests
+        var uniqueActorName = actorName ?? $"{_script.Id}-{Guid.NewGuid():N}";
+
         var props = Props.Create(() => new StateMachineActor(_script, _context));
-        return _actorSystem.ActorOf(props, actorName ?? _script.Id);
+        return _actorSystem.ActorOf(props, uniqueActorName);
     }
 }

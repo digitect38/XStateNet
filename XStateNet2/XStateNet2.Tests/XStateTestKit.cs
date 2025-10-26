@@ -12,6 +12,18 @@ namespace XStateNet2.Tests;
 public abstract class XStateTestKit : TestKit
 {
     /// <summary>
+    /// Unique test ID for this test instance (automatically generated)
+    /// Provides isolation between parallel test runs and prevents actor name conflicts
+    /// </summary>
+    protected string TestId { get; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// Generate a unique actor name for this test instance
+    /// </summary>
+    /// <param name="baseName">Base name for the actor</param>
+    /// <returns>Unique actor name</returns>
+    protected string UniqueActorName(string baseName) => $"{baseName}-{TestId}";
+    /// <summary>
     /// Wait for a state machine to reach a specific condition with timeout and retry logic.
     /// Uses AwaitAssert for deterministic waiting without arbitrary delays.
     /// </summary>
