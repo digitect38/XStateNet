@@ -260,16 +260,11 @@ public class WaferJourneyScheduler
         wafer.CurrentStation = "Robot 1";
         _wafersInTransit.Add(wafer.Id);
 
-        // Retrieve from Buffer - update state immediately for pipeline flow
+        // Send RETRIEVE_WAFER event to Buffer (robot will pick up wafer)
         var buffer = GetStation("Buffer");
         if (buffer?.StateMachine != null)
         {
             buffer.StateMachine.Tell(new SendEvent("RETRIEVE_WAFER", null));
-
-            // Immediately clear buffer state so next wafer can enter
-            buffer.CurrentWafer = null;
-            buffer.CurrentState = "idle";
-            Logger.Instance.Debug("WaferJourneyScheduler", "Buffer now idle, ready for next wafer");
         }
 
         var request = new TransferRequest
@@ -279,7 +274,17 @@ public class WaferJourneyScheduler
             To = "Carrier",
             Priority = 2, // Higher priority for completed wafers
             PreferredRobotId = "Robot 1",
-            OnCompleted = (waferId) => OnWaferCompleted(waferId)
+            OnCompleted = (waferId) =>
+            {
+                // Clear buffer state when transfer completes
+                if (buffer != null)
+                {
+                    buffer.CurrentWafer = null;
+                    buffer.CurrentState = "idle";
+                    Logger.Instance.Debug("WaferJourneyScheduler", "Buffer now idle after wafer retrieval");
+                }
+                OnWaferCompleted(waferId);
+            }
         };
 
         _robotScheduler.RequestTransfer(request);

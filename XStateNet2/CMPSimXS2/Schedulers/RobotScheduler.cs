@@ -61,26 +61,31 @@ public class RobotScheduler
                 heldWaferId = null;
             }
 
+            var wasIdle = _robotStates[robotId].State == "idle";
             _robotStates[robotId].State = state;
             _robotStates[robotId].HeldWaferId = heldWaferId;
             _robotStates[robotId].WaitingFor = waitingFor;
 
             Logger.Instance.Debug("RobotScheduler", $"Robot {robotId} state updated: {state} (wafer={heldWaferId ?? 0})");
 
-            // When robot becomes idle, complete the active transfer and invoke callback
-            if (state == "idle" && _activeTransfers.ContainsKey(robotId))
+            // When robot becomes idle, complete active transfer (if any) and process pending requests
+            if (state == "idle" && !wasIdle)
             {
-                var completedTransfer = _activeTransfers[robotId];
-                _activeTransfers.Remove(robotId);
-
-                // Invoke the OnCompleted callback
-                if (completedTransfer.OnCompleted != null)
+                // Complete active transfer if one exists
+                if (_activeTransfers.ContainsKey(robotId))
                 {
-                    Logger.Instance.Info("RobotScheduler", $"{robotId} completed transfer of wafer {completedTransfer.WaferId}, invoking callback");
-                    completedTransfer.OnCompleted(completedTransfer.WaferId);
+                    var completedTransfer = _activeTransfers[robotId];
+                    _activeTransfers.Remove(robotId);
+
+                    // Invoke the OnCompleted callback
+                    if (completedTransfer.OnCompleted != null)
+                    {
+                        Logger.Instance.Info("RobotScheduler", $"{robotId} completed transfer of wafer {completedTransfer.WaferId}, invoking callback");
+                        completedTransfer.OnCompleted(completedTransfer.WaferId);
+                    }
                 }
 
-                // Process pending requests when robot becomes idle (and has placed its wafer)
+                // Always process pending requests when robot becomes idle
                 ProcessPendingRequests();
             }
         }
