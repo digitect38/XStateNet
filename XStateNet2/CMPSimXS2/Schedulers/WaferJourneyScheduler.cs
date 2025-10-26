@@ -135,19 +135,23 @@ public class WaferJourneyScheduler
     /// <summary>
     /// Start next wafer if Polisher is idle
     /// RULE: Polisher can only process ONE wafer at a time (must be idle)
-    /// CARRIER RULE: Only process wafers from current carrier
+    /// CARRIER RULE: Only process wafers from current carrier (if carrier tracking enabled)
     /// </summary>
     private void StartNextWaferIfPossible()
     {
-        // Check if we have a current carrier
-        if (string.IsNullOrEmpty(_currentCarrierId) || !_carrierWafers.ContainsKey(_currentCarrierId))
+        // Check if we have more wafers to start
+        if (_nextWaferToStart > _wafers.Count)
             return;
 
-        var currentCarrierWafers = _carrierWafers[_currentCarrierId];
+        // If carrier tracking is enabled, check carrier constraints
+        if (!string.IsNullOrEmpty(_currentCarrierId) && _carrierWafers.ContainsKey(_currentCarrierId))
+        {
+            var currentCarrierWafers = _carrierWafers[_currentCarrierId];
 
-        // Check if we have more wafers to start from current carrier
-        if (!currentCarrierWafers.Contains(_nextWaferToStart))
-            return;
+            // Check if we have more wafers to start from current carrier
+            if (!currentCarrierWafers.Contains(_nextWaferToStart))
+                return;
+        }
 
         // ENFORCE RULE: Polisher must be idle (not processing any wafer)
         var polisher = GetStation("Polisher");
@@ -162,7 +166,7 @@ public class WaferJourneyScheduler
             polisher.CurrentWafer = null;
         }
 
-        // Start next wafer from current carrier
+        // Start next wafer
         var wafer = _wafers.FirstOrDefault(w => w.Id == _nextWaferToStart);
         if (wafer != null && wafer.JourneyStage == "InCarrier")
         {
