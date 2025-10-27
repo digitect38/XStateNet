@@ -88,7 +88,12 @@ public class RobotMachineIntegrationTests : TestKit
             .WithActor("scheduler", scheduler)
             .BuildAndStart("R1");
 
-        await Task.Delay(100);
+        // Wait for initialization to complete
+        await AwaitAssertAsync(() =>
+        {
+            var snapshot = robot.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3)).Result;
+            Assert.Equal("idle", snapshot.CurrentState);
+        }, TimeSpan.FromSeconds(3));
 
         // Act - Send transfer command
         robot.Tell(new SendEvent("TRANSFER", new
@@ -98,7 +103,11 @@ public class RobotMachineIntegrationTests : TestKit
             to = "P1"
         }));
 
-        await Task.Delay(150); // Wait for pickup
+        // Wait for pickup to complete using AwaitAssert
+        await AwaitAssertAsync(() =>
+        {
+            Assert.True(pickedWafer, "Wafer should be picked");
+        }, TimeSpan.FromSeconds(3));
 
         // Should send ROBOT_STATUS to scheduler when holding
         var statusMsg = scheduler.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
@@ -107,13 +116,13 @@ public class RobotMachineIntegrationTests : TestKit
         // Send destination ready
         robot.Tell(new SendEvent("DESTINATION_READY", null));
 
-        await Task.Delay(200); // Wait for place and return
-
-        // Assert
-        Assert.True(transferInfoStored, "Transfer info should be stored");
-        Assert.True(pickedWafer, "Wafer should be picked");
-        Assert.True(placedWafer, "Wafer should be placed");
-        Assert.True(transferComplete, "Transfer should be complete");
+        // Wait for place and return using AwaitAssert
+        await AwaitAssertAsync(() =>
+        {
+            Assert.True(transferInfoStored, "Transfer info should be stored");
+            Assert.True(placedWafer, "Wafer should be placed");
+            Assert.True(transferComplete, "Transfer should be complete");
+        }, TimeSpan.FromSeconds(3));
     }
 
     //[Fact(Skip = "Global events during invoke services not yet supported - future enhancement")]
