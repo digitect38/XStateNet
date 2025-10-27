@@ -198,7 +198,12 @@ public class RobotMachineIntegrationTests : TestKit
             .WithActor("scheduler", scheduler)
             .BuildAndStart("R1");
 
-        await Task.Delay(100);
+        // Wait for initialization to complete
+        await AwaitAssertAsync(() =>
+        {
+            var snapshot = robot.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3)).Result;
+            Assert.Equal("idle", snapshot.CurrentState);
+        }, TimeSpan.FromSeconds(3));
 
         // Act - Send transfer to set context
         robot.Tell(new SendEvent("TRANSFER", new
@@ -208,16 +213,22 @@ public class RobotMachineIntegrationTests : TestKit
             to = "P1"
         }));
 
-        await Task.Delay(50);
+        // Wait for transfer to start processing
+        await AwaitAssertAsync(() =>
+        {
+            var snapshot = robot.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3)).Result;
+            Assert.NotEqual("idle", snapshot.CurrentState);
+        }, TimeSpan.FromSeconds(3));
 
         // Send RESET while in pickingUp state
         robot.Tell(new SendEvent("RESET", null));
 
-        await Task.Delay(300); // Give more time for reset to process
-
-        // Assert
-        Assert.True(resetCalled, "Reset should be called");
-        Assert.True(idleCalled, "Should return to idle after reset");
+        // Wait for reset to complete
+        await AwaitAssertAsync(() =>
+        {
+            Assert.True(resetCalled, "Reset should be called");
+            Assert.True(idleCalled, "Should return to idle after reset");
+        }, TimeSpan.FromSeconds(3));
     }
 
     [Fact]
@@ -257,8 +268,12 @@ public class RobotMachineIntegrationTests : TestKit
             .WithActor("scheduler", scheduler)
             .BuildAndStart("R1");
 
-        // Act - Wait for initial idle state
-        await Task.Delay(100);
+        // Wait for initialization to complete and idle state reached
+        await AwaitAssertAsync(() =>
+        {
+            var snapshot = robot.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3)).Result;
+            Assert.Equal("idle", snapshot.CurrentState);
+        }, TimeSpan.FromSeconds(3));
 
         // Assert - Should receive ROBOT_STATUS event
         var statusEvent = scheduler.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
