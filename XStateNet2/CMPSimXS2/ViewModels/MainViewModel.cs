@@ -25,6 +25,8 @@ public class MainViewModel : ViewModelBase
     private int _waferCount = 25;
     private int _processedWafers;
     private string _status = "Ready";
+    private string? _currentCarrierId;
+    private int _totalCarriers = 2; // Support 2 carriers (C1: 1-13, C2: 14-25)
 
     public ObservableCollection<StationViewModel> Stations { get; }
     public ObservableCollection<StationViewModel> Robots { get; }
@@ -52,6 +54,12 @@ public class MainViewModel : ViewModelBase
     {
         get => _status;
         set => SetProperty(ref _status, value);
+    }
+
+    public string? CurrentCarrierId
+    {
+        get => _currentCarrierId;
+        set => SetProperty(ref _currentCarrierId, value);
     }
 
     public ICommand StartCommand { get; }
@@ -327,6 +335,9 @@ public class MainViewModel : ViewModelBase
         // Create Wafer Journey Scheduler (Master Scheduler)
         _waferJourneyScheduler = new WaferJourneyScheduler(_robotScheduler, Wafers);
 
+        // Subscribe to carrier completion events
+        _waferJourneyScheduler.OnCarrierCompleted += OnCarrierCompletedHandler;
+
         // Register stations with journey scheduler
         foreach (var station in Stations)
         {
@@ -343,8 +354,14 @@ public class MainViewModel : ViewModelBase
         IsRunning = true;
         ProcessedWafers = 0;
         _updateTimer.Start();
-        Status = "Running";
-        Logger.Instance.Info("MainViewModel", $"Starting wafer processing - Target: {WaferCount} wafers");
+
+        // Start two-carrier processing by triggering first carrier arrival
+        // C1: wafers 1-13 (13 wafers)
+        var c1Wafers = Enumerable.Range(1, 13).ToList();
+        OnCarrierArrival("C1", c1Wafers);
+
+        Logger.Instance.Info("MainViewModel", $"Starting two-carrier processing - Total: {WaferCount} wafers");
+        Logger.Instance.Info("MainViewModel", $"Carrier C1: 13 wafers (1-13), Carrier C2: 12 wafers (14-25)");
     }
 
     public void Stop()
@@ -479,6 +496,74 @@ public class MainViewModel : ViewModelBase
         Logger.Instance.Info("Application", "Actor system terminated");
         Logger.Instance.Info("Application", "=== Application Shutdown Complete ===");
     }
+
+    #region Two-Carrier Lifecycle Management
+
+    /// <summary>
+    /// Handle carrier arrival event - registers carrier and its wafers with scheduler
+    /// </summary>
+    private void OnCarrierArrival(string carrierId, List<int> waferIds)
+    {
+        CurrentCarrierId = carrierId;
+        _waferJourneyScheduler?.OnCarrierArrival(carrierId, waferIds);
+
+        Status = $"Carrier {carrierId} arrived ({waferIds.Count} wafers)";
+        Logger.Instance.Info("MainViewModel", $"🚛 Carrier {carrierId} arrived with wafers: {string.Join(", ", waferIds)}");
+    }
+
+    /// <summary>
+    /// Handle carrier completion event - triggers departure if all wafers processed
+    /// </summary>
+    private void OnCarrierCompletedHandler(string carrierId)
+    {
+        Logger.Instance.Info("MainViewModel", $"✅ Carrier {carrierId} completed - All wafers processed!");
+
+        // Trigger carrier departure
+        OnCarrierDeparture(carrierId);
+
+        // Check if we need to start next carrier
+        StartNextCarrierIfNeeded();
+    }
+
+    /// <summary>
+    /// Handle carrier departure event - marks carrier as departed and clears current carrier
+    /// </summary>
+    private void OnCarrierDeparture(string carrierId)
+    {
+        _waferJourneyScheduler?.OnCarrierDeparture(carrierId);
+
+        if (CurrentCarrierId == carrierId)
+        {
+            CurrentCarrierId = null;
+        }
+
+        Status = $"Carrier {carrierId} departed";
+        Logger.Instance.Info("MainViewModel", $"🚚 Carrier {carrierId} departed");
+    }
+
+    /// <summary>
+    /// Start next carrier if there are more carriers to process
+    /// </summary>
+    private void StartNextCarrierIfNeeded()
+    {
+        // For 25 wafers with 2 carriers:
+        // C1: wafers 1-13 (13 wafers)
+        // C2: wafers 14-25 (12 wafers)
+
+        if (CurrentCarrierId == "C1")
+        {
+            // Start second carrier
+            var c2Wafers = Enumerable.Range(14, 12).ToList(); // 14-25
+            OnCarrierArrival("C2", c2Wafers);
+        }
+        else if (CurrentCarrierId == "C2")
+        {
+            // All carriers completed
+            Logger.Instance.Info("MainViewModel", "🎉 All carriers completed!");
+        }
+    }
+
+    #endregion
 }
 
 // Simple RelayCommand implementation

@@ -63,40 +63,65 @@ public class Wafer : INotifyPropertyChanged
     public string JourneyStage
     {
         get => _journeyStage;
-        set => SetProperty(ref _journeyStage, value);
+        set
+        {
+            if (SetProperty(ref _journeyStage, value))
+            {
+                OnPropertyChanged(nameof(TextColor));
+                OnPropertyChanged(nameof(StatusSymbol));
+            }
+        }
     }
 
     /// <summary>
-    /// Font color based on processing state:
-    /// - Black: Not processed yet
-    /// - Yellow: Polished (being cleaned or waiting for cleaning)
-    /// - White: Cleaned (processing complete)
+    /// Font color based on 5-stage journey progression:
+    /// - Black (⚫): Raw wafer (InCarrier, not started)
+    /// - Blue (🔵): Being polished (ToPolisher, Polishing)
+    /// - Green (🟢): Polished, ready for cleaning (ToCleaner)
+    /// - Yellow (🟡): Being cleaned (Cleaning)
+    /// - White (⚪): Cleaned and completed (ToBuffer, InBuffer, ToCarrier, returned to Carrier)
     /// </summary>
     public Brush TextColor
     {
         get
         {
-            return ProcessingState switch
+            // 5-stage color progression based on journey stage
+            return JourneyStage switch
             {
-                "Cleaned" => Brushes.White,
-                "Polished" => Brushes.Yellow,
-                _ => Brushes.Black // NotProcessed
+                // Stage 5: White - Cleaned wafer (ready to return or returned)
+                "InCarrier" when ProcessingState == "Cleaned" => Brushes.White,
+                "ToCarrier" or "InBuffer" or "ToBuffer" => Brushes.White,
+
+                // Stage 4: Yellow - Being cleaned
+                "Cleaning" => Brushes.Yellow,
+
+                // Stage 3: Green - Polished (waiting for cleaning)
+                "ToCleaner" => Brushes.LimeGreen,
+
+                // Stage 2: Blue - Being polished or ready to polish
+                "Polishing" or "ToPolisher" => Brushes.DodgerBlue,
+
+                // Stage 1: Black - Raw wafer
+                _ => Brushes.Black
             };
         }
     }
 
     /// <summary>
-    /// Status symbol for visual indication
+    /// Status symbol for visual indication of journey stage
     /// </summary>
     public string StatusSymbol
     {
         get
         {
-            return ProcessingState switch
+            return JourneyStage switch
             {
-                "Cleaned" => "✓",
-                "Polished" => "◐",
-                _ => ""
+                "InCarrier" when ProcessingState == "Cleaned" => "✓",  // Completed
+                "ToCarrier" or "InBuffer" or "ToBuffer" => "→",        // Returning
+                "Cleaning" => "◐",                                     // Being cleaned
+                "ToCleaner" => "◑",                                    // Polished
+                "Polishing" or "ToPolisher" => "○",                    // Being polished
+                _ => ""                                                // Raw
             };
         }
     }

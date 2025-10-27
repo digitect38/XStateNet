@@ -145,14 +145,11 @@ public class AtmStateMachineTests : XStateTestKit
             .BuildAndStart();
 
         // Act
-        SendEventAndWait(machine, "CARD_INSERTED",
-            s => s.CurrentState.Contains("enteringPin"),
+        SendEventAndWait(machine, "CARD_INSERTED",  s => s.CurrentState.Contains("enteringPin"),
             "state to contain 'enteringPin'");
-        SendEventAndWait(machine, "PIN_ENTERED",
-            s => s.CurrentState.Contains("verifyingPin"),
+        SendEventAndWait(machine, "PIN_ENTERED",    s => s.CurrentState.Contains("verifyingPin"),
             "state to contain 'verifyingPin'");
-        SendEventAndWait(machine, "PIN_CORRECT",
-            s => s.CurrentState.Contains("selectingTransaction") && s.CurrentState.Contains("noReceipt"),
+        SendEventAndWait(machine, "PIN_CORRECT",    s => s.CurrentState.Contains("selectingTransaction") && s.CurrentState.Contains("noReceipt"),
             "state to contain both 'selectingTransaction' and 'noReceipt'");
     }
 
@@ -361,6 +358,7 @@ public class AtmStateMachineTests : XStateTestKit
         // Act
         SendEventAndWait(machine, "CARD_INSERTED",
             s => s.CurrentState.Contains("enteringPin"), "enteringPin");
+
         SendEventAndWait(machine, "CANCEL",
             s => s.CurrentState == "idle", "idle");
     }
