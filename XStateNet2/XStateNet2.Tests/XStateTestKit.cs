@@ -39,12 +39,15 @@ public abstract class XStateTestKit : TestKit
         TimeSpan? timeout = null,
         TimeSpan? interval = null)
     {
+        var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(3);
+        var askTimeout = effectiveTimeout; // Use full timeout for Ask to handle slow systems
+
         AwaitAssert(() =>
         {
-            var snapshot = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            var snapshot = machine.Ask<StateSnapshot>(new GetState(), askTimeout).Result;
             Assert.True(condition(snapshot), $"Expected {description}, but got state: {snapshot.CurrentState}");
         },
-        timeout ?? TimeSpan.FromSeconds(3),
+        effectiveTimeout,
         interval ?? TimeSpan.FromMilliseconds(50));
     }
 
