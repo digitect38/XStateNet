@@ -3,6 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:CMPSimXS2.Helpers"
         xmlns:controls="clr-namespace:CMPSimXS2.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:CMPSimXS2.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel, IsDesignTimeCreatable=True}"
         Title="CMP Simulator - XStateNet2" Height="800" Width="1600"
         WindowStartupLocation="CenterScreen"
         Background="#F0F0F0">
@@ -193,6 +198,34 @@
             <Border Grid.Column="2" Background="#E8E8E8">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <Grid x:Name="SimulationCanvas" Width="1200" Height="700" Background="White">
+                        <!--
+                        ═══════════════════════════════════════════════════════════════════
+                        DESIGN-TIME POSITIONING GUIDE
+                        ═══════════════════════════════════════════════════════════════════
+
+                        To reposition stations and robots:
+                        1. Open: ViewModels/MainViewModel.cs
+                        2. Find: InitializeStations() method
+                        3. Edit X, Y values for each station/robot:
+
+                           LoadPort:  X = 250,  Y = 30
+                           Carrier:   X = 420,  Y = 30
+                           Polisher:  X = 590,  Y = 30
+                           Cleaner:   X = 760,  Y = 30
+                           Buffer:    X = 930,  Y = 30
+
+                           Robot 1:   X = 350 + (i-1)*170,  Y = 300
+                           Robot 2:   X = 520,              Y = 300
+                           Robot 3:   X = 690,              Y = 300
+
+                        4. Save and rebuild
+                        5. Positions will update automatically via data binding
+
+                        Canvas Dimensions: 1200x700
+                        Station Size: 150x100 (Width x Height)
+                        ═══════════════════════════════════════════════════════════════════
+                        -->
+
                         <!-- Carrier Wafer Grid Section (5x5) -->
                         <Border Background="White" BorderBrush="#BDC3C7" BorderThickness="1" CornerRadius="5" Padding="15" Margin="30,30,0,0"
                                 VerticalAlignment="Top" Height="240" HorizontalAlignment="Left" Width="190">
@@ -202,7 +235,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Stations - Positioned on Canvas -->
+                        <!-- Stations - Positioned on Canvas via X, Y properties -->
                         <ItemsControl ItemsSource="{Binding Stations}" ItemTemplate="{StaticResource StationTemplate}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
