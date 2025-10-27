@@ -40,48 +40,66 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Station Template -->
+        <!-- Station Template: Box (outer border) + Circle (status indicator) -->
         <DataTemplate x:Key="StationTemplate">
-            <Border Background="{Binding StateBrush}"
-                    BorderBrush="#333"
-                    BorderThickness="2"
+            <!-- Box: Outer Border -->
+            <Border Background="{Binding BoxBrush}"
+                    BorderBrush="{Binding BoxBorderBrush}"
+                    BorderThickness="{Binding BoxBorderThickness}"
                     CornerRadius="5"
                     Padding="15"
                     Margin="5"
-                    MinWidth="150"
-                    MinHeight="100">
-                <StackPanel>
-                    <TextBlock Text="{Binding Name}"
-                               FontWeight="Bold"
-                               FontSize="16"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,5"/>
-                    <!-- Remaining Time Display (for Polisher and Cleaner) -->
-                    <TextBlock Text="{Binding RemainingTime}"
-                               FontSize="10"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"
-                               Foreground="#CC6600"
-                               Margin="0,0,0,5">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding RemainingTime}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock Text="{Binding CurrentState}"
-                               FontSize="14"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,5"/>
-                    <TextBlock HorizontalAlignment="Center" FontSize="12">
-                        <Run Text="Wafer: "/>
-                        <Run Text="{Binding CurrentWafer, TargetNullValue='-'}"/>
-                    </TextBlock>
-                </StackPanel>
+                    Width="{Binding Width}"
+                    Height="{Binding Height}">
+                <Grid>
+                    <!-- Circle: Status Indicator (top center) -->
+                    <Ellipse Width="{Binding CircleSize}"
+                             Height="{Binding CircleSize}"
+                             Fill="{Binding CircleBrush}"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             VerticalAlignment="Top"
+                             HorizontalAlignment="Center"
+                             Margin="0,5,0,0"/>
+
+                    <!-- Station Info -->
+                    <StackPanel VerticalAlignment="Center" Margin="0,10,0,0">
+                        <TextBlock Text="{Binding Name}"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,3"/>
+
+                        <!-- Remaining Time Display (for Polisher and Cleaner) -->
+                        <TextBlock Text="{Binding RemainingTime}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   Foreground="#CC6600"
+                                   Margin="0,0,0,3">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding RemainingTime}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Text="{Binding CurrentState}"
+                                   FontSize="11"
+                                   HorizontalAlignment="Center"
+                                   Foreground="#333"
+                                   Margin="0,0,0,3"/>
+
+                        <TextBlock HorizontalAlignment="Center" FontSize="10" Foreground="#666">
+                            <Run Text="Wafer: "/>
+                            <Run Text="{Binding CurrentWafer, TargetNullValue='-'}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
             </Border>
         </DataTemplate>
     </Window.Resources>

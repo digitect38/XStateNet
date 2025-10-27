@@ -1,23 +1,22 @@
 using Akka.Actor;
+using System.Windows;
 using System.Windows.Media;
 using XStateNet2.Core.Extensions;
 
 namespace CMPSimXS2.ViewModels;
 
-public class StationViewModel : ViewModelBase
+/// <summary>
+/// Station view model representing a processing station in the CMP simulator.
+/// Inherits from VisualObject (Box + Circle composition) where:
+/// - Box: Outer border representing the station boundary (white background)
+/// - Circle: Inner status indicator showing current state (color-coded)
+/// </summary>
+public class StationViewModel : VisualObject
 {
     private IActorRef? _stateMachine;
-    private string _name = string.Empty;
     private string _currentState = "Unknown";
     private int? _currentWafer;
-    private SolidColorBrush _stateBrush = Brushes.Gray;
     private string _remainingTime = string.Empty;
-
-    public string Name
-    {
-        get => _name;
-        set => SetProperty(ref _name, value);
-    }
 
     public string RemainingTime
     {
@@ -32,7 +31,7 @@ public class StationViewModel : ViewModelBase
         {
             if (SetProperty(ref _currentState, value))
             {
-                UpdateStateColor();
+                UpdateVisualState();
             }
         }
     }
@@ -43,10 +42,13 @@ public class StationViewModel : ViewModelBase
         set => SetProperty(ref _currentWafer, value);
     }
 
+    /// <summary>
+    /// Alias for CircleBrush to maintain backward compatibility with XAML bindings
+    /// </summary>
     public SolidColorBrush StateBrush
     {
-        get => _stateBrush;
-        set => SetProperty(ref _stateBrush, value);
+        get => CircleBrush;
+        set => CircleBrush = value;
     }
 
     public virtual IActorRef? StateMachine
@@ -55,9 +57,16 @@ public class StationViewModel : ViewModelBase
         set => _stateMachine = value;
     }
 
-    public StationViewModel(string name)
+    public StationViewModel(string name) : base(name)
     {
-        Name = name;
+        // Initialize visual object with default station appearance
+        BoxBrush = new SolidColorBrush(Colors.White);
+        CircleBrush = new SolidColorBrush(Colors.Gray);
+        BoxBorderThickness = new Thickness(2);
+        BoxBorderBrush = new SolidColorBrush(Color.FromRgb(51, 51, 51)); // #333
+        Width = 150;
+        Height = 100;
+        CircleSize = 40;
     }
 
     public void UpdateState()
@@ -85,9 +94,14 @@ public class StationViewModel : ViewModelBase
         }
     }
 
-    private void UpdateStateColor()
+    /// <summary>
+    /// Updates the visual state by changing the circle color based on station state.
+    /// The box remains white, while the circle indicates the current processing state.
+    /// </summary>
+    protected override void UpdateVisualState()
     {
-        StateBrush = CurrentState.ToLowerInvariant() switch
+        // Update circle color based on state (status indicator)
+        CircleBrush = CurrentState.ToLowerInvariant() switch
         {
             "idle" or "empty" => new SolidColorBrush(Color.FromRgb(144, 238, 144)), // LightGreen
             "processing" or "cleaning" => new SolidColorBrush(Color.FromRgb(255, 99, 71)), // Tomato
@@ -97,5 +111,9 @@ public class StationViewModel : ViewModelBase
             "waiting" => new SolidColorBrush(Color.FromRgb(135, 206, 235)), // SkyBlue
             _ => new SolidColorBrush(Color.FromRgb(192, 192, 192)) // Silver
         };
+
+        // Box remains white background (not changed by state)
+        BoxBrush = new SolidColorBrush(Colors.White);
     }
 }
+
