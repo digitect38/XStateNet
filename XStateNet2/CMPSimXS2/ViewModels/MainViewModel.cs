@@ -1,5 +1,7 @@
 using Akka.Actor;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using XStateNet2.Core.Factory;
@@ -84,6 +86,15 @@ public class MainViewModel : ViewModelBase
         };
         _updateTimer.Tick += UpdateTimer_Tick;
 
+        // Check if running in design mode
+        if (DesignerProperties.GetIsInDesignMode(new DependencyObject()))
+        {
+            // Design-time: Create sample data without Actor System
+            InitializeDesignTimeData();
+            return;
+        }
+
+        // Runtime: Full initialization with Actor System
         // Log application startup
         Logger.Instance.Info("Application", "=== CMPSimXS2 Application Started ===");
         Logger.Instance.Info("Application", $"Log file location: {Logger.Instance.GetLogFilePath()}");
@@ -94,6 +105,43 @@ public class MainViewModel : ViewModelBase
         InitializeStations();
         InitializeWafers();
         InitializeSchedulers();
+    }
+
+    /// <summary>
+    /// Initialize sample data for design-time viewing in WPF Designer
+    /// </summary>
+    private void InitializeDesignTimeData()
+    {
+        // Create sample stations at design-time positions
+        Stations.Add(new StationViewModel("LoadPort") { X = 250, Y = 30, CurrentState = "empty" });
+        Stations.Add(new StationViewModel("Carrier") { X = 420, Y = 30, CurrentState = "loaded", CurrentWafer = 5 });
+        Stations.Add(new StationViewModel("Polisher") { X = 590, Y = 30, CurrentState = "processing", CurrentWafer = 3 });
+        Stations.Add(new StationViewModel("Cleaner") { X = 760, Y = 30, CurrentState = "cleaning", CurrentWafer = 7 });
+        Stations.Add(new StationViewModel("Buffer") { X = 930, Y = 30, CurrentState = "occupied", CurrentWafer = 2 });
+
+        // Create sample robots
+        for (int i = 1; i <= 3; i++)
+        {
+            Robots.Add(new StationViewModel($"Robot {i}")
+            {
+                X = 350 + (i - 1) * 170,
+                Y = 300,
+                CurrentState = i == 2 ? "carrying" : "idle",
+                CurrentWafer = i == 2 ? 8 : null
+            });
+        }
+
+        // Create sample wafers
+        for (int i = 1; i <= 25; i++)
+        {
+            Wafers.Add(new Wafer(i)
+            {
+                CurrentStation = i <= 5 ? "Carrier" : "Processing",
+                ProcessingState = i <= 5 ? "NotProcessed" : (i <= 15 ? "Polished" : "Cleaned")
+            });
+        }
+
+        Status = "Design Mode - Sample Data";
     }
 
     private void InitializeActorSystem()
