@@ -230,9 +230,10 @@ public class WaferJourneyIntegrationTests
 
         _journeyScheduler.ProcessWaferJourneys();
 
-        // After Polisher: Polished (YELLOW font)
+        // After Polisher: Polished, waiting for cleaner (GREEN font)
         wafer.ProcessingState.Should().Be("Polished");
-        wafer.TextColor.Should().Be(System.Windows.Media.Brushes.Yellow);
+        wafer.JourneyStage.Should().Be("ToCleaner");
+        wafer.TextColor.Should().Be(System.Windows.Media.Brushes.LimeGreen);
 
         // After Cleaner
         _journeyScheduler.Reset(); // Clear transit tracking
@@ -245,8 +246,9 @@ public class WaferJourneyIntegrationTests
 
         _journeyScheduler.ProcessWaferJourneys();
 
-        // After Cleaner: Cleaned (WHITE font)
+        // After Cleaner: Cleaned, ready to return (WHITE font)
         wafer.ProcessingState.Should().Be("Cleaned");
+        wafer.JourneyStage.Should().Be("ToBuffer");
         wafer.TextColor.Should().Be(System.Windows.Media.Brushes.White);
     }
 
