@@ -202,35 +202,35 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Stations Section -->
-                        <Border Background="White" BorderBrush="#BDC3C7" BorderThickness="1" CornerRadius="5" Padding="15" Margin="250,30,30,0"
-                                VerticalAlignment="Top" Height="240">
-                            <StackPanel>
-                                <TextBlock Text="Processing Stations" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
-                                <ItemsControl ItemsSource="{Binding Stations}" ItemTemplate="{StaticResource StationTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Rows="1"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
+                        <!-- Stations - Positioned on Canvas -->
+                        <ItemsControl ItemsSource="{Binding Stations}" ItemTemplate="{StaticResource StationTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
 
-                        <!-- Robots Section -->
-                        <Border Background="White" BorderBrush="#BDC3C7" BorderThickness="1" CornerRadius="5" Padding="15" Margin="30,290,30,0"
-                                VerticalAlignment="Top" Height="220">
-                            <StackPanel>
-                                <TextBlock Text="Transfer Robots" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
-                                <ItemsControl ItemsSource="{Binding Robots}" ItemTemplate="{StaticResource StationTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Rows="1"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
+                        <!-- Robots - Positioned on Canvas -->
+                        <ItemsControl ItemsSource="{Binding Robots}" ItemTemplate="{StaticResource StationTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
 
                         <!-- State Legend -->
                         <Border Background="White" BorderBrush="#BDC3C7" BorderThickness="1" CornerRadius="5" Padding="15"

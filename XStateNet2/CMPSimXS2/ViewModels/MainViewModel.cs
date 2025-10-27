@@ -113,7 +113,11 @@ public class MainViewModel : ViewModelBase
 
         // Create LoadPort
         Logger.Instance.Info("LoadPort", "Creating LoadPort state machine...");
-        var loadPort = new StationViewModel("LoadPort");
+        var loadPort = new StationViewModel("LoadPort")
+        {
+            X = 250,
+            Y = 30
+        };
         loadPort.StateMachine = _factory.FromJson(MachineDefinitions.GetLoadPortMachine())
             .WithAction("storeCarrier", (ctx, evt) =>
             {
@@ -144,7 +148,11 @@ public class MainViewModel : ViewModelBase
 
         // Create Carrier
         Logger.Instance.Info("Carrier", "Creating Carrier state machine...");
-        var carrier = new StationViewModel("Carrier");
+        var carrier = new StationViewModel("Carrier")
+        {
+            X = 420,
+            Y = 30
+        };
         carrier.StateMachine = _factory.FromJson(MachineDefinitions.GetCarrierMachine())
             .WithAction("removeWafer", (ctx, evt) =>
             {
@@ -170,7 +178,11 @@ public class MainViewModel : ViewModelBase
 
         // Create Polisher
         Logger.Instance.Info("Polisher", "Creating Polisher state machine...");
-        var polisher = new StationViewModel("Polisher");
+        var polisher = new StationViewModel("Polisher")
+        {
+            X = 590,
+            Y = 30
+        };
         polisher.StateMachine = _factory.FromJson(MachineDefinitions.GetPolisherMachine())
             .WithDelayService("PROCESS_DELAY", 2000) // 2 seconds for demo
             .WithAction("storeWafer", (ctx, evt) =>
@@ -204,7 +216,11 @@ public class MainViewModel : ViewModelBase
 
         // Create Cleaner
         Logger.Instance.Info("Cleaner", "Creating Cleaner state machine...");
-        var cleaner = new StationViewModel("Cleaner");
+        var cleaner = new StationViewModel("Cleaner")
+        {
+            X = 760,
+            Y = 30
+        };
         cleaner.StateMachine = _factory.FromJson(MachineDefinitions.GetCleanerMachine())
             .WithDelayService("CLEAN_DELAY", 1000) // 1 second for demo
             .WithAction("storeWafer", (ctx, evt) =>
@@ -238,7 +254,11 @@ public class MainViewModel : ViewModelBase
 
         // Create Buffer
         Logger.Instance.Info("Buffer", "Creating Buffer state machine...");
-        var buffer = new StationViewModel("Buffer");
+        var buffer = new StationViewModel("Buffer")
+        {
+            X = 930,
+            Y = 30
+        };
         buffer.StateMachine = _factory.FromJson(MachineDefinitions.GetBufferMachine())
             .WithAction("storeWafer", (ctx, evt) =>
             {
@@ -265,7 +285,11 @@ public class MainViewModel : ViewModelBase
         {
             var robotId = $"Robot {i}";
             Logger.Instance.Info(robotId, $"Creating {robotId} state machine...");
-            var robot = new StationViewModel(robotId);
+            var robot = new StationViewModel(robotId)
+            {
+                X = 350 + (i - 1) * 170, // Position robots horizontally: 350, 520, 690
+                Y = 300
+            };
             var capturedId = robotId; // Capture for closure
             robot.StateMachine = _factory.FromJson(MachineDefinitions.GetRobotMachine())
                 .WithAction("pickupWafer", (ctx, evt) =>
