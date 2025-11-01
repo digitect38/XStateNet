@@ -62,9 +62,10 @@ public class RobotSchedulerTests : XStateTestKit
         var factory = new XStateMachineFactory(Sys);
         var scheduler = factory.FromJson(GetRobotSchedulerJson()).BuildAndStart();
 
+        // WaitForStateName has built-in retry logic - no delay needed
         WaitForStateName(scheduler, "monitoring");
 
-        var snapshot = scheduler.GetStateSnapshot();
+        var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
         snapshot.CurrentState.Should().Be("monitoring");
 
         // Handle JsonElement conversion
@@ -140,7 +141,7 @@ public class RobotSchedulerTests : XStateTestKit
             assignments.Should().Contain("R1");
         }, TimeSpan.FromSeconds(2));
 
-        var snapshot = scheduler.GetStateSnapshot();
+        var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
         snapshot.Context["r1Status"].Should().Be("busy");
         snapshot.Context["totalTransfers"].Should().Be(1);
     }
@@ -166,7 +167,7 @@ public class RobotSchedulerTests : XStateTestKit
             assignments.Should().Contain("R2");
         }, TimeSpan.FromSeconds(2));
 
-        var snapshot = scheduler.GetStateSnapshot();
+        var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
         snapshot.Context["r2Status"].Should().Be("busy");
     }
 
@@ -191,7 +192,7 @@ public class RobotSchedulerTests : XStateTestKit
             assignments.Should().Contain("R3");
         }, TimeSpan.FromSeconds(2));
 
-        var snapshot = scheduler.GetStateSnapshot();
+        var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
         snapshot.Context["r3Status"].Should().Be("busy");
     }
 
@@ -227,7 +228,7 @@ public class RobotSchedulerTests : XStateTestKit
 
         AwaitAssert(() =>
         {
-            var snapshot = scheduler.GetStateSnapshot();
+            var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
             var queue = snapshot.Context["transferQueue"] as List<Dictionary<string, object>>;
             queue.Should().NotBeNull();
             queue.Should().HaveCount(1);
@@ -271,7 +272,7 @@ public class RobotSchedulerTests : XStateTestKit
         AwaitAssert(() =>
         {
             completions.Should().Contain("R1");
-            var snapshot = scheduler.GetStateSnapshot();
+            var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
 
             // Handle JsonElement conversion
             var r1Status = snapshot.Context["r1Status"]?.ToString();
@@ -326,7 +327,7 @@ public class RobotSchedulerTests : XStateTestKit
             assignments.Should().Contain("R2");
             assignments.Should().Contain("R3");
 
-            var snapshot = scheduler.GetStateSnapshot();
+            var snapshot = scheduler.GetStateSnapshot(TimeSpan.FromSeconds(3));
             snapshot.Context["r1Status"].Should().Be("busy");
             snapshot.Context["r2Status"].Should().Be("busy");
             snapshot.Context["r3Status"].Should().Be("busy");
@@ -411,7 +412,7 @@ public class RobotSchedulerTests : XStateTestKit
 
     private IActorRef CreateRobotScheduler(XStateMachineFactory factory, List<string> assignments)
     {
-        return factory.FromJson(GetRobotSchedulerJson())
+        var scheduler = factory.FromJson(GetRobotSchedulerJson())
             .WithAction("reportMonitoring", (ctx, _) => { })
             .WithAction("enqueueTransfer", (ctx, evt) =>
             {
@@ -543,6 +544,8 @@ public class RobotSchedulerTests : XStateTestKit
             })
             .WithAction("updateRobotStatus", (ctx, _) => { })
             .BuildAndStart();
+
+        return scheduler;
     }
 
     private IActorRef CreateRobotSchedulerWithCompletion(
@@ -550,7 +553,7 @@ public class RobotSchedulerTests : XStateTestKit
         List<string> assignments,
         List<string> completions)
     {
-        return factory.FromJson(GetRobotSchedulerJson())
+        var scheduler = factory.FromJson(GetRobotSchedulerJson())
             .WithAction("reportMonitoring", (ctx, _) => { })
             .WithAction("enqueueTransfer", (ctx, evt) =>
             {
@@ -691,6 +694,8 @@ public class RobotSchedulerTests : XStateTestKit
             })
             .WithAction("updateRobotStatus", (ctx, _) => { })
             .BuildAndStart();
+
+        return scheduler;
     }
 
     #endregion

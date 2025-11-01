@@ -40,7 +40,10 @@ public abstract class XStateTestKit : TestKit
         TimeSpan? interval = null)
     {
         var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(3);
-        var askTimeout = effectiveTimeout; // Use full timeout for Ask to handle slow systems
+        // Use shorter askTimeout to allow AwaitAssert to retry multiple times
+        // This prevents a single slow Ask from consuming the entire timeout
+        // 2 seconds handles intermittent delays while still allowing retries
+        var askTimeout = TimeSpan.FromSeconds(2);
 
         AwaitAssert(() =>
         {

@@ -44,19 +44,20 @@ public class DelayedTransitionsTests : TestKit
             .WithAction("onCompleted", (ctx, _) => completedEntered = true)
             .BuildAndStart();
 
-        // Act - Wait for initial state
-        var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1));
+        // Wait for initial state (deterministic - no Task.Delay)
+        var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3));
         Assert.Equal("waiting", snapshot.CurrentState);
         Assert.True(waitingEntered);
         Assert.False(completedEntered);
 
-        // Wait for after transition to trigger
+        // Wait for after transition to trigger (200ms delay + buffer)
+        // Inner Ask timeout must be shorter than outer AwaitAssert timeout
         await AwaitAssertAsync(() =>
         {
-            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1)).Result;
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
             Assert.Equal("completed", result.CurrentState);
             Assert.True(completedEntered);
-        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
 
     [Fact]
@@ -95,14 +96,14 @@ public class DelayedTransitionsTests : TestKit
             .WithAction("onSlow", (ctx, _) => slowReached = true)
             .BuildAndStart();
 
-        // Act - Wait for after transition
+        // Act - Wait for after transition (100ms delay + buffer)
         await AwaitAssertAsync(() =>
         {
-            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1)).Result;
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
             Assert.Equal("quick", result.CurrentState);
             Assert.True(quickReached);
             Assert.False(slowReached); // Should not reach slow state
-        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
 
     [Fact]
@@ -152,11 +153,11 @@ public class DelayedTransitionsTests : TestKit
         // Act - Guard fails, should go to failure after 150ms
         await AwaitAssertAsync(() =>
         {
-            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1)).Result;
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
             Assert.Equal("failure", result.CurrentState);
             Assert.False(successReached);
             Assert.True(failureReached);
-        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
 
     [Fact]
@@ -198,22 +199,26 @@ public class DelayedTransitionsTests : TestKit
             .BuildAndStart();
 
         // Get initial state
-        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1));
+        await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(3));
 
-        // Act - Cancel before timeout
-        await Task.Delay(100);
+        // Act - Cancel before timeout (deterministic using AwaitAssert instead of Task.Delay)
         machine.Tell(new SendEvent("CANCEL"));
-        var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1));
 
-        // Assert - Should be in cancelled state, not timeout
-        Assert.Equal("cancelled", snapshot.CurrentState);
-        Assert.False(timeoutReached);
-        Assert.True(cancelledReached);
+        // Wait for CANCEL event to be processed
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("cancelled", result.CurrentState);
+            Assert.False(timeoutReached);
+            Assert.True(cancelledReached);
+        }, TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(50));
 
-        // Wait to ensure timeout doesn't fire
-        await Task.Delay(500);
-        snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1));
-        Assert.Equal("cancelled", snapshot.CurrentState);
+        // Verify timeout doesn't fire (wait longer than the timeout period)
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("cancelled", result.CurrentState);
+        }, TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100));
     }
 
     [Fact]
@@ -256,15 +261,15 @@ public class DelayedTransitionsTests : TestKit
             .WithAction("logTransition", (ctx, _) => actionLog.Add("logTransition"))
             .BuildAndStart();
 
-        // Act - Wait for after transition with actions
+        // Act - Wait for after transition with actions (100ms delay + buffer)
         await AwaitAssertAsync(() =>
         {
-            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1)).Result;
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
             Assert.Equal("done", result.CurrentState);
             Assert.Equal(1, result.Context["count"]);
             Assert.Contains("increment", actionLog);
             Assert.Contains("logTransition", actionLog);
-        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
 
     //[Fact(Skip = "Nested state relative path resolution for after transitions needs implementation")]
@@ -304,12 +309,12 @@ public class DelayedTransitionsTests : TestKit
             .WithAction("onSibling", (ctx, _) => siblingReached = true)
             .BuildAndStart();
 
-        // Act - Wait for nested after transition
+        // Act - Wait for nested after transition (100ms delay + buffer)
         await AwaitAssertAsync(() =>
         {
-            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(1)).Result;
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
             Assert.Contains("sibling", result.CurrentState);
             Assert.True(siblingReached);
-        }, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(50));
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
 }

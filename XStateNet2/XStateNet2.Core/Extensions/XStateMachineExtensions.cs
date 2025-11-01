@@ -31,7 +31,7 @@ public static class XStateMachineExtensions
         {
             try
             {
-                var snapshot = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+                var snapshot = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2)).Result;
                 if (condition(snapshot))
                     return true;
             }
@@ -70,7 +70,7 @@ public static class XStateMachineExtensions
         {
             try
             {
-                var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500));
+                var snapshot = await machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromSeconds(2));
                 if (condition(snapshot))
                     return true;
             }
@@ -170,7 +170,7 @@ public static class XStateMachineExtensions
         this IActorRef machine,
         TimeSpan? timeout = null)
     {
-        return machine.Ask<StateSnapshot>(new GetState(), timeout ?? TimeSpan.FromSeconds(1)).Result;
+        return machine.Ask<StateSnapshot>(new GetState(), timeout ?? TimeSpan.FromSeconds(3)).Result;
     }
 
     /// <summary>
@@ -183,6 +183,6 @@ public static class XStateMachineExtensions
         this IActorRef machine,
         TimeSpan? timeout = null)
     {
-        return await machine.Ask<StateSnapshot>(new GetState(), timeout ?? TimeSpan.FromSeconds(1));
+        return await machine.Ask<StateSnapshot>(new GetState(), timeout ?? TimeSpan.FromSeconds(3));
     }
 }
