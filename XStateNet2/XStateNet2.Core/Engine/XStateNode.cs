@@ -47,4 +47,32 @@ public class XStateNode
     [JsonPropertyName("onDone")]
     [JsonConverter(typeof(StringOrTransitionConverter))]
     public XStateTransition? OnDone { get; set; }
+
+    /// <summary>
+    /// XState V5: Metadata about this state node
+    /// Useful for UI components, analytics, and documentation
+    /// </summary>
+    [JsonPropertyName("meta")]
+    public Dictionary<string, object>? Meta { get; set; }
+
+    /// <summary>
+    /// XState V5: Human-readable description of this state
+    /// Supports markdown in Stately Studio
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// XState V5: Tags to categorize this state node
+    /// Useful for grouping and filtering states
+    /// </summary>
+    [JsonPropertyName("tags")]
+    public List<string>? Tags { get; set; }
+
+    /// <summary>
+    /// XState V5: Output data when this final state is reached
+    /// Only relevant for final states (type: "final")
+    /// </summary>
+    [JsonPropertyName("output")]
+    public object? Output { get; set; }
 }

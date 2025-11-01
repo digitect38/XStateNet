@@ -32,7 +32,41 @@ public record StateSnapshot(
     string CurrentState,
     Dictionary<string, object> Context,
     bool IsRunning
-) : IStateMachineMessage;
+) : IStateMachineMessage
+{
+    /// <summary>
+    /// XState V5: Metadata for all active state nodes
+    /// Key: state node ID (full path), Value: meta data dictionary
+    /// </summary>
+    public Dictionary<string, Dictionary<string, object>>? Meta { get; init; }
+
+    /// <summary>
+    /// XState V5: All tags from active state nodes
+    /// </summary>
+    public List<string>? Tags { get; init; }
+
+    /// <summary>
+    /// XState V5: Output data if in a final state
+    /// null if not in a final state
+    /// </summary>
+    public object? Output { get; init; }
+
+    /// <summary>
+    /// XState V5: Description of the current state node
+    /// </summary>
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// XState V5: Status of the state machine
+    /// "active" - running normally
+    /// "done" - reached final state with output
+    /// "error" - in error state
+    /// "stopped" - machine is stopped
+    /// </summary>
+    public string Status => IsRunning
+        ? (Output != null ? "done" : "active")
+        : "stopped";
+};
 
 /// <summary>
 /// State transition notification

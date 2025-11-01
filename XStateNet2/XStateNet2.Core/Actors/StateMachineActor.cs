@@ -1146,11 +1146,20 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
             currentState = _currentState;
         }
 
+        // Collect metadata from active state nodes
+        var (meta, tags, output, description) = CollectMetadata(currentState);
+
         return new StateSnapshot(
             currentState,
             _context.GetAll(),
             _isRunning
-        );
+        )
+        {
+            Meta = meta,
+            Tags = tags,
+            Output = output,
+            Description = description
+        };
     }
 
     private async Task<StateSnapshot> CreateStateSnapshotAsync()
@@ -1197,11 +1206,89 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
             currentState = _currentState;
         }
 
+        // Collect metadata from active state nodes
+        var (meta, tags, output, description) = CollectMetadata(currentState);
+
         return new StateSnapshot(
             currentState,
             _context.GetAll(),
             _isRunning
-        );
+        )
+        {
+            Meta = meta,
+            Tags = tags,
+            Output = output,
+            Description = description
+        };
+    }
+
+    /// <summary>
+    /// Collects metadata (meta, tags, output, description) from active state nodes
+    /// Supports both simple states ("idle") and parallel states ("region1.state1;region2.state2")
+    /// </summary>
+    private (Dictionary<string, Dictionary<string, object>>?, List<string>?, object?, string?) CollectMetadata(string currentStatePath)
+    {
+        Dictionary<string, Dictionary<string, object>>? allMeta = null;
+        List<string>? allTags = null;
+        object? output = null;
+        string? description = null;
+
+        if (string.IsNullOrEmpty(currentStatePath))
+            return (null, null, null, null);
+
+        // Parse state paths (handles both simple and parallel states)
+        var statePaths = currentStatePath.Split(';');
+
+        foreach (var statePath in statePaths)
+        {
+            if (string.IsNullOrEmpty(statePath))
+                continue;
+
+            // Traverse the state path hierarchy to collect metadata from all ancestor nodes
+            var pathParts = statePath.Split('.');
+            var currentPath = "";
+
+            for (int i = 0; i < pathParts.Length; i++)
+            {
+                currentPath = i == 0 ? pathParts[i] : $"{currentPath}.{pathParts[i]}";
+                var stateNode = GetStateNode(currentPath);
+
+                if (stateNode != null)
+                {
+                    // Collect Meta
+                    if (stateNode.Meta != null && stateNode.Meta.Count > 0)
+                    {
+                        allMeta ??= new Dictionary<string, Dictionary<string, object>>();
+                        allMeta[$"{_script.Id}.{currentPath}"] = new Dictionary<string, object>(stateNode.Meta);
+                    }
+
+                    // Collect Tags
+                    if (stateNode.Tags != null && stateNode.Tags.Count > 0)
+                    {
+                        allTags ??= new List<string>();
+                        foreach (var tag in stateNode.Tags)
+                        {
+                            if (!allTags.Contains(tag))
+                                allTags.Add(tag);
+                        }
+                    }
+
+                    // Collect Output (only from final states, use the deepest one)
+                    if (stateNode.Type == "final" && stateNode.Output != null)
+                    {
+                        output = stateNode.Output;
+                    }
+
+                    // Collect Description (use the current/leaf state's description)
+                    if (i == pathParts.Length - 1 && !string.IsNullOrEmpty(stateNode.Description))
+                    {
+                        description = stateNode.Description;
+                    }
+                }
+            }
+        }
+
+        return (allMeta, allTags, output, description);
     }
 
     private void NotifyStateChanged(string previousState, string currentState, SendEvent? evt)
