@@ -1,0 +1,55 @@
+<controls:StationControl x:Class="CMPSimXS2.WPF.Controls.ProcessStationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:CMPSimXS2.WPF.Controls">
+    <Border x:Name="MainBorder"
+            BorderBrush="#333333"
+            BorderThickness="2"
+            Background="{Binding BackgroundColor, RelativeSource={RelativeSource AncestorType=controls:StationControl}}"
+            CornerRadius="5">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="2" BlurRadius="5" Opacity="0.3"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Station Name and Remaining Time -->
+            <StackPanel Grid.Row="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,5,0,0">
+                <TextBlock x:Name="NameTextBlock"
+                           Text="{Binding StationName, RelativeSource={RelativeSource AncestorType=controls:StationControl}}"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           HorizontalAlignment="Center"/>
+                <TextBlock x:Name="RemainingTimeTextBlock"
+                           Text=""
+                           FontSize="9"
+                           HorizontalAlignment="Center"
+                           Foreground="#CC6600"
+                           FontWeight="SemiBold"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Wafer Display (Center) -->
+            <Canvas x:Name="WaferCanvas"
+                    Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+
+            <!-- Status Text -->
+            <TextBlock x:Name="StatusTextBlock"
+                       Grid.Row="2"
+                       Text="{Binding StatusText, RelativeSource={RelativeSource AncestorType=controls:StationControl}}"
+                       FontSize="9"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Bottom"
+                       Margin="0,0,0,5"/>
+        </Grid>
+    </Border>
+</controls:StationControl>

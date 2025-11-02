@@ -1,0 +1,426 @@
+C:\Develop25\XStateNet\XStateNet2\CMPSimXS2.Console\Schedulers\SinglePublicationSchedulerXState.cs(458,31): warning CS8601: 가능한 null 참조 할당입니다. [C:\Develop25\XStateNet\XStateNet2\CMPSimXS2.Console\CMPSimXS2.Console.csproj]
+C:\Develop25\XStateNet\XStateNet2\CMPSimXS2.Console\Schedulers\SinglePublicationSchedulerXState.cs(400,22): warning CS0414: 'SinglePublicationSchedulerXState.ArraySchedulerActor._currentState' 필드가 할당되었지만 사용되지 않았습니다. [C:\Develop25\XStateNet\XStateNet2\CMPSimXS2.Console\CMPSimXS2.Console.csproj]
+╔════════════════════════════════════════════════════════════════════════╗
+║  CMPSimXS2 Single-Wafer Rule Demonstration                            ║
+║  Train Pattern: Carrier → R1 → Polisher → R2 → Cleaner → R3 →        ║
+║                 Buffer → R1 → Carrier                                  ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+📡⚡🎯 ROBOT SCHEDULER: XStateNet2 Array Single Publication (Array + No Routing)-based
+🔒 JOURNEY SCHEDULER: Lock-based
+
+💡 TIP: Use flags to select implementations:
+   --robot-actor / --robot-xstate / --robot-array / --robot-autonomous / --robot-hybrid
+   --robot-eventdriven / --robot-actormailbox / --robot-ant 🐜 / --robot-pubsub 📡
+   --journey-actor / --journey-xstate
+
+📋 CRITICAL RULES:
+   🤖 Robot Rule: Each robot can carry only ONE wafer at a time
+   ⚙️  Station Rule: Each station can hold only ONE wafer at a time
+   🔄 Parallel Work: Multiple stations/robots work simultaneously
+
+🔧 Initializing Akka ActorSystem...
+🤖 Initializing RobotScheduler (XStateNet2 Array Single Publication (Array + No Routing)-based)...
+💿 Creating 10 wafers (2 carriers × 5 wafers each)...
+🔄 Initializing WaferJourneyScheduler (Lock-based)...
+⚙️  Creating station actors...
+🤖 Creating robot actors...
+
+✅ All components initialized!
+
+════════════════════════════════════════════════════════════════════════
+🚀 Starting Two-Carrier Successive Processing Simulation
+════════════════════════════════════════════════════════════════════════
+
+🚛 EVENT: Carrier C1 arrives with 5 wafers (IDs: 1-5)
+
+╔══ Cycle 1 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 2: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 3: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 4: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 5: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 0 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 2 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 3: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 4: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 5: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 1 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 3 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 4: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 5: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 2 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 4 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 5: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 3 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 5 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 4 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 6 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 7 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 8 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 9 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 10 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 11 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 12 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+
+╔══ Cycle 13 ══════════════════════════════════════════════════════════╗
+
+🚛 CURRENT CARRIER: C1
+
+📍 WAFER TRAIN STATUS:
+  [ ] Wafer 1: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 2: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 3: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 4: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 5: 🔵 → ToPolisher    @ Robot 1
+  [ ] Wafer 6: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 7: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 8: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 9: ⚫ 📦 InCarrier     @ Carrier
+  [ ] Wafer 10: ⚫ 📦 InCarrier     @ Carrier
+
+⚙️  STATION STATUS (Each holds MAX 1 wafer):
+  🟢 Buffer     [idle      ] → Empty
+  🟢 Cleaner    [idle      ] → Empty
+  🟢 Polisher   [idle      ] → Empty
+
+🤖 ROBOT STATUS (Each carries MAX 1 wafer):
+  🟢 Robot 1: idle
+  🟢 Robot 2: idle
+  🟢 Robot 3: idle
+
+📋 QUEUE: 5 transfer requests waiting
+
+╚════════════════════════════════════════════════════════════════════════╝
+

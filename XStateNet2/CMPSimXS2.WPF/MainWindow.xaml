@@ -1,0 +1,339 @@
+<Window x:Class="CMPSimXS2.WPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:CMPSimXS2.WPF.Controls"
+        mc:Ignorable="d"
+        Title="CMP Tool Simulator - XStateNet2 WPF" Height="796" Width="1640"
+        Background="#F0F0F0"
+        PreviewMouseWheel="Window_PreviewMouseWheel">
+    <Window.Resources>
+        <!-- Station Style -->
+        <Style x:Key="StationStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" BlurRadius="5" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Wafer Style -->
+        <Style x:Key="WaferStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Stroke" Value="#333333"/>
+            <Setter Property="StrokeThickness" Value="1"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.5"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Button Style -->
+        <Style x:Key="ControlButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#005A9E"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#CCCCCC"/>
+                    <Setter Property="Foreground" Value="#666666"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="60"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Control Panel -->
+        <Border Grid.Row="0" Grid.ColumnSpan="3" Background="White" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Control Buttons -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="20,0,0,0">
+                    <Button x:Name="StartButton" Content="Start" Style="{StaticResource ControlButtonStyle}" Click="StartButton_Click"/>
+                    <Button x:Name="StepButton" Content="Step" Style="{StaticResource ControlButtonStyle}" Click="StepButton_Click"/>
+                    <Button x:Name="StopButton" Content="Pause" Style="{StaticResource ControlButtonStyle}" Click="StopButton_Click" IsEnabled="False"/>
+                    <Button x:Name="ResetButton" Content="Reset" Style="{StaticResource ControlButtonStyle}" Click="ResetButton_Click"/>
+                    <Button x:Name="SeeLogButton" Content="See Log" Style="{StaticResource ControlButtonStyle}" Click="SeeLogButton_Click"/>
+
+                    <!-- Edit Mode Toggle -->
+                    <Border Background="#E8E8E8" CornerRadius="4" Padding="10,5" Margin="15,0,0,0">
+                        <CheckBox x:Name="EditModeCheckBox" Content="Edit Mode"
+                                  FontWeight="SemiBold" FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="EditMode_Checked" Unchecked="EditMode_Unchecked"/>
+                    </Border>
+
+                    <!-- Mode Toggle Switch -->
+                    <Border Background="#E8E8E8" CornerRadius="4" Padding="10,5" Margin="5,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Mode:" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <RadioButton x:Name="AsyncModeRadio" Content="Async" GroupName="ExecutionMode"
+                                       IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"
+                                       Checked="ExecutionMode_Changed"/>
+                            <RadioButton x:Name="SyncModeRadio" Content="Sync" GroupName="ExecutionMode"
+                                       VerticalAlignment="Center"
+                                       Checked="ExecutionMode_Changed"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Title -->
+                <TextBlock Grid.Column="1" Text="CMP Tool - Forward Priority Scheduler" FontSize="18" FontWeight="Bold"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#333333" Width="657"/>
+
+                <!-- Statistics -->
+                <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0">
+                    <TextBlock x:Name="StatisticsTextBlock" Text="Ready" FontSize="11" FontFamily="Consolas"
+                              Foreground="#007ACC" FontWeight="SemiBold" TextAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area (State Tree + Simulation + Log) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" MinWidth="200"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="400" MinWidth="250"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- State Tree Panel (Left) -->
+            <Border Grid.Column="0" Background="White" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                        <TextBlock Text="State Tree" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <controls:StateTreeControl x:Name="StateTreeControl" Grid.Row="1"/>
+                </Grid>
+            </Border>
+
+            <!-- GridSplitter for resizing State Tree -->
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="#CCCCCC"
+                          ShowsPreview="False"
+                          Cursor="SizeWE"/>
+
+            <!-- Simulation Area (Center) -->
+            <ScrollViewer x:Name="SimulationScrollViewer" Grid.Column="2"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#E8E8E8" Grid.ColumnSpan="3" Margin="10,-10,395,10">
+                <controls:CMPSystemControl x:Name="CMPSystem" Width="1920" Height="1080" MaxWidth="1920" MaxHeight="1080"/>
+            </ScrollViewer>
+
+            <!-- GridSplitter for resizing Simulation -->
+            <GridSplitter Grid.Column="3"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="#CCCCCC"
+                          ShowsPreview="False"
+                          Cursor="SizeWE"/>
+
+            <!-- Property Panel (Right) -->
+            <Border Grid.Column="4" Background="White" BorderBrush="#CCCCCC" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Border Grid.Row="0" Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="0,0,0,1">
+                        <TextBlock Text="Property" FontWeight="Bold" Margin="10,5" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Property Content -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="15">
+                                <!-- Selected Object Info -->
+                                <TextBlock x:Name="SelectedObjectNameText" Text="No Object Selected"
+                                          FontWeight="Bold" FontSize="16" Margin="0,0,0,15"
+                                          Foreground="#007ACC"/>
+
+                                <Separator Margin="0,0,0,15"/>
+
+                                <!-- Property Grid Container -->
+                                <StackPanel x:Name="PropertyGridContainer">
+                                    <TextBlock Text="Select a station to view its properties"
+                                              FontStyle="Italic" Foreground="Gray"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,15,0,15"/>
+
+                                <!-- Real-time Statistics Section -->
+                                <Border Background="#F8F8F8" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,15">
+                                    <StackPanel>
+                                        <TextBlock Text="Real-time Statistics" FontWeight="Bold" FontSize="14" Margin="0,0,0,10" Foreground="#007ACC"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Elapsed Time -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Elapsed Time:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="ElapsedTimeText" Grid.Row="0" Grid.Column="1" Text="0.0s" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Completed / Pending -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Completed:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="CompletedWafersText" Grid.Row="1" Grid.Column="1" Text="0" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pending:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="PendingWafersText" Grid.Row="2" Grid.Column="1" Text="0" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Throughput -->
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Throughput:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="ThroughputText" Grid.Row="3" Grid.Column="1" Text="0.00 wafers/s" FontFamily="Consolas" Margin="0,0,0,5" Foreground="#007ACC" FontWeight="Bold"/>
+
+                                            <!-- Theoretical Min -->
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Theoretical Min:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="TheoreticalMinText" Grid.Row="4" Grid.Column="1" Text="0.0s" FontFamily="Consolas" Margin="0,0,0,5"/>
+
+                                            <!-- Efficiency -->
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Efficiency:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                            <TextBlock x:Name="EfficiencyText" Grid.Row="5" Grid.Column="1" Text="0.0%" FontFamily="Consolas" Margin="0,0,0,5" Foreground="#28A745" FontWeight="Bold"/>
+
+                                            <!-- Efficiency Progress Bar -->
+                                            <TextBlock Grid.Row="6" Grid.Column="0" Text="" Margin="0,0,0,0"/>
+                                            <ProgressBar x:Name="EfficiencyProgressBar" Grid.Row="6" Grid.Column="1"
+                                                         Height="20" Minimum="0" Maximum="100" Value="0"
+                                                         Margin="0,0,0,0" Foreground="#28A745" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Separator Margin="0,0,0,15"/>
+
+                                <!-- Global Station Timing Section -->
+                                <TextBlock Text="Global Station Timing (ms)" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                        <RowDefinition Height="30"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- R1 Transfer Time -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="R1 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R1TransferTextBox" Grid.Row="0" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Polisher Processing Time -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Polisher:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="PolisherTextBox" Grid.Row="1" Grid.Column="1" Text="5000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- R2 Transfer Time -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="R2 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R2TransferTextBox" Grid.Row="2" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Cleaner Processing Time -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Cleaner:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="CleanerTextBox" Grid.Row="3" Grid.Column="1" Text="3000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- R3 Transfer Time -->
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="R3 Transfer:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="R3TransferTextBox" Grid.Row="4" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- Buffer Hold Time -->
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Buffer Hold:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="BufferHoldTextBox" Grid.Row="5" Grid.Column="1" Text="0"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+
+                                    <!-- LoadPort Transfer Time -->
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="R1 Return:" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LoadPortReturnTextBox" Grid.Row="6" Grid.Column="1" Text="1000"
+                                             VerticalAlignment="Center" Padding="5,3" Margin="0,0,0,5"
+                                             PreviewTextInput="NumberValidationTextBox"/>
+                                </Grid>
+
+                                <!-- Apply Button -->
+
+                                <TextBlock x:Name="SettingsStatusTextBlock" Text=""
+                                           Foreground="Green" FontSize="10"
+                                           Margin="0,5,0,0" TextAlignment="Center"/>
+                                <Button x:Name="ApplySettingsButton" Content="Apply Settings"
+                                        Style="{StaticResource ControlButtonStyle}"
+                                        Click="ApplySettingsButton_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
