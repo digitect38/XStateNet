@@ -1,10 +1,9 @@
 using System.Text;
-using System.Collections.ObjectModel;
 using Akka.Actor;
-using CMPSimXS2.Models;
-using CMPSimXS2.Schedulers;
-using CMPSimXS2.ViewModels;
-using CMPSimXS2.Helpers;
+using CMPSimXS2.Console.Models;
+using CMPSimXS2.Console.Schedulers;
+using LoggerHelper;
+using XStateNet2.Core.Messages;
 
 namespace CMPSimXS2.Console;
 
@@ -20,11 +19,157 @@ class Program
         System.Console.OutputEncoding = Encoding.UTF8;
         System.Console.InputEncoding = Encoding.UTF8;
 
+        // Show help if no arguments provided
+        if (args.Length == 0)
+        {
+            PrintUsage();
+            return;
+        }
+
+        // Parse command-line arguments
+        bool runBenchmark = args.Contains("--benchmark") || args.Contains("-b");
+        bool runStressTest = args.Contains("--stress-test") || args.Contains("--stress");
+
+        // Robot scheduler selection
+        string robotSchedulerType = "lock"; // default
+        if (args.Contains("--robot-lock")) robotSchedulerType = "lock";
+        else if (args.Contains("--robot-actor")) robotSchedulerType = "actor";
+        else if (args.Contains("--robot-xstate")) robotSchedulerType = "xstate";
+        else if (args.Contains("--robot-array")) robotSchedulerType = "array";
+        else if (args.Contains("--robot-xs2-frozen")) robotSchedulerType = "xs2-frozen";
+        else if (args.Contains("--robot-xs2-dict")) robotSchedulerType = "xs2-dict";
+        else if (args.Contains("--robot-autonomous")) robotSchedulerType = "autonomous";
+        else if (args.Contains("--robot-hybrid")) robotSchedulerType = "hybrid";
+        else if (args.Contains("--robot-eventdriven")) robotSchedulerType = "eventdriven";
+        else if (args.Contains("--robot-actormailbox")) robotSchedulerType = "actormailbox";
+        else if (args.Contains("--robot-ant")) robotSchedulerType = "ant";
+        else if (args.Contains("--robot-pubsub")) robotSchedulerType = "pubsub";
+        else if (args.Contains("--robot-singlepub")) robotSchedulerType = "singlepub";
+        else if (args.Contains("--robot-array-singlepub")) robotSchedulerType = "array-singlepub";
+        else if (args.Contains("--robot-sync-pipe")) robotSchedulerType = "sync-pipe";
+        else if (args.Contains("--robot-xs1-legacy")) robotSchedulerType = "xs1-legacy";
+        else if (args.Contains("--robot-xs2-sync-pipe")) robotSchedulerType = "xs2-sync-pipe";
+        else if (args.Contains("--robot-pub1")) robotSchedulerType = "singlepub"; // alias
+        else if (args.Contains("--actor") || args.Contains("-a")) robotSchedulerType = "actor"; // backward compat
+        else if (args.Contains("--xstate") || args.Contains("-x")) robotSchedulerType = "xstate"; // backward compat
+
+        // Journey scheduler selection
+        string journeySchedulerType = "lock"; // default
+        if (args.Contains("--journey-actor")) journeySchedulerType = "actor";
+        else if (args.Contains("--journey-xstate")) journeySchedulerType = "xstate";
+
+        // Run benchmark if requested
+        if (runBenchmark)
+        {
+            await SchedulerBenchmark.RunBenchmark();
+            return;
+        }
+
+        // Run stress test if requested
+        if (runStressTest)
+        {
+            await StressTest.RunStressTests();
+            return;
+        }
+
         System.Console.WriteLine("╔════════════════════════════════════════════════════════════════════════╗");
         System.Console.WriteLine("║  CMPSimXS2 Single-Wafer Rule Demonstration                            ║");
+        System.Console.WriteLine("║  Configuration: 2 FOUP Carriers × 25 Wafers = 50 Total Wafers        ║");
         System.Console.WriteLine("║  Train Pattern: Carrier → R1 → Polisher → R2 → Cleaner → R3 →        ║");
         System.Console.WriteLine("║                 Buffer → R1 → Carrier                                  ║");
         System.Console.WriteLine("╚════════════════════════════════════════════════════════════════════════╝");
+        System.Console.WriteLine();
+
+        // Display mode
+        var robotIcon = robotSchedulerType switch {
+            "lock" => "🔒",
+            "actor" => "🎭",
+            "xstate" => "🔄",
+            "array" => "⚡",
+            "xs2-frozen" => "❄️",
+            "xs2-dict" => "📚",
+            "autonomous" => "🤖",
+            "hybrid" => "🚀",
+            "eventdriven" => "🔔",
+            "actormailbox" => "📬",
+            "ant" => "🐜",
+            "pubsub" => "📡",
+            "singlepub" => "📢",
+            "array-singlepub" => "🚀",
+            "sync-pipe" => "⏸️",
+            "xs1-legacy" => "🕰️",
+            "xs2-sync-pipe" => "🔄",
+            _ => "🔒"
+        };
+        var robotName = robotSchedulerType switch {
+            "lock" => "Lock-based (polling)",
+            "actor" => "Pure Akka.NET Actor (event)",
+            "xstate" => "XS2-Array (event)",
+            "array" => "XS2-Array (event)",
+            "xs2-frozen" => "XS2-Frozen (event)",
+            "xs2-dict" => "XS2-Dict (event)",
+            "autonomous" => "Autonomous (polling)",
+            "hybrid" => "Autonomous-Array (polling)",
+            "eventdriven" => "Autonomous-Event (event)",
+            "actormailbox" => "Actor-Mailbox (event)",
+            "ant" => "Ant-Colony (event)",
+            "pubsub" => "XS2-PubSub-Dedicated (multi)",
+            "singlepub" => "PubSub-Single (one)",
+            "array-singlepub" => "XS2-PubSub-Array (one)",
+            "sync-pipe" => "Sync-Pipeline (batch)",
+            "xs1-legacy" => "XS1-Legacy (event) [BROKEN]",
+            "xs2-sync-pipe" => "XS2-Sync-Pipeline (batch) [DEBUG]",
+            _ => "Lock-based (polling)"
+        };
+        var journeyIcon = journeySchedulerType switch { "actor" => "🎭", "xstate" => "🔄", _ => "🔒" };
+        var journeyName = journeySchedulerType switch { "actor" => "Actor", "xstate" => "XState", _ => "Lock" };
+
+        System.Console.WriteLine($"{robotIcon} ROBOT SCHEDULER: {robotName}-based");
+        System.Console.WriteLine($"{journeyIcon} JOURNEY SCHEDULER: {journeyName}-based");
+        System.Console.WriteLine();
+        System.Console.WriteLine("💡 TIP: Use --stress-test to benchmark all 16 schedulers, or select one:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🤖 ROBOT SCHEDULER OPTIONS (Reliability-First):");
+        System.Console.WriteLine();
+        System.Console.WriteLine("  ✅ 100% COMPLETION RATE (Most Reliable):");
+        System.Console.WriteLine("     --robot-lock");
+        System.Console.WriteLine("        🔒 Lock-based polling (15.73s, traditional mutex pattern)");
+        System.Console.WriteLine("     --robot-actor");
+        System.Console.WriteLine("        🎭 Pure Akka.NET actor (15.69s, event-driven coordination)");
+        System.Console.WriteLine("     --robot-xstate");
+        System.Console.WriteLine("        🔄 XS2-Array (15.69s, max performance with byte arrays)");
+        System.Console.WriteLine("     --robot-xs2-frozen");
+        System.Console.WriteLine("        ❄️  XS2-Frozen (15.68s, FrozenDictionary optimized)");
+        System.Console.WriteLine("     --robot-xs2-dict");
+        System.Console.WriteLine("        📚 XS2-Dict (18.xx s, Dictionary baseline for comparison)");
+        System.Console.WriteLine("     --robot-autonomous");
+        System.Console.WriteLine("        🤖 Autonomous polling (15.72s, self-organizing robots)");
+        System.Console.WriteLine("     --robot-array");
+        System.Console.WriteLine("        ⚡ Autonomous-Array (15.68s, optimized autonomous)");
+        System.Console.WriteLine("     --robot-eventdriven");
+        System.Console.WriteLine("        🔔 Autonomous-Event (15.68s, event-driven autonomous)");
+        System.Console.WriteLine("     --robot-actormailbox");
+        System.Console.WriteLine("        📬 Actor-Mailbox (15.68s, mailbox-based coordination)");
+        System.Console.WriteLine("     --robot-ant");
+        System.Console.WriteLine("        🐜 Ant-Colony (15.68s, swarm intelligence optimization)");
+        System.Console.WriteLine("     --robot-pubsub");
+        System.Console.WriteLine("        📡 XS2-PubSub-Dedicated (15.72s, multi-publisher pattern)");
+        System.Console.WriteLine("     --robot-singlepub");
+        System.Console.WriteLine("        📢 PubSub-Single (15.68s, one-publisher pattern)");
+        System.Console.WriteLine("     --robot-array-singlepub");
+        System.Console.WriteLine("        🚀 XS2-PubSub-Array (15.68s, optimized one-publisher)");
+        System.Console.WriteLine("     --robot-sync-pipe");
+        System.Console.WriteLine("        ⏸️  Sync-Pipeline (15.70s, synchronized batch execution)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("  ⚠️  EXPERIMENTAL (Under Development):");
+        System.Console.WriteLine("     --robot-xs1-legacy");
+        System.Console.WriteLine("        🕰️  XS1-Legacy (0% completion, XStateNet V1 simulation - broken)");
+        System.Console.WriteLine("     --robot-xs2-sync-pipe");
+        System.Console.WriteLine("        🔄 XS2-Sync-Pipeline (0% completion, XS2 batch sync - debugging)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🗺️  JOURNEY SCHEDULER OPTIONS:");
+        System.Console.WriteLine("     --journey-actor  (🎭 Actor-based journey coordination)");
+        System.Console.WriteLine("     --journey-xstate (🔄 XState-based journey coordination)");
         System.Console.WriteLine();
 
         System.Console.WriteLine("📋 CRITICAL RULES:");
@@ -37,30 +182,48 @@ class Program
         System.Console.WriteLine("🔧 Initializing Akka ActorSystem...");
         using var actorSystem = ActorSystem.Create("CMPSimXS2-Console");
 
-        // Initialize schedulers
-        System.Console.WriteLine("🤖 Initializing RobotScheduler...");
-        var robotScheduler = new RobotScheduler();
+        // Initialize robot scheduler
+        System.Console.WriteLine($"🤖 Initializing RobotScheduler ({robotName}-based)...");
 
-        // Create wafers for TWO carriers (5 wafers per carrier)
-        System.Console.WriteLine("💿 Creating 10 wafers (2 carriers × 5 wafers each)...");
-        var wafers = new ObservableCollection<Wafer>
+        IRobotScheduler robotScheduler = robotSchedulerType switch
         {
-            // Carrier 1: Wafers 1-5
-            new Wafer(1),
-            new Wafer(2),
-            new Wafer(3),
-            new Wafer(4),
-            new Wafer(5),
-            // Carrier 2: Wafers 6-10
-            new Wafer(6),
-            new Wafer(7),
-            new Wafer(8),
-            new Wafer(9),
-            new Wafer(10)
+            "lock" => new RobotScheduler(),
+            "actor" => new RobotSchedulerActorProxy(actorSystem),
+            "xstate" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-xstate"),
+            "array" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-array"),
+            "xs2-frozen" => new RobotSchedulerXState(actorSystem, "robot-scheduler-xs2-frozen"),
+            "xs2-dict" => new RobotSchedulerXStateDict(actorSystem, "robot-scheduler-xs2-dict"),
+            "autonomous" => new AutonomousRobotScheduler(),
+            "hybrid" => new AutonomousArrayScheduler(),
+            "eventdriven" => new EventDrivenHybridScheduler(),
+            "actormailbox" => new ActorMailboxEventDrivenScheduler(actorSystem),
+            "ant" => new AntColonyScheduler(actorSystem),
+            "pubsub" => new PublicationBasedScheduler(actorSystem),
+            "singlepub" => new SinglePublicationScheduler(actorSystem),
+            "array-singlepub" => new SinglePublicationSchedulerXState(actorSystem),
+            "sync-pipe" => new SynchronizedPipelineScheduler(actorSystem),
+            "xs1-legacy" => new RobotSchedulerXS1Legacy($"demo-xs1-legacy"),
+            "xs2-sync-pipe" => new RobotSchedulerXS2SyncPipeline(actorSystem, $"demo-xs2-sync-pipe"),
+            _ => new RobotScheduler()
         };
 
-        System.Console.WriteLine("🔄 Initializing WaferJourneyScheduler...");
-        var journeyScheduler = new WaferJourneyScheduler(robotScheduler, wafers);
+        // Create wafers for TWO carriers (25 wafers per carrier)
+        System.Console.WriteLine("💿 Creating 50 wafers (2 FOUP carriers × 25 wafers each)...");
+        var wafers = new List<Wafer>();
+        for (int i = 1; i <= 50; i++)
+        {
+            wafers.Add(new Wafer(i));
+        }
+
+        // Initialize journey scheduler
+        System.Console.WriteLine($"🔄 Initializing WaferJourneyScheduler ({journeyName}-based)...");
+
+        IWaferJourneyScheduler journeyScheduler = journeySchedulerType switch
+        {
+            "actor" => new WaferJourneySchedulerActorProxy(actorSystem, robotScheduler, wafers),
+            "xstate" => new WaferJourneySchedulerXState(actorSystem, robotScheduler, wafers),
+            _ => new WaferJourneyScheduler(robotScheduler, wafers)
+        };
 
         // Create mock station actors and viewmodels
         System.Console.WriteLine("⚙️  Creating station actors...");
@@ -83,6 +246,50 @@ class Program
             robotScheduler.UpdateRobotState(robotId, "idle");
         }
 
+        // For publication-based schedulers, register stations and connect state updates
+        if (robotScheduler is PublicationBasedScheduler pubSubScheduler)
+        {
+            System.Console.WriteLine("📡 Registering stations with publication-based scheduler...");
+            foreach (var (name, station) in stations)
+            {
+                pubSubScheduler.RegisterStation(name, station.CurrentState, station.CurrentWafer);
+
+                // Connect station to publish state changes
+                station.OnStateChanged = (state, waferId) =>
+                {
+                    pubSubScheduler.UpdateStationState(name, state, waferId);
+                };
+            }
+        }
+        else if (robotScheduler is SinglePublicationScheduler singlePubScheduler)
+        {
+            System.Console.WriteLine("📡⚡ Registering stations with single publication scheduler...");
+            foreach (var (name, station) in stations)
+            {
+                singlePubScheduler.RegisterStation(name, station.CurrentState, station.CurrentWafer);
+
+                // Connect station to publish state changes
+                station.OnStateChanged = (state, waferId) =>
+                {
+                    singlePubScheduler.UpdateStationState(name, state, waferId);
+                };
+            }
+        }
+        else if (robotScheduler is SinglePublicationSchedulerXState arrayPubScheduler)
+        {
+            System.Console.WriteLine("📡⚡🎯 Registering stations with array-based publication scheduler...");
+            foreach (var (name, station) in stations)
+            {
+                arrayPubScheduler.RegisterStation(name, station.CurrentState, station.CurrentWafer);
+
+                // Connect station to publish state changes
+                station.OnStateChanged = (state, waferId) =>
+                {
+                    arrayPubScheduler.UpdateStationState(name, state, waferId);
+                };
+            }
+        }
+
         System.Console.WriteLine();
         System.Console.WriteLine("✅ All components initialized!");
         System.Console.WriteLine();
@@ -102,39 +309,189 @@ class Program
 
         System.Console.WriteLine();
         System.Console.WriteLine("✅ Demo complete! Components used:");
-        System.Console.WriteLine("   ✓ RobotScheduler (enforces robot single-wafer rule)");
-        System.Console.WriteLine("   ✓ WaferJourneyScheduler (enforces station single-wafer rule)");
+        System.Console.WriteLine($"   ✓ RobotScheduler ({robotName}-based) - enforces robot single-wafer rule");
+        System.Console.WriteLine($"   ✓ WaferJourneyScheduler ({journeyName}-based) - enforces station single-wafer rule");
         System.Console.WriteLine("   ✓ 56 unit tests validating these rules (100% passing)");
         System.Console.WriteLine();
         System.Console.WriteLine("📝 See documentation:");
         System.Console.WriteLine("   - ROBOT_RULE.md: Robot single-wafer rule enforcement");
         System.Console.WriteLine("   - STATION_RULE.md: Station single-wafer rule enforcement");
+        System.Console.WriteLine();
+        System.Console.WriteLine("💡 3x3 Matrix: Choose implementations independently:");
+        System.Console.WriteLine("   RobotScheduler:");
+        System.Console.WriteLine("     --robot-actor      # Actor-based (no locks)");
+        System.Console.WriteLine("     --robot-xstate     # XState-based (declarative)");
+        System.Console.WriteLine("     (default)          # Lock-based (traditional)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   JourneyScheduler:");
+        System.Console.WriteLine("     --journey-actor    # Actor-based (no locks)");
+        System.Console.WriteLine("     --journey-xstate   # XState-based (declarative)");
+        System.Console.WriteLine("     (default)          # Lock-based (traditional)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   Examples:");
+        System.Console.WriteLine("     dotnet run                                  # Lock + Lock");
+        System.Console.WriteLine("     dotnet run --robot-actor                    # Actor + Lock");
+        System.Console.WriteLine("     dotnet run --robot-actor --journey-xstate   # Actor + XState");
+        System.Console.WriteLine("     dotnet run --benchmark                      # Run benchmark");
 
         // Shutdown actor system
         await actorSystem.Terminate();
     }
 
-    /// <summary>
-    /// Create mock station actors and viewmodels
-    /// </summary>
-    static Dictionary<string, StationViewModel> CreateMockStations(ActorSystem system)
+    static void PrintUsage()
     {
-        var stations = new Dictionary<string, StationViewModel>();
+        System.Console.WriteLine("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.Console.WriteLine("║  CMPSimXS2.Console - Wafer Manufacturing Simulator                              ║");
+        System.Console.WriteLine("╚══════════════════════════════════════════════════════════════════════════════════╝");
+        System.Console.WriteLine();
+        System.Console.WriteLine("📋 USAGE:");
+        System.Console.WriteLine("   dotnet run [OPTIONS]");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🎯 EXECUTION MODES:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --benchmark, -b");
+        System.Console.WriteLine("      Run performance benchmark (12-way comparison)");
+        System.Console.WriteLine("      Tests: Sequential throughput, Query latency, Concurrent load");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --stress-test, --stress");
+        System.Console.WriteLine("      Run EXTREME stress test: 1000 FOUPs × 25 Wafers = 25,000 total wafers");
+        System.Console.WriteLine("      Tests all 16 schedulers: Reliability, throughput, failure modes");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   (any robot/journey option)");
+        System.Console.WriteLine("      Run single-wafer manufacturing simulation");
+        System.Console.WriteLine("      Configuration: 2 FOUP Carriers × 25 Wafers = 50 Total Wafers");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🤖 ROBOT SCHEDULER OPTIONS (Reliability-First Ranking):");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   ✅ 100% COMPLETION RATE (Most Reliable):");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-lock");
+        System.Console.WriteLine("      🔒 Lock (polling) - 15.73s, traditional mutex pattern");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-actor");
+        System.Console.WriteLine("      🎭 Actor (event) - 15.69s, pure Akka.NET coordination");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-xstate");
+        System.Console.WriteLine("      🔄 XS2-Array (event) - 15.69s, max performance with byte arrays");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-xs2-frozen");
+        System.Console.WriteLine("      ❄️  XS2-Frozen (event) - 15.68s, FrozenDictionary optimized");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-xs2-dict");
+        System.Console.WriteLine("      📚 XS2-Dict (event) - 18.xx s, Dictionary baseline");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-autonomous");
+        System.Console.WriteLine("      🤖 Autonomous (polling) - 15.72s, self-organizing robots");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-array (alias for hybrid)");
+        System.Console.WriteLine("      ⚡ Autonomous-Array (polling) - 15.68s, optimized autonomous");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-eventdriven");
+        System.Console.WriteLine("      🔔 Autonomous-Event (event) - 15.68s, event-driven autonomous");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-actormailbox");
+        System.Console.WriteLine("      📬 Actor-Mailbox (event) - 15.68s, mailbox-based coordination");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-ant");
+        System.Console.WriteLine("      🐜 Ant-Colony (event) - 15.68s, swarm intelligence");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-pubsub");
+        System.Console.WriteLine("      📡 XS2-PubSub-Dedicated (multi) - 15.72s, multi-publisher");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-singlepub");
+        System.Console.WriteLine("      📢 PubSub-Single (one) - 15.68s, one-publisher pattern");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-array-singlepub");
+        System.Console.WriteLine("      🚀 XS2-PubSub-Array (one) - 15.68s, optimized one-publisher");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-sync-pipe");
+        System.Console.WriteLine("      ⏸️  Sync-Pipeline (batch) - 15.70s, synchronized batch execution");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   ⚠️  EXPERIMENTAL (Under Development):");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-xs1-legacy");
+        System.Console.WriteLine("      🕰️  XS1-Legacy (event) - 0% completion, XStateNet V1 (BROKEN)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --robot-xs2-sync-pipe");
+        System.Console.WriteLine("      🔄 XS2-Sync-Pipeline (batch) - 0% completion (DEBUGGING)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🚄 JOURNEY SCHEDULER OPTIONS:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --journey-actor");
+        System.Console.WriteLine("      🎭 Actor-based journey scheduler");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --journey-xstate");
+        System.Console.WriteLine("      🔄 XState-based journey scheduler");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   (default: Lock-based)");
+        System.Console.WriteLine("      🔒 Lock-based journey scheduler");
+        System.Console.WriteLine();
+        System.Console.WriteLine("📊 EXAMPLES:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   # Run benchmark");
+        System.Console.WriteLine("   dotnet run --benchmark");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   # Run simulation with fastest scheduler");
+        System.Console.WriteLine("   dotnet run --robot-singlepub");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   # Run with XStateNet2 Array Single Publication (array + fast)");
+        System.Console.WriteLine("   dotnet run --robot-array-singlepub");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   # Run with Actor-based robot + XState journey");
+        System.Console.WriteLine("   dotnet run --robot-actor --journey-xstate");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   # Run with Ant Colony (decentralized)");
+        System.Console.WriteLine("   dotnet run --robot-ant");
+        System.Console.WriteLine();
+        System.Console.WriteLine("💡 PERFORMANCE RANKING (Sequential Throughput):");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   🥇 Single Publication:  6,608,075 req/sec  (--robot-singlepub) ⭐⭐⭐⭐⭐");
+        System.Console.WriteLine("   🥈 Array SinglePub:     ~3,000,000 req/sec  (--robot-array-singlepub) 🎯");
+        System.Console.WriteLine("   🥉 Actor:               2,927,143 req/sec  (--robot-actor)");
+        System.Console.WriteLine("   4️⃣  XState Array:        2,717,613 req/sec  (--robot-array)");
+        System.Console.WriteLine("   5️⃣  XState FrozenDict:  1,577,660 req/sec  (--robot-xstate)");
+        System.Console.WriteLine("   6️⃣  Ant Colony:         1,718 req/sec      (--robot-ant)");
+        System.Console.WriteLine("   7️⃣  Lock:               1,707 req/sec      (default)");
+        System.Console.WriteLine("   8️⃣  Publication-Based:  1,351 req/sec      (--robot-pubsub)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("📊 SIMULATION CONFIGURATION:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   Carriers:       2 FOUP Carriers (C1 and C2)");
+        System.Console.WriteLine("   Wafers/FOUP:    25 wafers per carrier");
+        System.Console.WriteLine("   Total Wafers:   50 wafers (C1: 1-25, C2: 26-50)");
+        System.Console.WriteLine("   Flow:           C1 arrives → processes → departs → C2 arrives → processes");
+        System.Console.WriteLine("   Journey:        Carrier → Polisher → Cleaner → Buffer → Carrier");
+        System.Console.WriteLine("   Max Cycles:     400 (auto-increased for 50 wafers)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("🔗 MORE INFO:");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   See README.md for detailed documentation");
+        System.Console.WriteLine("   See SCHEDULER_MATRIX.md for feature comparison");
+        System.Console.WriteLine("   See SINGLE_PUB_VS_ACTOR_VS_ARRAY.md for architecture details");
+        System.Console.WriteLine();
+    }
+
+    /// <summary>
+    /// Create mock station actors and models
+    /// </summary>
+    static Dictionary<string, Station> CreateMockStations(ActorSystem system)
+    {
+        var stations = new Dictionary<string, Station>();
         var stationNames = new[] { "Polisher", "Cleaner", "Buffer" };
 
         foreach (var name in stationNames)
         {
-            // Create view model first
-            var viewModel = new StationViewModel(name)
+            // Create station model
+            var station = new Station(name)
             {
                 CurrentState = "idle" // Initialize stations to idle state
             };
 
-            // Create actor with reference to viewmodel so it can update state
-            var stationActor = system.ActorOf(Props.Create(() => new MockStationActor(viewModel)), name);
-            viewModel.StateMachine = stationActor;
+            // Create actor with reference to station so it can update state
+            var stationActor = system.ActorOf(Props.Create(() => new MockStationActor(station)), name);
+            station.StateMachine = stationActor;
 
-            stations[name] = viewModel;
+            stations[name] = station;
         }
 
         return stations;
@@ -143,7 +500,7 @@ class Program
     /// <summary>
     /// Create mock robot actors
     /// </summary>
-    static Dictionary<string, IActorRef> CreateMockRobots(ActorSystem system, RobotScheduler scheduler)
+    static Dictionary<string, IActorRef> CreateMockRobots(ActorSystem system, IRobotScheduler scheduler)
     {
         var robots = new Dictionary<string, IActorRef>();
         var robotIds = new[] { "Robot 1", "Robot 2", "Robot 3" };
@@ -164,13 +521,13 @@ class Program
     /// Simulate wafer journey with TWO carriers processed successively
     /// </summary>
     static async Task SimulateWaferJourney(
-        ObservableCollection<Wafer> wafers,
-        Dictionary<string, StationViewModel> stations,
-        RobotScheduler robotScheduler,
-        WaferJourneyScheduler journeyScheduler)
+        List<Wafer> wafers,
+        Dictionary<string, Station> stations,
+        IRobotScheduler robotScheduler,
+        IWaferJourneyScheduler journeyScheduler)
     {
         int cycle = 0;
-        int maxCycles = 100; // Increased for two carriers
+        int maxCycles = 400; // Increased for 2 carriers × 25 wafers
         string? currentCarrier = null;
         bool carrier1Departed = false;
 
@@ -184,9 +541,10 @@ class Program
             System.Console.WriteLine();
         };
 
-        // Trigger Carrier 1 arrival
-        System.Console.WriteLine("🚛 EVENT: Carrier C1 arrives with 5 wafers (IDs: 1-5)");
-        journeyScheduler.OnCarrierArrival("C1", new List<int> { 1, 2, 3, 4, 5 });
+        // Trigger Carrier 1 arrival with first 25 wafers
+        System.Console.WriteLine("🚛 EVENT: FOUP Carrier C1 arrives with 25 wafers (IDs: 1-25)");
+        var carrier1Ids = Enumerable.Range(1, 25).ToList();
+        journeyScheduler.OnCarrierArrival("C1", carrier1Ids);
         currentCarrier = "C1";
         System.Console.WriteLine();
 
@@ -205,14 +563,15 @@ class Program
             if (currentCarrier == "C1" && !carrier1Departed && journeyScheduler.IsCurrentCarrierComplete())
             {
                 System.Console.WriteLine();
-                System.Console.WriteLine("🚚 EVENT: Carrier C1 departs with all processed wafers");
+                System.Console.WriteLine("🚚 EVENT: FOUP Carrier C1 departs with all processed wafers");
                 journeyScheduler.OnCarrierDeparture("C1");
                 carrier1Departed = true;
 
                 System.Console.WriteLine();
                 await Task.Delay(1000); // Pause between carriers
-                System.Console.WriteLine("🚛 EVENT: Carrier C2 arrives with 5 wafers (IDs: 6-10)");
-                journeyScheduler.OnCarrierArrival("C2", new List<int> { 6, 7, 8, 9, 10 });
+                System.Console.WriteLine("🚛 EVENT: FOUP Carrier C2 arrives with 25 wafers (IDs: 26-50)");
+                var carrier2Ids = Enumerable.Range(26, 25).ToList();
+                journeyScheduler.OnCarrierArrival("C2", carrier2Ids);
                 currentCarrier = "C2";
                 System.Console.WriteLine();
             }
@@ -231,13 +590,13 @@ class Program
             // Stop if all wafers completed
             if (wafers.All(w => w.IsCompleted))
             {
-                System.Console.WriteLine("🎉🎉🎉 All wafers from both carriers completed! 🎉🎉🎉");
+                System.Console.WriteLine("🎉🎉🎉 All 50 wafers from both FOUP carriers completed! 🎉🎉🎉");
                 System.Console.WriteLine();
 
                 // Trigger final carrier departure
                 if (currentCarrier == "C2")
                 {
-                    System.Console.WriteLine("🚚 EVENT: Carrier C2 departs with all processed wafers");
+                    System.Console.WriteLine("🚚 EVENT: FOUP Carrier C2 departs with all processed wafers");
                     journeyScheduler.OnCarrierDeparture("C2");
                 }
 
@@ -255,10 +614,10 @@ class Program
     /// Display complete system state including wafers, stations, robots, and carrier
     /// </summary>
     static void DisplaySystemState(
-        ObservableCollection<Wafer> wafers,
-        Dictionary<string, StationViewModel> stations,
-        RobotScheduler robotScheduler,
-        WaferJourneyScheduler journeyScheduler)
+        List<Wafer> wafers,
+        Dictionary<string, Station> stations,
+        IRobotScheduler robotScheduler,
+        IWaferJourneyScheduler journeyScheduler)
     {
         System.Console.WriteLine();
 
@@ -288,7 +647,7 @@ class Program
             var completedMark = wafer.IsCompleted ? "✓" : " ";
             var journeyIcon = GetJourneyIcon(wafer.JourneyStage);
 
-            System.Console.WriteLine($"  [{completedMark}] Wafer {wafer.Id}: {colorEmoji} {journeyIcon} {wafer.JourneyStage,-13} @ {wafer.CurrentStation}");
+            System.Console.WriteLine($"  [{completedMark}] Wafer {wafer.Id}: {colorEmoji} {journeyIcon} {wafer.JourneyStage,-13}");
         }
 
         System.Console.WriteLine();
@@ -357,7 +716,7 @@ class Program
     /// <summary>
     /// Simulate stations making progress on their work
     /// </summary>
-    static void SimulateStationProgress(Dictionary<string, StationViewModel> stations, int cycle)
+    static void SimulateStationProgress(Dictionary<string, Station> stations, int cycle)
     {
         foreach (var station in stations.Values)
         {
@@ -379,7 +738,7 @@ class Program
     /// <summary>
     /// Simulate robots completing their transfers
     /// </summary>
-    static void SimulateRobotProgress(RobotScheduler robotScheduler, int cycle)
+    static void SimulateRobotProgress(IRobotScheduler robotScheduler, int cycle)
     {
         var robotIds = new[] { "Robot 1", "Robot 2", "Robot 3" };
 
@@ -400,9 +759,9 @@ class Program
     /// Display final simulation summary
     /// </summary>
     static void DisplayFinalSummary(
-        ObservableCollection<Wafer> wafers,
-        RobotScheduler scheduler,
-        Dictionary<string, StationViewModel> stations)
+        List<Wafer> wafers,
+        IRobotScheduler scheduler,
+        Dictionary<string, Station> stations)
     {
         var completed = wafers.Count(w => w.IsCompleted);
         var inProgress = wafers.Count(w => !w.IsCompleted);
@@ -463,16 +822,16 @@ class Program
 /// </summary>
 public class MockStationActor : ReceiveActor
 {
-    private readonly StationViewModel _station;
+    private readonly Station _station;
 
-    public MockStationActor(StationViewModel station)
+    public MockStationActor(Station station)
     {
         _station = station;
 
         ReceiveAny(msg =>
         {
             var msgStr = msg.ToString();
-            Logger.Instance.Debug("MockStation", $"{_station.Name} received: {msg.GetType().Name}");
+            Logger.Instance.Log($"[MockStation:DEBUG] {_station.Name} received: {msg.GetType().Name}");
 
             // Handle LOAD_WAFER event
             if (msgStr!.Contains("LOAD_WAFER"))
@@ -483,7 +842,7 @@ public class MockStationActor : ReceiveActor
                     var waferId = (int)data["wafer"];
                     _station.CurrentWafer = waferId;
                     _station.CurrentState = "processing";
-                    Logger.Instance.Debug("MockStation", $"{_station.Name} started processing wafer {waferId}");
+                    Logger.Instance.Log($"[MockStation:DEBUG] {_station.Name} started processing wafer {waferId}");
                 }
             }
             // Handle STORE_WAFER event (for Buffer)
@@ -495,20 +854,20 @@ public class MockStationActor : ReceiveActor
                     var waferId = (int)data["wafer"];
                     _station.CurrentWafer = waferId;
                     _station.CurrentState = "occupied";
-                    Logger.Instance.Debug("MockStation", $"{_station.Name} stored wafer {waferId}");
+                    Logger.Instance.Log($"[MockStation:DEBUG] {_station.Name} stored wafer {waferId}");
                 }
             }
             // Handle UNLOAD_WAFER event
             else if (msgStr.Contains("UNLOAD_WAFER"))
             {
-                Logger.Instance.Debug("MockStation", $"{_station.Name} unloaded wafer {_station.CurrentWafer}");
+                Logger.Instance.Log($"[MockStation:DEBUG] {_station.Name} unloaded wafer {_station.CurrentWafer}");
                 _station.CurrentWafer = null;
                 _station.CurrentState = "idle";
             }
             // Handle RETRIEVE_WAFER event (for Buffer)
             else if (msgStr.Contains("RETRIEVE_WAFER"))
             {
-                Logger.Instance.Debug("MockStation", $"{_station.Name} retrieved wafer {_station.CurrentWafer}");
+                Logger.Instance.Log($"[MockStation:DEBUG] {_station.Name} retrieved wafer {_station.CurrentWafer}");
                 _station.CurrentWafer = null;
                 _station.CurrentState = "idle";
             }
@@ -522,17 +881,17 @@ public class MockStationActor : ReceiveActor
 public class MockRobotActor : ReceiveActor
 {
     private readonly string _robotId;
-    private readonly RobotScheduler _scheduler;
+    private readonly IRobotScheduler _scheduler;
     private int? _currentWafer;
 
-    public MockRobotActor(string robotId, RobotScheduler scheduler)
+    public MockRobotActor(string robotId, IRobotScheduler scheduler)
     {
         _robotId = robotId;
         _scheduler = scheduler;
 
         ReceiveAny(msg =>
         {
-            Logger.Instance.Debug("MockRobot", $"{_robotId} received: {msg.GetType().Name}");
+            Logger.Instance.Log($"[MockRobot:DEBUG] {_robotId} received: {msg.GetType().Name}");
 
             // Simulate robot handling PICKUP event
             if (msg.ToString()!.Contains("PICKUP"))
@@ -556,7 +915,7 @@ public class MockRobotActor : ReceiveActor
                         _currentWafer = null;
                         _scheduler.UpdateRobotState(_robotId, "idle");
 
-                        Logger.Instance.Debug("MockRobot", $"{_robotId} completed simulated transfer");
+                        Logger.Instance.Log($"[MockRobot:DEBUG] {_robotId} completed simulated transfer");
                     });
                 }
                 else
