@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:CMPSimulator.Controls"
         mc:Ignorable="d"
-        Title="CMP Tool Simulator - Forward Priority Scheduler" Height="700" Width="1400"
+        Title="CMP Tool Simulator - Forward Priority Scheduler" Height="796" Width="1640"
         Background="#F0F0F0"
         PreviewMouseWheel="Window_PreviewMouseWheel">
     <Window.Resources>
@@ -164,7 +164,7 @@
             <ScrollViewer x:Name="SimulationScrollViewer" Grid.Column="2"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
-                      Background="#E8E8E8">
+                      Background="#E8E8E8" Grid.ColumnSpan="3" Margin="10,-10,395,10">
                 <controls:CMPSystemControl x:Name="CMPSystem" Width="1920" Height="1080" MaxWidth="1920" MaxHeight="1080"/>
             </ScrollViewer>
 
