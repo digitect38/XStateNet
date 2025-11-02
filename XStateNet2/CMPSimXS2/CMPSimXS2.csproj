@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\CMPSimulator\CMPSimulator.csproj" />
     <ProjectReference Include="..\XStateNet2.Core\XStateNet2.Core.csproj" />
   </ItemGroup>
 

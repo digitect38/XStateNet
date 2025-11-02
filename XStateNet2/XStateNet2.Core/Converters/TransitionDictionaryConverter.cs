@@ -11,9 +11,9 @@ namespace XStateNet2.Core.Converters;
 /// - "on": { "EVENT": { "target": "targetState", "cond": "guardName" } }
 /// - "on": { "EVENT": [{ "target": "done", "cond": "guard1" }, { "target": "other" }] }
 /// </summary>
-public class TransitionDictionaryConverter : JsonConverter<Dictionary<string, List<XStateTransition>>>
+public class TransitionDictionaryConverter : JsonConverter<IReadOnlyDictionary<string, List<XStateTransition>>>
 {
-    public override Dictionary<string, List<XStateTransition>>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IReadOnlyDictionary<string, List<XStateTransition>>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
             return null;
@@ -79,7 +79,7 @@ public class TransitionDictionaryConverter : JsonConverter<Dictionary<string, Li
         throw new JsonException("Unexpected end of JSON");
     }
 
-    public override void Write(Utf8JsonWriter writer, Dictionary<string, List<XStateTransition>> value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IReadOnlyDictionary<string, List<XStateTransition>> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 

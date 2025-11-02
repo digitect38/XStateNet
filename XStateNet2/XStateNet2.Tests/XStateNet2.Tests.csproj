@@ -30,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\XStateNet2.Core\XStateNet2.Core.csproj" />
     <ProjectReference Include="..\CMPSimXS2\CMPSimXS2.csproj" />
+    <ProjectReference Include="..\CMPSimXS2.Console\CMPSimXS2.Console.csproj" />
   </ItemGroup>
 
 </Project>

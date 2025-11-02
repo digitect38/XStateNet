@@ -65,7 +65,7 @@ public class StationViewModel : VisualObject
         BoxBorderThickness = new Thickness(2);
         BoxBorderBrush = new SolidColorBrush(Color.FromRgb(51, 51, 51)); // #333
         Width = 150;
-        Height = 100;
+        Height = 200;
         CircleSize = 40;
     }
 

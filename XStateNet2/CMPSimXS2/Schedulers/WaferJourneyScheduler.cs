@@ -49,12 +49,45 @@ public class WaferJourneyScheduler
 
     /// <summary>
     /// Start wafer journey - called periodically to check and progress wafers
+    /// Implements parallel_loop from scheduling rule - checks ALL robot conditions simultaneously
+    ///
+    /// SCHEDULING RULE (parallel_loop implementation):
+    /// while (simulation_running) {
+    ///     // Check all conditions in ONE iteration (not sequential)
+    ///
+    ///     // R2 operations: Polisher → Cleaner
+    ///     if (platen.done && R2.is_empty && cleaner.is_empty) {
+    ///         R2.pick()  // Pick from Polisher
+    ///         R2.place() // Place to Cleaner
+    ///     }
+    ///
+    ///     // R3 operations: Cleaner → Buffer
+    ///     if (cleaner.done && R3.is_empty && buffer.is_empty) {
+    ///         R3.pick()  // Pick from Cleaner
+    ///         R3.place() // Place to Buffer
+    ///     }
+    ///
+    ///     // R1 forward operation: Carrier → Polisher (start next wafer)
+    ///     if (carrier.have.npw && platen.is_empty && R1.is_empty) {
+    ///         R1.pick()  // Pick from Carrier (npw = non-processed wafer)
+    ///         R1.place() // Place to Polisher
+    ///     }
+    ///
+    ///     // R1 return operation: Buffer → Carrier (return completed wafer)
+    ///     if (buffer.have && R1.is_empty) {
+    ///         R1.pick()  // Pick from Buffer
+    ///         R1.return() // Return to Carrier (pw = processed wafer)
+    ///     }
+    /// }
     /// </summary>
     public void ProcessWaferJourneys()
     {
         lock (_lock)
         {
-            // Process each wafer based on its current journey stage
+            // PARALLEL_LOOP: Check all robot operations in one iteration
+            // This ensures conditions are evaluated simultaneously, not sequentially
+
+            // Step 1: Process wafers already in the pipeline (R2, R3 operations)
             foreach (var wafer in _wafers.ToList())
             {
                 if (wafer.IsCompleted)
@@ -63,8 +96,15 @@ public class WaferJourneyScheduler
                 ProcessWaferStage(wafer);
             }
 
-            // Start new wafers if possible
+            // Step 2: Try to start next wafer (R1 forward operation)
+            // RULE: if(carrier.have.npw && platen.done) R1.pick()
+            // RULE: if(R1.have.npw && platen.is_empty) R1.place()
             StartNextWaferIfPossible();
+
+            // Step 3: Try to return completed wafers (R1 return operation)
+            // RULE: if(buffer.have && R1.is_empty) R1.pick()
+            // RULE: if(R1.have.pw) R1.return()
+            // (Already handled by ProcessWaferStage for wafers in "InBuffer" stage)
 
             // Check if current carrier is complete
             IsCurrentCarrierComplete();
@@ -316,6 +356,15 @@ public class WaferJourneyScheduler
                     $"RULE VIOLATION: {arrivedAt} already has wafer {station.CurrentWafer}, cannot load wafer {waferId}!");
                 return;
             }
+
+            // CRITICAL FIX: Update station state IMMEDIATELY to prevent race condition
+            // This ensures the next timer tick sees the station as occupied
+            // Buffer uses "occupied" state, others use "processing"
+            var newState = arrivedAt == "Buffer" ? "occupied" : "processing";
+            station.CurrentWafer = waferId;
+            station.CurrentState = newState;
+            Logger.Instance.Debug("WaferJourneyScheduler",
+                $"{arrivedAt} state updated immediately: {newState} (wafer {waferId})");
 
             var eventName = arrivedAt == "Buffer" ? "STORE_WAFER" : "LOAD_WAFER";
             var eventData = new Dictionary<string, object> { ["wafer"] = waferId };

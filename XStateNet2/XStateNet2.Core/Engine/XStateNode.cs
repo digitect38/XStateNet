@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text.Json.Serialization;
 using XStateNet2.Core.Converters;
 
@@ -5,12 +6,13 @@ namespace XStateNet2.Core.Engine;
 
 /// <summary>
 /// XState node - represents a single state in the state machine
+/// Optimized with FrozenDictionary for read-heavy workloads after parsing
 /// </summary>
 public class XStateNode
 {
     [JsonPropertyName("on")]
     [JsonConverter(typeof(TransitionDictionaryConverter))]
-    public Dictionary<string, List<XStateTransition>>? On { get; set; }
+    public IReadOnlyDictionary<string, List<XStateTransition>>? On { get; set; }
 
     [JsonPropertyName("entry")]
     public List<object>? Entry { get; set; }
@@ -19,7 +21,7 @@ public class XStateNode
     public List<object>? Exit { get; set; }
 
     [JsonPropertyName("states")]
-    public Dictionary<string, XStateNode>? States { get; set; }
+    public IReadOnlyDictionary<string, XStateNode>? States { get; set; }
 
     [JsonPropertyName("initial")]
     public string? Initial { get; set; }
@@ -38,7 +40,7 @@ public class XStateNode
 
     [JsonPropertyName("after")]
     [JsonConverter(typeof(AfterTransitionConverter))]
-    public Dictionary<int, XStateTransition>? After { get; set; }
+    public IReadOnlyDictionary<int, XStateTransition>? After { get; set; }
 
     [JsonPropertyName("always")]
     [JsonConverter(typeof(AlwaysTransitionConverter))]
@@ -53,7 +55,7 @@ public class XStateNode
     /// Useful for UI components, analytics, and documentation
     /// </summary>
     [JsonPropertyName("meta")]
-    public Dictionary<string, object>? Meta { get; set; }
+    public IReadOnlyDictionary<string, object>? Meta { get; set; }
 
     /// <summary>
     /// XState V5: Human-readable description of this state

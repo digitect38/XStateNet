@@ -14,6 +14,7 @@ public class MachineBuilder
     private readonly XStateMachineScript _script;
     private readonly InterpreterContext _context;
     private readonly ActorSystem _actorSystem;
+    private bool _useFrozenDictionary = true; // Default to FrozenDictionary optimization
 
     public MachineBuilder(XStateMachineScript script, ActorSystem actorSystem)
     {
@@ -46,6 +47,17 @@ public class MachineBuilder
     public MachineBuilder WithService(string name, Func<InterpreterContext, Task<object?>> service)
     {
         _context.RegisterService(name, service);
+        return this;
+    }
+
+    /// <summary>
+    /// Configure whether to use FrozenDictionary optimization.
+    /// Default: true (uses FrozenDictionary for 10-15% faster lookups).
+    /// Set to false for baseline Dictionary performance comparison.
+    /// </summary>
+    public MachineBuilder WithFrozenDictionary(bool useFrozenDictionary)
+    {
+        _useFrozenDictionary = useFrozenDictionary;
         return this;
     }
 
@@ -93,8 +105,8 @@ public class MachineBuilder
     /// </summary>
     public IActorRef BuildAndStart(string? actorName = null)
     {
-        // OPTIMIZATION: Freeze context to convert dictionaries to FrozenDictionary for faster lookups
-        _context.Freeze();
+        // Freeze context with configured optimization level
+        _context.Freeze(_useFrozenDictionary);
 
         // Auto-generate unique actor name to prevent collisions in parallel tests
         var uniqueActorName = actorName ?? $"{_script.Id}-{Guid.NewGuid():N}";
@@ -113,8 +125,8 @@ public class MachineBuilder
     /// </summary>
     public IActorRef Build(string? actorName = null)
     {
-        // OPTIMIZATION: Freeze context to convert dictionaries to FrozenDictionary for faster lookups
-        _context.Freeze();
+        // Freeze context with configured optimization level
+        _context.Freeze(_useFrozenDictionary);
 
         // Auto-generate unique actor name to prevent collisions in parallel tests
         var uniqueActorName = actorName ?? $"{_script.Id}-{Guid.NewGuid():N}";

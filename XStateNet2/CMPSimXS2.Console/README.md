@@ -116,13 +116,48 @@ Each simulation cycle displays:
 
 ## Running the Demo
 
+### Quick Start (Default)
 ```bash
 dotnet run --project XStateNet2/CMPSimXS2.Console/CMPSimXS2.Console.csproj
 ```
 
-The simulation will run for up to 100 cycles or until all wafers from both carriers complete their journey.
+### Available Scheduler Options
 
-**Expected Output:**
+The console app supports **5 robot scheduler** and **3 journey scheduler** implementations:
+
+#### Robot Scheduler Options
+- 🔒 **Lock-based** (default) - Traditional synchronization
+- 🎭 **Actor-based** (`--robot-actor`) - Message passing, no locks
+- 🔄 **XState-based** (`--robot-xstate`) - Declarative state machines
+- ⚡ **Array-optimized** (`--robot-array`) - O(1) byte-indexed lookups, **FASTEST**
+- 🤖 **Autonomous** (`--robot-autonomous`) - Self-managing polling loops, **NEW**
+
+#### Journey Scheduler Options
+- 🔒 **Lock-based** (default) - Traditional synchronization
+- 🎭 **Actor-based** (`--journey-actor`) - Message passing, no locks
+- 🔄 **XState-based** (`--journey-xstate`) - Declarative state machines
+
+### Example Commands
+
+```bash
+# Default (Lock + Lock)
+dotnet run
+
+# Maximum performance (Array + XState)
+dotnet run --robot-array --journey-xstate
+
+# Autonomous robots (NEW! Self-managing)
+dotnet run --robot-autonomous --journey-xstate
+
+# High concurrency (Actor + Actor)
+dotnet run --robot-actor --journey-actor
+
+# Run benchmark
+dotnet run --benchmark
+```
+
+### Expected Output
+The simulation will run for up to 100 cycles or until all wafers from both carriers complete their journey:
 1. Carrier C1 arrives with 5 wafers
 2. Wafers 1-5 process through pipeline
 3. Carrier C1 completes and departs
@@ -130,6 +165,12 @@ The simulation will run for up to 100 cycles or until all wafers from both carri
 5. Wafers 6-10 process through pipeline
 6. Carrier C2 completes and departs
 7. Simulation finishes
+
+### Detailed Logs
+The autonomous scheduler writes detailed logs to:
+```
+XStateNet2/CMPSimXS2.Console/bin/Debug/net8.0/recent processing history.log
+```
 
 ## Test Coverage
 
@@ -201,10 +242,16 @@ This demonstration revealed an important architectural consideration:
 ✅ **Two-Carrier Support**: Realistic carrier arrival/departure events
 ✅ **Event-Driven**: Discrete carrier lifecycle events (arrival, completion, departure)
 ✅ **Real Schedulers**: Production code used, not simplified demo versions
+✅ **5x3 Scheduler Matrix**: 15 combinations (5 robot × 3 journey schedulers)
+  - ⚡ **Array-optimized**: O(1) lookups with byte indices (FASTEST)
+  - 🤖 **Autonomous**: Self-managing robots with polling loops (NEW)
+  - 🎭 **Actor-based**: High concurrency without locks
+  - 🔄 **XState-based**: Declarative state machines
+  - 🔒 **Lock-based**: Traditional synchronization
 ✅ **Comprehensive Tests**: 56 tests validating all logic (100% passing)
 ✅ **Beautiful Visualization**: Rich 5-stage color progression (⚫ → 🔵 → 🟢 → 🟡 → ⚪)
 ✅ **UTF-8 Support**: Proper emoji rendering in Windows console
-✅ **Thread-Safe**: Lock-based synchronization throughout
+✅ **Thread-Safe**: All implementations use appropriate concurrency models
 
 ## Next Steps
 

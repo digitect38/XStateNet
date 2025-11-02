@@ -112,23 +112,33 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     private void InitializeDesignTimeData()
     {
-        // Create sample stations at design-time positions
-        Stations.Add(new StationViewModel("LoadPort") { X = 250, Y = 30, CurrentState = "empty" });
-        Stations.Add(new StationViewModel("Carrier") { X = 420, Y = 30, CurrentState = "loaded", CurrentWafer = 5 });
-        Stations.Add(new StationViewModel("Polisher") { X = 590, Y = 30, CurrentState = "processing", CurrentWafer = 3 });
-        Stations.Add(new StationViewModel("Cleaner") { X = 760, Y = 30, CurrentState = "cleaning", CurrentWafer = 7 });
-        Stations.Add(new StationViewModel("Buffer") { X = 930, Y = 30, CurrentState = "occupied", CurrentWafer = 2 });
+        // Create sample stations at design-time positions (with visual state initialization)
+        var loadPort = new StationViewModel("LoadPort") { X = 250, Y = 30, CurrentState = "empty" };
+        Stations.Add(loadPort);
 
-        // Create sample robots
+        var carrier = new StationViewModel("Carrier") { X = 450, Y = 30, CurrentState = "loaded", CurrentWafer = 5 };
+        Stations.Add(carrier);
+
+        var polisher = new StationViewModel("Polisher") { X = 650, Y = 30, CurrentState = "processing", CurrentWafer = 3 };
+        Stations.Add(polisher);
+
+        var cleaner = new StationViewModel("Cleaner") { X = 850, Y = 30, CurrentState = "cleaning", CurrentWafer = 7 };
+        Stations.Add(cleaner);
+
+        var buffer = new StationViewModel("Buffer") { X = 1050, Y = 30, CurrentState = "occupied", CurrentWafer = 2 };
+        Stations.Add(buffer);
+
+        // Create sample robots (transient stations)
         for (int i = 1; i <= 3; i++)
         {
-            Robots.Add(new StationViewModel($"Robot {i}")
+            var robot = new StationViewModel($"Robot {i}")
             {
-                X = 350 + (i - 1) * 170,
+                X = 350 + (i - 1) * 170,  // 350, 520, 690
                 Y = 300,
                 CurrentState = i == 2 ? "carrying" : "idle",
                 CurrentWafer = i == 2 ? 8 : null
-            });
+            };
+            Robots.Add(robot);
         }
 
         // Create sample wafers
@@ -141,7 +151,7 @@ public class MainViewModel : ViewModelBase
             });
         }
 
-        Status = "Design Mode - Sample Data";
+        Status = "Design Mode - Sample Data (5 Stations + 3 Robots + 25 Wafers)";
     }
 
     private void InitializeActorSystem()
@@ -161,11 +171,13 @@ public class MainViewModel : ViewModelBase
 
         // Create LoadPort
         Logger.Instance.Info("LoadPort", "Creating LoadPort state machine...");
+
         var loadPort = new StationViewModel("LoadPort")
         {
             X = 250,
             Y = 30
         };
+
         loadPort.StateMachine = _factory.FromJson(MachineDefinitions.GetLoadPortMachine())
             .WithAction("storeCarrier", (ctx, evt) =>
             {
@@ -192,37 +204,9 @@ public class MainViewModel : ViewModelBase
             })
             .BuildAndStart();
         Stations.Add(loadPort);
-        Logger.Instance.Info("LoadPort", "LoadPort initialized - State: empty");
 
-        // Create Carrier
-        Logger.Instance.Info("Carrier", "Creating Carrier state machine...");
-        var carrier = new StationViewModel("Carrier")
-        {
-            X = 420,
-            Y = 30
-        };
-        carrier.StateMachine = _factory.FromJson(MachineDefinitions.GetCarrierMachine())
-            .WithAction("removeWafer", (ctx, evt) =>
-            {
-                var data = evt as Dictionary<string, object>;
-                if (data != null && data.ContainsKey("wafer"))
-                {
-                    ctx.Set("currentWafer", data["wafer"]);
-                    Logger.Instance.Info("Carrier", $"Wafer removed: {data["wafer"]}");
-                }
-            })
-            .WithAction("addWafer", (ctx, evt) =>
-            {
-                var data = evt as Dictionary<string, object>;
-                if (data != null && data.ContainsKey("wafer"))
-                {
-                    ctx.Set("currentWafer", data["wafer"]);
-                    Logger.Instance.Info("Carrier", $"Wafer added: {data["wafer"]}");
-                }
-            })
-            .BuildAndStart();
-        Stations.Add(carrier);
-        Logger.Instance.Info("Carrier", "Carrier initialized - State: loaded");
+
+        Logger.Instance.Info("LoadPort", "LoadPort initialized - State: empty");
 
         // Create Polisher
         Logger.Instance.Info("Polisher", "Creating Polisher state machine...");
@@ -261,6 +245,7 @@ public class MainViewModel : ViewModelBase
             .BuildAndStart();
         Stations.Add(polisher);
         Logger.Instance.Info("Polisher", "Polisher initialized - State: idle");
+
 
         // Create Cleaner
         Logger.Instance.Info("Cleaner", "Creating Cleaner state machine...");

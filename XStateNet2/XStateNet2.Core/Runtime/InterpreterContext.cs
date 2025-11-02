@@ -29,7 +29,7 @@ public class InterpreterContext
 
     private bool _isFrozen;
 
-    public InterpreterContext(Dictionary<string, object>? initialContext = null)
+    public InterpreterContext(IReadOnlyDictionary<string, object>? initialContext = null)
     {
         if (initialContext != null)
         {
@@ -51,20 +51,31 @@ public class InterpreterContext
     /// Call this after all actions/guards/services have been registered.
     /// Note: _actors remains mutable for runtime registration.
     /// </summary>
-    public void Freeze()
+    /// <param name="useFrozenDictionary">If true, uses FrozenDictionary (10-15% faster). If false, keeps mutable Dictionary.</param>
+    public void Freeze(bool useFrozenDictionary = true)
     {
         if (_isFrozen)
             return;
 
-        // Convert to FrozenDictionary for optimal read performance (10-15% faster lookups)
-        _actions = _actionsMutable.ToFrozenDictionary();
-        _guards = _guardsMutable.ToFrozenDictionary();
-        _services = _servicesMutable.ToFrozenDictionary();
+        if (useFrozenDictionary)
+        {
+            // Convert to FrozenDictionary for optimal read performance (10-15% faster lookups)
+            _actions = _actionsMutable.ToFrozenDictionary();
+            _guards = _guardsMutable.ToFrozenDictionary();
+            _services = _servicesMutable.ToFrozenDictionary();
 
-        // Clear mutable dictionaries to free memory
-        _actionsMutable = null!;
-        _guardsMutable = null!;
-        _servicesMutable = null!;
+            // Clear mutable dictionaries to free memory
+            _actionsMutable = null!;
+            _guardsMutable = null!;
+            _servicesMutable = null!;
+        }
+        else
+        {
+            // Keep mutable dictionaries for baseline comparison
+            _actions = _actionsMutable;
+            _guards = _guardsMutable;
+            _services = _servicesMutable;
+        }
 
         _isFrozen = true;
     }
@@ -103,7 +114,7 @@ public class InterpreterContext
     /// <summary>
     /// Execute assign action - updates multiple context variables
     /// </summary>
-    public void Assign(Dictionary<string, object> assignment)
+    public void Assign(IReadOnlyDictionary<string, object> assignment)
     {
         foreach (var (key, value) in assignment)
         {

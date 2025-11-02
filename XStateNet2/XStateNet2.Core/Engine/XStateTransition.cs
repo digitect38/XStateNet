@@ -53,7 +53,7 @@ public class ActionDefinition
     /// For assign action: key-value pairs to update context
     /// </summary>
     [JsonPropertyName("assignment")]
-    public Dictionary<string, object>? Assignment { get; set; }
+    public IReadOnlyDictionary<string, object>? Assignment { get; set; }
 
     /// <summary>
     /// For send/raise action: event type to send

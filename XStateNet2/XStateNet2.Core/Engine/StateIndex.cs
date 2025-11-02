@@ -13,22 +13,22 @@ public class StateIndex
 {
     private readonly XStateNode[] _statesByIndex;
     private readonly FrozenDictionary<string, int> _stateNameToIndex;
-    private readonly Dictionary<string, List<XStateTransition>>[] _transitionsByStateIndex;
+    private readonly IReadOnlyDictionary<string, List<XStateTransition>>?[] _transitionsByStateIndex;
 
-    public StateIndex(Dictionary<string, XStateNode> states)
+    public StateIndex(IReadOnlyDictionary<string, XStateNode> states)
     {
         if (states == null || states.Count == 0)
         {
             _statesByIndex = Array.Empty<XStateNode>();
             _stateNameToIndex = FrozenDictionary<string, int>.Empty;
-            _transitionsByStateIndex = Array.Empty<Dictionary<string, List<XStateTransition>>>();
+            _transitionsByStateIndex = Array.Empty<IReadOnlyDictionary<string, List<XStateTransition>>?>();
             return;
         }
 
         var stateCount = states.Count;
         _statesByIndex = new XStateNode[stateCount];
         var tempNameToIndex = new Dictionary<string, int>(stateCount, StringComparer.Ordinal);
-        _transitionsByStateIndex = new Dictionary<string, List<XStateTransition>>[stateCount];
+        _transitionsByStateIndex = new IReadOnlyDictionary<string, List<XStateTransition>>?[stateCount];
 
         int index = 0;
         foreach (var (stateName, stateNode) in states)
@@ -95,7 +95,7 @@ public class StateIndex
     /// Get the transitions dictionary for a state. Returns null if no transitions.
     /// Fast O(1) array access.
     /// </summary>
-    public Dictionary<string, List<XStateTransition>>? GetTransitionsForState(int stateIndex)
+    public IReadOnlyDictionary<string, List<XStateTransition>>? GetTransitionsForState(int stateIndex)
     {
         if (stateIndex < 0 || stateIndex >= _transitionsByStateIndex.Length)
             return null;

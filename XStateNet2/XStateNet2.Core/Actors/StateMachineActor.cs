@@ -37,7 +37,7 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
     // Performance optimization: Cache current state info to avoid repeated lookups
     private int _currentStateIndex = -1;
     private XStateNode? _currentStateNode;
-    private Dictionary<string, List<XStateTransition>>? _currentTransitions;
+    private IReadOnlyDictionary<string, List<XStateTransition>>? _currentTransitions;
 
     public IStash Stash { get; set; } = null!;
 
@@ -754,7 +754,7 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
 
             // Navigate to the parent state to check if it has a history node
             XStateNode? parentNode = null;
-            Dictionary<string, XStateNode>? currentStates;
+            IReadOnlyDictionary<string, XStateNode>? currentStates;
 
             if (parentStatePath.Contains('.'))
             {

@@ -2,13 +2,19 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CMPSimXS2\CMPSimXS2.csproj" />
+    <PackageReference Include="Akka" Version="1.5.54" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XStateNet2.Core\XStateNet2.Core.csproj" />
+    <ProjectReference Include="..\..\LoggerHelper\LoggerHelper.csproj" />
+    <ProjectReference Include="..\..\XStateNet5Impl\XStateNet.csproj" />
   </ItemGroup>
 
 </Project>

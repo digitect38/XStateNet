@@ -8,9 +8,9 @@ namespace XStateNet2.Core.Converters;
 /// Converter for delayed transitions (after)
 /// Handles format: "after": { "1000": "targetState", "2000": { "target": "..." } }
 /// </summary>
-public class AfterTransitionConverter : JsonConverter<Dictionary<int, XStateTransition>>
+public class AfterTransitionConverter : JsonConverter<IReadOnlyDictionary<int, XStateTransition>>
 {
-    public override Dictionary<int, XStateTransition>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IReadOnlyDictionary<int, XStateTransition>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
             return null;
@@ -58,7 +58,7 @@ public class AfterTransitionConverter : JsonConverter<Dictionary<int, XStateTran
         throw new JsonException("Unexpected end of JSON");
     }
 
-    public override void Write(Utf8JsonWriter writer, Dictionary<int, XStateTransition> value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IReadOnlyDictionary<int, XStateTransition> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 

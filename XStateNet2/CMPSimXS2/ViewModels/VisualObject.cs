@@ -15,7 +15,7 @@ public abstract class VisualObject : ViewModelBase
 
     // Size properties
     private double _width = 150;
-    private double _height = 100;
+    private double _height = 200;
 
     // Visual composition: Box + Circle
     private SolidColorBrush _boxBrush = new(Colors.White);
