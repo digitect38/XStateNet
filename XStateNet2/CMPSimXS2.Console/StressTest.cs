@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Akka.Actor;
 using CMPSimXS2.Console.Models;
 using CMPSimXS2.Console.Schedulers;
+using LoggerHelper;
 
 namespace CMPSimXS2.Console;
 
@@ -11,10 +12,15 @@ namespace CMPSimXS2.Console;
 /// </summary>
 public class StressTest
 {
-    public static async Task RunStressTests()
+    public static async Task RunStressTests(int delayMs = 50, int waferCount = 100)
     {
+        // Disable file logging to avoid "recent processing history.log"
+        Logger.DisableLogging = true;
+
+        int foupCount = (waferCount + 24) / 25; // Calculate FOUPs needed (round up)
+
         System.Console.WriteLine("╔═══════════════════════════════════════════════════════════════════════════════╗");
-        System.Console.WriteLine("║  DEBUG Stress Test: 250 Wafers × 1000 Cycles (10 FOUPs)                      ║");
+        System.Console.WriteLine($"║  BENCHMARK: {waferCount} Wafers × 1000 Cycles ({foupCount} FOUPs) - {delayMs}ms interval{new string(' ', 15 - delayMs.ToString().Length - waferCount.ToString().Length)}║");
         System.Console.WriteLine("║  Testing: All 16 Scheduler Architectures                                      ║");
         System.Console.WriteLine("║  Metrics: Throughput, Reliability, Performance, Failure Modes                 ║");
         System.Console.WriteLine("╚═══════════════════════════════════════════════════════════════════════════════╝");
@@ -26,44 +32,44 @@ public class StressTest
         // Format: [Coordination]-[Engine]-[Optimization]-[Communication]
 
         // Lock-based
-        results.Add(await TestScheduler("Lock (polling)", "lock"));
+        results.Add(await TestScheduler("Lock (polling)", "lock", delayMs, waferCount));
 
         // Pure Actor
-        results.Add(await TestScheduler("Actor (event)", "actor"));
+        results.Add(await TestScheduler("Actor (event)", "actor", delayMs, waferCount));
 
         // XStateNet Legacy (V1 simulation)
-        results.Add(await TestScheduler("XS1-Legacy (event)", "xs1-legacy"));
+        results.Add(await TestScheduler("XS1-Legacy (event)", "xs1-legacy", delayMs, waferCount));
 
         // XStateNet2 Variants: Dict → FrozenDict → Array
-        results.Add(await TestScheduler("XS2-Dict (event)", "xs2-dict"));
-        results.Add(await TestScheduler("XS2-Frozen (event)", "xs2-frozen"));
-        results.Add(await TestScheduler("XS2-Array (event)", "xs2-array"));
+        results.Add(await TestScheduler("XS2-Dict (event)", "xs2-dict", delayMs, waferCount));
+        results.Add(await TestScheduler("XS2-Frozen (event)", "xs2-frozen", delayMs, waferCount));
+        results.Add(await TestScheduler("XS2-Array (event)", "xs2-array", delayMs, waferCount));
 
         // Autonomous Variants
-        results.Add(await TestScheduler("Autonomous (polling)", "autonomous"));
-        results.Add(await TestScheduler("Autonomous-Array (polling)", "autonomous-array"));
-        results.Add(await TestScheduler("Autonomous-Event (event)", "autonomous-event"));
+        results.Add(await TestScheduler("Autonomous (polling)", "autonomous", delayMs, waferCount));
+        results.Add(await TestScheduler("Autonomous-Array (polling)", "autonomous-array", delayMs, waferCount));
+        results.Add(await TestScheduler("Autonomous-Event (event)", "autonomous-event", delayMs, waferCount));
 
         // Actor Mailbox
-        results.Add(await TestScheduler("Actor-Mailbox (event)", "actor-mailbox"));
+        results.Add(await TestScheduler("Actor-Mailbox (event)", "actor-mailbox", delayMs, waferCount));
 
         // Ant Colony
-        results.Add(await TestScheduler("Ant-Colony (event)", "ant-colony"));
+        results.Add(await TestScheduler("Ant-Colony (event)", "ant-colony", delayMs, waferCount));
 
         // Pub/Sub Variants
-        results.Add(await TestScheduler("XS2-PubSub-Dedicated (multi)", "xs2-pubsub-dedicated"));
-        results.Add(await TestScheduler("PubSub-Single (one)", "pubsub-single"));
-        results.Add(await TestScheduler("XS2-PubSub-Array (one)", "xs2-pubsub-array"));
+        results.Add(await TestScheduler("XS2-PubSub-Dedicated (multi)", "xs2-pubsub-dedicated", delayMs, waferCount));
+        results.Add(await TestScheduler("single-pubsub (one)", "single-pubsub", delayMs, waferCount));
+        results.Add(await TestScheduler("xs2-array-single-pubsub (one)", "xs2-array-single-pubsub", delayMs, waferCount));
 
         // Synchronized Pipeline
-        results.Add(await TestScheduler("Sync-Pipeline (batch)", "sync-pipe"));
-        results.Add(await TestScheduler("XS2-Sync-Pipeline (batch)", "xs2-sync-pipe"));
+        results.Add(await TestScheduler("Sync-Pipeline (batch)", "sync-pipe", delayMs, waferCount));
+        results.Add(await TestScheduler("XS2-Sync-Pipeline (batch)", "xs2-sync-pipe", delayMs, waferCount));
 
         // Display summary
         PrintSummary(results);
     }
 
-    private static async Task<StressTestResult> TestScheduler(string name, string type)
+    private static async Task<StressTestResult> TestScheduler(string name, string type, int delayMs, int waferCount)
     {
         System.Console.WriteLine($"═══════════════════════════════════════════════════════════════════════");
         System.Console.WriteLine($"Testing: {name}");
@@ -78,9 +84,9 @@ public class StressTest
             // Create scheduler
             IRobotScheduler scheduler = CreateScheduler(actorSystem, type);
 
-            // Create wafers for 10 FOUPs × 25 wafers each = 250 total wafers (DEBUG mode)
+            // Create wafers based on configuration
             var wafers = new List<Wafer>();
-            int totalWafers = 10 * 25; // 10 FOUPs × 25 wafers per FOUP
+            int totalWafers = waferCount;
             for (int i = 1; i <= totalWafers; i++)
             {
                 wafers.Add(new Wafer(i));
@@ -163,9 +169,16 @@ public class StressTest
                         }
                     }
 
-                    // Delay to allow actor message processing (5ms gives actors time to drain mailboxes)
-                    await Task.Delay(5);
+                    // Delay to allow actor message processing (configurable delay gives actors time to drain mailboxes)
+                    await Task.Delay(delayMs);
                     successfulCycles++;
+
+                    // Check if all wafers completed - early exit to save time
+                    if (wafers.All(w => w.IsCompleted))
+                    {
+                        System.Console.WriteLine($"  ✓ All {totalWafers} wafers completed at cycle {cycle}! Early exit.");
+                        break;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -262,8 +275,8 @@ public class StressTest
 
             // Pub/Sub Variants
             "xs2-pubsub-dedicated" => new PublicationBasedScheduler(actorSystem, $"stress-{code}"),
-            "pubsub-single" => new SinglePublicationScheduler(actorSystem, $"stress-{code}"),
-            "xs2-pubsub-array" => new SinglePublicationSchedulerXState(actorSystem, $"stress-{code}"),
+            "single-pubsub" => new SinglePublicationScheduler(actorSystem, $"stress-{code}"),
+            "xs2-array-single-pubsub" => new SinglePublicationSchedulerXState(actorSystem, $"stress-{code}"),
 
             // Synchronized Pipeline
             "sync-pipe" => new SynchronizedPipelineScheduler(actorSystem, $"stress-{code}"),

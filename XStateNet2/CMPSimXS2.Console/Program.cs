@@ -30,6 +30,35 @@ class Program
         bool runBenchmark = args.Contains("--benchmark") || args.Contains("-b");
         bool runStressTest = args.Contains("--stress-test") || args.Contains("--stress");
 
+        // Common parameters for both stress test and individual scheduler test
+        int delayMs = 50; // default 50ms (used for simulation cycle delay)
+        int waferCount = 50; // default 50 wafers (2 FOUPs) for individual test, 100 for stress test
+
+        // Parse --delay and --wafers parameters (works for both modes)
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--delay" || args[i] == "--stress-delay")
+            {
+                if (int.TryParse(args[i + 1], out int delay) && delay > 0)
+                {
+                    delayMs = delay;
+                }
+            }
+            else if (args[i] == "--wafers" || args[i] == "--stress-wafers")
+            {
+                if (int.TryParse(args[i + 1], out int count) && count > 0)
+                {
+                    waferCount = count;
+                }
+            }
+        }
+
+        // Set default wafer count for stress test if not specified
+        if (runStressTest && !args.Any(a => a == "--wafers" || a == "--stress-wafers"))
+        {
+            waferCount = 100; // stress test default: 100 wafers
+        }
+
         // Robot scheduler selection
         string robotSchedulerType = "lock"; // default
         if (args.Contains("--robot-lock")) robotSchedulerType = "lock";
@@ -45,7 +74,7 @@ class Program
         else if (args.Contains("--robot-ant")) robotSchedulerType = "ant";
         else if (args.Contains("--robot-pubsub")) robotSchedulerType = "pubsub";
         else if (args.Contains("--robot-singlepub")) robotSchedulerType = "singlepub";
-        else if (args.Contains("--robot-array-singlepub")) robotSchedulerType = "array-singlepub";
+        else if (args.Contains("--robot-xs2-array-single-pubsub")) robotSchedulerType = "xs2-array-single-pubsub";
         else if (args.Contains("--robot-sync-pipe")) robotSchedulerType = "sync-pipe";
         else if (args.Contains("--robot-xs1-legacy")) robotSchedulerType = "xs1-legacy";
         else if (args.Contains("--robot-xs2-sync-pipe")) robotSchedulerType = "xs2-sync-pipe";
@@ -68,13 +97,14 @@ class Program
         // Run stress test if requested
         if (runStressTest)
         {
-            await StressTest.RunStressTests();
+            await StressTest.RunStressTests(delayMs, waferCount);
             return;
         }
 
+        int foupCount = (waferCount + 24) / 25; // Calculate FOUPs needed (round up)
         System.Console.WriteLine("╔════════════════════════════════════════════════════════════════════════╗");
         System.Console.WriteLine("║  CMPSimXS2 Single-Wafer Rule Demonstration                            ║");
-        System.Console.WriteLine("║  Configuration: 2 FOUP Carriers × 25 Wafers = 50 Total Wafers        ║");
+        System.Console.WriteLine($"║  Configuration: {foupCount} FOUP Carriers × 25 Wafers = {waferCount} Total Wafers{new string(' ', Math.Max(0, 16 - waferCount.ToString().Length - foupCount.ToString().Length))}║");
         System.Console.WriteLine("║  Train Pattern: Carrier → R1 → Polisher → R2 → Cleaner → R3 →        ║");
         System.Console.WriteLine("║                 Buffer → R1 → Carrier                                  ║");
         System.Console.WriteLine("╚════════════════════════════════════════════════════════════════════════╝");
@@ -95,7 +125,7 @@ class Program
             "ant" => "🐜",
             "pubsub" => "📡",
             "singlepub" => "📢",
-            "array-singlepub" => "🚀",
+            "xs2-array-single-pubsub" => "🚀",
             "sync-pipe" => "⏸️",
             "xs1-legacy" => "🕰️",
             "xs2-sync-pipe" => "🔄",
@@ -114,8 +144,8 @@ class Program
             "actormailbox" => "Actor-Mailbox (event)",
             "ant" => "Ant-Colony (event)",
             "pubsub" => "XS2-PubSub-Dedicated (multi)",
-            "singlepub" => "PubSub-Single (one)",
-            "array-singlepub" => "XS2-PubSub-Array (one)",
+            "singlepub" => "single-pubsub (one)",
+            "xs2-array-single-pubsub" => "xs2-array-single-pubsub (one)",
             "sync-pipe" => "Sync-Pipeline (batch)",
             "xs1-legacy" => "XS1-Legacy (event) [BROKEN]",
             "xs2-sync-pipe" => "XS2-Sync-Pipeline (batch) [DEBUG]",
@@ -155,9 +185,9 @@ class Program
         System.Console.WriteLine("     --robot-pubsub");
         System.Console.WriteLine("        📡 XS2-PubSub-Dedicated (15.72s, multi-publisher pattern)");
         System.Console.WriteLine("     --robot-singlepub");
-        System.Console.WriteLine("        📢 PubSub-Single (15.68s, one-publisher pattern)");
-        System.Console.WriteLine("     --robot-array-singlepub");
-        System.Console.WriteLine("        🚀 XS2-PubSub-Array (15.68s, optimized one-publisher)");
+        System.Console.WriteLine("        📢 single-pubsub (15.68s, one-publisher pattern)");
+        System.Console.WriteLine("     --robot-xs2-array-single-pubsub");
+        System.Console.WriteLine("        🚀 xs2-array-single-pubsub (15.68s, optimized one-publisher)");
         System.Console.WriteLine("     --robot-sync-pipe");
         System.Console.WriteLine("        ⏸️  Sync-Pipeline (15.70s, synchronized batch execution)");
         System.Console.WriteLine();
@@ -200,17 +230,17 @@ class Program
             "ant" => new AntColonyScheduler(actorSystem),
             "pubsub" => new PublicationBasedScheduler(actorSystem),
             "singlepub" => new SinglePublicationScheduler(actorSystem),
-            "array-singlepub" => new SinglePublicationSchedulerXState(actorSystem),
+            "xs2-array-single-pubsub" => new SinglePublicationSchedulerXState(actorSystem),
             "sync-pipe" => new SynchronizedPipelineScheduler(actorSystem),
             "xs1-legacy" => new RobotSchedulerXS1Legacy($"demo-xs1-legacy"),
             "xs2-sync-pipe" => new RobotSchedulerXS2SyncPipeline(actorSystem, $"demo-xs2-sync-pipe"),
             _ => new RobotScheduler()
         };
 
-        // Create wafers for TWO carriers (25 wafers per carrier)
-        System.Console.WriteLine("💿 Creating 50 wafers (2 FOUP carriers × 25 wafers each)...");
+        // Create wafers for FOUP carriers (25 wafers per carrier)
+        System.Console.WriteLine($"💿 Creating {waferCount} wafers ({foupCount} FOUP carrier{(foupCount > 1 ? "s" : "")} × 25 wafers each)...");
         var wafers = new List<Wafer>();
-        for (int i = 1; i <= 50; i++)
+        for (int i = 1; i <= waferCount; i++)
         {
             wafers.Add(new Wafer(i));
         }
@@ -354,8 +384,22 @@ class Program
         System.Console.WriteLine("      Tests: Sequential throughput, Query latency, Concurrent load");
         System.Console.WriteLine();
         System.Console.WriteLine("   --stress-test, --stress");
-        System.Console.WriteLine("      Run EXTREME stress test: 1000 FOUPs × 25 Wafers = 25,000 total wafers");
+        System.Console.WriteLine("      Run stress test: 4 FOUPs × 25 Wafers = 100 total wafers (50ms interval)");
         System.Console.WriteLine("      Tests all 16 schedulers: Reliability, throughput, failure modes");
+        System.Console.WriteLine("      Duration: ~17 minutes (16 schedulers × 63 seconds each)");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --delay <milliseconds>, --stress-delay <milliseconds>");
+        System.Console.WriteLine("      Set delay between simulation cycles (default: 50ms)");
+        System.Console.WriteLine("      Works for both individual scheduler and stress test modes");
+        System.Console.WriteLine("      Example: --robot-actor --delay 25");
+        System.Console.WriteLine("      Example: --stress-test --stress-delay 100");
+        System.Console.WriteLine();
+        System.Console.WriteLine("   --wafers <count>, --stress-wafers <count>");
+        System.Console.WriteLine("      Set number of wafers to process");
+        System.Console.WriteLine("      Default: 50 for individual test, 100 for stress test");
+        System.Console.WriteLine("      Works for both individual scheduler and stress test modes");
+        System.Console.WriteLine("      Example: --robot-actor --wafers 25");
+        System.Console.WriteLine("      Example: --stress-test --stress-wafers 250");
         System.Console.WriteLine();
         System.Console.WriteLine("   (any robot/journey option)");
         System.Console.WriteLine("      Run single-wafer manufacturing simulation");
@@ -399,10 +443,10 @@ class Program
         System.Console.WriteLine("      📡 XS2-PubSub-Dedicated (multi) - 15.72s, multi-publisher");
         System.Console.WriteLine();
         System.Console.WriteLine("   --robot-singlepub");
-        System.Console.WriteLine("      📢 PubSub-Single (one) - 15.68s, one-publisher pattern");
+        System.Console.WriteLine("      📢 single-pubsub (one) - 15.68s, one-publisher pattern");
         System.Console.WriteLine();
-        System.Console.WriteLine("   --robot-array-singlepub");
-        System.Console.WriteLine("      🚀 XS2-PubSub-Array (one) - 15.68s, optimized one-publisher");
+        System.Console.WriteLine("   --robot-xs2-array-single-pubsub");
+        System.Console.WriteLine("      🚀 xs2-array-single-pubsub (one) - 15.68s, optimized one-publisher");
         System.Console.WriteLine();
         System.Console.WriteLine("   --robot-sync-pipe");
         System.Console.WriteLine("      ⏸️  Sync-Pipeline (batch) - 15.70s, synchronized batch execution");
@@ -435,7 +479,7 @@ class Program
         System.Console.WriteLine("   dotnet run --robot-singlepub");
         System.Console.WriteLine();
         System.Console.WriteLine("   # Run with XStateNet2 Array Single Publication (array + fast)");
-        System.Console.WriteLine("   dotnet run --robot-array-singlepub");
+        System.Console.WriteLine("   dotnet run --robot-xs2-array-single-pubsub");
         System.Console.WriteLine();
         System.Console.WriteLine("   # Run with Actor-based robot + XState journey");
         System.Console.WriteLine("   dotnet run --robot-actor --journey-xstate");
@@ -445,11 +489,11 @@ class Program
         System.Console.WriteLine();
         System.Console.WriteLine("💡 PERFORMANCE RANKING (Sequential Throughput):");
         System.Console.WriteLine();
-        System.Console.WriteLine("   🥇 Single Publication:  6,608,075 req/sec  (--robot-singlepub) ⭐⭐⭐⭐⭐");
-        System.Console.WriteLine("   🥈 Array SinglePub:     ~3,000,000 req/sec  (--robot-array-singlepub) 🎯");
+        System.Console.WriteLine("   🥇 Actor Single Publication:  6,608,075 req/sec  (--robot-singlepub) ⭐⭐⭐⭐⭐");
+        System.Console.WriteLine("   🥈 XS2 Array SinglePub:     ~3,000,000 req/sec  (--robot-xs2-array-single-pubsub) 🎯");
         System.Console.WriteLine("   🥉 Actor:               2,927,143 req/sec  (--robot-actor)");
-        System.Console.WriteLine("   4️⃣  XState Array:        2,717,613 req/sec  (--robot-array)");
-        System.Console.WriteLine("   5️⃣  XState FrozenDict:  1,577,660 req/sec  (--robot-xstate)");
+        System.Console.WriteLine("   4️⃣  XS2 Array:        2,717,613 req/sec  (--robot-array)");
+        System.Console.WriteLine("   5️⃣  XS2 FrozenDict:  1,577,660 req/sec  (--robot-xstate)");
         System.Console.WriteLine("   6️⃣  Ant Colony:         1,718 req/sec      (--robot-ant)");
         System.Console.WriteLine("   7️⃣  Lock:               1,707 req/sec      (default)");
         System.Console.WriteLine("   8️⃣  Publication-Based:  1,351 req/sec      (--robot-pubsub)");

@@ -39,8 +39,19 @@ public class RobotSchedulerXS1Legacy : IRobotScheduler
     {
         if (_context.RobotStates.TryGetValue(robotId, out var robot))
         {
+            var wasIdle = robot.State == "idle";
             robot.State = state;
             robot.HeldWaferId = heldWaferId;
+
+            // Complete active transfer if robot became idle
+            if (state == "idle" && !wasIdle && _context.ActiveTransfers.ContainsKey(robotId))
+            {
+                var completedTransfer = _context.ActiveTransfers[robotId];
+                _context.ActiveTransfers.Remove(robotId);
+
+                completedTransfer.OnCompleted?.Invoke(completedTransfer.WaferId);
+                Logger.Instance.Log($"[XS1-Legacy] {robotId} completed transfer of wafer {completedTransfer.WaferId}");
+            }
 
             // When robot becomes idle, try to process pending transfers
             if (state == "idle")
@@ -68,13 +79,22 @@ public class RobotSchedulerXS1Legacy : IRobotScheduler
     {
         while (_context.PendingRequests.Count > 0)
         {
-            var request = _context.PendingRequests.Peek();
+            // Use TryPeek pattern to avoid race condition
+            if (!_context.PendingRequests.TryPeek(out var request))
+            {
+                break; // Queue became empty
+            }
+
             var robotId = FindAvailableRobot(request);
 
             if (robotId != null)
             {
-                _context.PendingRequests.Dequeue();
-                ExecuteTransfer(request, robotId);
+                // Double-check before dequeue to avoid race condition
+                if (_context.PendingRequests.Count > 0)
+                {
+                    _context.PendingRequests.Dequeue();
+                    ExecuteTransfer(request, robotId);
+                }
             }
             else
             {

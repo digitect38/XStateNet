@@ -7,32 +7,79 @@ using LoggerHelper;
 namespace CMPSimXS2.Console.Schedulers;
 
 /// <summary>
-/// XState-powered publication-based scheduler with SINGLE scheduler.
+/// XState DSL-powered publication-based scheduler with SINGLE scheduler.
 ///
 /// Combines benefits of:
-/// - XStateNet2: Declarative state machine for extensibility ✅
+/// - XStateNet2 JSON DSL: Declarative state machine ✅
 /// - Single scheduler: No routing overhead ✅
 /// - Publication-based: State visibility (pub/sub pattern) ✅
 ///
 /// Architecture:
-/// - ONE XState machine (instead of dedicated schedulers per robot)
+/// - ONE XState machine with JSON DSL definition
 /// - State publications (pub/sub pattern for observability)
 /// - NO routing work (eliminated 0.5ms overhead!)
-/// - Standard XState events (Dictionary overhead ~0.002ms is negligible)
+/// - Declarative state transitions via JSON
 ///
-/// Performance:
-/// - Sequential: Should match Actor-based (~3M req/sec)
-/// - Concurrent: Should match Actor-based (~6M req/sec)
-/// - Better than original Publication-Based by 2500× (no routing!)
+/// XState Machine Definition (Standard JSON):
+/// {
+///   "id": "singlePubScheduler",
+///   "initial": "idle",
+///   "states": {
+///     "idle": {
+///       "on": {
+///         "REGISTER_ROBOT": { "actions": ["registerRobot"] },
+///         "REGISTER_STATION": { "actions": ["registerStation"] },
+///         "STATE_CHANGE": { "actions": ["handleStateChange", "tryProcessPending"] },
+///         "TRANSFER_REQUEST": { "target": "processing" }
+///       }
+///     },
+///     "processing": {
+///       "entry": ["processTransfer", "tryProcessPending"],
+///       "always": [
+///         { "target": "idle", "cond": "queueEmpty" }
+///       ],
+///       "on": {
+///         "STATE_CHANGE": { "actions": ["handleStateChange", "tryProcessPending"] },
+///         "TRANSFER_REQUEST": { "actions": ["processTransfer", "tryProcessPending"] }
+///       }
+///     }
+///   }
+/// }
 /// </summary>
 public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
 {
     private readonly ActorSystem _actorSystem;
-    private readonly IActorRef _schedulerMachine;
+    private readonly IActorRef _machine;
     private readonly SchedulerContext _context;
     private readonly Dictionary<string, IActorRef> _robotStatePublishers = new();
     private readonly Dictionary<string, IActorRef> _stationStatePublishers = new();
     private readonly string _namePrefix;
+
+    // XState machine JSON DSL definition
+    private const string MachineJson = @"{
+        ""id"": ""singlePubScheduler"",
+        ""initial"": ""idle"",
+        ""states"": {
+            ""idle"": {
+                ""on"": {
+                    ""REGISTER_ROBOT"": { ""actions"": [""registerRobot""] },
+                    ""REGISTER_STATION"": { ""actions"": [""registerStation""] },
+                    ""STATE_CHANGE"": { ""actions"": [""handleStateChange"", ""tryProcessPending""] },
+                    ""TRANSFER_REQUEST"": { ""target"": ""processing"" }
+                }
+            },
+            ""processing"": {
+                ""entry"": [""processTransfer"", ""tryProcessPending""],
+                ""always"": [
+                    { ""target"": ""idle"", ""cond"": ""queueEmpty"" }
+                ],
+                ""on"": {
+                    ""STATE_CHANGE"": { ""actions"": [""handleStateChange"", ""tryProcessPending""] },
+                    ""TRANSFER_REQUEST"": { ""actions"": [""processTransfer"", ""tryProcessPending""] }
+                }
+            }
+        }
+    }";
 
     public SinglePublicationSchedulerXState(ActorSystem actorSystem, string? namePrefix = null)
     {
@@ -40,11 +87,19 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
         _namePrefix = namePrefix ?? $"xstate-singlepub-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
         _context = new SchedulerContext();
 
-        // Create array-based scheduler actor (like RobotSchedulerXStateArray)
-        var props = Props.Create(() => new ArraySchedulerActor(_context, this));
-        _schedulerMachine = actorSystem.ActorOf(props, $"{_namePrefix}-scheduler");
+        // Create XState machine from JSON DSL
+        var factory = new XStateMachineFactory(actorSystem);
 
-        Logger.Instance.Log($"[SinglePublicationSchedulerXState] 📡⚡🎯 Initialized with array-based XState machine");
+        _machine = factory.FromJson(MachineJson)
+            .WithAction("registerRobot", (ctx, data) => RegisterRobotAction(data as Dictionary<string, object>))
+            .WithAction("registerStation", (ctx, data) => RegisterStationAction(data as Dictionary<string, object>))
+            .WithAction("handleStateChange", (ctx, data) => HandleStateChangeAction(data as Dictionary<string, object>))
+            .WithAction("processTransfer", (ctx, data) => ProcessTransferAction(data as Dictionary<string, object>))
+            .WithAction("tryProcessPending", (ctx, data) => TryProcessPendingAction())
+            .WithGuard("queueEmpty", (ctx, data) => _context.PendingRequests.Count == 0)
+            .BuildAndStart($"{_namePrefix}-machine");
+
+        Logger.Instance.Log($"[SinglePublicationSchedulerXState] 📡⚡🎯 Initialized with XState JSON DSL");
     }
 
     #region IRobotScheduler Implementation
@@ -59,8 +114,14 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
         );
         _robotStatePublishers[robotId] = robotPublisher;
 
-        // Register robot with array-based scheduler
-        _schedulerMachine.Tell(new RegisterRobotMessage(robotId, robotActor, robotPublisher));
+        // Send REGISTER_ROBOT event to XState machine
+        var eventData = new Dictionary<string, object>
+        {
+            ["robotId"] = robotId,
+            ["robotActor"] = robotActor,
+            ["statePublisher"] = robotPublisher
+        };
+        _machine.Tell(new SendEvent("REGISTER_ROBOT", eventData));
 
         Logger.Instance.Log($"[SinglePublicationSchedulerXState] 📡 Registered {robotId}");
     }
@@ -81,8 +142,12 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
 
     public void RequestTransfer(TransferRequest request)
     {
-        // Send transfer request directly to array-based actor (zero wrapper overhead!)
-        _schedulerMachine.Tell(request);
+        // Send TRANSFER_REQUEST event to XState machine
+        var eventData = new Dictionary<string, object>
+        {
+            ["request"] = request
+        };
+        _machine.Tell(new SendEvent("TRANSFER_REQUEST", eventData));
     }
 
     public int GetQueueSize()
@@ -99,22 +164,26 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
 
     #region Station State Publishing
 
-    public void RegisterStation(string stationName, string initialState = "idle", int? wafer = null)
+    public void RegisterStation(string stationName, string initialState, int? initialWaferId)
     {
-        if (!_stationStatePublishers.ContainsKey(stationName))
+        // Create state publisher for this station
+        var publisherName = $"{_namePrefix}-station-pub-{stationName.ToLower().Replace(" ", "-")}";
+        var stationPublisher = _actorSystem.ActorOf(
+            Props.Create(() => new StatePublisherActor(stationName, "Station", initialState, initialWaferId)),
+            publisherName
+        );
+        _stationStatePublishers[stationName] = stationPublisher;
+
+        // Send REGISTER_STATION event to XState machine
+        var eventData = new Dictionary<string, object>
         {
-            var publisherName = $"{_namePrefix}-station-pub-{stationName.ToLower()}";
-            var publisher = _actorSystem.ActorOf(
-                Props.Create(() => new StatePublisherActor(stationName, "Station", initialState, wafer)),
-                publisherName
-            );
-            _stationStatePublishers[stationName] = publisher;
+            ["stationName"] = stationName,
+            ["statePublisher"] = stationPublisher,
+            ["initialState"] = initialState
+        };
+        _machine.Tell(new SendEvent("REGISTER_STATION", eventData));
 
-            // Register station with array-based scheduler
-            _schedulerMachine.Tell(new RegisterStationMessage(stationName, publisher));
-
-            Logger.Instance.Log($"[SinglePublicationSchedulerXState] 📡 Registered station: {stationName}");
-        }
+        Logger.Instance.Log($"[SinglePublicationSchedulerXState] 📡 Registered station {stationName}");
     }
 
     public void UpdateStationState(string stationName, string state, int? waferId = null)
@@ -124,13 +193,6 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
             publisher.Tell(new StatePublisherActor.PublishStateMessage(state, waferId, null));
         }
     }
-
-    #endregion
-
-    #region Messages
-
-    internal record RegisterRobotMessage(string RobotId, IActorRef RobotActor, IActorRef StatePublisher);
-    internal record RegisterStationMessage(string StationName, IActorRef StatePublisher);
 
     #endregion
 
@@ -148,10 +210,10 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
         _context.RobotStates[robotId] = new RobotState { State = "idle" };
 
         // Create event converter proxy that subscribes to state publisher
-        // and forwards events to array-based actor
+        // and forwards events to XState machine
         var sanitizedRobotId = robotId.ToLower().Replace(" ", "-");
         var converterActor = _actorSystem.ActorOf(
-            Props.Create(() => new StateEventConverter(_schedulerMachine)),
+            Props.Create(() => new StateEventConverter(_machine)),
             $"{_namePrefix}-converter-{sanitizedRobotId}"
         );
 
@@ -168,12 +230,12 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
         var stationName = eventData["stationName"].ToString()!;
         var statePublisher = (IActorRef)eventData["statePublisher"];
 
-        _context.Stations[stationName] = new StationState { State = "idle" };
+        _context.Stations[stationName] = new StationState { State = eventData["initialState"]?.ToString() ?? "idle" };
 
         // Create event converter proxy
         var sanitizedStationName = stationName.ToLower().Replace(" ", "-");
         var converterActor = _actorSystem.ActorOf(
-            Props.Create(() => new StateEventConverter(_schedulerMachine)),
+            Props.Create(() => new StateEventConverter(_machine)),
             $"{_namePrefix}-converter-{sanitizedStationName}"
         );
 
@@ -383,101 +445,11 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
 
     #endregion
 
-    #region IDisposable
-
-    public void Dispose()
-    {
-        Logger.Instance.Log("[SinglePublicationSchedulerXState] 📡⚡ Disposed");
-    }
-
-    #endregion
-
-    #region Array-Based XState Actor
+    #region State Event Converter
 
     /// <summary>
-    /// Array-based XState actor implementation.
-    /// Uses byte indices for O(1) state transitions (like RobotSchedulerXStateArray).
-    /// </summary>
-    private class ArraySchedulerActor : ReceiveActor
-    {
-        // State machine constants (compile-time byte indices)
-        private const byte STATE_IDLE = 0;
-        private const byte STATE_PROCESSING = 1;
-
-        // Current state
-        private byte _currentState = STATE_IDLE;
-
-        // Context data
-        private readonly SchedulerContext _context;
-        private readonly SinglePublicationSchedulerXState _parent;
-
-        public ArraySchedulerActor(SchedulerContext context, SinglePublicationSchedulerXState parent)
-        {
-            _context = context;
-            _parent = parent;
-
-            // Message handlers
-            Receive<RegisterRobotMessage>(msg => HandleRegisterRobot(msg));
-            Receive<RegisterStationMessage>(msg => HandleRegisterStation(msg));
-            Receive<TransferRequest>(request => HandleTransferRequest(request));
-            Receive<StateChangeEvent>(evt => HandleStateChange(evt));
-        }
-
-        private void HandleRegisterRobot(RegisterRobotMessage msg)
-        {
-            _parent.RegisterRobotAction(new Dictionary<string, object>
-            {
-                ["robotId"] = msg.RobotId,
-                ["robotActor"] = msg.RobotActor,
-                ["statePublisher"] = msg.StatePublisher
-            });
-        }
-
-        private void HandleRegisterStation(RegisterStationMessage msg)
-        {
-            _parent.RegisterStationAction(new Dictionary<string, object>
-            {
-                ["stationName"] = msg.StationName,
-                ["statePublisher"] = msg.StatePublisher
-            });
-        }
-
-        private void HandleTransferRequest(TransferRequest request)
-        {
-            _currentState = STATE_PROCESSING;
-            _parent.ProcessTransferAction(new Dictionary<string, object> { ["request"] = request });
-            _parent.TryProcessPendingAction();
-
-            // Auto-transition if no pending work
-            if (_context.PendingRequests.Count == 0)
-            {
-                _currentState = STATE_IDLE;
-            }
-        }
-
-        private void HandleStateChange(StateChangeEvent evt)
-        {
-            _currentState = STATE_PROCESSING;
-            _parent.HandleStateChangeAction(new Dictionary<string, object>
-            {
-                ["entityType"] = evt.EntityType,
-                ["entityId"] = evt.EntityId,
-                ["newState"] = evt.NewState,
-                ["waferId"] = evt.WaferId
-            });
-            _parent.TryProcessPendingAction();
-
-            // Auto-transition if no pending work
-            if (_context.PendingRequests.Count == 0)
-            {
-                _currentState = STATE_IDLE;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Converts StateChangeEvent records to direct actor messages.
-    /// This bridges the pub/sub pattern with array-based actor.
+    /// Converts StateChangeEvent records to XState STATE_CHANGE events.
+    /// This bridges the pub/sub pattern with XState machine.
     /// </summary>
     private class StateEventConverter : ReceiveActor
     {
@@ -487,12 +459,29 @@ public class SinglePublicationSchedulerXState : IRobotScheduler, IDisposable
         {
             _stateMachine = stateMachine;
 
-            // Forward StateChangeEvent directly to array-based actor
+            // Convert StateChangeEvent to XState event and forward to machine
             Receive<StateChangeEvent>(evt =>
             {
-                _stateMachine.Tell(evt);
+                var eventData = new Dictionary<string, object>
+                {
+                    ["entityType"] = evt.EntityType,
+                    ["entityId"] = evt.EntityId,
+                    ["newState"] = evt.NewState,
+                    ["waferId"] = evt.WaferId ?? 0
+                };
+
+                _stateMachine.Tell(new SendEvent("STATE_CHANGE", eventData));
             });
         }
+    }
+
+    #endregion
+
+    #region IDisposable
+
+    public void Dispose()
+    {
+        Logger.Instance.Log("[SinglePublicationSchedulerXState] 📡⚡ Disposed");
     }
 
     #endregion

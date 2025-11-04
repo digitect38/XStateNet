@@ -24,7 +24,7 @@ public class XStateMachineFactory
     public MachineBuilder FromJson(string json)
     {
         var script = _parser.Parse(json);
-        return new MachineBuilder(script, _actorSystem);
+        return new MachineBuilder(script, _actorSystem, json);
     }
 
     /// <summary>

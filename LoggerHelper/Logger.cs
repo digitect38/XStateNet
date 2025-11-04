@@ -16,6 +16,11 @@ public sealed class Logger
     private DateTime _simulationStartTime;
 
     /// <summary>
+    /// When true, logging is disabled (no file writes)
+    /// </summary>
+    public static bool DisableLogging { get; set; } = false;
+
+    /// <summary>
     /// Private constructor to prevent external instantiation
     /// </summary>
     private Logger()
@@ -91,6 +96,10 @@ public sealed class Logger
         string file = "",
         int line = 0)
     {
+        // Skip logging if disabled
+        if (DisableLogging)
+            return;
+
         try
         {
             lock (_fileLock)

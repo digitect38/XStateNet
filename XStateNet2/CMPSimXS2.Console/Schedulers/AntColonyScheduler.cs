@@ -192,6 +192,7 @@ public class AntColonyScheduler : IRobotScheduler, IDisposable
         private readonly Dictionary<string, RobotContext> _robots = new();
         private readonly Dictionary<string, StationContext> _stations = new();
         private readonly Dictionary<string, IActorRef> _subscribedWorkers = new(); // RobotId -> WorkerActor
+        private readonly Dictionary<string, TransferRequest> _activeTransfers = new(); // RobotId -> Active Transfer (for OnCompleted callback)
 
         public WorkPoolActor()
         {
@@ -275,6 +276,9 @@ public class AntColonyScheduler : IRobotScheduler, IDisposable
                     robot.StateByte = STATE_BUSY;
                     robot.HeldWaferId = claimedWork.WaferId;
 
+                    // Track active transfer for OnCompleted callback
+                    _activeTransfers[msg.RobotId] = claimedWork;
+
                     Logger.Instance.Log($"[WorkPool] 🐜 {msg.RobotId} CLAIMED work: wafer {claimedWork.WaferId} {claimedWork.From}→{claimedWork.To}");
                     Sender.Tell(new ClaimResponse(claimedWork, null));
                 }
@@ -300,9 +304,18 @@ public class AntColonyScheduler : IRobotScheduler, IDisposable
                 else
                 {
                     var robot = _robots[msg.RobotId];
+                    var wasIdle = robot.StateByte == STATE_IDLE;
                     robot.StateByte = msg.StateByte;
                     robot.HeldWaferId = msg.HeldWaferId;
                     robot.WaitingFor = msg.WaitingFor;
+
+                    // When robot becomes idle, complete active transfer and invoke callback
+                    if (msg.StateByte == STATE_IDLE && !wasIdle && _activeTransfers.TryGetValue(msg.RobotId, out var completedTransfer))
+                    {
+                        _activeTransfers.Remove(msg.RobotId);
+                        Logger.Instance.Log($"[WorkPool] 🐜 {msg.RobotId} completed transfer of wafer {completedTransfer.WaferId}, invoking callback");
+                        completedTransfer.OnCompleted?.Invoke(completedTransfer.WaferId);
+                    }
                 }
 
                 // PUB/SUB: If robot becomes idle AND work is pending, broadcast notification!
@@ -500,8 +513,8 @@ public class AntColonyScheduler : IRobotScheduler, IDisposable
 
                 _robotActor.Tell(new XStateNet2.Core.Messages.SendEvent("PICKUP", pickupData), ActorRefs.NoSender);
 
-                // Invoke completion callback
-                msg.Work.OnCompleted?.Invoke(msg.Work.WaferId);
+                // NOTE: OnCompleted callback is now invoked by WorkPoolActor when robot becomes idle
+                // This ensures proper timing - callback only fires after transfer actually completes
             });
 
             // No work available - wait for next notification (silent)
