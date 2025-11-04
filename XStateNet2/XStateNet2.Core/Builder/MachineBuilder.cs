@@ -134,7 +134,33 @@ public class MachineBuilder
         // Auto-generate unique actor name to prevent collisions in parallel tests
         var uniqueActorName = actorName ?? $"{_script.Id}-{Guid.NewGuid():N}";
 
-        var props = Props.Create(() => new StateMachineActor(_script, _context));
+        Props props;
+
+        if (_optimizationLevel == OptimizationLevel.Array)
+        {
+            // Array optimization: Build ArrayStateMachine and create ArrayStateMachineActor
+            if (string.IsNullOrEmpty(_originalJson))
+            {
+                throw new InvalidOperationException(
+                    "Array optimization requires original JSON. Use FromJson() instead of FromFile().");
+            }
+
+            var arrayMachine = ArrayStateMachineBuilder.FromJson(_originalJson).Build();
+
+            // Use the context from the array machine (which was created by the builder)
+            // The user's registered actions/guards from WithAction/WithGuard are in _context,
+            // so we need to copy them to the array machine's context
+            // Note: This is a simplified approach - we just pass our _context which already has everything
+            arrayMachine.Context = _context;
+
+            props = Props.Create(() => new ArrayStateMachineActor(arrayMachine, _context));
+        }
+        else
+        {
+            // Dictionary or FrozenDictionary optimization: Use standard StateMachineActor
+            props = Props.Create(() => new StateMachineActor(_script, _context));
+        }
+
         var actor = _actorSystem.ActorOf(props, uniqueActorName);
 
         // Start the machine
