@@ -57,7 +57,7 @@ public static class ScriptOptimizer
         }
 
         // Freeze delayed transitions
-        if (node.After is Dictionary<int, XStateTransition> after)
+        if (node.After is Dictionary<int, List<XStateTransition>> after)
         {
             node.After = after.ToFrozenDictionary();
         }

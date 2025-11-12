@@ -214,28 +214,47 @@ class Program
 
         // Initialize robot scheduler
         System.Console.WriteLine($"🤖 Initializing RobotScheduler ({robotName}-based)...");
+        System.Console.WriteLine($"[DEBUG] robotSchedulerType = '{robotSchedulerType}'");
 
-        IRobotScheduler robotScheduler = robotSchedulerType switch
+        IRobotScheduler robotScheduler;
+        try
         {
-            "lock" => new RobotScheduler(),
-            "actor" => new RobotSchedulerActorProxy(actorSystem),
-            "xstate" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-xstate"),
-            "array" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-array"),
-            "xs2-frozen" => new RobotSchedulerXState(actorSystem, "robot-scheduler-xs2-frozen"),
-            "xs2-dict" => new RobotSchedulerXStateDict(actorSystem, "robot-scheduler-xs2-dict"),
-            "autonomous" => new AutonomousRobotScheduler(),
-            "hybrid" => new AutonomousArrayScheduler(),
-            "eventdriven" => new EventDrivenHybridScheduler(),
-            "actormailbox" => new ActorMailboxEventDrivenScheduler(actorSystem),
-            "ant" => new AntColonyScheduler(actorSystem),
-            "pubsub" => new PublicationBasedScheduler(actorSystem),
-            "singlepub" => new SinglePublicationScheduler(actorSystem),
-            "xs2-array-single-pubsub" => new SinglePublicationSchedulerXState(actorSystem),
-            "sync-pipe" => new SynchronizedPipelineScheduler(actorSystem),
-            "xs1-legacy" => new RobotSchedulerXS1Legacy($"demo-xs1-legacy"),
-            "xs2-sync-pipe" => new RobotSchedulerXS2SyncPipeline(actorSystem, $"demo-xs2-sync-pipe"),
-            _ => new RobotScheduler()
-        };
+            if (robotSchedulerType == "ant")
+            {
+                System.Console.WriteLine("[DEBUG] Creating RobotSchedulerACO...");
+                robotScheduler = new RobotSchedulerACO(actorSystem, "robot-scheduler-aco");
+            }
+            else
+            {
+                robotScheduler = robotSchedulerType switch
+                {
+                    "lock" => new RobotScheduler(),
+                    "actor" => new RobotSchedulerActorProxy(actorSystem),
+                    "xstate" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-xstate"),
+                    "array" => new RobotSchedulerXStateArray(actorSystem, "robot-scheduler-array"),
+                    "xs2-frozen" => new RobotSchedulerXState(actorSystem, "robot-scheduler-xs2-frozen"),
+                    "xs2-dict" => new RobotSchedulerXStateDict(actorSystem, "robot-scheduler-xs2-dict"),
+                    "autonomous" => new AutonomousRobotScheduler(),
+                    "hybrid" => new AutonomousArrayScheduler(),
+                    "eventdriven" => new EventDrivenHybridScheduler(),
+                    "actormailbox" => new ActorMailboxEventDrivenScheduler(actorSystem),
+                    "pubsub" => new PublicationBasedScheduler(actorSystem),
+                    "singlepub" => new SinglePublicationScheduler(actorSystem),
+                    "xs2-array-single-pubsub" => new SinglePublicationSchedulerXState(actorSystem),
+                    "sync-pipe" => new SynchronizedPipelineScheduler(actorSystem),
+                    "xs1-legacy" => new RobotSchedulerXS1Legacy($"demo-xs1-legacy"),
+                    "xs2-sync-pipe" => new RobotSchedulerXS2SyncPipeline(actorSystem, $"demo-xs2-sync-pipe"),
+                    _ => new RobotScheduler()
+                };
+            }
+            System.Console.WriteLine($"[DEBUG] Scheduler created successfully: {robotScheduler.GetType().Name}");
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[ERROR] Failed to create scheduler '{robotSchedulerType}': {ex.Message}");
+            System.Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            throw;
+        }
 
         // Create wafers for FOUP carriers (25 wafers per carrier)
         System.Console.WriteLine($"💿 Creating {waferCount} wafers ({foupCount} FOUP carrier{(foupCount > 1 ? "s" : "")} × 25 wafers each)...");
@@ -629,7 +648,7 @@ class Program
             System.Console.WriteLine("╚════════════════════════════════════════════════════════════════════════╝");
             System.Console.WriteLine();
 
-            await Task.Delay(500);
+            //await Task.Delay(500);
 
             // Stop if all wafers completed
             if (wafers.All(w => w.IsCompleted))

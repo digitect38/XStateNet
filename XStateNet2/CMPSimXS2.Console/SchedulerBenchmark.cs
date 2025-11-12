@@ -255,8 +255,8 @@ public class SchedulerBenchmark
 
         await Task.Delay(100);
 
-        // Ant Colony (Decentralized autonomous robots)
-        var antScheduler = new AntColonyScheduler(actorSystem, "ant-throughput");
+        // Ant Colony Optimization (Swarm Intelligence Learning)
+        var antScheduler = new RobotSchedulerACO(actorSystem, "ant-throughput");
         SetupScheduler(actorSystem, antScheduler, "ant");
 
         var sw9 = Stopwatch.StartNew();
@@ -596,8 +596,8 @@ public class SchedulerBenchmark
 
         await Task.Delay(100);
 
-        // Ant Colony
-        var antScheduler = new AntColonyScheduler(actorSystem, "ant-latency");
+        // Ant Colony Optimization
+        var antScheduler = new RobotSchedulerACO(actorSystem, "ant-latency");
         SetupScheduler(actorSystem, antScheduler, "ant-latency");
 
         var antLatencies = new List<double>();

@@ -40,7 +40,7 @@ public class XStateNode
 
     [JsonPropertyName("after")]
     [JsonConverter(typeof(AfterTransitionConverter))]
-    public IReadOnlyDictionary<int, XStateTransition>? After { get; set; }
+    public IReadOnlyDictionary<int, List<XStateTransition>>? After { get; set; }
 
     [JsonPropertyName("always")]
     [JsonConverter(typeof(AlwaysTransitionConverter))]

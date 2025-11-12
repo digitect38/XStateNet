@@ -270,8 +270,8 @@ public class StressTest
             // Actor Mailbox
             "actor-mailbox" => new ActorMailboxEventDrivenScheduler(actorSystem, $"stress-{code}"),
 
-            // Ant Colony
-            "ant-colony" => new AntColonyScheduler(actorSystem, $"stress-{code}"),
+            // Ant Colony Optimization
+            "ant-colony" => new RobotSchedulerACO(actorSystem, $"stress-{code}"),
 
             // Pub/Sub Variants
             "xs2-pubsub-dedicated" => new PublicationBasedScheduler(actorSystem, $"stress-{code}"),

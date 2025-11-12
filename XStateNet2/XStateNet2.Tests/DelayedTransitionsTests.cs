@@ -317,4 +317,262 @@ public class DelayedTransitionsTests : TestKit
             Assert.True(siblingReached);
         }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
     }
+
+    [Fact]
+    public async Task AfterTransition_ArrayWithGuards_ShouldTakeFirstMatch()
+    {
+        // Arrange - Test array of guarded transitions (new feature)
+        var json = """
+        {
+            "id": "test",
+            "initial": "waiting",
+            "context": {
+                "priority": "medium"
+            },
+            "states": {
+                "waiting": {
+                    "after": {
+                        "100": [
+                            {
+                                "target": "high",
+                                "guard": "isHighPriority"
+                            },
+                            {
+                                "target": "medium",
+                                "guard": "isMediumPriority"
+                            },
+                            {
+                                "target": "low"
+                            }
+                        ]
+                    }
+                },
+                "high": {
+                    "entry": ["onHigh"],
+                    "type": "final"
+                },
+                "medium": {
+                    "entry": ["onMedium"],
+                    "type": "final"
+                },
+                "low": {
+                    "entry": ["onLow"],
+                    "type": "final"
+                }
+            }
+        }
+        """;
+
+        bool highReached = false;
+        bool mediumReached = false;
+        bool lowReached = false;
+
+        var factory = new XStateMachineFactory(Sys);
+        var machine = factory.FromJson(json)
+            .WithGuard("isHighPriority", (ctx, _) => ctx.Get<string>("priority") == "high")
+            .WithGuard("isMediumPriority", (ctx, _) => ctx.Get<string>("priority") == "medium")
+            .WithAction("onHigh", (ctx, _) => highReached = true)
+            .WithAction("onMedium", (ctx, _) => mediumReached = true)
+            .WithAction("onLow", (ctx, _) => lowReached = true)
+            .WithContext("priority", "medium")
+            .BuildAndStart();
+
+        // Act - Wait for after transition with guard evaluation (100ms delay + buffer)
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("medium", result.CurrentState);
+            Assert.False(highReached);
+            Assert.True(mediumReached);
+            Assert.False(lowReached);
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
+    }
+
+    [Fact]
+    public async Task AfterTransition_ArrayWithGuards_ShouldFallThrough()
+    {
+        // Arrange - Test fallthrough to last unconditional transition
+        var json = """
+        {
+            "id": "test",
+            "initial": "waiting",
+            "context": {
+                "priority": "unknown"
+            },
+            "states": {
+                "waiting": {
+                    "after": {
+                        "100": [
+                            {
+                                "target": "high",
+                                "guard": "isHighPriority"
+                            },
+                            {
+                                "target": "medium",
+                                "guard": "isMediumPriority"
+                            },
+                            {
+                                "target": "default"
+                            }
+                        ]
+                    }
+                },
+                "high": {
+                    "type": "final"
+                },
+                "medium": {
+                    "type": "final"
+                },
+                "default": {
+                    "entry": ["onDefault"],
+                    "type": "final"
+                }
+            }
+        }
+        """;
+
+        bool defaultReached = false;
+
+        var factory = new XStateMachineFactory(Sys);
+        var machine = factory.FromJson(json)
+            .WithGuard("isHighPriority", (ctx, _) => ctx.Get<string>("priority") == "high")
+            .WithGuard("isMediumPriority", (ctx, _) => ctx.Get<string>("priority") == "medium")
+            .WithAction("onDefault", (ctx, _) => defaultReached = true)
+            .WithContext("priority", "unknown")
+            .BuildAndStart();
+
+        // Act - All guards fail, should take the last unconditional transition
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("default", result.CurrentState);
+            Assert.True(defaultReached);
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
+    }
+
+    [Fact]
+    public async Task AfterTransition_ArrayWithActions_ShouldExecuteForMatch()
+    {
+        // Arrange - Test that actions are executed only for the matched transition
+        var json = """
+        {
+            "id": "test",
+            "initial": "waiting",
+            "context": {
+                "value": 0
+            },
+            "states": {
+                "waiting": {
+                    "after": {
+                        "100": [
+                            {
+                                "target": "success",
+                                "guard": "isPositive",
+                                "actions": ["incrementValue"]
+                            },
+                            {
+                                "target": "failure",
+                                "actions": ["decrementValue"]
+                            }
+                        ]
+                    }
+                },
+                "success": {
+                    "type": "final"
+                },
+                "failure": {
+                    "type": "final"
+                }
+            }
+        }
+        """;
+
+        var factory = new XStateMachineFactory(Sys);
+        var machine = factory.FromJson(json)
+            .WithGuard("isPositive", (ctx, _) => ctx.Get<int>("value") > 0)
+            .WithAction("incrementValue", (ctx, _) =>
+            {
+                var val = ctx.Get<int>("value");
+                ctx.Set("value", val + 1);
+            })
+            .WithAction("decrementValue", (ctx, _) =>
+            {
+                var val = ctx.Get<int>("value");
+                ctx.Set("value", val - 1);
+            })
+            .WithContext("value", 0)
+            .BuildAndStart();
+
+        // Act - Guard fails (value = 0, not positive), should go to failure with decrementValue
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("failure", result.CurrentState);
+            Assert.Equal(-1, result.Context["value"]); // decrementValue was executed
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
+    }
+
+    [Fact]
+    public async Task AfterTransition_MultipleArrayDelays_ShouldWork()
+    {
+        // Arrange - Test multiple delays each with array of guarded transitions
+        var json = """
+        {
+            "id": "test",
+            "initial": "waiting",
+            "context": {
+                "fastPath": true
+            },
+            "states": {
+                "waiting": {
+                    "after": {
+                        "50": [
+                            {
+                                "target": "quickSuccess",
+                                "guard": "canGoFast"
+                            }
+                        ],
+                        "200": [
+                            {
+                                "target": "slowSuccess",
+                                "guard": "canGoSlow"
+                            },
+                            {
+                                "target": "timeout"
+                            }
+                        ]
+                    }
+                },
+                "quickSuccess": {
+                    "entry": ["onQuickSuccess"],
+                    "type": "final"
+                },
+                "slowSuccess": {
+                    "type": "final"
+                },
+                "timeout": {
+                    "type": "final"
+                }
+            }
+        }
+        """;
+
+        bool quickSuccessReached = false;
+
+        var factory = new XStateMachineFactory(Sys);
+        var machine = factory.FromJson(json)
+            .WithGuard("canGoFast", (ctx, _) => ctx.Get<bool>("fastPath"))
+            .WithGuard("canGoSlow", (ctx, _) => !ctx.Get<bool>("fastPath"))
+            .WithAction("onQuickSuccess", (ctx, _) => quickSuccessReached = true)
+            .WithContext("fastPath", true)
+            .BuildAndStart();
+
+        // Act - Should take fast path after 50ms
+        await AwaitAssertAsync(() =>
+        {
+            var result = machine.Ask<StateSnapshot>(new GetState(), TimeSpan.FromMilliseconds(500)).Result;
+            Assert.Equal("quickSuccess", result.CurrentState);
+            Assert.True(quickSuccessReached);
+        }, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50));
+    }
 }

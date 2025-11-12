@@ -656,9 +656,13 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         // Schedule delayed transitions (after)
         if (stateNode.After != null)
         {
-            foreach (var (delay, transition) in stateNode.After)
+            foreach (var (delay, transitions) in stateNode.After)
             {
-                ScheduleDelayedTransition(delay, transition);
+                // Schedule all transitions for this delay
+                foreach (var transition in transitions)
+                {
+                    ScheduleDelayedTransition(delay, transition);
+                }
             }
         }
 
@@ -1009,9 +1013,21 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
         if (stateNode == null)
             return;
 
-        if (stateNode.After != null && stateNode.After.TryGetValue(msg.Delay, out var transition))
+        if (stateNode.After != null && stateNode.After.TryGetValue(msg.Delay, out var transitions))
         {
-            ProcessTransition(transition, null);
+            // Process all transitions for this delay (with guard evaluation)
+            foreach (var transition in transitions)
+            {
+                ProcessTransition(transition, null);
+                // If a transition was taken (guard passed and transition happened), stop checking others
+                // This implements the "first match wins" semantics for guarded transitions
+                var newStateNode = GetStateNode(_currentState);
+                if (newStateNode != stateNode)
+                {
+                    // State changed, so the transition was taken
+                    break;
+                }
+            }
         }
     }
 

@@ -6,16 +6,19 @@ namespace XStateNet2.Core.Converters;
 
 /// <summary>
 /// Converter for delayed transitions (after)
-/// Handles format: "after": { "1000": "targetState", "2000": { "target": "..." } }
+/// Handles formats:
+/// - "after": { "1000": "targetState" }
+/// - "after": { "1000": { "target": "..." } }
+/// - "after": { "1000": [{ "target": "...", "guard": "..." }, { "target": "..." }] }
 /// </summary>
-public class AfterTransitionConverter : JsonConverter<IReadOnlyDictionary<int, XStateTransition>>
+public class AfterTransitionConverter : JsonConverter<IReadOnlyDictionary<int, List<XStateTransition>>>
 {
-    public override IReadOnlyDictionary<int, XStateTransition>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IReadOnlyDictionary<int, List<XStateTransition>>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
             return null;
 
-        var result = new Dictionary<int, XStateTransition>();
+        var result = new Dictionary<int, List<XStateTransition>>();
 
         while (reader.Read())
         {
@@ -31,52 +34,92 @@ public class AfterTransitionConverter : JsonConverter<IReadOnlyDictionary<int, X
 
             reader.Read();
 
-            XStateTransition transition;
+            List<XStateTransition> transitions;
 
             if (reader.TokenType == JsonTokenType.String)
             {
                 // Simple format: "1000": "targetState"
-                transition = new XStateTransition
+                transitions = new List<XStateTransition>
                 {
-                    Target = reader.GetString()
+                    new XStateTransition
+                    {
+                        Target = reader.GetString()
+                    }
                 };
             }
             else if (reader.TokenType == JsonTokenType.StartObject)
             {
                 // Complex format: "1000": { "target": "...", "cond": "..." }
-                transition = JsonSerializer.Deserialize<XStateTransition>(ref reader, options)
+                var transition = JsonSerializer.Deserialize<XStateTransition>(ref reader, options)
                     ?? throw new JsonException("Failed to deserialize transition");
+                transitions = new List<XStateTransition> { transition };
+            }
+            else if (reader.TokenType == JsonTokenType.StartArray)
+            {
+                // Array format: "1000": [{ "target": "...", "guard": "..." }, { "target": "..." }]
+                transitions = new List<XStateTransition>();
+
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndArray)
+                        break;
+
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        var transition = JsonSerializer.Deserialize<XStateTransition>(ref reader, options)
+                            ?? throw new JsonException("Failed to deserialize transition in array");
+                        transitions.Add(transition);
+                    }
+                    else
+                    {
+                        throw new JsonException($"Unexpected token type in after transition array: {reader.TokenType}");
+                    }
+                }
             }
             else
             {
                 throw new JsonException($"Unexpected token type for after transition: {reader.TokenType}");
             }
 
-            result[delay] = transition;
+            result[delay] = transitions;
         }
 
         throw new JsonException("Unexpected end of JSON");
     }
 
-    public override void Write(Utf8JsonWriter writer, IReadOnlyDictionary<int, XStateTransition> value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IReadOnlyDictionary<int, List<XStateTransition>> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 
-        foreach (var (delay, transition) in value)
+        foreach (var (delay, transitions) in value)
         {
             writer.WritePropertyName(delay.ToString());
 
-            // If transition only has a target, use simple format
-            if (!string.IsNullOrEmpty(transition.Target) &&
-                string.IsNullOrEmpty(transition.Cond) &&
-                (transition.Actions == null || transition.Actions.Count == 0) &&
-                !transition.Internal)
+            if (transitions.Count == 1)
             {
-                writer.WriteStringValue(transition.Target);
+                var transition = transitions[0];
+                // If transition only has a target, use simple format
+                if (!string.IsNullOrEmpty(transition.Target) &&
+                    string.IsNullOrEmpty(transition.Cond) &&
+                    (transition.Actions == null || transition.Actions.Count == 0) &&
+                    !transition.Internal)
+                {
+                    writer.WriteStringValue(transition.Target);
+                }
+                else
+                {
+                    JsonSerializer.Serialize(writer, transition, options);
+                }
             }
             else
             {
-                JsonSerializer.Serialize(writer, transition, options);
+                // Multiple transitions - write as array
+                writer.WriteStartArray();
+                foreach (var transition in transitions)
+                {
+                    JsonSerializer.Serialize(writer, transition, options);
+                }
+                writer.WriteEndArray();
             }
         }
 

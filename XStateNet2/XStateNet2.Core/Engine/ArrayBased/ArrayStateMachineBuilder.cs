@@ -60,13 +60,16 @@ public class ArrayStateMachineBuilder
         // Phase 4: Create ArrayStateMachine
         var initialStateId = map.States.GetIndex(_script.Initial ?? "");
 
+        // Initialize context with values from the script's context (if any)
+        var context = new InterpreterContext(_script.Context);
+
         return new ArrayStateMachine
         {
             Id = _script.Id ?? "machine",
             InitialStateId = initialStateId,
             States = states,
             Map = map,
-            Context = new InterpreterContext()
+            Context = context
         };
     }
 
