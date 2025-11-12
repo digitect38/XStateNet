@@ -5,11 +5,12 @@ using XStateNet2.Core.Engine;
 namespace XStateNet2.Core.Converters;
 
 /// <summary>
-/// Converter for transitions that can be either a string (simple target), an object (full transition), or an array of transitions
-/// Handles both formats:
+/// Converter for transitions that can be either a string (simple target), an object (full transition), an array of transitions, or null (ignore)
+/// Handles these formats:
 /// - "on": { "EVENT": "targetState" }
 /// - "on": { "EVENT": { "target": "targetState", "cond": "guardName" } }
 /// - "on": { "EVENT": [{ "target": "done", "cond": "guard1" }, { "target": "other" }] }
+/// - "on": { "EVENT": null }  // Ignore this event (override parent handler)
 /// </summary>
 public class TransitionDictionaryConverter : JsonConverter<IReadOnlyDictionary<string, List<XStateTransition>>>
 {
@@ -31,9 +32,15 @@ public class TransitionDictionaryConverter : JsonConverter<IReadOnlyDictionary<s
             var eventName = reader.GetString() ?? string.Empty;
             reader.Read();
 
-            List<XStateTransition> transitions;
+            List<XStateTransition>? transitions;
 
-            if (reader.TokenType == JsonTokenType.String)
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                // Null format: "EVENT": null means "ignore this event" (override parent handler)
+                // Skip adding this event to the result dictionary
+                continue;
+            }
+            else if (reader.TokenType == JsonTokenType.String)
             {
                 // Simple format: "EVENT": "targetState"
                 transitions = new List<XStateTransition>

@@ -28,8 +28,23 @@ public class XStateTransition
         set => Targets = value != null ? new List<string> { value } : null;
     }
 
+    /// <summary>
+    /// Guard condition name.
+    /// XState v4 uses "cond", v5 uses "guard" - we support both.
+    /// </summary>
     [JsonPropertyName("cond")]
     public string? Cond { get; set; }
+
+    /// <summary>
+    /// Guard condition name (XState v5 naming).
+    /// This is an alias for Cond to support both v4 and v5 JSON formats.
+    /// </summary>
+    [JsonPropertyName("guard")]
+    public string? Guard
+    {
+        get => Cond;
+        set => Cond = value;
+    }
 
     [JsonPropertyName("in")]
     public string? In { get; set; }

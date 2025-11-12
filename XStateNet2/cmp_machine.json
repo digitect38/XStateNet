@@ -1,0 +1,425 @@
+{
+  "id": "cmp",
+  "type": "parallel",
+  "context": {
+    "carrier_unprocessed": 25,
+    "carrier_processed": 0,
+    "current_wafer": null,
+    "wafer_history": [],
+    "platen_locked": false,
+    "robot_busy": false,
+    "config": {
+      "polish_time": 2000,
+      "move_time": 500,
+      "pick_place_time": 300,
+      "timeout": 5000
+    },
+    "error_code": null,
+    "error_message": null,
+    "retry_count": 0,
+    "max_retries": 3
+  },
+  "states": {
+    "equipment_state": {
+      "initial": "IDLE",
+      "states": {
+        "IDLE": {
+          "entry": ["logEquipmentIdle"],
+          "on": {
+            "START_PROCESS": "EXECUTING"
+          }
+        },
+        "EXECUTING": {
+          "entry": ["logEquipmentExecuting"],
+          "on": {
+            "PAUSE_PROCESS": "PAUSED",
+            "PROCESS_ERROR": "ALARM",
+            "ABORT_PROCESS": "ABORTED",
+            "PROCESS_COMPLETE": "IDLE"
+          }
+        },
+        "PAUSED": {
+          "entry": ["logEquipmentPaused"],
+          "on": {
+            "RESUME_PROCESS": "EXECUTING",
+            "ABORT_PROCESS": "ABORTED"
+          }
+        },
+        "ALARM": {
+          "entry": ["logEquipmentAlarm", "notifyAlarm"],
+          "on": {
+            "CLEAR_ALARM": "IDLE",
+            "ABORT_PROCESS": "ABORTED"
+          }
+        },
+        "ABORTED": {
+          "entry": ["logEquipmentAborted"],
+          "on": {
+            "RESET_EQUIPMENT": "IDLE"
+          }
+        }
+      }
+    },
+    "orchestrator": {
+      "initial": "idle",
+      "on": {
+        "TIMEOUT": "error_timeout",
+        "PROCESS_ERROR": "error_handling"
+      },
+      "states": {
+        "idle": {
+          "entry": ["logOrchIdle", "checkEquipmentState"],
+          "always": [
+            {
+              "target": "start_cycle",
+              "guard": "canStartCycle"
+            }
+          ],
+          "on": {
+            "MANUAL_START": "start_cycle",
+            "TIMEOUT": null
+          }
+        },
+        "start_cycle": {
+          "entry": [
+            "createWaferRecord",
+            "lockRobot",
+            "sendStartProcess",
+            "sendMoveToCarrier"
+          ],
+          "on": {
+            "ROBOT_AT_CARRIER": "picking_unprocessed"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "picking_unprocessed": {
+          "entry": ["sendPickWafer"],
+          "on": {
+            "WAFER_PICKED": {
+              "target": "moving_to_platen",
+              "actions": ["decrementUnprocessed", "updateWaferPickTime"]
+            },
+            "PICK_FAILED": "error_handling"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "moving_to_platen": {
+          "entry": ["sendMoveToPlaten"],
+          "on": {
+            "ROBOT_AT_PLATEN": "waiting_for_platen"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "waiting_for_platen": {
+          "entry": ["checkPlatenStatus"],
+          "on": {
+            "PLATEN_READY": "placing_wafer",
+            "PLATEN_BUSY": "waiting_for_platen"
+          },
+          "after": {
+            "10000": "error_timeout"
+          }
+        },
+        "placing_wafer": {
+          "entry": ["sendPlaceWafer", "lockPlaten"],
+          "on": {
+            "WAFER_PLACED": {
+              "target": "processing",
+              "actions": ["updateWaferLoadTime"]
+            },
+            "PLACE_FAILED": "error_handling"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "processing": {
+          "entry": ["sendStartPolish"],
+          "on": {
+            "POLISH_COMPLETED": {
+              "target": "picking_processed",
+              "actions": ["updateWaferProcessTime"]
+            }
+          }
+        },
+        "picking_processed": {
+          "entry": ["sendPickWafer", "unlockPlaten"],
+          "on": {
+            "WAFER_PICKED": {
+              "target": "returning_to_carrier",
+              "actions": ["updateWaferUnloadTime"]
+            },
+            "PICK_FAILED": "error_handling"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "returning_to_carrier": {
+          "entry": ["sendMoveToCarrier"],
+          "on": {
+            "ROBOT_AT_CARRIER": "placing_processed"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "placing_processed": {
+          "entry": ["sendPlaceWafer"],
+          "on": {
+            "WAFER_PLACED": {
+              "target": "cycle_complete",
+              "actions": ["incrementProcessed", "finalizeWaferRecord"]
+            },
+            "PLACE_FAILED": "error_handling"
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "cycle_complete": {
+          "entry": ["logCycleComplete", "unlockRobot", "sendMoveToHome"],
+          "on": {
+            "ROBOT_AT_HOME": [
+              {
+                "target": "completed",
+                "guard": "allWafersProcessed"
+              },
+              {
+                "target": "idle",
+                "actions": ["resetRetryCount"]
+              }
+            ],
+            "TIMEOUT": null
+          },
+          "after": {
+            "5000": "error_timeout"
+          }
+        },
+        "completed": {
+          "type": "final",
+          "entry": ["logAllCompleted", "sendProcessComplete", "generateReport"],
+          "on": {
+            "TIMEOUT": null
+          }
+        },
+        "error_handling": {
+          "entry": ["logError", "sendProcessError"],
+          "always": [
+            {
+              "target": "retry",
+              "guard": "canRetry"
+            },
+            {
+              "target": "error_fatal"
+            }
+          ],
+          "on": {
+            "TIMEOUT": null
+          }
+        },
+        "retry": {
+          "entry": ["incrementRetryCount", "logRetry"],
+          "after": {
+            "1000": "idle"
+          },
+          "on": {
+            "TIMEOUT": null
+          }
+        },
+        "error_timeout": {
+          "entry": ["setTimeoutError", "sendProcessError"],
+          "always": [
+            {
+              "target": "retry",
+              "guard": "canRetry"
+            },
+            {
+              "target": "error_fatal"
+            }
+          ],
+          "on": {
+            "TIMEOUT": null
+          }
+        },
+        "error_fatal": {
+          "entry": ["logFatalError", "unlockAllResources", "sendAbortProcess"],
+          "on": {
+            "RESET": {
+              "target": "idle",
+              "actions": ["resetSystem"]
+            },
+            "TIMEOUT": null
+          }
+        }
+      }
+    },
+    "robot": {
+      "type": "parallel",
+      "states": {
+        "position": {
+          "initial": "at_home",
+          "states": {
+            "at_home": {
+              "entry": ["logAtHome", "notifyAtHome"],
+              "on": {
+                "CMD_MOVE_TO_CARRIER": "moving_to_carrier",
+                "CMD_MOVE_TO_PLATEN": "moving_to_platen"
+              }
+            },
+            "moving_to_carrier": {
+              "entry": ["logMovingToCarrier"],
+              "after": {
+                "50": {
+                  "target": "at_carrier"
+                }
+              }
+            },
+            "at_carrier": {
+              "entry": ["logAtCarrier", "notifyAtCarrier"],
+              "on": {
+                "CMD_MOVE_TO_PLATEN": "moving_to_platen",
+                "CMD_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_platen": {
+              "entry": ["logMovingToPlaten"],
+              "after": {
+                "50": {
+                  "target": "at_platen"
+                }
+              }
+            },
+            "at_platen": {
+              "entry": ["logAtPlaten", "notifyAtPlaten"],
+              "on": {
+                "CMD_MOVE_TO_CARRIER": "moving_to_carrier",
+                "CMD_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_home": {
+              "entry": ["logMovingToHome"],
+              "after": {
+                "50": {
+                  "target": "at_home"
+                }
+              }
+            }
+          }
+        },
+        "hand": {
+          "initial": "empty",
+          "states": {
+            "empty": {
+              "entry": ["logHandEmpty"],
+              "on": {
+                "CMD_PICK_WAFER": "picking"
+              }
+            },
+            "picking": {
+              "entry": ["logPicking"],
+              "after": {
+                "300": [
+                  {
+                    "target": "has_wafer",
+                    "guard": "pickSuccessful",
+                    "actions": ["notifyWaferPicked"]
+                  },
+                  {
+                    "target": "empty",
+                    "actions": ["notifyPickFailed"]
+                  }
+                ]
+              }
+            },
+            "has_wafer": {
+              "entry": ["logHasWafer"],
+              "on": {
+                "CMD_PLACE_WAFER": "placing"
+              }
+            },
+            "placing": {
+              "entry": ["logPlacing"],
+              "after": {
+                "30": [
+                  {
+                    "target": "empty",
+                    "guard": "placeSuccessful",
+                    "actions": ["notifyWaferPlaced"]
+                  },
+                  {
+                    "target": "has_wafer",
+                    "actions": ["notifyPlaceFailed"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "carrier": {
+      "initial": "active",
+      "states": {
+        "active": {
+          "entry": ["logCarrierActive"],
+          "always": [
+            {
+              "target": "completed",
+              "guard": "allWafersProcessed"
+            }
+          ]
+        },
+        "completed": {
+          "type": "final",
+          "entry": ["logCarrierCompleted"]
+        }
+      }
+    },
+    "platen": {
+      "initial": "empty",
+      "states": {
+        "empty": {
+          "entry": ["logPlatenEmpty", "notifyPlatenReady"],
+          "on": {
+            "CMD_START_POLISH": "polishing"
+          }
+        },
+        "polishing": {
+          "entry": ["logPolishingStarted"],
+          "after": {
+            "200": [
+              {
+                "target": "completed",
+                "guard": "polishSuccessful",
+                "actions": ["notifyPolishCompleted"]
+              },
+              {
+                "target": "error",
+                "actions": ["notifyProcessError"]
+              }
+            ]
+          }
+        },
+        "completed": {
+          "entry": ["logPlatenCompleted"],
+          "on": {
+            "CMD_PICK_WAFER": "empty"
+          }
+        },
+        "error": {
+          "entry": ["logPlatenError"],
+          "on": {
+            "CLEAR_ERROR": "empty"
+          }
+        }
+      }
+    }
+  }
+}

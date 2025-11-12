@@ -19,12 +19,15 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     private readonly ILoggingAdapter _log;
     private readonly HashSet<IActorRef> _subscribers = new();
     private readonly Dictionary<string, ICancelable> _delayedTransitions = new();
+    private readonly Dictionary<string, IActorRef> _childRegions = new(); // For nested parallel regions
 
     private string _currentState;
     private IActorRef? _currentService;
     private bool _isRunning;
     private bool _isCompleted;
     private Dictionary<string, string> _regionStates = new();
+    private bool _isParallel; // Whether this region is a parallel state
+    private int _expectedCompletions; // Number of child regions expected to complete
 
     public IStash Stash { get; set; } = null!;
 
@@ -34,6 +37,9 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         _regionNode = regionNode ?? throw new ArgumentNullException(nameof(regionNode));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _log = Context.GetLogger();
+
+        // Check if this region is a parallel state
+        _isParallel = _regionNode.Type == "parallel";
 
         // Use provided initial state (for history restoration) or find the default initial state
         _currentState = initialState ?? _regionNode.Initial ?? _regionNode.States?.Keys.FirstOrDefault() ?? "unknown";
@@ -45,13 +51,22 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     {
         Receive<StartMachine>(_ =>
         {
-            _log.Info($"[Region:{_regionId}] Starting region");
+            _log.Info($"[Region:{_regionId}] Starting region (parallel={_isParallel})");
             _isRunning = true;
 
-            EnterState(_currentState, null);
+            if (_isParallel)
+            {
+                // This is a parallel state - spawn child regions
+                StartParallelRegions();
+            }
+            else
+            {
+                // Normal state - enter the initial state
+                EnterState(_currentState, null);
 
-            // Notify parent of initial state (including nested states)
-            Context.Parent.Tell(new RegionStateChanged(_regionId, _currentState));
+                // Notify parent of initial state (including nested states)
+                Context.Parent.Tell(new RegionStateChanged(_regionId, _currentState));
+            }
 
             Become(Running);
             Stash.UnstashAll();
@@ -65,18 +80,59 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         Receive<SendEventWithRegionStates>(msg =>
         {
             _regionStates = msg.RegionStates;
-            HandleEvent(msg.Event);
+
+            if (_isParallel)
+            {
+                // Forward events to all child regions (as simple SendEvent)
+                foreach (var (childId, child) in _childRegions)
+                {
+                    child.Tell(msg.Event);
+                }
+            }
+            else
+            {
+                HandleEvent(msg.Event);
+            }
         });
-        Receive<SendEvent>(HandleEvent);
+        Receive<SendEvent>(evt =>
+        {
+            if (_isParallel)
+            {
+                // Forward events to all child regions
+                foreach (var (childId, child) in _childRegions)
+                {
+                    child.Tell(evt);
+                }
+            }
+            else
+            {
+                HandleEvent(evt);
+            }
+        });
         Receive<DirectTransition>(HandleDirectTransition);
         Receive<GetState>(_ => Sender.Tell(CreateStateSnapshot()));
         Receive<ServiceDone>(HandleServiceDone);
         Receive<ServiceError>(HandleServiceError);
         Receive<DelayedTransition>(HandleDelayedTransition);
+        Receive<RegionStateChanged>(HandleRegionStateChanged);
+        Receive<RegionCompleted>(HandleRegionCompleted);
         Receive<StopMachine>(_ =>
         {
             _log.Info($"[Region:{_regionId}] Stopping region");
-            ExitState(_currentState, null);
+
+            if (_isParallel)
+            {
+                // Stop all child regions
+                foreach (var child in _childRegions.Values)
+                {
+                    child.Tell(new StopMachine());
+                }
+            }
+            else
+            {
+                ExitState(_currentState, null);
+            }
+
             _isRunning = false;
             Become(Idle);
         });
@@ -89,6 +145,13 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         if (!_isRunning)
         {
             _log.Warning($"[Region:{_regionId}] Received event '{evt.Type}' but region is not running");
+            return;
+        }
+
+        // Parallel regions should not handle events themselves - they should forward to children
+        if (_isParallel)
+        {
+            _log.Warning($"[Region:{_regionId}] Parallel region should not be in HandleEvent! Event: {evt.Type}");
             return;
         }
 
@@ -229,7 +292,19 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         else
         {
             // External transition
-            Transition(transition.Target, evt, transition.Actions);
+            // Resolve relative target states - if current state is nested and target doesn't contain '.',
+            // assume target is in the same parent region
+            var resolvedTarget = transition.Target;
+            if (currentStatePath.Length > 1 && !transition.Target.Contains('.'))
+            {
+                // Current state is nested (e.g., "position.at_home") and target is simple (e.g., "moving_to_carrier")
+                // Resolve to same parent: "position.moving_to_carrier"
+                var parentPath = string.Join(".", currentStatePath.Take(currentStatePath.Length - 1));
+                resolvedTarget = $"{parentPath}.{transition.Target}";
+                _log.Debug($"[Region:{_regionId}] Resolved relative target '{transition.Target}' to '{resolvedTarget}'");
+            }
+
+            Transition(resolvedTarget, evt, transition.Actions);
         }
 
         return true;
@@ -274,7 +349,11 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     {
         _log.Debug($"[Region:{_regionId}] Entering state '{state}'");
 
-        if (_regionNode.States == null || !_regionNode.States.TryGetValue(state, out var stateNode))
+        // Handle both simple states ("idle") and nested states ("position.moving_to_carrier")
+        var statePath = state.Split('.');
+        var stateNode = FindStateNode(statePath, statePath.Length);
+
+        if (stateNode == null)
         {
             _log.Error($"[Region:{_regionId}] State '{state}' not found");
             return;
@@ -316,9 +395,11 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         // Schedule delayed transitions (after)
         if (stateNode.After != null)
         {
-            foreach (var (delay, transition) in stateNode.After)
+            foreach (var (delay, transitions) in stateNode.After)
             {
-                ScheduleDelayedTransition(delay, transition);
+                // Schedule one timer per delay (not per transition)
+                // When the timer fires, all transitions for that delay will be evaluated (first match wins)
+                ScheduleDelayedTransitions(delay, transitions);
             }
         }
 
@@ -471,7 +552,7 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
 
     #region Delayed Transitions
 
-    private void ScheduleDelayedTransition(int delay, XStateTransition transition)
+    private void ScheduleDelayedTransitions(int delay, List<XStateTransition> transitions)
     {
         var key = $"after-{delay}";
 
@@ -481,12 +562,14 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
             return;
         }
 
-        _log.Debug($"[Region:{_regionId}] Scheduling delayed transition after {delay}ms");
+        _log.Debug($"[Region:{_regionId}] Scheduling {transitions.Count} delayed transition(s) after {delay}ms from state '{_currentState}'");
 
+        // Schedule one timer for all transitions at this delay
+        // The DelayedTransition message just carries the delay; the handler will look up all transitions
         var cancelable = Context.System.Scheduler.ScheduleTellOnceCancelable(
             TimeSpan.FromMilliseconds(delay),
             Self,
-            new DelayedTransition(delay, transition.Target),
+            new DelayedTransition(delay, null), // target is null - handler will evaluate all transitions
             Self
         );
 
@@ -495,17 +578,36 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
 
     private void HandleDelayedTransition(DelayedTransition msg)
     {
-        _log.Debug($"[Region:{_regionId}] Delayed transition triggered after {msg.Delay}ms");
+        _log.Debug($"[Region:{_regionId}] Delayed transition triggered after {msg.Delay}ms for state '{_currentState}'");
 
         var key = $"after-{msg.Delay}";
         _delayedTransitions.Remove(key);
 
-        if (_regionNode.States == null || !_regionNode.States.TryGetValue(_currentState, out var stateNode))
-            return;
+        // Handle nested states - split path and find the correct state node
+        var statePath = _currentState.Split('.');
+        var stateNode = FindStateNode(statePath, statePath.Length);
 
-        if (stateNode.After != null && stateNode.After.TryGetValue(msg.Delay, out var transition))
+        if (stateNode == null)
         {
-            ProcessTransition(transition, null);
+            _log.Warning($"[Region:{_regionId}] State '{_currentState}' not found for delayed transition");
+            return;
+        }
+
+        if (stateNode.After != null && stateNode.After.TryGetValue(msg.Delay, out var transitions))
+        {
+            // Process all transitions for this delay (with guard evaluation)
+            foreach (var transition in transitions)
+            {
+                var previousState = _currentState;
+                ProcessTransition(transition, null);
+                // If a transition was taken (guard passed and transition happened), stop checking others
+                // This implements the "first match wins" semantics for guarded transitions
+                if (_currentState != previousState)
+                {
+                    // State changed, so the transition was taken
+                    break;
+                }
+            }
         }
     }
 
@@ -632,6 +734,76 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         _log.Debug($"[Region:{_regionId}] In-state check: current state '{_currentState}' does not match '{targetState}'");
         return false;
     }
+
+    #region Parallel Region Support
+
+    private void StartParallelRegions()
+    {
+        if (_regionNode.States == null || _regionNode.States.Count == 0)
+        {
+            _log.Warning($"[Region:{_regionId}] Parallel region has no child states");
+            return;
+        }
+
+        _log.Info($"[Region:{_regionId}] Starting {_regionNode.States.Count} parallel child regions");
+        _expectedCompletions = _regionNode.States.Count;
+
+        foreach (var (childId, childNode) in _regionNode.States)
+        {
+            var childRegionId = $"{_regionId}.{childId}";
+            _log.Debug($"[Region:{_regionId}] Creating child region '{childRegionId}'");
+
+            var childActor = Context.ActorOf(
+                Props.Create(() => new RegionActor(childRegionId, childNode, _context, null)),
+                $"region-{childId}-{Guid.NewGuid():N}"
+            );
+
+            _childRegions[childId] = childActor;
+            childActor.Tell(new StartMachine());
+        }
+    }
+
+    private void HandleRegionStateChanged(RegionStateChanged msg)
+    {
+        // Extract the child region name from the full ID (e.g., "robot.position" -> "position")
+        var parts = msg.RegionId.Split('.');
+        var childRegionId = parts[parts.Length - 1];
+
+        _regionStates[childRegionId] = msg.State;
+
+        _log.Debug($"[Region:{_regionId}] Child region '{childRegionId}' state changed to '{msg.State}'");
+
+        // For parallel regions, update the current state to reflect child states
+        if (_isParallel)
+        {
+            // Build combined state representation: "position.at_home+hand.empty"
+            var combinedState = string.Join("+", _regionStates.Select(kv => $"{kv.Key}.{kv.Value}"));
+            _currentState = combinedState;
+            _log.Debug($"[Region:{_regionId}] Combined parallel state: {combinedState}");
+        }
+
+        // Forward to parent (StateMachineActor)
+        Context.Parent.Tell(msg);
+    }
+
+    private void HandleRegionCompleted(RegionCompleted msg)
+    {
+        _log.Info($"[Region:{_regionId}] Child region '{msg.RegionId}' completed");
+
+        if (_isParallel)
+        {
+            _expectedCompletions--;
+
+            if (_expectedCompletions <= 0)
+            {
+                _log.Info($"[Region:{_regionId}] All child regions completed - parallel region done");
+                _isCompleted = true;
+                Context.Parent.Tell(new RegionCompleted(_regionId));
+            }
+        }
+    }
+
+    #endregion
 
     protected override void PreStart()
     {
