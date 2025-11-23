@@ -1,0 +1,766 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SemiFlow (Multi-Lane CMP Workflow DSL) v1.0",
+  "description": "Enhanced wafer-centric multi-lane workflow with resource management, events, metrics, and advanced control flow.",
+  "copyright": "Copyright(c) 2025 digitect38@gmail.com"
+  "type": "object",
+  "required": ["name", "version", "lanes"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Workflow set (system) name."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this DSL document."
+    },
+    "vars": {
+      "type": "object",
+      "description": "Global variables accessible from all lanes.",
+      "additionalProperties": true
+    },
+    "constants": {
+      "type": "object",
+      "description": "Immutable global constants.",
+      "additionalProperties": true
+    },
+    "stations": {
+      "type": "array",
+      "description": "Global station catalog with full metadata.",
+      "items": { "$ref": "#/$defs/station" }
+    },
+    "globalStationPools": {
+      "type": "object",
+      "description": "Global fallback pools. Key = station role, value = array of stationIds.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "resourceGroups": {
+      "type": "array",
+      "description": "Logical resource groups for batch reservation.",
+      "items": { "$ref": "#/$defs/resourceGroup" }
+    },
+    "events": {
+      "type": "array",
+      "description": "System-level event definitions.",
+      "items": { "$ref": "#/$defs/eventDef" }
+    },
+    "metrics": {
+      "type": "array",
+      "description": "Performance metrics definitions.",
+      "items": { "$ref": "#/$defs/metricDef" }
+    },
+    "lanes": {
+      "type": "array",
+      "description": "Parallel wafer lanes (each lane has its own workflow).",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/lane" }
+    },
+    "globalHandlers": {
+      "type": "object",
+      "description": "Global error and event handlers.",
+      "properties": {
+        "onError": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "onTimeout": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "onEmergencyStop": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+
+    "lane": {
+      "type": "object",
+      "required": ["id", "workflow"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Lane identifier (e.g. 'LaneA')."
+        },
+        "description": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Lane priority for resource contention."
+        },
+        "maxConcurrentWafers": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "vars": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "stationPools": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "eventHandlers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/eventHandler" }
+        },
+        "workflow": { "$ref": "#/$defs/workflow" }
+      },
+      "additionalProperties": false
+    },
+
+    "station": {
+      "type": "object",
+      "required": ["id", "role"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["dedicated", "shared", "swappable"],
+          "default": "dedicated"
+        },
+        "lanes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": ["idle", "busy", "maintenance", "error"],
+          "default": "idle"
+        },
+        "healthCheck": {
+          "type": "object",
+          "properties": {
+            "interval": { "type": "integer", "minimum": 1000 },
+            "action": { "type": "string" }
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "resourceGroup": {
+      "type": "object",
+      "required": ["id", "resources"],
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "resources": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["all", "any", "roundRobin", "leastBusy"],
+          "default": "any"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "eventDef": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["system", "station", "wafer", "user"]
+        },
+        "description": { "type": "string" },
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "metricDef": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["counter", "gauge", "histogram", "timer"]
+        },
+        "unit": { "type": "string" },
+        "description": { "type": "string" },
+        "aggregation": {
+          "type": "string",
+          "enum": ["sum", "avg", "min", "max", "p50", "p95", "p99"],
+          "default": "avg"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "eventHandler": {
+      "type": "object",
+      "required": ["event", "steps"],
+      "properties": {
+        "event": { "type": "string" },
+        "filter": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "workflow": {
+      "type": "object",
+      "required": ["id", "steps"],
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "vars": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "preconditions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "postconditions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "retryPolicy": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "delay": { "type": "integer", "minimum": 0 },
+        "strategy": {
+          "type": "string",
+          "enum": ["fixed", "exponential", "linear"],
+          "default": "fixed"
+        },
+        "maxDelay": { "type": "integer" },
+        "jitter": { "type": "boolean", "default": false },
+        "retryOn": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "baseStep": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "retry": { "$ref": "#/$defs/retryPolicy" },
+        "timeout": { "type": "integer", "minimum": 1 },
+        "onTimeout": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "step": {
+      "oneOf": [
+        { "$ref": "#/$defs/actionStep" },
+        { "$ref": "#/$defs/useStationStep" },
+        { "$ref": "#/$defs/reserveStep" },
+        { "$ref": "#/$defs/releaseStep" },
+        { "$ref": "#/$defs/parallelStep" },
+        { "$ref": "#/$defs/loopStep" },
+        { "$ref": "#/$defs/branchStep" },
+        { "$ref": "#/$defs/waitStep" },
+        { "$ref": "#/$defs/conditionStep" },
+        { "$ref": "#/$defs/sequenceStep" },
+        { "$ref": "#/$defs/callStep" },
+        { "$ref": "#/$defs/tryStep" },
+        { "$ref": "#/$defs/emitEventStep" },
+        { "$ref": "#/$defs/onEventStep" },
+        { "$ref": "#/$defs/collectMetricStep" },
+        { "$ref": "#/$defs/switchStep" },
+        { "$ref": "#/$defs/raceStep" },
+        { "$ref": "#/$defs/transactionStep" }
+      ]
+    },
+
+    "actionStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "action" },
+            "action": { "type": "string" },
+            "args": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "assignResult": { "type": "string" },
+            "async": { "type": "boolean", "default": false }
+          },
+          "required": ["action"]
+        }
+      ]
+    },
+
+    "useStationStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "useStation" },
+            "role": { "type": "string" },
+            "capability": { "type": "string" },
+            "preferred": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "fallback": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "exclude": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["normal", "cross-test", "error-isolation", "dedicated"],
+              "default": "normal"
+            },
+            "assignToVar": { "type": "string" },
+            "waitForAvailable": { "type": "boolean", "default": true },
+            "maxWaitTime": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["role"]
+        }
+      ]
+    },
+
+    "reserveStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "reserve" },
+            "resources": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            },
+            "duration": { "type": "integer", "minimum": 0, "default": 0 },
+            "assignToVar": { "type": "string" },
+            "priority": { "type": "integer", "default": 0 }
+          },
+          "required": ["resources"]
+        }
+      ]
+    },
+
+    "releaseStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "release" },
+            "resources": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": ["resources"]
+        }
+      ]
+    },
+
+    "parallelStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "parallel" },
+            "branches": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/step" }
+              }
+            },
+            "wait": {
+              "type": "string",
+              "enum": ["all", "any", "race", "none"],
+              "default": "all"
+            },
+            "maxConcurrency": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": ["branches"]
+        }
+      ]
+    },
+
+    "loopStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "loop" },
+            "mode": {
+              "type": "string",
+              "enum": ["while", "until", "count", "forEach"],
+              "default": "while"
+            },
+            "condition": { "type": "string" },
+            "count": { "type": "integer", "minimum": 1 },
+            "items": { "type": "string" },
+            "itemVar": { "type": "string" },
+            "indexVar": { "type": "string" },
+            "maxIterations": { "type": "integer", "minimum": 1 },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "required": ["steps"]
+        }
+      ]
+    },
+
+    "branchStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "branch" },
+            "cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["when", "steps"],
+                "properties": {
+                  "when": { "type": "string" },
+                  "steps": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/step" }
+                  }
+                }
+              }
+            },
+            "otherwise": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "required": ["cases"]
+        }
+      ]
+    },
+
+    "switchStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "switch" },
+            "value": { "type": "string" },
+            "cases": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/step" }
+              }
+            },
+            "default": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "required": ["value", "cases"]
+        }
+      ]
+    },
+
+    "waitStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "wait" },
+            "duration": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "until": { "type": "string" },
+            "pollInterval": {
+              "type": "integer",
+              "minimum": 100,
+              "default": 1000
+            }
+          }
+        }
+      ]
+    },
+
+    "conditionStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["expect"],
+          "properties": {
+            "type": { "const": "condition" },
+            "expect": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "sequenceStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["steps"],
+          "properties": {
+            "type": { "const": "sequence" },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "continueOnError": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      ]
+    },
+
+    "callStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["target"],
+          "properties": {
+            "type": { "const": "call" },
+            "target": { "type": "string" },
+            "args": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "assignResult": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "tryStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["try"],
+          "properties": {
+            "type": { "const": "try" },
+            "try": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "catch": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "finally": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "catchOn": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "emitEventStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["event"],
+          "properties": {
+            "type": { "const": "emitEvent" },
+            "event": { "type": "string" },
+            "payload": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "async": { "type": "boolean", "default": true }
+          }
+        }
+      ]
+    },
+
+    "onEventStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["event", "steps"],
+          "properties": {
+            "type": { "const": "onEvent" },
+            "event": { "type": "string" },
+            "filter": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "once": { "type": "boolean", "default": false }
+          }
+        }
+      ]
+    },
+
+    "collectMetricStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["metric", "value"],
+          "properties": {
+            "type": { "const": "collectMetric" },
+            "metric": { "type": "string" },
+            "value": {},
+            "tags": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "raceStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["branches"],
+          "properties": {
+            "type": { "const": "race" },
+            "branches": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/step" }
+              }
+            },
+            "cancelOthers": { "type": "boolean", "default": true },
+            "assignWinner": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "transactionStep": {
+      "allOf": [
+        { "$ref": "#/$defs/baseStep" },
+        {
+          "type": "object",
+          "required": ["steps"],
+          "properties": {
+            "type": { "const": "transaction" },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "rollback": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            },
+            "isolationLevel": {
+              "type": "string",
+              "enum": [
+                "readUncommitted",
+                "readCommitted",
+                "repeatableRead",
+                "serializable"
+              ],
+              "default": "readCommitted"
+            }
+          }
+        }
+      ]
+    }
+
+  }
+}

@@ -1,0 +1,32 @@
+﻿// WAR_001.sfl
+// Cyclic Zip Distribution Rule
+
+RULE WAR_001 {
+    id: "WAR_001"
+    name: "Cyclic_Zip_Distribution"
+    category: "WAFER_ASSIGNMENT"
+    version: "2.0"
+    
+    DESCRIPTION {
+        "Distributes wafers across multiple WSCs using cyclic zip pattern"
+    }
+    
+    PARAMETERS {
+        wafer_list: wafer_id_t[]
+        wsc_count: integer
+        start_offset: integer = 0
+    }
+    
+    FORMULA {
+        for (i = 0; i < wafer_list.length; i++) {
+            wsc_index = (i + start_offset) % wsc_count
+            assign(wafer_list[i], wsc[wsc_index])
+        }
+    }
+    
+    CONSTRAINTS {
+        min_wsc_count: 1
+        max_wsc_count: 10
+        load_difference: <= 1
+    }
+}

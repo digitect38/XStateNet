@@ -1,32 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet new:*)",
-      "Bash(dotnet sln:*)",
-      "Bash(ls:*)",
-      "Bash(mkdir:*)",
-      "Bash(dotnet build:*)",
-      "Bash(dotnet run:*)",
-      "Bash(timeout 10 dotnet run:*)",
-      "Bash(timeout 60 dotnet run:*)",
-      "Bash(timeout 20 dotnet run:*)",
-      "Bash(cat:*)",
-      "Bash(nul)",
-      "Bash(dotnet test:*)",
-      "Bash(timeout 5 dotnet run:*)",
-      "Bash(timeout 10:*)",
-      "Bash(timeout 3 dotnet run:*)",
-      "Bash(timeout 15 dotnet run:*)",
-      "Bash(timeout 8 dotnet run:*)",
-      "Bash(timeout 25 dotnet run:*)",
-      "Bash(timeout 30 dotnet run:*)",
-      "Bash(timeout 40 dotnet run:*)",
-      "Bash(timeout 120 dotnet run:*)",
-      "Bash(tee:*)",
-      "Bash(timeout 90 dotnet run:*)",
-      "Bash(timeout 120 ./CMPSimXS2.EventDriven:*)",
-      "Bash(timeout 35 dotnet run:*)",
-      "Bash(git add:*)"
+      "Bash(powershell -ExecutionPolicy Bypass -File replace.ps1:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(pkill:*)",
+      "Bash(dotnet clean:*)"
     ],
     "deny": [],
     "ask": []

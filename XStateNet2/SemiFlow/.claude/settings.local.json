@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new:*)",
+      "Bash(dotnet add reference:*)",
+      "Bash(del SemiFlowSemiFlow.ConverterClass1.cs)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet test:*)",
+      "Bash(find:*)",
+      "Bash(findstr:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(nul)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

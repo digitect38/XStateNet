@@ -1,0 +1,38 @@
+﻿// SSR_001.sfl
+// Three Phase Steady State Rule
+
+RULE SSR_001 {
+    id: "SSR_001"
+    name: "Three_Phase_Steady_State"
+    category: "STEADY_STATE"
+    version: "2.0"
+    
+    DESCRIPTION {
+        "Maintains three-phase steady state operation"
+    }
+    
+    PARAMETERS {
+        phase_count: integer = 3
+        wafer_input_rate: frequency_t
+        station_capacity: map<station_id_t, integer>
+    }
+    
+    FORMULA {
+        PHASE_A = {
+            wafers: [1, 4, 7, 10, 13, 16, 19, 22, 25],
+            timing: 0s
+        }
+        
+        PHASE_B = {
+            wafers: [2, 5, 8, 11, 14, 17, 20, 23],
+            timing: 20s
+        }
+        
+        PHASE_C = {
+            wafers: [3, 6, 9, 12, 15, 18, 21, 24],
+            timing: 40s
+        }
+        
+        maintain_steady_state()
+    }
+}

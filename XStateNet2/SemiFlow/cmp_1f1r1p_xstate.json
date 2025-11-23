@@ -1,0 +1,542 @@
+{
+  "id": "cmp_wafer_processing",
+  "initial": "initialize",
+  "context": {
+    "total_wafers": 25,
+    "polish_time_ms": 2000,
+    "robot_move_time_ms": 500,
+    "pick_place_time_ms": 300,
+    "timeout_ms": 5000,
+    "max_retries": 3,
+    "wafers_unprocessed": 25,
+    "wafers_processed": 0,
+    "current_wafer_id": null,
+    "wafer_history": [],
+    "retry_count": 0,
+    "error_code": null,
+    "error_message": null,
+    "cycle_start_time": 0,
+    "stations": {
+      "foup_1": { "state": "idle", "capacity": 25 },
+      "robot_1": { "state": "idle", "has_wafer": false, "position": "home" },
+      "platen_1": { "state": "idle", "has_wafer": false }
+    }
+  },
+  "states": {
+    "initialize": {
+      "entry": ["initializeSystem"],
+      "always": [
+        {
+          "target": "check_wafers_available",
+          "guard": "systemReady"
+        }
+      ]
+    },
+
+    "check_wafers_available": {
+      "always": [
+        {
+          "target": "start_cycle",
+          "guard": "hasUnprocessedWafers"
+        },
+        {
+          "target": "completed"
+        }
+      ]
+    },
+
+    "start_cycle": {
+      "entry": ["startCycle", "createWaferRecord"],
+      "always": [
+        {
+          "target": "move_robot_to_foup"
+        }
+      ]
+    },
+
+    "move_robot_to_foup": {
+      "initial": "sending_command",
+      "states": {
+        "sending_command": {
+          "entry": ["sendMoveToFoup"],
+          "after": {
+            "500": "arrived"
+          }
+        },
+        "arrived": {
+          "entry": ["notifyRobotAtFoup"],
+          "always": [
+            {
+              "target": "..pick_wafer_from_foup"
+            }
+          ]
+        }
+      }
+    },
+
+    "pick_wafer_from_foup": {
+      "initial": "trying",
+      "states": {
+        "trying": {
+          "initial": "executing",
+          "states": {
+            "executing": {
+              "entry": ["pickWaferFromFoup"],
+              "on": {
+                "PICK_SUCCESS": "verifying",
+                "PICK_FAILED": "..handle_error"
+              },
+              "after": {
+                "5000": "..handle_error"
+              }
+            },
+            "verifying": {
+              "always": [
+                {
+                  "target": "recording",
+                  "guard": "robotHasWafer"
+                },
+                {
+                  "target": "..handle_error"
+                }
+              ]
+            },
+            "recording": {
+              "entry": ["recordWaferPicked"],
+              "always": [
+                {
+                  "target": "..success"
+                }
+              ]
+            }
+          }
+        },
+        "handle_error": {
+          "entry": ["logPickError", "emitPickError"],
+          "always": [
+            {
+              "target": "retrying",
+              "guard": "canRetry"
+            },
+            {
+              "target": "..error_fatal"
+            }
+          ]
+        },
+        "retrying": {
+          "entry": ["incrementRetryCount"],
+          "after": {
+            "1000": "trying"
+          }
+        },
+        "success": {
+          "type": "final"
+        }
+      },
+      "onDone": {
+        "target": "decrement_unprocessed"
+      }
+    },
+
+    "decrement_unprocessed": {
+      "entry": ["decrementUnprocessedCount"],
+      "always": [
+        {
+          "target": "move_robot_to_platen"
+        }
+      ]
+    },
+
+    "move_robot_to_platen": {
+      "initial": "sending_command",
+      "states": {
+        "sending_command": {
+          "entry": ["sendMoveToPlaten"],
+          "after": {
+            "500": "arrived"
+          }
+        },
+        "arrived": {
+          "entry": ["notifyRobotAtPlaten"],
+          "always": [
+            {
+              "target": "..wait_for_platen_ready"
+            }
+          ]
+        }
+      }
+    },
+
+    "wait_for_platen_ready": {
+      "entry": ["checkPlatenStatus"],
+      "always": [
+        {
+          "target": "place_wafer_on_platen",
+          "guard": "platenIsReady"
+        }
+      ],
+      "after": {
+        "10000": "error_fatal"
+      }
+    },
+
+    "place_wafer_on_platen": {
+      "initial": "trying",
+      "states": {
+        "trying": {
+          "initial": "executing",
+          "states": {
+            "executing": {
+              "entry": ["placeWaferOnPlaten"],
+              "on": {
+                "PLACE_SUCCESS": "verifying",
+                "PLACE_FAILED": "..handle_error"
+              },
+              "after": {
+                "5000": "..handle_error"
+              }
+            },
+            "verifying": {
+              "always": [
+                {
+                  "target": "recording",
+                  "guard": "platenHasWafer"
+                },
+                {
+                  "target": "..handle_error"
+                }
+              ]
+            },
+            "recording": {
+              "entry": ["recordWaferOnPlaten"],
+              "always": [
+                {
+                  "target": "..success"
+                }
+              ]
+            }
+          }
+        },
+        "handle_error": {
+          "entry": ["logPlaceError"],
+          "always": [
+            {
+              "target": "retrying",
+              "guard": "canRetry"
+            },
+            {
+              "target": "..error_fatal"
+            }
+          ]
+        },
+        "retrying": {
+          "entry": ["incrementRetryCount"],
+          "after": {
+            "500": "trying"
+          }
+        },
+        "success": {
+          "type": "final"
+        }
+      },
+      "onDone": {
+        "target": "polish_wafer"
+      }
+    },
+
+    "polish_wafer": {
+      "type": "parallel",
+      "states": {
+        "polishing": {
+          "initial": "starting",
+          "states": {
+            "starting": {
+              "entry": ["startPolishing"],
+              "after": {
+                "2000": "stopping"
+              }
+            },
+            "stopping": {
+              "entry": ["stopPolishing", "recordPolishComplete"],
+              "always": [
+                {
+                  "target": "done"
+                }
+              ]
+            },
+            "done": {
+              "type": "final"
+            }
+          }
+        },
+        "robot_returning": {
+          "initial": "moving",
+          "states": {
+            "moving": {
+              "entry": ["sendRobotToHome"],
+              "after": {
+                "500": "home"
+              }
+            },
+            "home": {
+              "type": "final"
+            }
+          }
+        }
+      },
+      "onDone": {
+        "target": "collect_polish_metric"
+      }
+    },
+
+    "collect_polish_metric": {
+      "entry": ["collectMetric_cycle_time"],
+      "always": [
+        {
+          "target": "move_robot_back_to_platen"
+        }
+      ]
+    },
+
+    "move_robot_back_to_platen": {
+      "initial": "sending_command",
+      "states": {
+        "sending_command": {
+          "entry": ["sendMoveToPlaten"],
+          "after": {
+            "500": "arrived"
+          }
+        },
+        "arrived": {
+          "always": [
+            {
+              "target": "..pick_processed_wafer"
+            }
+          ]
+        }
+      }
+    },
+
+    "pick_processed_wafer": {
+      "initial": "trying",
+      "states": {
+        "trying": {
+          "initial": "executing",
+          "states": {
+            "executing": {
+              "entry": ["pickWaferFromPlaten"],
+              "on": {
+                "PICK_SUCCESS": "verifying",
+                "PICK_FAILED": "..handle_error"
+              },
+              "after": {
+                "5000": "..handle_error"
+              }
+            },
+            "verifying": {
+              "always": [
+                {
+                  "target": "..success",
+                  "guard": "robotHasWafer"
+                },
+                {
+                  "target": "..handle_error"
+                }
+              ]
+            }
+          }
+        },
+        "handle_error": {
+          "entry": ["logPickFromPlatenError"],
+          "always": [
+            {
+              "target": "retrying",
+              "guard": "canRetry"
+            },
+            {
+              "target": "..error_fatal"
+            }
+          ]
+        },
+        "retrying": {
+          "entry": ["incrementRetryCount"],
+          "after": {
+            "1000": "trying"
+          }
+        },
+        "success": {
+          "type": "final"
+        }
+      },
+      "onDone": {
+        "target": "move_robot_back_to_foup"
+      }
+    },
+
+    "move_robot_back_to_foup": {
+      "initial": "sending_command",
+      "states": {
+        "sending_command": {
+          "entry": ["sendMoveToFoup"],
+          "after": {
+            "500": "arrived"
+          }
+        },
+        "arrived": {
+          "always": [
+            {
+              "target": "..place_processed_wafer"
+            }
+          ]
+        }
+      }
+    },
+
+    "place_processed_wafer": {
+      "initial": "trying",
+      "states": {
+        "trying": {
+          "initial": "executing",
+          "states": {
+            "executing": {
+              "entry": ["placeWaferInFoup"],
+              "on": {
+                "PLACE_SUCCESS": "verifying",
+                "PLACE_FAILED": "..handle_error"
+              },
+              "after": {
+                "5000": "..handle_error"
+              }
+            },
+            "verifying": {
+              "always": [
+                {
+                  "target": "..success",
+                  "guard": "waferInFoup"
+                },
+                {
+                  "target": "..handle_error"
+                }
+              ]
+            }
+          }
+        },
+        "handle_error": {
+          "entry": ["logPlaceInFoupError"],
+          "always": [
+            {
+              "target": "retrying",
+              "guard": "canRetry"
+            },
+            {
+              "target": "..error_fatal"
+            }
+          ]
+        },
+        "retrying": {
+          "entry": ["incrementRetryCount"],
+          "after": {
+            "500": "trying"
+          }
+        },
+        "success": {
+          "type": "final"
+        }
+      },
+      "onDone": {
+        "target": "increment_processed"
+      }
+    },
+
+    "increment_processed": {
+      "entry": ["incrementProcessedCount"],
+      "always": [
+        {
+          "target": "finalize_wafer_record"
+        }
+      ]
+    },
+
+    "finalize_wafer_record": {
+      "entry": ["finalizeWaferRecord"],
+      "always": [
+        {
+          "target": "emit_cycle_complete"
+        }
+      ]
+    },
+
+    "emit_cycle_complete": {
+      "entry": ["emitEvent_CYCLE_COMPLETE", "collectMetric_wafers_processed_count"],
+      "always": [
+        {
+          "target": "reset_retry_count"
+        }
+      ]
+    },
+
+    "reset_retry_count": {
+      "entry": ["resetRetryCount"],
+      "always": [
+        {
+          "target": "check_more_wafers"
+        }
+      ]
+    },
+
+    "check_more_wafers": {
+      "initial": "checking",
+      "states": {
+        "checking": {
+          "always": [
+            {
+              "target": "continue_processing",
+              "guard": "hasMoreWafers"
+            },
+            {
+              "target": "all_complete"
+            }
+          ]
+        },
+        "continue_processing": {
+          "entry": ["continueProcessing"],
+          "always": [
+            {
+              "target": "..start_cycle"
+            }
+          ]
+        },
+        "all_complete": {
+          "entry": ["allWafersComplete", "emitEvent_ALL_WAFERS_COMPLETE", "generateFinalReport"],
+          "always": [
+            {
+              "target": "..completed"
+            }
+          ]
+        }
+      }
+    },
+
+    "completed": {
+      "type": "final",
+      "entry": ["logWorkflowCompleted"]
+    },
+
+    "error_fatal": {
+      "entry": ["logFatalError", "emitEvent_ERROR_OCCURRED", "saveSystemState"],
+      "on": {
+        "RESET": {
+          "target": "initialize",
+          "actions": ["resetSystem"]
+        }
+      }
+    }
+  },
+
+  "on": {
+    "EMERGENCY_STOP": {
+      "target": ".error_fatal",
+      "actions": ["stopAllMotion", "releaseAllResources", "moveToSafeState"]
+    }
+  }
+}

@@ -1,0 +1,644 @@
+{
+  "$schema": "./SemiFlow_Schema_1_0.json",
+  "name": "CMP_1F1R2P_Scheduler",
+  "version": "1.0.0",
+  "description": "CMP Scheduler: 1 FOUP, 1 Robot, 2 Platens - Supports both 1-step and 2-step processing",
+
+  "constants": {
+    "MAX_WAFERS": 25,
+    "ROBOT_MOVE_TIME": 2000,
+    "PLATEN_PROCESS_TIME": 60000,
+    "WAFER_LOAD_TIME": 3000,
+    "WAFER_UNLOAD_TIME": 3000,
+    "BUFFER_SIZE": 1
+  },
+
+  "vars": {
+    "processedWafers": 0,
+    "totalWafers": 25,
+    "activeWafers": [],
+    "completedWafers": [],
+    "errorCount": 0,
+    "cycleStartTime": 0,
+    "currentLot": "LOT001"
+  },
+
+  "stations": [
+    {
+      "id": "FOUP1",
+      "role": "foup",
+      "capacity": 25,
+      "state": "idle",
+      "currentWafer": null,
+      "properties": {
+        "position": "loadPort1",
+        "waferCount": 25
+      }
+    },
+    {
+      "id": "ROBOT1",
+      "role": "robot",
+      "capacity": 2,
+      "state": "idle",
+      "currentWafer": null,
+      "properties": {
+        "arm1": null,
+        "arm2": null,
+        "position": "home"
+      }
+    },
+    {
+      "id": "PLATEN1",
+      "role": "platen",
+      "capacity": 1,
+      "state": "idle",
+      "currentWafer": null,
+      "properties": {
+        "temperature": 25,
+        "pressure": 0,
+        "rpm": 0,
+        "processStep": "polish"
+      }
+    },
+    {
+      "id": "PLATEN2",
+      "role": "platen",
+      "capacity": 1,
+      "state": "idle",
+      "currentWafer": null,
+      "properties": {
+        "temperature": 25,
+        "pressure": 0,
+        "rpm": 0,
+        "processStep": "polish"
+      }
+    }
+  ],
+
+  "events": [
+    { "name": "WAFER_READY", "type": "system" },
+    { "name": "ROBOT_AVAILABLE", "type": "system" },
+    { "name": "PLATEN_AVAILABLE", "type": "system" },
+    { "name": "PROCESS_COMPLETE", "type": "system" },
+    { "name": "WAFER_PROCESSED", "type": "system" },
+    { "name": "ERROR_OCCURRED", "type": "error" },
+    { "name": "LOT_COMPLETE", "type": "system" },
+    { "name": "EMERGENCY_STOP", "type": "emergency" }
+  ],
+
+  "metrics": [
+    { "name": "cycle_time", "type": "timer", "unit": "ms" },
+    { "name": "throughput", "type": "counter", "unit": "wafers/hour" },
+    { "name": "platen1_utilization", "type": "gauge", "unit": "percent" },
+    { "name": "platen2_utilization", "type": "gauge", "unit": "percent" },
+    { "name": "robot_utilization", "type": "gauge", "unit": "percent" }
+  ],
+
+  "lanes": [
+    {
+      "id": "wafer_scheduler",
+      "name": "Wafer Processing Scheduler",
+      "priority": 1,
+      "workflow": {
+        "id": "wafer_flow",
+        "description": "Main wafer processing workflow with 1-step or 2-step options",
+        "steps": [
+          {
+            "id": "initialize",
+            "type": "action",
+            "action": "initializeSystem",
+            "description": "Initialize system and check all stations"
+          },
+          {
+            "id": "start_lot",
+            "type": "action",
+            "action": "startLotProcessing",
+            "description": "Begin lot processing"
+          },
+          {
+            "id": "wafer_loop",
+            "type": "loop",
+            "mode": "while",
+            "condition": "hasMoreWafers",
+            "maxIterations": 25,
+            "steps": [
+              {
+                "id": "get_next_wafer",
+                "type": "action",
+                "action": "getNextWaferFromFoup",
+                "description": "Pick next wafer from FOUP"
+              },
+              {
+                "id": "determine_process_type",
+                "type": "action",
+                "action": "determineProcessType",
+                "description": "Determine if wafer needs 1-step or 2-step processing"
+              },
+              {
+                "id": "process_decision",
+                "type": "branch",
+                "description": "Route to 1-step or 2-step process",
+                "cases": [
+                  {
+                    "when": "isTwoStepProcess",
+                    "steps": [
+                      {
+                        "id": "two_step_process",
+                        "type": "sequence",
+                        "description": "Two-step process: Platen1 -> Platen2",
+                        "steps": [
+                          {
+                            "id": "load_from_foup_2step",
+                            "type": "useStation",
+                            "role": "robot",
+                            "waitForAvailable": true,
+                            "maxWaitTime": 30000,
+                            "action": "pickWaferFromFoup"
+                          },
+                          {
+                            "id": "first_platen_process",
+                            "type": "sequence",
+                            "steps": [
+                              {
+                                "id": "select_platen_for_step1",
+                                "type": "action",
+                                "action": "selectAvailablePlaten",
+                                "description": "Select first available platen for step 1"
+                              },
+                              {
+                                "id": "move_to_platen1_step1",
+                                "type": "action",
+                                "action": "moveRobotToPlaten",
+                                "timeout": 10000
+                              },
+                              {
+                                "id": "place_on_platen_step1",
+                                "type": "action",
+                                "action": "placeWaferOnPlaten",
+                                "timeout": 5000
+                              },
+                              {
+                                "id": "release_robot_after_step1",
+                                "type": "action",
+                                "action": "robotReturnHome"
+                              },
+                              {
+                                "id": "process_step1",
+                                "type": "action",
+                                "action": "processWaferOnPlaten",
+                                "async": true,
+                                "timeout": 90000,
+                                "onTimeout": [
+                                  {
+                                    "id": "timeout_step1",
+                                    "type": "action",
+                                    "action": "handleProcessTimeout"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "wait_for_step1_complete",
+                                "type": "wait",
+                                "until": "platenProcessComplete",
+                                "pollInterval": 1000
+                              },
+                              {
+                                "id": "collect_step1_metric",
+                                "type": "collectMetric",
+                                "metric": "cycle_time",
+                                "value": "platen1ProcessTime"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "transfer_to_platen2",
+                            "type": "sequence",
+                            "steps": [
+                              {
+                                "id": "acquire_robot_for_transfer",
+                                "type": "useStation",
+                                "role": "robot",
+                                "waitForAvailable": true,
+                                "maxWaitTime": 30000
+                              },
+                              {
+                                "id": "pick_from_platen1",
+                                "type": "action",
+                                "action": "pickWaferFromPlaten"
+                              },
+                              {
+                                "id": "select_platen_for_step2",
+                                "type": "action",
+                                "action": "selectOtherPlaten",
+                                "description": "Select the other platen for step 2"
+                              },
+                              {
+                                "id": "move_to_platen2",
+                                "type": "action",
+                                "action": "moveRobotToPlaten",
+                                "timeout": 10000
+                              },
+                              {
+                                "id": "place_on_platen2",
+                                "type": "action",
+                                "action": "placeWaferOnPlaten",
+                                "timeout": 5000
+                              },
+                              {
+                                "id": "release_robot_after_step2_load",
+                                "type": "action",
+                                "action": "robotReturnHome"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "second_platen_process",
+                            "type": "sequence",
+                            "steps": [
+                              {
+                                "id": "process_step2",
+                                "type": "action",
+                                "action": "processWaferOnPlaten",
+                                "async": true,
+                                "timeout": 90000
+                              },
+                              {
+                                "id": "wait_for_step2_complete",
+                                "type": "wait",
+                                "until": "platenProcessComplete",
+                                "pollInterval": 1000
+                              },
+                              {
+                                "id": "collect_step2_metric",
+                                "type": "collectMetric",
+                                "metric": "cycle_time",
+                                "value": "platen2ProcessTime"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "return_to_foup_2step",
+                            "type": "sequence",
+                            "steps": [
+                              {
+                                "id": "acquire_robot_for_return_2step",
+                                "type": "useStation",
+                                "role": "robot",
+                                "waitForAvailable": true,
+                                "maxWaitTime": 30000
+                              },
+                              {
+                                "id": "pick_from_platen2",
+                                "type": "action",
+                                "action": "pickWaferFromPlaten"
+                              },
+                              {
+                                "id": "move_to_foup_2step",
+                                "type": "action",
+                                "action": "moveRobotToFoup",
+                                "timeout": 10000
+                              },
+                              {
+                                "id": "place_in_foup_2step",
+                                "type": "action",
+                                "action": "placeWaferInFoup",
+                                "timeout": 5000
+                              },
+                              {
+                                "id": "release_robot_final_2step",
+                                "type": "action",
+                                "action": "robotReturnHome"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "complete_wafer_2step",
+                            "type": "action",
+                            "action": "markWaferComplete"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "one_step_process",
+                    "type": "sequence",
+                    "description": "One-step process: Single Platen",
+                    "steps": [
+                      {
+                        "id": "load_from_foup_1step",
+                        "type": "useStation",
+                        "role": "robot",
+                        "waitForAvailable": true,
+                        "maxWaitTime": 30000,
+                        "action": "pickWaferFromFoup"
+                      },
+                      {
+                        "id": "single_platen_process",
+                        "type": "sequence",
+                        "steps": [
+                          {
+                            "id": "select_platen_1step",
+                            "type": "action",
+                            "action": "selectAvailablePlaten",
+                            "description": "Select first available platen"
+                          },
+                          {
+                            "id": "move_to_platen_1step",
+                            "type": "action",
+                            "action": "moveRobotToPlaten",
+                            "timeout": 10000
+                          },
+                          {
+                            "id": "place_on_platen_1step",
+                            "type": "action",
+                            "action": "placeWaferOnPlaten",
+                            "timeout": 5000
+                          },
+                          {
+                            "id": "release_robot_1step",
+                            "type": "action",
+                            "action": "robotReturnHome"
+                          },
+                          {
+                            "id": "process_1step",
+                            "type": "action",
+                            "action": "processWaferOnPlaten",
+                            "async": true,
+                            "timeout": 90000,
+                            "onTimeout": [
+                              {
+                                "id": "timeout_1step",
+                                "type": "action",
+                                "action": "handleProcessTimeout"
+                              }
+                            ],
+                            "retry": {
+                              "count": 2,
+                              "delay": 5000,
+                              "strategy": "fixed",
+                              "retryOn": ["ProcessError", "TimeoutError"]
+                            }
+                          },
+                          {
+                            "id": "wait_for_complete_1step",
+                            "type": "wait",
+                            "until": "platenProcessComplete",
+                            "pollInterval": 1000
+                          },
+                          {
+                            "id": "collect_metric_1step",
+                            "type": "collectMetric",
+                            "metric": "cycle_time",
+                            "value": "platenProcessTime"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "return_to_foup_1step",
+                        "type": "sequence",
+                        "steps": [
+                          {
+                            "id": "acquire_robot_for_return_1step",
+                            "type": "useStation",
+                            "role": "robot",
+                            "waitForAvailable": true,
+                            "maxWaitTime": 30000
+                          },
+                          {
+                            "id": "pick_from_platen_1step",
+                            "type": "action",
+                            "action": "pickWaferFromPlaten"
+                          },
+                          {
+                            "id": "move_to_foup_1step",
+                            "type": "action",
+                            "action": "moveRobotToFoup",
+                            "timeout": 10000
+                          },
+                          {
+                            "id": "place_in_foup_1step",
+                            "type": "action",
+                            "action": "placeWaferInFoup",
+                            "timeout": 5000
+                          },
+                          {
+                            "id": "release_robot_final_1step",
+                            "type": "action",
+                            "action": "robotReturnHome"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "complete_wafer_1step",
+                        "type": "action",
+                        "action": "markWaferComplete"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "increment_count",
+                "type": "action",
+                "action": "incrementProcessedCount"
+              },
+              {
+                "id": "emit_wafer_done",
+                "type": "emitEvent",
+                "event": "WAFER_PROCESSED",
+                "async": false
+              }
+            ]
+          },
+          {
+            "id": "finalize_lot",
+            "type": "action",
+            "action": "finalizeLotProcessing"
+          },
+          {
+            "id": "emit_lot_complete",
+            "type": "emitEvent",
+            "event": "LOT_COMPLETE"
+          },
+          {
+            "id": "cleanup",
+            "type": "action",
+            "action": "cleanupSystem"
+          }
+        ]
+      },
+      "eventHandlers": [
+        {
+          "event": "ERROR_OCCURRED",
+          "filter": "isCriticalError",
+          "steps": [
+            {
+              "id": "log_error",
+              "type": "action",
+              "action": "logError"
+            },
+            {
+              "id": "pause_processing",
+              "type": "action",
+              "action": "pauseSystem"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "platen1_manager",
+      "name": "Platen 1 Manager",
+      "priority": 2,
+      "workflow": {
+        "id": "platen1_control",
+        "description": "Manages Platen 1 operations",
+        "steps": [
+          {
+            "id": "platen1_init",
+            "type": "action",
+            "action": "initializePlaten1"
+          },
+          {
+            "id": "platen1_monitor",
+            "type": "loop",
+            "mode": "while",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "wait_for_wafer_p1",
+                "type": "onEvent",
+                "event": "WAFER_ON_PLATEN1",
+                "once": false,
+                "steps": [
+                  {
+                    "id": "update_platen1_state",
+                    "type": "action",
+                    "action": "updatePlatenState"
+                  },
+                  {
+                    "id": "track_utilization_p1",
+                    "type": "collectMetric",
+                    "metric": "platen1_utilization",
+                    "value": "currentUtilization"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "platen2_manager",
+      "name": "Platen 2 Manager",
+      "priority": 2,
+      "workflow": {
+        "id": "platen2_control",
+        "description": "Manages Platen 2 operations",
+        "steps": [
+          {
+            "id": "platen2_init",
+            "type": "action",
+            "action": "initializePlaten2"
+          },
+          {
+            "id": "platen2_monitor",
+            "type": "loop",
+            "mode": "while",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "wait_for_wafer_p2",
+                "type": "onEvent",
+                "event": "WAFER_ON_PLATEN2",
+                "once": false,
+                "steps": [
+                  {
+                    "id": "update_platen2_state",
+                    "type": "action",
+                    "action": "updatePlatenState"
+                  },
+                  {
+                    "id": "track_utilization_p2",
+                    "type": "collectMetric",
+                    "metric": "platen2_utilization",
+                    "value": "currentUtilization"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "robot_manager",
+      "name": "Robot Manager",
+      "priority": 3,
+      "workflow": {
+        "id": "robot_control",
+        "description": "Manages robot operations and scheduling",
+        "steps": [
+          {
+            "id": "robot_init",
+            "type": "action",
+            "action": "initializeRobot"
+          },
+          {
+            "id": "robot_monitor",
+            "type": "loop",
+            "mode": "while",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "wait_for_robot_task",
+                "type": "onEvent",
+                "event": "ROBOT_TASK",
+                "once": false,
+                "steps": [
+                  {
+                    "id": "execute_robot_task",
+                    "type": "action",
+                    "action": "executeRobotMovement"
+                  },
+                  {
+                    "id": "track_robot_utilization",
+                    "type": "collectMetric",
+                    "metric": "robot_utilization",
+                    "value": "currentUtilization"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+
+  "globalHandlers": {
+    "onError": [
+      {
+        "id": "global_error_handler",
+        "type": "action",
+        "action": "handleGlobalError"
+      },
+      {
+        "id": "notify_operator",
+        "type": "emitEvent",
+        "event": "ERROR_OCCURRED"
+      }
+    ],
+    "onTimeout": [
+      {
+        "id": "global_timeout_handler",
+        "type": "action",
+        "action": "handleGlobalTimeout"
+      }
+    ]
+  }
+}

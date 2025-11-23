@@ -1,0 +1,304 @@
+{
+  "id": "wafer_scheduler",
+  "initial": "created",
+  "context": {
+    "wafer_id": null,
+    "start_time": 0,
+    "current_location": "carrier",
+    "target_location": null,
+    "assigned_robot": null,
+    "retry_count": 0,
+    "max_retries": 3,
+    "timestamps": {
+      "created": 0,
+      "pick_from_carrier": null,
+      "load_to_platen": null,
+      "polish_start": null,
+      "polish_complete": null,
+      "pick_from_platen": null,
+      "load_to_cleaner": null,
+      "clean_start": null,
+      "clean_complete": null,
+      "pick_from_cleaner": null,
+      "load_to_buffer": null,
+      "buffer_start": null,
+      "buffer_complete": null,
+      "pick_from_buffer": null,
+      "return_to_carrier": null,
+      "completed": null
+    }
+  },
+  "states": {
+    "created": {
+      "entry": ["logWaferCreated", "recordCreatedTime"],
+      "always": {
+        "target": "waiting_for_r1_pickup",
+        "actions": ["requestRobot1PickupFromCarrier"]
+      }
+    },
+    "waiting_for_r1_pickup": {
+      "entry": ["logWaitingForR1Pickup"],
+      "on": {
+        "R1_AVAILABLE": "r1_picking_from_carrier",
+        "R1_BUSY": "waiting_for_r1_pickup"
+      },
+      "after": {
+        "10000": "error_timeout"
+      }
+    },
+    "r1_picking_from_carrier": {
+      "entry": ["logR1PickingFromCarrier", "sendR1PickFromCarrier"],
+      "on": {
+        "R1_PICKED": {
+          "target": "r1_moving_to_platen",
+          "actions": ["recordPickFromCarrier"]
+        },
+        "R1_PICK_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r1_moving_to_platen": {
+      "entry": ["logR1MovingToPlaten", "sendR1MoveToPlaten"],
+      "on": {
+        "R1_AT_PLATEN": "r1_placing_to_platen"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r1_placing_to_platen": {
+      "entry": ["logR1PlacingToPlaten", "sendR1PlaceToPlaten"],
+      "on": {
+        "R1_PLACED": {
+          "target": "waiting_for_polisher",
+          "actions": ["recordLoadToPlaten", "releaseRobot1"]
+        },
+        "R1_PLACE_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "waiting_for_polisher": {
+      "entry": ["logWaitingForPolisher", "requestPolisherStart"],
+      "on": {
+        "POLISHER_STARTED": "polishing"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "polishing": {
+      "entry": ["logPolishing", "recordPolishStart"],
+      "on": {
+        "POLISH_COMPLETED": {
+          "target": "waiting_for_r2_pickup",
+          "actions": ["recordPolishComplete", "requestRobot2PickupFromPlaten"]
+        },
+        "POLISH_FAILED": "error_handling"
+      }
+    },
+    "waiting_for_r2_pickup": {
+      "entry": ["logWaitingForR2Pickup"],
+      "on": {
+        "R2_AVAILABLE": "r2_picking_from_platen",
+        "R2_BUSY": "waiting_for_r2_pickup"
+      },
+      "after": {
+        "10000": "error_timeout"
+      }
+    },
+    "r2_picking_from_platen": {
+      "entry": ["logR2PickingFromPlaten", "sendR2PickFromPlaten"],
+      "on": {
+        "R2_PICKED": {
+          "target": "r2_moving_to_cleaner",
+          "actions": ["recordPickFromPlaten"]
+        },
+        "R2_PICK_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r2_moving_to_cleaner": {
+      "entry": ["logR2MovingToCleaner", "sendR2MoveToCleaner"],
+      "on": {
+        "R2_AT_CLEANER": "r2_placing_to_cleaner"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r2_placing_to_cleaner": {
+      "entry": ["logR2PlacingToCleaner", "sendR2PlaceToCleaner"],
+      "on": {
+        "R2_PLACED": {
+          "target": "waiting_for_cleaner",
+          "actions": ["recordLoadToCleaner", "releaseRobot2"]
+        },
+        "R2_PLACE_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "waiting_for_cleaner": {
+      "entry": ["logWaitingForCleaner", "requestCleanerStart"],
+      "on": {
+        "CLEANER_STARTED": "cleaning"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "cleaning": {
+      "entry": ["logCleaning", "recordCleanStart"],
+      "on": {
+        "CLEAN_COMPLETED": {
+          "target": "waiting_for_r3_pickup",
+          "actions": ["recordCleanComplete", "requestRobot3PickupFromCleaner"]
+        },
+        "CLEAN_FAILED": "error_handling"
+      }
+    },
+    "waiting_for_r3_pickup": {
+      "entry": ["logWaitingForR3Pickup"],
+      "on": {
+        "R3_AVAILABLE": "r3_picking_from_cleaner",
+        "R3_BUSY": "waiting_for_r3_pickup"
+      },
+      "after": {
+        "10000": "error_timeout"
+      }
+    },
+    "r3_picking_from_cleaner": {
+      "entry": ["logR3PickingFromCleaner", "sendR3PickFromCleaner"],
+      "on": {
+        "R3_PICKED": {
+          "target": "r3_moving_to_buffer",
+          "actions": ["recordPickFromCleaner"]
+        },
+        "R3_PICK_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r3_moving_to_buffer": {
+      "entry": ["logR3MovingToBuffer", "sendR3MoveToBuffer"],
+      "on": {
+        "R3_AT_BUFFER": "r3_placing_to_buffer"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r3_placing_to_buffer": {
+      "entry": ["logR3PlacingToBuffer", "sendR3PlaceToBuffer"],
+      "on": {
+        "R3_PLACED": {
+          "target": "waiting_for_buffer",
+          "actions": ["recordLoadToBuffer", "releaseRobot3"]
+        },
+        "R3_PLACE_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "waiting_for_buffer": {
+      "entry": ["logWaitingForBuffer", "requestBufferStart"],
+      "on": {
+        "BUFFER_STARTED": "buffering"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "buffering": {
+      "entry": ["logBuffering", "recordBufferStart"],
+      "on": {
+        "BUFFER_COMPLETED": {
+          "target": "waiting_for_r1_return",
+          "actions": ["recordBufferComplete", "requestRobot1PickupFromBuffer"]
+        },
+        "BUFFER_FAILED": "error_handling"
+      }
+    },
+    "waiting_for_r1_return": {
+      "entry": ["logWaitingForR1Return"],
+      "on": {
+        "R1_AVAILABLE": "r1_picking_from_buffer",
+        "R1_BUSY": "waiting_for_r1_return"
+      },
+      "after": {
+        "10000": "error_timeout"
+      }
+    },
+    "r1_picking_from_buffer": {
+      "entry": ["logR1PickingFromBuffer", "sendR1PickFromBuffer"],
+      "on": {
+        "R1_PICKED": {
+          "target": "r1_returning_to_carrier",
+          "actions": ["recordPickFromBuffer"]
+        },
+        "R1_PICK_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r1_returning_to_carrier": {
+      "entry": ["logR1ReturningToCarrier", "sendR1MoveToCarrier"],
+      "on": {
+        "R1_AT_CARRIER": "r1_placing_to_carrier"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "r1_placing_to_carrier": {
+      "entry": ["logR1PlacingToCarrier", "sendR1PlaceToCarrier"],
+      "on": {
+        "R1_PLACED": {
+          "target": "completed",
+          "actions": ["recordReturnToCarrier", "releaseRobot1", "notifyMasterWaferComplete"]
+        },
+        "R1_PLACE_FAILED": "error_handling"
+      },
+      "after": {
+        "5000": "error_timeout"
+      }
+    },
+    "completed": {
+      "type": "final",
+      "entry": ["logWaferCompleted", "recordCompletedTime", "calculateCycleTime"]
+    },
+    "error_handling": {
+      "entry": ["logWaferError", "incrementRetryCount"],
+      "always": [
+        {
+          "target": "fatal_error",
+          "guard": "maxRetriesExceeded"
+        },
+        {
+          "target": "created",
+          "actions": ["resetWaferState"]
+        }
+      ]
+    },
+    "error_timeout": {
+      "entry": ["logWaferTimeout"],
+      "after": {
+        "1000": "error_handling"
+      }
+    },
+    "fatal_error": {
+      "type": "final",
+      "entry": ["logWaferFatalError", "notifyMasterWaferFailed"]
+    }
+  }
+}

@@ -1,0 +1,5 @@
+// test.sfl
+SCHEDULE TEST {
+    pipeline_depth: 3
+    APPLY_RULE("PSR_001")
+}

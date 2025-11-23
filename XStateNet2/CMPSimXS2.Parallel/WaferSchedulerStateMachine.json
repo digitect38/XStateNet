@@ -1,0 +1,247 @@
+{
+  "id": "waferScheduler",
+  "initial": "created",
+  "context": {
+    "waferId": "",
+    "conditions": 0,
+    "retryDelayMs": 50
+  },
+  "states": {
+    "created": {
+      "entry": ["reportReadyToCoordinator"],
+      "on": {
+        "SYSTEM_READY": {
+          "target": "readyToStart",
+          "actions": ["logSystemReady"]
+        }
+      }
+    },
+    "readyToStart": {
+      "on": {
+        "START_PROCESSING": {
+          "target": "waitingForR1Pickup",
+          "actions": ["requestRobot1Pickup"]
+        }
+      }
+    },
+    "waitingForR1Pickup": {
+      "on": {
+        "ROBOT1_AVAILABLE": [
+          {
+            "target": "r1MovingToPlaten",
+            "cond": "canPickFromCarrier",
+            "actions": ["setWaferOnRobot", "requestRobot1Move"]
+          }
+        ],
+        "WAIT_NOTIFICATION": {
+          "actions": ["logWaitStatus"]
+        }
+      }
+    },
+    "r1MovingToPlaten": {
+      "on": {
+        "ROBOT1_AVAILABLE": [
+          {
+            "target": "waitingPlatenLocation",
+            "cond": "canMoveToPlaten",
+            "actions": ["requestPlatenLocation", "notifyWaferAtPlaten"]
+          }
+        ]
+      }
+    },
+    "waitingPlatenLocation": {
+      "on": {
+        "LOCATION_PERMISSION_GRANTED": [
+          {
+            "target": "r1PlacingToPlaten",
+            "cond": "canPlaceOnPlaten",
+            "actions": ["setPlatenPermission", "requestRobot1Place"]
+          }
+        ],
+        "LOCATION_PERMISSION_DENIED": {
+          "actions": ["scheduleRetryPlatenLocation"]
+        }
+      }
+    },
+    "r1PlacingToPlaten": {
+      "on": {
+        "ROBOT1_AVAILABLE": {
+          "target": "r1ReturningToCarrier",
+          "actions": ["clearWaferOnRobot", "clearPlatenPermission", "setWaferAtPlaten", "requestRobot1Return"]
+        }
+      }
+    },
+    "r1ReturningToCarrier": {
+      "on": {
+        "ROBOT1_AVAILABLE": {
+          "target": "waitingForPolisher",
+          "actions": ["schedulePolishRequest"]
+        }
+      }
+    },
+    "waitingForPolisher": {
+      "on": {
+        "REQUEST_POLISH_NOW": {
+          "actions": ["requestPolish"]
+        },
+        "POLISH_COMPLETED": {
+          "target": "waitingForR2Pickup",
+          "actions": ["setPolishComplete", "requestRobot2"]
+        }
+      }
+    },
+    "waitingForR2Pickup": {
+      "on": {
+        "ROBOT2_AVAILABLE": [
+          {
+            "target": "r2MovingToCleaner",
+            "cond": "canPickFromPlaten",
+            "actions": ["setWaferOnRobot", "clearWaferAtPlaten", "releasePlatenLocation", "requestRobot2Pick"]
+          }
+        ]
+      }
+    },
+    "r2MovingToCleaner": {
+      "on": {
+        "ROBOT2_AVAILABLE": [
+          {
+            "target": "waitingCleanerLocation",
+            "cond": "canMoveToCleaner",
+            "actions": ["requestCleanerLocation"]
+          }
+        ]
+      }
+    },
+    "waitingCleanerLocation": {
+      "on": {
+        "LOCATION_PERMISSION_GRANTED": [
+          {
+            "target": "r2PlacingToCleaner",
+            "cond": "canPlaceOnCleaner",
+            "actions": ["setCleanerPermission", "requestRobot2Place"]
+          }
+        ],
+        "LOCATION_PERMISSION_DENIED": {
+          "actions": ["scheduleRetryCleanerLocation"]
+        }
+      }
+    },
+    "r2PlacingToCleaner": {
+      "on": {
+        "ROBOT2_AVAILABLE": {
+          "target": "r2ReturningToPlaten",
+          "actions": ["clearWaferOnRobot", "clearCleanerPermission", "setWaferAtCleaner", "requestRobot2Return"]
+        }
+      }
+    },
+    "r2ReturningToPlaten": {
+      "on": {
+        "ROBOT2_AVAILABLE": {
+          "target": "waitingForCleaner",
+          "actions": ["scheduleCleanRequest"]
+        }
+      }
+    },
+    "waitingForCleaner": {
+      "on": {
+        "REQUEST_CLEAN_NOW": {
+          "actions": ["requestClean"]
+        },
+        "CLEAN_COMPLETED": {
+          "target": "waitingForR3Pickup",
+          "actions": ["setCleanComplete", "requestRobot3"]
+        }
+      }
+    },
+    "waitingForR3Pickup": {
+      "on": {
+        "ROBOT3_AVAILABLE": [
+          {
+            "target": "r3MovingToBuffer",
+            "cond": "canPickFromCleaner",
+            "actions": ["setWaferOnRobot", "clearWaferAtCleaner", "releaseCleanerLocation", "requestRobot3Pick"]
+          }
+        ]
+      }
+    },
+    "r3MovingToBuffer": {
+      "on": {
+        "ROBOT3_AVAILABLE": [
+          {
+            "target": "waitingBufferLocation",
+            "cond": "canMoveToBuffer",
+            "actions": ["requestBufferLocation"]
+          }
+        ]
+      }
+    },
+    "waitingBufferLocation": {
+      "on": {
+        "LOCATION_PERMISSION_GRANTED": [
+          {
+            "target": "r3PlacingToBuffer",
+            "cond": "canPlaceOnBuffer",
+            "actions": ["setBufferPermission", "requestRobot3Place"]
+          }
+        ],
+        "LOCATION_PERMISSION_DENIED": {
+          "actions": ["scheduleRetryBufferLocation"]
+        }
+      }
+    },
+    "r3PlacingToBuffer": {
+      "on": {
+        "ROBOT3_AVAILABLE": {
+          "target": "r3ReturningToCleaner",
+          "actions": ["clearWaferOnRobot", "clearBufferPermission", "setWaferAtBuffer", "requestRobot3Return"]
+        }
+      }
+    },
+    "r3ReturningToCleaner": {
+      "on": {
+        "ROBOT3_AVAILABLE": {
+          "target": "waitingForBuffer",
+          "actions": ["scheduleBufferRequest"]
+        }
+      }
+    },
+    "waitingForBuffer": {
+      "on": {
+        "REQUEST_BUFFER_NOW": {
+          "actions": ["requestBuffer"]
+        },
+        "BUFFER_COMPLETED": {
+          "target": "waitingForR1Return",
+          "actions": ["setBufferComplete", "requestRobot1Return"]
+        }
+      }
+    },
+    "waitingForR1Return": {
+      "on": {
+        "ROBOT1_AVAILABLE": {
+          "target": "r1ReturningFromBuffer",
+          "actions": ["releaseBufferLocation", "requestRobot1PickFromBuffer"]
+        }
+      }
+    },
+    "r1ReturningFromBuffer": {
+      "on": {
+        "ROBOT1_AVAILABLE": {
+          "target": "r1PlacingToCarrier",
+          "actions": ["requestRobot1MoveToCarrier"]
+        }
+      }
+    },
+    "r1PlacingToCarrier": {
+      "on": {
+        "ROBOT1_AVAILABLE": {
+          "target": "completed",
+          "actions": ["calculateCycleTime", "notifyCompletion"]
+        }
+      }
+    },
+    "completed": {
+      "type": "final"
+    }
+  }
+}

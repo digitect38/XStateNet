@@ -1,0 +1,31 @@
+﻿// PSR_001.sfl  
+// Pipeline Slot Assignment Rule
+
+RULE PSR_001 {
+    id: "PSR_001"
+    name: "Pipeline_Slot_Assignment"
+    category: "PIPELINE_SCHEDULING"
+    version: "2.0"
+    
+    DESCRIPTION {
+        "Assigns wafers to pipeline slots for collision-free operation"
+    }
+    
+    PARAMETERS {
+        pipeline_depth: integer = 3
+        wafer_queue: wafer_id_t[]
+        cycle_time: duration_t
+    }
+    
+    FORMULA {
+        PHASE_1_SLOTS = [0, 3, 6, 9, 12, 15, 18, 21, 24]
+        PHASE_2_SLOTS = [1, 4, 7, 10, 13, 16, 19, 22, 25]
+        PHASE_3_SLOTS = [2, 5, 8, 11, 14, 17, 20, 23, 26]
+        
+        for (i = 0; i < wafer_queue.length; i++) {
+            phase = i % pipeline_depth
+            slot = floor(i / pipeline_depth)
+            assign_to_phase(wafer_queue[i], phase, slot)
+        }
+    }
+}

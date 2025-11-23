@@ -1,0 +1,20 @@
+STATION WTR_001 {
+    ID: "WTR_001"
+    TYPE: "WAFER_TRANSFER_ROBOT"
+    LAYER: L4
+    
+    STATE_MACHINE {
+        initial: "IDLE"
+        states: {
+            IDLE: { on: { RECEIVE_TASK: "EXECUTING" } }
+            EXECUTING: { on: { COMPLETE: "IDLE" } }
+        }
+    }
+}
+
+STATION CMP_001 {
+    ID: "CMP_001"
+    TYPE: "CMP_PLATEN"
+    LAYER: L4
+    CAPABILITIES: ["POLISH", "CONDITION"]
+}

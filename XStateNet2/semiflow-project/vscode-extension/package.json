@@ -1,0 +1,40 @@
+﻿{
+  "name": "semiflow-language",
+  "displayName": "Semi Flow Language",
+  "version": "2.0.0",
+  "publisher": "semiconductor-mfg",
+  "engines": {"vscode": "^1.75.0"},
+  "main": "./out/extension.js",
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "semiflow",
+      "aliases": ["Semi Flow", "SFL"],
+      "extensions": [".sfl", ".sfli", ".sflc"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "semiflow",
+      "scopeName": "source.sfl",
+      "path": "./syntaxes/semiflow.tmLanguage.json"
+    }],
+    "snippets": [{
+      "language": "semiflow",
+      "path": "./snippets/semiflow.snippets.json"
+    }],
+    "themes": [{
+      "label": "Semi Flow Dark",
+      "uiTheme": "vs-dark",
+      "path": "./themes/semiflow-dark.json"
+    }]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^4.9.0"
+  }
+}

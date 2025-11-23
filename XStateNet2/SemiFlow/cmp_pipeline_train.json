@@ -1,0 +1,674 @@
+{
+  "name": "CMP_Pipeline_Train_Scheduler",
+  "version": "1.0",
+  "description": "3-Level Hierarchical Pipelined Wafer Train Processing: FOUP -> Platen1 -> Platen2 -> FOUP",
+  "lanes": [
+    {
+      "id": "coordinator_scheduler",
+      "name": "Coordinator Scheduler",
+      "description": "Top-level coordinator managing overall system state and dispatching wafers",
+      "priority": 1,
+      "workflow": {
+        "initial": "system_init",
+        "steps": [
+          {
+            "id": "system_init",
+            "type": "action",
+            "action": "initializeCoordinator",
+            "next": "check_system_ready"
+          },
+          {
+            "id": "check_system_ready",
+            "type": "branch",
+            "cases": [
+              {
+                "when": "allResourcesReady",
+                "steps": [
+                  {
+                    "id": "start_coordinator",
+                    "type": "action",
+                    "action": "startCoordinator",
+                    "next": "coordinator_loop"
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "id": "wait_resources",
+                "type": "delay",
+                "duration": 1000,
+                "next": "check_system_ready"
+              }
+            ]
+          },
+          {
+            "id": "coordinator_loop",
+            "type": "loop",
+            "condition": "hasMoreWafersToDispatch",
+            "steps": [
+              {
+                "id": "dispatch_next_wafer",
+                "type": "action",
+                "action": "dispatchNextWafer",
+                "next": "update_pipeline_state"
+              },
+              {
+                "id": "update_pipeline_state",
+                "type": "action",
+                "action": "updatePipelineState",
+                "next": "check_pipeline_capacity"
+              },
+              {
+                "id": "check_pipeline_capacity",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "pipelineFull",
+                    "steps": [
+                      {
+                        "id": "wait_pipeline_space",
+                        "type": "delay",
+                        "duration": 500,
+                        "next": "check_pipeline_capacity"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "continue_dispatch",
+                    "type": "action",
+                    "action": "logDispatchReady",
+                    "next": "dispatch_next_wafer"
+                  }
+                ]
+              }
+            ],
+            "next": "wait_pipeline_complete"
+          },
+          {
+            "id": "wait_pipeline_complete",
+            "type": "loop",
+            "condition": "pipelineNotEmpty",
+            "steps": [
+              {
+                "id": "monitor_pipeline",
+                "type": "action",
+                "action": "monitorPipeline",
+                "next": "wait_tick"
+              },
+              {
+                "id": "wait_tick",
+                "type": "delay",
+                "duration": 1000,
+                "next": "monitor_pipeline"
+              }
+            ],
+            "next": "finalize_coordinator"
+          },
+          {
+            "id": "finalize_coordinator",
+            "type": "action",
+            "action": "finalizeCoordinator",
+            "next": "coordinator_complete"
+          },
+          {
+            "id": "coordinator_complete",
+            "type": "final"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wafer_scheduler_template",
+      "name": "Wafer Scheduler Template",
+      "description": "Individual wafer workflow through the pipeline (instantiated per wafer)",
+      "priority": 2,
+      "workflow": {
+        "initial": "wafer_ready",
+        "steps": [
+          {
+            "id": "wafer_ready",
+            "type": "action",
+            "action": "waferInitialized",
+            "next": "stage_load_from_foup"
+          },
+          {
+            "id": "stage_load_from_foup",
+            "type": "sequence",
+            "steps": [
+              {
+                "id": "request_robot_for_load",
+                "type": "action",
+                "action": "requestRobotForLoad",
+                "next": "wait_robot_available_load"
+              },
+              {
+                "id": "wait_robot_available_load",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "robotAvailable",
+                    "steps": [
+                      {
+                        "id": "acquire_robot_load",
+                        "type": "action",
+                        "action": "acquireRobot",
+                        "next": "pick_from_foup"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_robot_retry",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "wait_robot_available_load"
+                  }
+                ]
+              },
+              {
+                "id": "pick_from_foup",
+                "type": "action",
+                "action": "robotPickFromFoup",
+                "next": "move_to_platen1"
+              },
+              {
+                "id": "move_to_platen1",
+                "type": "action",
+                "action": "robotMoveToPlaten1",
+                "next": "wait_platen1_ready"
+              },
+              {
+                "id": "wait_platen1_ready",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen1Available",
+                    "steps": [
+                      {
+                        "id": "place_on_platen1",
+                        "type": "action",
+                        "action": "robotPlaceOnPlaten1",
+                        "next": "release_robot_after_load"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_platen1_retry",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "wait_platen1_ready"
+                  }
+                ]
+              },
+              {
+                "id": "release_robot_after_load",
+                "type": "action",
+                "action": "releaseRobot",
+                "next": "stage_process_platen1"
+              }
+            ]
+          },
+          {
+            "id": "stage_process_platen1",
+            "type": "sequence",
+            "steps": [
+              {
+                "id": "start_platen1_process",
+                "type": "action",
+                "action": "startPlaten1Processing",
+                "next": "wait_platen1_complete"
+              },
+              {
+                "id": "wait_platen1_complete",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen1ProcessComplete",
+                    "steps": [
+                      {
+                        "id": "platen1_done",
+                        "type": "action",
+                        "action": "logPlaten1Complete",
+                        "next": "stage_transfer_to_platen2"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_platen1_tick",
+                    "type": "delay",
+                    "duration": 1000,
+                    "next": "wait_platen1_complete"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "stage_transfer_to_platen2",
+            "type": "sequence",
+            "steps": [
+              {
+                "id": "request_robot_for_transfer",
+                "type": "action",
+                "action": "requestRobotForTransfer",
+                "next": "wait_robot_available_transfer"
+              },
+              {
+                "id": "wait_robot_available_transfer",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "robotAvailable",
+                    "steps": [
+                      {
+                        "id": "acquire_robot_transfer",
+                        "type": "action",
+                        "action": "acquireRobot",
+                        "next": "pick_from_platen1"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_robot_transfer_retry",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "wait_robot_available_transfer"
+                  }
+                ]
+              },
+              {
+                "id": "pick_from_platen1",
+                "type": "action",
+                "action": "robotPickFromPlaten1",
+                "next": "move_to_platen2"
+              },
+              {
+                "id": "move_to_platen2",
+                "type": "action",
+                "action": "robotMoveToPlaten2",
+                "next": "wait_platen2_ready"
+              },
+              {
+                "id": "wait_platen2_ready",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen2Available",
+                    "steps": [
+                      {
+                        "id": "place_on_platen2",
+                        "type": "action",
+                        "action": "robotPlaceOnPlaten2",
+                        "next": "release_robot_after_transfer"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_platen2_retry",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "wait_platen2_ready"
+                  }
+                ]
+              },
+              {
+                "id": "release_robot_after_transfer",
+                "type": "action",
+                "action": "releaseRobot",
+                "next": "stage_process_platen2"
+              }
+            ]
+          },
+          {
+            "id": "stage_process_platen2",
+            "type": "sequence",
+            "steps": [
+              {
+                "id": "start_platen2_process",
+                "type": "action",
+                "action": "startPlaten2Processing",
+                "next": "wait_platen2_complete"
+              },
+              {
+                "id": "wait_platen2_complete",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen2ProcessComplete",
+                    "steps": [
+                      {
+                        "id": "platen2_done",
+                        "type": "action",
+                        "action": "logPlaten2Complete",
+                        "next": "stage_unload_to_foup"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_platen2_tick",
+                    "type": "delay",
+                    "duration": 1000,
+                    "next": "wait_platen2_complete"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "stage_unload_to_foup",
+            "type": "sequence",
+            "steps": [
+              {
+                "id": "request_robot_for_unload",
+                "type": "action",
+                "action": "requestRobotForUnload",
+                "next": "wait_robot_available_unload"
+              },
+              {
+                "id": "wait_robot_available_unload",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "robotAvailable",
+                    "steps": [
+                      {
+                        "id": "acquire_robot_unload",
+                        "type": "action",
+                        "action": "acquireRobot",
+                        "next": "pick_from_platen2"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "wait_robot_unload_retry",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "wait_robot_available_unload"
+                  }
+                ]
+              },
+              {
+                "id": "pick_from_platen2",
+                "type": "action",
+                "action": "robotPickFromPlaten2",
+                "next": "move_to_foup_unload"
+              },
+              {
+                "id": "move_to_foup_unload",
+                "type": "action",
+                "action": "robotMoveToFoup",
+                "next": "place_in_foup"
+              },
+              {
+                "id": "place_in_foup",
+                "type": "action",
+                "action": "robotPlaceInFoup",
+                "next": "release_robot_after_unload"
+              },
+              {
+                "id": "release_robot_after_unload",
+                "type": "action",
+                "action": "releaseRobot",
+                "next": "wafer_complete"
+              }
+            ]
+          },
+          {
+            "id": "wafer_complete",
+            "type": "action",
+            "action": "markWaferComplete",
+            "next": "wafer_final"
+          },
+          {
+            "id": "wafer_final",
+            "type": "final"
+          }
+        ]
+      }
+    },
+    {
+      "id": "robot_scheduler",
+      "name": "Robot Resource Scheduler",
+      "description": "Manages robot availability and task queue",
+      "priority": 3,
+      "workflow": {
+        "initial": "robot_init",
+        "steps": [
+          {
+            "id": "robot_init",
+            "type": "action",
+            "action": "initializeRobot",
+            "next": "robot_idle"
+          },
+          {
+            "id": "robot_idle",
+            "type": "loop",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "check_robot_request",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "hasRobotRequest",
+                    "steps": [
+                      {
+                        "id": "process_robot_request",
+                        "type": "action",
+                        "action": "processRobotRequest",
+                        "next": "execute_robot_task"
+                      },
+                      {
+                        "id": "execute_robot_task",
+                        "type": "action",
+                        "action": "executeRobotTask",
+                        "next": "update_robot_state"
+                      },
+                      {
+                        "id": "update_robot_state",
+                        "type": "action",
+                        "action": "updateRobotUtilization",
+                        "next": "check_robot_request"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "robot_wait",
+                    "type": "delay",
+                    "duration": 100,
+                    "next": "check_robot_request"
+                  }
+                ]
+              }
+            ],
+            "next": "robot_shutdown"
+          },
+          {
+            "id": "robot_shutdown",
+            "type": "action",
+            "action": "shutdownRobot",
+            "next": "robot_final"
+          },
+          {
+            "id": "robot_final",
+            "type": "final"
+          }
+        ]
+      }
+    },
+    {
+      "id": "platen1_scheduler",
+      "name": "Platen1 Resource Scheduler",
+      "description": "Manages Platen1 availability and processing queue",
+      "priority": 3,
+      "workflow": {
+        "initial": "platen1_init",
+        "steps": [
+          {
+            "id": "platen1_init",
+            "type": "action",
+            "action": "initializePlaten1",
+            "next": "platen1_idle"
+          },
+          {
+            "id": "platen1_idle",
+            "type": "loop",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "check_platen1_wafer",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen1HasWafer",
+                    "steps": [
+                      {
+                        "id": "platen1_processing",
+                        "type": "action",
+                        "action": "processOnPlaten1",
+                        "next": "platen1_process_delay"
+                      },
+                      {
+                        "id": "platen1_process_delay",
+                        "type": "delay",
+                        "duration": 5000,
+                        "next": "platen1_complete_wafer"
+                      },
+                      {
+                        "id": "platen1_complete_wafer",
+                        "type": "action",
+                        "action": "completePlaten1Processing",
+                        "next": "update_platen1_state"
+                      },
+                      {
+                        "id": "update_platen1_state",
+                        "type": "action",
+                        "action": "updatePlaten1Utilization",
+                        "next": "check_platen1_wafer"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "platen1_wait",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "check_platen1_wafer"
+                  }
+                ]
+              }
+            ],
+            "next": "platen1_shutdown"
+          },
+          {
+            "id": "platen1_shutdown",
+            "type": "action",
+            "action": "shutdownPlaten1",
+            "next": "platen1_final"
+          },
+          {
+            "id": "platen1_final",
+            "type": "final"
+          }
+        ]
+      }
+    },
+    {
+      "id": "platen2_scheduler",
+      "name": "Platen2 Resource Scheduler",
+      "description": "Manages Platen2 availability and processing queue",
+      "priority": 3,
+      "workflow": {
+        "initial": "platen2_init",
+        "steps": [
+          {
+            "id": "platen2_init",
+            "type": "action",
+            "action": "initializePlaten2",
+            "next": "platen2_idle"
+          },
+          {
+            "id": "platen2_idle",
+            "type": "loop",
+            "condition": "systemRunning",
+            "steps": [
+              {
+                "id": "check_platen2_wafer",
+                "type": "branch",
+                "cases": [
+                  {
+                    "when": "platen2HasWafer",
+                    "steps": [
+                      {
+                        "id": "platen2_processing",
+                        "type": "action",
+                        "action": "processOnPlaten2",
+                        "next": "platen2_process_delay"
+                      },
+                      {
+                        "id": "platen2_process_delay",
+                        "type": "delay",
+                        "duration": 5000,
+                        "next": "platen2_complete_wafer"
+                      },
+                      {
+                        "id": "platen2_complete_wafer",
+                        "type": "action",
+                        "action": "completePlaten2Processing",
+                        "next": "update_platen2_state"
+                      },
+                      {
+                        "id": "update_platen2_state",
+                        "type": "action",
+                        "action": "updatePlaten2Utilization",
+                        "next": "check_platen2_wafer"
+                      }
+                    ]
+                  }
+                ],
+                "otherwise": [
+                  {
+                    "id": "platen2_wait",
+                    "type": "delay",
+                    "duration": 500,
+                    "next": "check_platen2_wafer"
+                  }
+                ]
+              }
+            ],
+            "next": "platen2_shutdown"
+          },
+          {
+            "id": "platen2_shutdown",
+            "type": "action",
+            "action": "shutdownPlaten2",
+            "next": "platen2_final"
+          },
+          {
+            "id": "platen2_final",
+            "type": "final"
+          }
+        ]
+      }
+    }
+  ]
+}

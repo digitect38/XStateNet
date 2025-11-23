@@ -1,0 +1,35 @@
+﻿{
+  "Master Scheduler": {
+    "prefix": "msc",
+    "body": [
+      "MASTER_SCHEDULER ${1:MSC_001} {",
+      "\tLAYER: L1",
+      "\tCONFIG {",
+      "\t\twafer_distribution: \"CYCLIC_ZIP\"",
+      "\t\ttotal_wafers: ${2:25}",
+      "\t}",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Master Scheduler"
+  },
+  "Apply Rule": {
+    "prefix": "rule",
+    "body": [
+      "APPLY_RULE(\"${1|WAR_001,PSR_001,SSR_001|}\")$0"
+    ],
+    "description": "Apply a scheduling rule"
+  },
+  "Schedule Block": {
+    "prefix": "schedule",
+    "body": [
+      "SCHEDULE ${1:PRODUCTION_RUN} {",
+      "\twafer_count: ${2:25}",
+      "\tAPPLY_RULE(\"WAR_001\")",
+      "\tAPPLY_RULE(\"PSR_001\")",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a schedule block"
+  }
+}

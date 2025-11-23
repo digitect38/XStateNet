@@ -26,6 +26,9 @@ public class XStateParser
 
             Validate(script);
 
+            // Normalize relative paths before freezing
+            NormalizeRelativePaths(script);
+
             // OPTIMIZATION: Freeze dictionaries for 2-3x faster lookups
             ScriptOptimizer.Freeze(script);
 
@@ -35,6 +38,97 @@ public class XStateParser
         {
             throw new XStateParseException($"Invalid XState JSON: {ex.Message}", ex);
         }
+    }
+
+    /// <summary>
+    /// Normalize relative paths in transitions (XState v5 feature)
+    /// Converts ".childState" to "parentState.childState"
+    /// </summary>
+    private void NormalizeRelativePaths(XStateMachineScript script)
+    {
+        if (script.States == null) return;
+
+        foreach (var (stateName, stateNode) in script.States)
+        {
+            NormalizeStateRelativePaths(stateNode, stateName);
+        }
+    }
+
+    private void NormalizeStateRelativePaths(XStateNode state, string currentStatePath)
+    {
+        // Normalize transitions in the "on" handler
+        if (state.On != null)
+        {
+            foreach (var transitions in state.On.Values)
+            {
+                foreach (var transition in transitions)
+                {
+                    if (!string.IsNullOrEmpty(transition.Target))
+                    {
+                        transition.Target = ResolveTargetPath(transition.Target, currentStatePath);
+                    }
+                }
+            }
+        }
+
+        // Normalize transitions in "always" handlers
+        if (state.Always != null)
+        {
+            foreach (var transition in state.Always)
+            {
+                if (!string.IsNullOrEmpty(transition.Target))
+                {
+                    transition.Target = ResolveTargetPath(transition.Target, currentStatePath);
+                }
+            }
+        }
+
+        // Recursively normalize child states
+        if (state.States != null)
+        {
+            foreach (var (childName, childState) in state.States)
+            {
+                var childPath = $"{currentStatePath}.{childName}";
+                NormalizeStateRelativePaths(childState, childPath);
+            }
+        }
+    }
+
+    private string ResolveTargetPath(string target, string currentStatePath)
+    {
+        // Handle multiple targets (comma-separated)
+        if (target.Contains(','))
+        {
+            var targets = target.Split(',', StringSplitOptions.TrimEntries);
+            var resolvedTargets = targets.Select(t => ResolveSingleTargetPath(t, currentStatePath));
+            return string.Join(", ", resolvedTargets);
+        }
+
+        return ResolveSingleTargetPath(target, currentStatePath);
+    }
+
+    private string ResolveSingleTargetPath(string target, string currentStatePath)
+    {
+        // Relative path: .childState -> currentStatePath.childState
+        if (target.StartsWith("."))
+        {
+            var childName = target.Substring(1);
+            return $"{currentStatePath}.{childName}";
+        }
+
+        // Absolute reference: #machineId.stateName -> stateName
+        if (target.StartsWith("#"))
+        {
+            var dotIndex = target.IndexOf('.');
+            if (dotIndex > 0 && dotIndex < target.Length - 1)
+            {
+                return target.Substring(dotIndex + 1);
+            }
+            return target.Substring(1);
+        }
+
+        // Already absolute or simple state name
+        return target;
     }
 
     public XStateMachineScript ParseFile(string filePath)

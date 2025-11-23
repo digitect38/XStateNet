@@ -1,0 +1,619 @@
+{
+  "name": "CMP_1Foup1Robot1Platen",
+  "version": "1.0.0",
+  "description": "Single FOUP, single robot, single platen CMP wafer processing system",
+
+  "constants": {
+    "total_wafers": 25,
+    "polish_time_ms": 2000,
+    "robot_move_time_ms": 500,
+    "pick_place_time_ms": 300,
+    "timeout_ms": 5000,
+    "max_retries": 3
+  },
+
+  "vars": {
+    "wafers_unprocessed": 25,
+    "wafers_processed": 0,
+    "current_wafer_id": null,
+    "wafer_history": [],
+    "retry_count": 0,
+    "error_code": null,
+    "error_message": null,
+    "cycle_start_time": 0
+  },
+
+  "stations": [
+    {
+      "id": "foup_1",
+      "role": "foup",
+      "kind": "dedicated",
+      "capacity": 25,
+      "state": "idle",
+      "meta": {
+        "location": "loadport_1",
+        "slots_total": 25,
+        "slots_used": 25
+      }
+    },
+    {
+      "id": "robot_1",
+      "role": "robot",
+      "kind": "dedicated",
+      "capacity": 1,
+      "state": "idle",
+      "capabilities": ["pick", "place", "move"],
+      "meta": {
+        "arm_count": 1,
+        "max_payload_grams": 500
+      }
+    },
+    {
+      "id": "platen_1",
+      "role": "platen",
+      "kind": "dedicated",
+      "capacity": 1,
+      "state": "idle",
+      "capabilities": ["polish", "rinse"],
+      "meta": {
+        "pad_type": "IC1000",
+        "rpm_range": [30, 150]
+      }
+    }
+  ],
+
+  "globalStationPools": {
+    "foup": ["foup_1"],
+    "robot": ["robot_1"],
+    "platen": ["platen_1"]
+  },
+
+  "events": [
+    {
+      "name": "WAFER_PICKED",
+      "type": "wafer",
+      "description": "Wafer successfully picked from FOUP"
+    },
+    {
+      "name": "WAFER_PLACED",
+      "type": "wafer",
+      "description": "Wafer successfully placed"
+    },
+    {
+      "name": "ROBOT_AT_FOUP",
+      "type": "station",
+      "description": "Robot arrived at FOUP"
+    },
+    {
+      "name": "ROBOT_AT_PLATEN",
+      "type": "station",
+      "description": "Robot arrived at platen"
+    },
+    {
+      "name": "POLISH_COMPLETE",
+      "type": "station",
+      "description": "Polishing operation completed"
+    },
+    {
+      "name": "PLATEN_READY",
+      "type": "station",
+      "description": "Platen is ready to receive wafer"
+    },
+    {
+      "name": "CYCLE_COMPLETE",
+      "type": "system",
+      "description": "One wafer cycle completed"
+    },
+    {
+      "name": "ALL_WAFERS_COMPLETE",
+      "type": "system",
+      "description": "All wafers processed"
+    },
+    {
+      "name": "ERROR_OCCURRED",
+      "type": "system",
+      "description": "Error during processing"
+    }
+  ],
+
+  "metrics": [
+    {
+      "name": "cycle_time",
+      "type": "timer",
+      "unit": "ms",
+      "description": "Time to process one wafer",
+      "aggregation": "avg"
+    },
+    {
+      "name": "wafers_processed_count",
+      "type": "counter",
+      "unit": "count",
+      "description": "Total wafers processed",
+      "aggregation": "sum"
+    },
+    {
+      "name": "robot_utilization",
+      "type": "gauge",
+      "unit": "percent",
+      "description": "Robot utilization percentage",
+      "aggregation": "avg"
+    },
+    {
+      "name": "platen_utilization",
+      "type": "gauge",
+      "unit": "percent",
+      "description": "Platen utilization percentage",
+      "aggregation": "avg"
+    }
+  ],
+
+  "lanes": [
+    {
+      "id": "main_lane",
+      "description": "Main wafer processing lane",
+      "priority": 1,
+      "maxConcurrentWafers": 1,
+      "workflow": {
+        "id": "cmp_wafer_processing",
+        "description": "Complete CMP wafer processing workflow for 1F1R1P system",
+
+        "preconditions": [
+          "foup_has_wafers",
+          "robot_is_ready",
+          "platen_is_ready"
+        ],
+
+        "steps": [
+          {
+            "id": "initialize",
+            "type": "action",
+            "action": "initializeSystem",
+            "description": "Initialize system and check preconditions"
+          },
+
+          {
+            "id": "check_wafers_available",
+            "type": "condition",
+            "expect": "hasUnprocessedWafers",
+            "message": "No wafers available for processing"
+          },
+
+          {
+            "id": "start_cycle",
+            "type": "action",
+            "action": "startCycle",
+            "description": "Start new wafer processing cycle"
+          },
+
+          {
+            "id": "create_wafer_record",
+            "type": "action",
+            "action": "createWaferRecord",
+            "description": "Create tracking record for current wafer"
+          },
+
+          {
+            "id": "move_robot_to_foup",
+            "type": "sequence",
+            "description": "Move robot to FOUP position",
+            "steps": [
+              {
+                "id": "send_move_to_foup",
+                "type": "action",
+                "action": "sendMoveToFoup"
+              },
+              {
+                "id": "wait_robot_at_foup",
+                "type": "wait",
+                "duration": 500,
+                "description": "Wait for robot to reach FOUP"
+              }
+            ]
+          },
+
+          {
+            "id": "pick_wafer_from_foup",
+            "type": "try",
+            "description": "Pick wafer from FOUP with error handling",
+            "try": [
+              {
+                "id": "execute_pick",
+                "type": "action",
+                "action": "pickWaferFromFoup",
+                "timeout": 5000
+              },
+              {
+                "id": "verify_pick",
+                "type": "condition",
+                "expect": "robotHasWafer",
+                "message": "Pick verification failed"
+              },
+              {
+                "id": "update_wafer_picked",
+                "type": "action",
+                "action": "recordWaferPicked"
+              }
+            ],
+            "catch": [
+              {
+                "id": "log_pick_error",
+                "type": "action",
+                "action": "logPickError"
+              },
+              {
+                "id": "emit_error",
+                "type": "emitEvent",
+                "event": "ERROR_OCCURRED",
+                "payload": {
+                  "error_type": "pick_failed"
+                }
+              }
+            ],
+            "retry": {
+              "count": 3,
+              "delay": 1000,
+              "strategy": "exponential",
+              "maxDelay": 5000
+            }
+          },
+
+          {
+            "id": "decrement_unprocessed",
+            "type": "action",
+            "action": "decrementUnprocessedCount",
+            "description": "Decrease count of unprocessed wafers"
+          },
+
+          {
+            "id": "move_robot_to_platen",
+            "type": "sequence",
+            "description": "Move robot to platen position",
+            "steps": [
+              {
+                "id": "send_move_to_platen",
+                "type": "action",
+                "action": "sendMoveToPlaten"
+              },
+              {
+                "id": "wait_robot_at_platen",
+                "type": "wait",
+                "duration": 500,
+                "description": "Wait for robot to reach platen"
+              }
+            ]
+          },
+
+          {
+            "id": "wait_for_platen_ready",
+            "type": "wait",
+            "until": "platenIsReady",
+            "pollInterval": 100,
+            "timeout": 10000,
+            "description": "Wait until platen is ready"
+          },
+
+          {
+            "id": "place_wafer_on_platen",
+            "type": "try",
+            "description": "Place wafer on platen with error handling",
+            "try": [
+              {
+                "id": "execute_place",
+                "type": "action",
+                "action": "placeWaferOnPlaten",
+                "timeout": 5000
+              },
+              {
+                "id": "verify_place",
+                "type": "condition",
+                "expect": "platenHasWafer",
+                "message": "Place verification failed"
+              },
+              {
+                "id": "update_wafer_on_platen",
+                "type": "action",
+                "action": "recordWaferOnPlaten"
+              }
+            ],
+            "catch": [
+              {
+                "id": "log_place_error",
+                "type": "action",
+                "action": "logPlaceError"
+              }
+            ],
+            "retry": {
+              "count": 2,
+              "delay": 500,
+              "strategy": "fixed"
+            }
+          },
+
+          {
+            "id": "polish_wafer",
+            "type": "parallel",
+            "description": "Polish wafer while robot returns home",
+            "branches": [
+              [
+                {
+                  "id": "start_polish",
+                  "type": "action",
+                  "action": "startPolishing"
+                },
+                {
+                  "id": "wait_polish_complete",
+                  "type": "wait",
+                  "duration": 2000,
+                  "description": "Wait for polishing to complete"
+                },
+                {
+                  "id": "stop_polish",
+                  "type": "action",
+                  "action": "stopPolishing"
+                },
+                {
+                  "id": "record_polish_done",
+                  "type": "action",
+                  "action": "recordPolishComplete"
+                }
+              ],
+              [
+                {
+                  "id": "robot_return_to_home",
+                  "type": "action",
+                  "action": "sendRobotToHome"
+                },
+                {
+                  "id": "wait_robot_home",
+                  "type": "wait",
+                  "duration": 500
+                }
+              ]
+            ],
+            "wait": "all"
+          },
+
+          {
+            "id": "collect_polish_metric",
+            "type": "collectMetric",
+            "metric": "cycle_time",
+            "value": "elapsedTime",
+            "description": "Record cycle time metric"
+          },
+
+          {
+            "id": "move_robot_back_to_platen",
+            "type": "sequence",
+            "description": "Move robot back to platen to retrieve wafer",
+            "steps": [
+              {
+                "id": "send_move_to_platen_2",
+                "type": "action",
+                "action": "sendMoveToPlaten"
+              },
+              {
+                "id": "wait_robot_at_platen_2",
+                "type": "wait",
+                "duration": 500
+              }
+            ]
+          },
+
+          {
+            "id": "pick_processed_wafer",
+            "type": "try",
+            "description": "Pick processed wafer from platen",
+            "try": [
+              {
+                "id": "execute_pick_from_platen",
+                "type": "action",
+                "action": "pickWaferFromPlaten",
+                "timeout": 5000
+              },
+              {
+                "id": "verify_pick_from_platen",
+                "type": "condition",
+                "expect": "robotHasWafer",
+                "message": "Pick from platen failed"
+              }
+            ],
+            "catch": [
+              {
+                "id": "log_pick_platen_error",
+                "type": "action",
+                "action": "logPickFromPlatenError"
+              }
+            ],
+            "retry": {
+              "count": 3,
+              "delay": 1000,
+              "strategy": "exponential"
+            }
+          },
+
+          {
+            "id": "move_robot_back_to_foup",
+            "type": "sequence",
+            "description": "Return robot to FOUP",
+            "steps": [
+              {
+                "id": "send_move_to_foup_2",
+                "type": "action",
+                "action": "sendMoveToFoup"
+              },
+              {
+                "id": "wait_robot_at_foup_2",
+                "type": "wait",
+                "duration": 500
+              }
+            ]
+          },
+
+          {
+            "id": "place_processed_wafer",
+            "type": "try",
+            "description": "Place processed wafer back in FOUP",
+            "try": [
+              {
+                "id": "execute_place_in_foup",
+                "type": "action",
+                "action": "placeWaferInFoup",
+                "timeout": 5000
+              },
+              {
+                "id": "verify_place_in_foup",
+                "type": "condition",
+                "expect": "waferInFoup",
+                "message": "Place in FOUP failed"
+              }
+            ],
+            "catch": [
+              {
+                "id": "log_place_foup_error",
+                "type": "action",
+                "action": "logPlaceInFoupError"
+              }
+            ],
+            "retry": {
+              "count": 2,
+              "delay": 500,
+              "strategy": "fixed"
+            }
+          },
+
+          {
+            "id": "increment_processed",
+            "type": "action",
+            "action": "incrementProcessedCount",
+            "description": "Increase count of processed wafers"
+          },
+
+          {
+            "id": "finalize_wafer_record",
+            "type": "action",
+            "action": "finalizeWaferRecord",
+            "description": "Complete wafer tracking record"
+          },
+
+          {
+            "id": "emit_cycle_complete",
+            "type": "emitEvent",
+            "event": "CYCLE_COMPLETE",
+            "payload": {
+              "wafer_id": "currentWaferId"
+            }
+          },
+
+          {
+            "id": "collect_processed_metric",
+            "type": "collectMetric",
+            "metric": "wafers_processed_count",
+            "value": 1
+          },
+
+          {
+            "id": "reset_retry_count",
+            "type": "action",
+            "action": "resetRetryCount"
+          },
+
+          {
+            "id": "check_more_wafers",
+            "type": "branch",
+            "description": "Check if more wafers need processing",
+            "cases": [
+              {
+                "when": "hasMoreWafers",
+                "steps": [
+                  {
+                    "id": "loop_continue",
+                    "type": "action",
+                    "action": "continueProcessing",
+                    "description": "Continue to next wafer"
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "id": "all_complete",
+                "type": "action",
+                "action": "allWafersComplete"
+              },
+              {
+                "id": "emit_all_complete",
+                "type": "emitEvent",
+                "event": "ALL_WAFERS_COMPLETE"
+              },
+              {
+                "id": "generate_report",
+                "type": "action",
+                "action": "generateFinalReport",
+                "description": "Generate final processing report"
+              }
+            ]
+          }
+        ],
+
+        "postconditions": [
+          "all_wafers_processed",
+          "robot_at_home",
+          "platen_empty"
+        ]
+      }
+    }
+  ],
+
+  "globalHandlers": {
+    "onError": [
+      {
+        "id": "log_global_error",
+        "type": "action",
+        "action": "logErrorToSystem"
+      },
+      {
+        "id": "notify_operator",
+        "type": "emitEvent",
+        "event": "ERROR_OCCURRED",
+        "payload": {
+          "severity": "error",
+          "requires_intervention": true
+        }
+      },
+      {
+        "id": "save_state",
+        "type": "action",
+        "action": "saveSystemState"
+      }
+    ],
+    "onTimeout": [
+      {
+        "id": "log_timeout",
+        "type": "action",
+        "action": "logTimeoutToSystem"
+      },
+      {
+        "id": "attempt_recovery",
+        "type": "action",
+        "action": "attemptSystemRecovery"
+      }
+    ],
+    "onEmergencyStop": [
+      {
+        "id": "stop_all_motion",
+        "type": "action",
+        "action": "stopAllMotion"
+      },
+      {
+        "id": "release_all_resources",
+        "type": "action",
+        "action": "releaseAllResources"
+      },
+      {
+        "id": "safe_state",
+        "type": "action",
+        "action": "moveToSafeState"
+      }
+    ]
+  }
+}

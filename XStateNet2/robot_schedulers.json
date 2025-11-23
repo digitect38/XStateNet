@@ -1,0 +1,531 @@
+{
+  "id": "robot_schedulers",
+  "type": "parallel",
+  "states": {
+    "robot1": {
+      "type": "parallel",
+      "states": {
+        "availability": {
+          "initial": "idle",
+          "states": {
+            "idle": {
+              "entry": ["logR1Idle", "notifyR1Available"],
+              "on": {
+                "R1_TASK_REQUEST": "busy"
+              }
+            },
+            "busy": {
+              "entry": ["logR1Busy"],
+              "on": {
+                "R1_TASK_COMPLETE": "idle",
+                "R1_TASK_FAILED": "idle"
+              }
+            }
+          }
+        },
+        "position": {
+          "initial": "at_home",
+          "states": {
+            "at_home": {
+              "entry": ["logR1AtHome"],
+              "on": {
+                "CMD_R1_MOVE_TO_CARRIER": "moving_to_carrier",
+                "CMD_R1_MOVE_TO_PLATEN": "moving_to_platen",
+                "CMD_R1_MOVE_TO_BUFFER": "moving_to_buffer"
+              }
+            },
+            "moving_to_carrier": {
+              "entry": ["logR1MovingToCarrier"],
+              "after": {
+                "50": {
+                  "target": "at_carrier",
+                  "actions": ["notifyR1AtCarrier"]
+                }
+              }
+            },
+            "at_carrier": {
+              "entry": ["logR1AtCarrier"],
+              "on": {
+                "CMD_R1_MOVE_TO_PLATEN": "moving_to_platen",
+                "CMD_R1_MOVE_TO_BUFFER": "moving_to_buffer",
+                "CMD_R1_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_platen": {
+              "entry": ["logR1MovingToPlaten"],
+              "after": {
+                "50": {
+                  "target": "at_platen",
+                  "actions": ["notifyR1AtPlaten"]
+                }
+              }
+            },
+            "at_platen": {
+              "entry": ["logR1AtPlaten"],
+              "on": {
+                "CMD_R1_MOVE_TO_CARRIER": "moving_to_carrier",
+                "CMD_R1_MOVE_TO_BUFFER": "moving_to_buffer",
+                "CMD_R1_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_buffer": {
+              "entry": ["logR1MovingToBuffer"],
+              "after": {
+                "50": {
+                  "target": "at_buffer",
+                  "actions": ["notifyR1AtBuffer"]
+                }
+              }
+            },
+            "at_buffer": {
+              "entry": ["logR1AtBuffer"],
+              "on": {
+                "CMD_R1_MOVE_TO_CARRIER": "moving_to_carrier",
+                "CMD_R1_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_home": {
+              "entry": ["logR1MovingToHome"],
+              "after": {
+                "50": {
+                  "target": "at_home",
+                  "actions": ["notifyR1AtHome"]
+                }
+              }
+            }
+          }
+        },
+        "hand": {
+          "initial": "empty",
+          "states": {
+            "empty": {
+              "entry": ["logR1HandEmpty"],
+              "on": {
+                "CMD_R1_PICK": "picking"
+              }
+            },
+            "picking": {
+              "entry": ["logR1Picking"],
+              "after": {
+                "30": [
+                  {
+                    "target": "has_wafer",
+                    "guard": "pickSuccessful",
+                    "actions": ["notifyR1Picked"]
+                  },
+                  {
+                    "target": "empty",
+                    "actions": ["notifyR1PickFailed"]
+                  }
+                ]
+              }
+            },
+            "has_wafer": {
+              "entry": ["logR1HasWafer"],
+              "on": {
+                "CMD_R1_PLACE": "placing"
+              }
+            },
+            "placing": {
+              "entry": ["logR1Placing"],
+              "after": {
+                "30": [
+                  {
+                    "target": "empty",
+                    "guard": "placeSuccessful",
+                    "actions": ["notifyR1Placed"]
+                  },
+                  {
+                    "target": "has_wafer",
+                    "actions": ["notifyR1PlaceFailed"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "robot2": {
+      "type": "parallel",
+      "states": {
+        "availability": {
+          "initial": "idle",
+          "states": {
+            "idle": {
+              "entry": ["logR2Idle", "notifyR2Available"],
+              "on": {
+                "R2_TASK_REQUEST": "busy"
+              }
+            },
+            "busy": {
+              "entry": ["logR2Busy"],
+              "on": {
+                "R2_TASK_COMPLETE": "idle",
+                "R2_TASK_FAILED": "idle"
+              }
+            }
+          }
+        },
+        "position": {
+          "initial": "at_home",
+          "states": {
+            "at_home": {
+              "entry": ["logR2AtHome"],
+              "on": {
+                "CMD_R2_MOVE_TO_PLATEN": "moving_to_platen",
+                "CMD_R2_MOVE_TO_CLEANER": "moving_to_cleaner"
+              }
+            },
+            "moving_to_platen": {
+              "entry": ["logR2MovingToPlaten"],
+              "after": {
+                "50": {
+                  "target": "at_platen",
+                  "actions": ["notifyR2AtPlaten"]
+                }
+              }
+            },
+            "at_platen": {
+              "entry": ["logR2AtPlaten"],
+              "on": {
+                "CMD_R2_MOVE_TO_CLEANER": "moving_to_cleaner",
+                "CMD_R2_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_cleaner": {
+              "entry": ["logR2MovingToCleaner"],
+              "after": {
+                "50": {
+                  "target": "at_cleaner",
+                  "actions": ["notifyR2AtCleaner"]
+                }
+              }
+            },
+            "at_cleaner": {
+              "entry": ["logR2AtCleaner"],
+              "on": {
+                "CMD_R2_MOVE_TO_PLATEN": "moving_to_platen",
+                "CMD_R2_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_home": {
+              "entry": ["logR2MovingToHome"],
+              "after": {
+                "50": {
+                  "target": "at_home",
+                  "actions": ["notifyR2AtHome"]
+                }
+              }
+            }
+          }
+        },
+        "hand": {
+          "initial": "empty",
+          "states": {
+            "empty": {
+              "entry": ["logR2HandEmpty"],
+              "on": {
+                "CMD_R2_PICK": "picking"
+              }
+            },
+            "picking": {
+              "entry": ["logR2Picking"],
+              "after": {
+                "30": [
+                  {
+                    "target": "has_wafer",
+                    "guard": "pickSuccessful",
+                    "actions": ["notifyR2Picked"]
+                  },
+                  {
+                    "target": "empty",
+                    "actions": ["notifyR2PickFailed"]
+                  }
+                ]
+              }
+            },
+            "has_wafer": {
+              "entry": ["logR2HasWafer"],
+              "on": {
+                "CMD_R2_PLACE": "placing"
+              }
+            },
+            "placing": {
+              "entry": ["logR2Placing"],
+              "after": {
+                "30": [
+                  {
+                    "target": "empty",
+                    "guard": "placeSuccessful",
+                    "actions": ["notifyR2Placed"]
+                  },
+                  {
+                    "target": "has_wafer",
+                    "actions": ["notifyR2PlaceFailed"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "robot3": {
+      "type": "parallel",
+      "states": {
+        "availability": {
+          "initial": "idle",
+          "states": {
+            "idle": {
+              "entry": ["logR3Idle", "notifyR3Available"],
+              "on": {
+                "R3_TASK_REQUEST": "busy"
+              }
+            },
+            "busy": {
+              "entry": ["logR3Busy"],
+              "on": {
+                "R3_TASK_COMPLETE": "idle",
+                "R3_TASK_FAILED": "idle"
+              }
+            }
+          }
+        },
+        "position": {
+          "initial": "at_home",
+          "states": {
+            "at_home": {
+              "entry": ["logR3AtHome"],
+              "on": {
+                "CMD_R3_MOVE_TO_CLEANER": "moving_to_cleaner",
+                "CMD_R3_MOVE_TO_BUFFER": "moving_to_buffer"
+              }
+            },
+            "moving_to_cleaner": {
+              "entry": ["logR3MovingToCleaner"],
+              "after": {
+                "50": {
+                  "target": "at_cleaner",
+                  "actions": ["notifyR3AtCleaner"]
+                }
+              }
+            },
+            "at_cleaner": {
+              "entry": ["logR3AtCleaner"],
+              "on": {
+                "CMD_R3_MOVE_TO_BUFFER": "moving_to_buffer",
+                "CMD_R3_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_buffer": {
+              "entry": ["logR3MovingToBuffer"],
+              "after": {
+                "50": {
+                  "target": "at_buffer",
+                  "actions": ["notifyR3AtBuffer"]
+                }
+              }
+            },
+            "at_buffer": {
+              "entry": ["logR3AtBuffer"],
+              "on": {
+                "CMD_R3_MOVE_TO_CLEANER": "moving_to_cleaner",
+                "CMD_R3_MOVE_TO_HOME": "moving_to_home"
+              }
+            },
+            "moving_to_home": {
+              "entry": ["logR3MovingToHome"],
+              "after": {
+                "50": {
+                  "target": "at_home",
+                  "actions": ["notifyR3AtHome"]
+                }
+              }
+            }
+          }
+        },
+        "hand": {
+          "initial": "empty",
+          "states": {
+            "empty": {
+              "entry": ["logR3HandEmpty"],
+              "on": {
+                "CMD_R3_PICK": "picking"
+              }
+            },
+            "picking": {
+              "entry": ["logR3Picking"],
+              "after": {
+                "30": [
+                  {
+                    "target": "has_wafer",
+                    "guard": "pickSuccessful",
+                    "actions": ["notifyR3Picked"]
+                  },
+                  {
+                    "target": "empty",
+                    "actions": ["notifyR3PickFailed"]
+                  }
+                ]
+              }
+            },
+            "has_wafer": {
+              "entry": ["logR3HasWafer"],
+              "on": {
+                "CMD_R3_PLACE": "placing"
+              }
+            },
+            "placing": {
+              "entry": ["logR3Placing"],
+              "after": {
+                "30": [
+                  {
+                    "target": "empty",
+                    "guard": "placeSuccessful",
+                    "actions": ["notifyR3Placed"]
+                  },
+                  {
+                    "target": "has_wafer",
+                    "actions": ["notifyR3PlaceFailed"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "platen": {
+      "initial": "empty",
+      "states": {
+        "empty": {
+          "entry": ["logPlatenEmpty", "notifyPlatenReady"],
+          "on": {
+            "CMD_START_POLISH": "polishing"
+          }
+        },
+        "polishing": {
+          "entry": ["logPolishingStarted"],
+          "after": {
+            "200": [
+              {
+                "target": "completed",
+                "guard": "polishSuccessful",
+                "actions": ["notifyPolishCompleted"]
+              },
+              {
+                "target": "error",
+                "actions": ["notifyProcessError"]
+              }
+            ]
+          }
+        },
+        "completed": {
+          "entry": ["logPlatenCompleted"],
+          "on": {
+            "CMD_R2_PICK": "empty"
+          }
+        },
+        "error": {
+          "entry": ["logPlatenError"],
+          "on": {
+            "CLEAR_ERROR": "empty"
+          }
+        }
+      }
+    },
+    "cleaner": {
+      "initial": "empty",
+      "states": {
+        "empty": {
+          "entry": ["logCleanerEmpty", "notifyCleanerReady"],
+          "on": {
+            "CMD_START_CLEAN": "cleaning"
+          }
+        },
+        "cleaning": {
+          "entry": ["logCleaningStarted"],
+          "after": {
+            "150": [
+              {
+                "target": "completed",
+                "guard": "cleanSuccessful",
+                "actions": ["notifyCleanCompleted"]
+              },
+              {
+                "target": "error",
+                "actions": ["notifyProcessError"]
+              }
+            ]
+          }
+        },
+        "completed": {
+          "entry": ["logCleanerCompleted"],
+          "on": {
+            "CMD_R3_PICK": "empty"
+          }
+        },
+        "error": {
+          "entry": ["logCleanerError"],
+          "on": {
+            "CLEAR_ERROR": "empty"
+          }
+        }
+      }
+    },
+    "buffer": {
+      "initial": "empty",
+      "states": {
+        "empty": {
+          "entry": ["logBufferEmpty", "notifyBufferReady"],
+          "on": {
+            "CMD_BUFFER_STORE": "storing"
+          }
+        },
+        "storing": {
+          "entry": ["logBufferStoring"],
+          "after": {
+            "100": [
+              {
+                "target": "has_wafer",
+                "guard": "bufferSuccessful",
+                "actions": ["notifyBufferStored"]
+              },
+              {
+                "target": "error",
+                "actions": ["notifyProcessError"]
+              }
+            ]
+          }
+        },
+        "has_wafer": {
+          "entry": ["logBufferHasWafer", "notifyBufferReady"],
+          "on": {
+            "CMD_R1_PICK": "empty"
+          }
+        },
+        "error": {
+          "entry": ["logBufferError"],
+          "on": {
+            "CLEAR_ERROR": "empty"
+          }
+        }
+      }
+    },
+    "carrier": {
+      "initial": "active",
+      "states": {
+        "active": {
+          "entry": ["logCarrierActive"],
+          "on": {
+            "ALL_WAFERS_PROCESSED": "completed"
+          }
+        },
+        "completed": {
+          "entry": ["logCarrierCompleted"]
+        }
+      }
+    }
+  }
+}

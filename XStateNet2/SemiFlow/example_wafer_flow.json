@@ -1,0 +1,192 @@
+{
+  "name": "SimpleWaferProcessing",
+  "version": "1.0.0",
+  "vars": {
+    "total_wafers": 10,
+    "processed_count": 0
+  },
+  "constants": {
+    "polish_duration": 2000,
+    "max_retries": 3
+  },
+  "stations": [
+    {
+      "id": "polisher_1",
+      "role": "polisher",
+      "kind": "dedicated",
+      "capacity": 1,
+      "state": "idle"
+    },
+    {
+      "id": "cleaner_1",
+      "role": "cleaner",
+      "kind": "dedicated",
+      "capacity": 1,
+      "state": "idle"
+    }
+  ],
+  "events": [
+    {
+      "name": "WAFER_READY",
+      "type": "wafer",
+      "description": "Wafer is ready for processing"
+    },
+    {
+      "name": "PROCESSING_COMPLETE",
+      "type": "system",
+      "description": "Processing completed successfully"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "cycle_time",
+      "type": "timer",
+      "unit": "ms",
+      "description": "Time to process one wafer",
+      "aggregation": "avg"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "main_lane",
+      "description": "Main wafer processing lane",
+      "priority": 1,
+      "maxConcurrentWafers": 1,
+      "workflow": {
+        "id": "wafer_processing",
+        "description": "Complete wafer processing workflow",
+        "steps": [
+          {
+            "id": "start",
+            "type": "action",
+            "action": "initializeWafer",
+            "description": "Initialize wafer tracking"
+          },
+          {
+            "id": "check_availability",
+            "type": "condition",
+            "expect": "hasUnprocessedWafers",
+            "message": "No more wafers to process"
+          },
+          {
+            "id": "acquire_wafer",
+            "type": "action",
+            "action": "pickWaferFromCarrier",
+            "retry": {
+              "count": 3,
+              "delay": 500,
+              "strategy": "exponential"
+            }
+          },
+          {
+            "id": "polish_wafer",
+            "type": "useStation",
+            "role": "polisher",
+            "waitForAvailable": true,
+            "maxWaitTime": 10000,
+            "timeout": 30000
+          },
+          {
+            "id": "clean_wafer",
+            "type": "useStation",
+            "role": "cleaner",
+            "waitForAvailable": true,
+            "maxWaitTime": 10000,
+            "timeout": 30000
+          },
+          {
+            "id": "inspect",
+            "type": "branch",
+            "cases": [
+              {
+                "when": "waferQualityGood",
+                "steps": [
+                  {
+                    "id": "place_good",
+                    "type": "action",
+                    "action": "placeInProcessedCarrier"
+                  }
+                ]
+              },
+              {
+                "when": "waferQualityBad",
+                "steps": [
+                  {
+                    "id": "place_reject",
+                    "type": "action",
+                    "action": "placeInRejectCarrier"
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "id": "place_review",
+                "type": "action",
+                "action": "placeInReviewCarrier"
+              }
+            ]
+          },
+          {
+            "id": "update_count",
+            "type": "action",
+            "action": "incrementProcessedCount"
+          },
+          {
+            "id": "collect_metrics",
+            "type": "collectMetric",
+            "metric": "cycle_time",
+            "value": "cycleTimeMs"
+          },
+          {
+            "id": "check_continue",
+            "type": "branch",
+            "cases": [
+              {
+                "when": "hasMoreWafers",
+                "steps": [
+                  {
+                    "id": "loop_back",
+                    "type": "action",
+                    "action": "prepareNextWafer"
+                  }
+                ]
+              }
+            ],
+            "otherwise": [
+              {
+                "id": "finalize",
+                "type": "action",
+                "action": "generateFinalReport"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "globalHandlers": {
+    "onError": [
+      {
+        "id": "log_error",
+        "type": "action",
+        "action": "logErrorToSystem"
+      },
+      {
+        "id": "notify_operator",
+        "type": "emitEvent",
+        "event": "OPERATOR_ALERT",
+        "payload": {
+          "severity": "error"
+        }
+      }
+    ],
+    "onTimeout": [
+      {
+        "id": "log_timeout",
+        "type": "action",
+        "action": "logTimeoutToSystem"
+      }
+    ]
+  }
+}

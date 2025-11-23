@@ -1,0 +1,210 @@
+{
+  "name": "SemiFlow Sample DSL",
+  "version": "1.0",
+  "description": "1 Platen, 1 Cleaner, 1 Buffer, 3 WTR",
+  "equipmentType": "CMP",
+  "operationMode": "SIMULATION",
+  "simulationModeTimeCompress": "x 100", // 100 times fast
+  
+  "vars": {
+    "currentWIP": 0,
+    "totalProcessed": 0,
+    "avgCycleTime": 0,
+    "systemState": "IDLE",
+    "activeRobots": 3
+  },
+  
+  "constants": {
+    "MAX_WAFERS_IN_SYSTEM": 25,
+    "POLISH_TIME_DEFAULT_MS": 10000, 
+    "CLEAN_TIME_DEFAULT_MS": 10000,
+    "TRANSFER_TIME_MS": 5000,
+    "METROLOGY_TIME_MS": 3000
+  },
+  
+  // ===== 로드포트 정의 =====
+  "loadPorts": [
+    {
+      "id": "LP1",
+      "type": "Loadport",
+      "capacity": 25,
+      "status": "ENABLED",
+      "position": {"x": 100, "y": 100},
+      "attributes": {
+        "foupId": null,
+        "slotMap": "11111 11111 11111 11111 11111",
+        "carrierType": "FOUP"
+      }
+    }
+  ],
+  
+  // ===== 로봇 정의 =====
+  "robots": [
+    {
+      "id": "WTR1",
+      "type": "WaferTransferRobot",
+      "armCount": 1,
+      "status": "ENABLED",
+      "position": {"x": 300, "y": 150},
+      "reachableStations": [
+        "LP1", "PL1", "B1"
+      ],
+	  "currentLoad": {
+		"arm": null
+	  },
+      "priority": 1
+    },
+    {
+      "id": "WTR2",
+	  "type": "WaferTransferRobot",
+      "armCount": 1,
+      "status": "ENABLED",
+      "position": {"x": 500, "y": 250},
+      "reachableStations": [
+        "PL1", "CL1"
+      ],
+      "currentLoad": {
+		"arm": null
+	  },
+      "priority": 1
+    },
+    {
+      "id": "WTR3",
+      "type": "WaferTransferRobot",
+      "armCount": 1,
+      "status": "ENABLED",
+      "position": {"x": 700, "y": 150},
+      "reachableStations": [
+        "CL1", "B1"
+      ],
+      "currentLoad": {
+		"arm": null
+	  },
+      "priority": 1
+    }
+  ],
+  
+  // ===== 플래튼 정의 (폴리싱 스테이션) =====
+  "platens": [
+    {
+      "id": "PL1",
+      "type": "Platen",
+      "side": "LEFT",
+      "status": "ENABLED",
+      "position": {"x": 300, "y": 300},
+      "recipe": "OXIDE_ROUGH",
+      "currentWafer": null
+    }
+  ],
+  
+  // ===== 클리너 정의 =====
+  "cleaners": [
+    // Left Side Cleaners
+    {
+      "id": "CL1",
+      "type": "Cleaner",
+      "side": "LEFT",
+      "status": "ENABLED",
+      "position": {"x": 250, "y": 400},
+      "cleanType": "BRUSH_RINSE",
+      "currentWafer": null
+    }
+  ],
+  
+  // ===== 버퍼 정의 =====
+  "buffers": [
+    {
+      "id": "B1",
+      "type": "Buffer",
+      "capacity": 1,
+      "status": "ENABLED",
+      "position": {"x": 200, "y": 250},
+      "currentWafers": []
+    }
+  ],
+  
+  // ===== 라우팅 정의 =====
+  "Routing": {
+    "defaultCombination": "ROUND_ROBIN",
+    
+    "loadBalancing": {
+      "enabled": true,
+      "metric": "UTILIZATION",
+      "robotAssignment": "DYNAMIC",  // DYNAMIC | FIXED | ZONE_BASED
+      "updateInterval": 30
+    },
+    
+    "Routes": [
+      {
+        "name": "OxidePolish_Rough",
+        "priority": 1,
+        "combination": "LEAST_LOADED",
+        "enabled": true,
+        
+        "conditions": {
+          "waferType": "PRODUCT",
+          "recipe": "OXIDE_ROUGH",
+          "lotPriority": ">=3"
+        },
+        
+        "routePaths": [
+          {
+            "pathId": "oxide_rough_path1",
+            "description": "LP1 → WTR1 → PL1 → WTR2 → CL1 → B1 → LP",
+            "stations": [
+              {"id": "WTR1", "operation": "TRANSFER", "from": "LP1", "to" : "PL1"},
+			  {"id": "PL1",  "operation": "POLISH", "duration": 100},
+			  {"id": "WTR2", "operation": "TRANSFER", "from": "PL1", "to" : "CL1"},
+              {"id": "CL1", "operation": "CLEAN", "duration": 100},
+              {"id": "WTR3", "operation": "TRANSFER", "from": "CL1", "to" : "B1"},
+			  {"id": "B1", "operation": "BUFFER", "duration": 10},
+			  {"id": "WTR1", "operation": "TRANSFER", "from": "B1", "to" : "LP1"},
+            ],
+          }
+        ]
+      }
+    ],
+    
+    "combinationPolicies": {
+      "ROUND_ROBIN": "순차적으로 경로 선택",
+      "LEAST_LOADED": "가장 적게 사용 중인 스테이션 우선",
+      "FIRST_AVAILABLE": "첫 번째 가능한 경로 즉시 선택",
+      "ZONE_BASED": "로봇 작업 영역 기반 선택"
+    }
+  },
+  
+  // ===== 동작 모드 ========
+  "availableModes": ["SIMULATION", "REAL"],
+  
+  // ===== 이벤트 핸들링 =====
+  "events": {
+    "onWaferArrival": "SELECT_OPTIMAL_ROUTE",
+    "onStationFault": "REROUTE_TO_BACKUP",
+    "onRobotBusy": "QUEUE_OR_ALTERNATE_ROBOT",
+    "onBufferFull": "WAIT_OR_REROUTE",
+    "onTimeout": "ALARM_AND_MANUAL_INTERVENTION"
+  },
+  
+  // ===== 성능 모니터링 =====
+  "monitoring": {
+    "kpis": [
+      "THROUGHPUT_WPH",
+      "CYCLE_TIME_AVG",
+      "ROBOT_UTILIZATION",
+      "STATION_UPTIME",
+      "BUFFER_USAGE"
+    ],
+    "alarms": [
+      {
+        "type": "STATION_DOWN",
+        "severity": "HIGH",
+        "action": "REROUTE"
+      },
+      {
+        "type": "LONG_QUEUE",
+        "severity": "MEDIUM",
+        "action": "LOAD_BALANCE"
+      }
+    ]
+  }
+}

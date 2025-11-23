@@ -82,8 +82,14 @@ public class ArrayStateMachineBuilder
         byte actionIndex = 0;
         byte guardIndex = 0;
 
-        // Collect states (including nested)
-        CollectStates(script.States, ref stateIndex);
+        // Collect states (including nested) with full paths
+        if (script.States != null)
+        {
+            foreach (var (stateName, stateNode) in script.States)
+            {
+                CollectStatesRecursively(stateName, stateNode, ref stateIndex);
+            }
+        }
 
         // Collect events from root and all states
         CollectEvents(script.On, ref eventIndex);
@@ -105,19 +111,22 @@ public class ArrayStateMachineBuilder
         }
     }
 
-    private void CollectStates(IReadOnlyDictionary<string, XStateNode>? states, ref byte index)
+    private void CollectStatesRecursively(string statePath, XStateNode stateNode, ref byte index)
     {
-        if (states == null) return;
-
-        foreach (var (stateName, stateNode) in states)
+        // Add this state with its full path
+        if (!_stateMapping.ContainsKey(statePath))
         {
-            if (!_stateMapping.ContainsKey(stateName))
-            {
-                _stateMapping[stateName] = index++;
-            }
+            _stateMapping[statePath] = index++;
+        }
 
-            // Recursively collect nested states
-            CollectStates(stateNode.States, ref index);
+        // Recursively collect nested states
+        if (stateNode.States != null)
+        {
+            foreach (var (childName, childNode) in stateNode.States)
+            {
+                var childPath = $"{statePath}.{childName}";
+                CollectStatesRecursively(childPath, childNode, ref index);
+            }
         }
     }
 
@@ -248,7 +257,7 @@ public class ArrayStateMachineBuilder
         foreach (var (stateName, stateNode) in stateNodes)
         {
             var stateId = map.States.GetIndex(stateName);
-            states[stateId] = BuildStateNode(stateNode, map);
+            states[stateId] = BuildStateNode(stateNode, map, stateName);
 
             // Recursively process nested states
             if (stateNode.States != null && stateNode.States.Count > 0)
@@ -258,7 +267,7 @@ public class ArrayStateMachineBuilder
         }
     }
 
-    private ArrayStateNode BuildStateNode(XStateNode node, StateMachineMap map)
+    private ArrayStateNode BuildStateNode(XStateNode node, StateMachineMap map, string stateId)
     {
         var arrayNode = new ArrayStateNode();
 
@@ -282,11 +291,11 @@ public class ArrayStateMachineBuilder
         arrayNode.EntryActions = ConvertActionList(node.Entry, map);
         arrayNode.ExitActions = ConvertActionList(node.Exit, map);
 
-        // Convert transitions
-        arrayNode.Transitions = BuildTransitionsArray(node.On, map)!;
+        // Convert transitions (pass current state ID for relative path resolution)
+        arrayNode.Transitions = BuildTransitionsArray(node.On, map, stateId)!;
 
-        // Convert always transitions
-        arrayNode.AlwaysTransitions = BuildAlwaysTransitions(node.Always, map);
+        // Convert always transitions (pass current state ID for relative path resolution)
+        arrayNode.AlwaysTransitions = BuildAlwaysTransitions(node.Always, map, stateId);
 
         // Convert child states (for compound/parallel states)
         if (node.States != null && node.States.Count > 0)
@@ -296,7 +305,8 @@ public class ArrayStateMachineBuilder
 
             foreach (var (childName, childNode) in node.States)
             {
-                childArray[index++] = BuildStateNode(childNode, map);
+                var childStateId = $"{stateId}.{childName}";
+                childArray[index++] = BuildStateNode(childNode, map, childStateId);
             }
 
             arrayNode.ChildStates = childArray;
@@ -334,7 +344,7 @@ public class ArrayStateMachineBuilder
         return result.Count > 0 ? result.ToArray() : null;
     }
 
-    private ArrayTransition?[][]? BuildTransitionsArray(IReadOnlyDictionary<string, List<XStateTransition>>? transitions, StateMachineMap map)
+    private ArrayTransition?[][]? BuildTransitionsArray(IReadOnlyDictionary<string, List<XStateTransition>>? transitions, StateMachineMap map, string parentStateId)
     {
         if (transitions == null || transitions.Count == 0)
             return null;
@@ -349,7 +359,7 @@ public class ArrayStateMachineBuilder
 
             for (int i = 0; i < transitionList.Count; i++)
             {
-                arrayTransitions[i] = ConvertTransition(transitionList[i], map);
+                arrayTransitions[i] = ConvertTransition(transitionList[i], map, parentStateId);
             }
 
             transitionArray[eventId] = arrayTransitions;
@@ -358,7 +368,7 @@ public class ArrayStateMachineBuilder
         return transitionArray;
     }
 
-    private ArrayTransition[]? BuildAlwaysTransitions(List<XStateTransition>? always, StateMachineMap map)
+    private ArrayTransition[]? BuildAlwaysTransitions(List<XStateTransition>? always, StateMachineMap map, string parentStateId)
     {
         if (always == null || always.Count == 0)
             return null;
@@ -367,13 +377,13 @@ public class ArrayStateMachineBuilder
 
         for (int i = 0; i < always.Count; i++)
         {
-            result[i] = ConvertTransition(always[i], map);
+            result[i] = ConvertTransition(always[i], map, parentStateId);
         }
 
         return result;
     }
 
-    private ArrayTransition ConvertTransition(XStateTransition transition, StateMachineMap map)
+    private ArrayTransition ConvertTransition(XStateTransition transition, StateMachineMap map, string parentStateId)
     {
         var arrayTransition = new ArrayTransition
         {
@@ -384,7 +394,7 @@ public class ArrayStateMachineBuilder
         if (!string.IsNullOrEmpty(transition.Target))
         {
             var targets = transition.Target.Split(',', StringSplitOptions.TrimEntries);
-            arrayTransition.TargetStateIds = targets.Select(t => map.States.GetIndex(NormalizeStateName(t))).ToArray();
+            arrayTransition.TargetStateIds = targets.Select(t => map.States.GetIndex(ResolveTargetStateName(t, parentStateId))).ToArray();
         }
 
         // Convert guard
@@ -404,15 +414,23 @@ public class ArrayStateMachineBuilder
     }
 
     /// <summary>
-    /// Normalize state names by removing absolute reference syntax (#machineId.stateName)
+    /// Resolve target state names handling relative and absolute references
     /// Examples:
-    ///   - "#atm.operational" -> "operational"
-    ///   - "enteringPin" -> "enteringPin"
+    ///   - "#atm.operational" -> "operational" (absolute reference)
+    ///   - ".error_timeout" -> "orchestrator.error_timeout" (relative to parent)
+    ///   - "idle" -> "idle" (absolute state name)
     /// </summary>
-    private string NormalizeStateName(string stateName)
+    private string ResolveTargetStateName(string stateName, string parentStateId)
     {
         if (string.IsNullOrEmpty(stateName))
             return stateName;
+
+        // Handle relative references: .childState
+        if (stateName.StartsWith("."))
+        {
+            var childStateName = stateName.Substring(1);
+            return $"{parentStateId}.{childStateName}";
+        }
 
         // Handle absolute references: #machineId.stateName
         if (stateName.StartsWith("#"))

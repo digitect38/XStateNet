@@ -1,0 +1,108 @@
+시간     | SLOT_1 (WSC_001)      | SLOT_2 (WSC_002)    | SLOT_3 (WSC_003)   |
+--------|-----------------------|---------------------|--------------------|
+T1      | W001 (LP→WTR1→POL)    | Empty               | Empty              |
+T2      | W001 (POL)       	    | Empty               | Empty              |
+
+T3      | W001 (POL→WTR2→CLN)   | W002 (LP→WTR1→POL)  | Empty              |
+T4      | W001 (CLN)            | W002 (POL)          | Empty              |
+
+T5      | W001 (CLN→WTR3→BUF)   | W002 (POL→WTR2→CLN) | W003 (LP→WTR1→POL) |
+T6      | W001 (BUF)            | W002 (CLN)          | W003 (POL)         |
+T7      | W001 (BUF→WTR1→LP)    | W002 (CLN)          | W003 (POL)         |
+
+T8      | W004 (LP→WTR1→POL)    | W002 (CLN→WTR3→BUF) | W003 (POL→WTR2→CLN)|
+T9      | W004 (POL)            | W002 (BUF)          | W003 (CLN)         |
+T10     | W004 (POL)            | W002 (BUF→WTR1→LP)  | W003 (CLN)         |
+
+T11     | W004 (POL→WTR2→CLN)   | W005 (LP→WTR1→POL)  | W003 (CLN→WTR3→BUF)|
+T12     | W004 (CLN)            | W005 (POL)          | W003 (BUF)         |
+T13     | W004 (CLN)            | W005 (POL)          | W003 (BUF→WTR1→LP) |
+
+T14     | W004 (CLN→WTR3→BUF)   | W005 (POL→WTR2→CLN) | W006 (LP→WTR1→POL) |
+T15     | W004 (BUF)            | W005 (CLN)          | W006 (POL)         |
+T16     | W004 (BUF→WTR1→LP)    | W005 (CLN)          | W006 (POL)         |
+
+
+T17     | W007 (LP→WTR1→POL)    | W005 (CLN→WTR3→BUF) | W006 (POL→WTR2→CLN)|
+T18     | W007 (POL)            | W005 (BUF)          | W006 (CLN)         |
+T19     | W007 (POL)            | W005 (BUF→WTR1→LP)  | W006 (CLN)         |
+
+T20     | W007 (POL→WTR2→CLN)   | W008 (LP→WTR1→POL)  | W006 (CLN→WTR3→BUF)|
+T21     | W007 (CLN)            | W008 (POL)          | W006 (BUF)         |
+T22     | W007 (CLN)            | W008 (POL)          | W006 (BUF→WTR1→LP) |
+
+T23     | W007 (CLN→WTR3→BUF)   | W008 (POL→WTR2→CLN) | W009 (LP→WTR1→POL) |
+T24     | W007 (BUF)            | W008 (CLN)          | W009 (POL)         |
+T25     | W007 (BUF→WTR1→LP)    | W008 (CLN)          | W009 (POL)         |
+
+T26 	| W010 (LP→WTR1→POL) 	| W008 (CLN→WTR3→BUF) | W009 (POL→WTR2→CLN)
+T27 	| W010 (POL) 		 	| W008 (BUF) 		  | W009 (CLN)
+T28 	| W010 (POL) 		 	| W008 (BUF→WTR1→LP)  | W009 (CLN)
+
+T29 	| W010 (POL→WTR2→CLN) 	| W011 (LP→WTR1→POL)  | W009 (CLN→WTR3→BUF)
+T30 	| W010 (CLN) 		 	| W011 (POL) 		  | W009 (BUF)
+T31 	| W010 (CLN) 		 	| W011 (POL) 		  | W009 (BUF→WTR1→LP)
+
+T32 	| W010 (CLN→WTR3→BUF) 	| W011 (POL→WTR2→CLN) | W012 (LP→WTR1→POL)
+T33 	| W010 (BUF) 		 	| W011 (CLN) 		  | W012 (POL)
+T34 	| W010 (BUF→WTR1→LP) 	| W011 (CLN) 		  | W012 (POL)
+
+T35 	| W013 (LP→WTR1→POL) 	| W011 (CLN→WTR3→BUF) | W012 (POL→WTR2→CLN)
+T36 	| W013 (POL) 		 	| W011 (BUF) 		  | W012 (CLN)
+T37 	| W013 (POL) 		 	| W011 (BUF→WTR1→LP)  | W012 (CLN)
+
+T38 	| W013 (POL→WTR2→CLN) 	| W014 (LP→WTR1→POL)  | W012 (CLN→WTR3→BUF)
+T39 	| W013 (CLN) 		 	| W014 (POL) 		  | W012 (BUF)
+T40 	| W013 (CLN) 		 	| W014 (POL) 		  | W012 (BUF→WTR1→LP)
+
+T41 	| W013 (CLN→WTR3→BUF) 	| W014 (POL→WTR2→CLN) | W015 (LP→WTR1→POL)
+T42 	| W013 (BUF) 		 	| W014 (CLN) 		  | W015 (POL)
+T43 	| W013 (BUF→WTR1→LP) 	| W014 (CLN) 		  | W015 (POL)
+
+T44 	| W016 (LP→WTR1→POL) 	| W014 (CLN→WTR3→BUF) | W015 (POL→WTR2→CLN)
+T45 	| W016 (POL) 		 	| W014 (BUF) 		  | W015 (CLN)
+T46 	| W016 (POL) 		 	| W014 (BUF→WTR1→LP)  | W015 (CLN)
+
+T47 	| W016 (POL→WTR2→CLN) 	| W017 (LP→WTR1→POL)  | W015 (CLN→WTR3→BUF)
+T48 	| W016 (CLN) 		 	| W017 (POL) 		  | W015 (BUF)
+T49 	| W016 (CLN) 		 	| W017 (POL) 		  | W015 (BUF→WTR1→LP)
+
+T50 	| W016 (CLN→WTR3→BUF) 	| W017 (POL→WTR2→CLN) | W018 (LP→WTR1→POL)
+T51 	| W016 (BUF) 		 	| W017 (CLN) 		  | W018 (POL)
+T52 	| W016 (BUF→WTR1→LP) 	| W017 (CLN) 		  | W018 (POL)
+
+T53 	| W019 (LP→WTR1→POL) 	| W017 (CLN→WTR3→BUF) | W018 (POL→WTR2→CLN)
+T54 	| W019 (POL) 		 	| W017 (BUF) 		  | W018 (CLN)
+T55 	| W019 (POL) 		 	| W017 (BUF→WTR1→LP)  | W018 (CLN)
+
+T56 	| W019 (POL→WTR2→CLN) 	| W020 (LP→WTR1→POL)  | W018 (CLN→WTR3→BUF)
+T57 	| W019 (CLN) 		 	| W020 (POL) 		  | W018 (BUF)
+T58 	| W019 (CLN) 		 	| W020 (POL) 		  | W018 (BUF→WTR1→LP)
+
+T59 	| W019 (CLN→WTR3→BUF) 	| W020 (POL→WTR2→CLN) | W021 (LP→WTR1→POL)
+T60 	| W019 (BUF) 		 	| W020 (CLN) 		  | W021 (POL)
+T61 	| W019 (BUF→WTR1→LP) 	| W020 (CLN) 		  | W021 (POL)
+
+T62 	| W022 (LP→WTR1→POL) 	| W020 (CLN→WTR3→BUF) | W021 (POL→WTR2→CLN)
+T63 	| W022 (POL) 		 	| W020 (BUF) 		  | W021 (CLN)
+T64 	| W022 (POL) 		 	| W020 (BUF→WTR1→LP)  | W021 (CLN)
+
+T65 	| W022 (POL→WTR2→CLN) 	| W023 (LP→WTR1→POL)  | W021 (CLN→WTR3→BUF)
+T66 	| W022 (CLN) 		 	| W023 (POL) 		  | W021 (BUF)
+T67 	| W022 (CLN) 		 	| W023 (POL) 		  | W021 (BUF→WTR1→LP)
+
+T68 	| W022 (CLN→WTR3→BUF) 	| W023 (POL→WTR2→CLN) | W024 (LP→WTR1→POL)
+T69 	| W022 (BUF) 		 	| W023 (CLN) 		  | W024 (POL)
+T70 	| W022 (BUF→WTR1→LP) 	| W023 (CLN) 		  | W024 (POL)
+
+T71 	| W025 (LP→WTR1→POL) 	| W023 (CLN→WTR3→BUF) | W024 (POL→WTR2→CLN)
+T72 	| W025 (POL) 		 	| W023 (BUF) 		  | W024 (CLN)
+T73 	| W025 (POL) 		 	| W023 (BUF→WTR1→LP)  | W024 (CLN)
+
+T74 	| W025 (POL→WTR2→CLN) 	| Empty 			  | W024 (CLN→WTR3→BUF)
+T75 	| W025 (CLN) 		 	| Empty 			  | W024 (BUF)
+T76 	| W025 (CLN) 		 	| Empty 			  | W024 (BUF→WTR1→LP)
+
+T77 	| W025 (CLN→WTR3→BUF) 	| Empty 			  | Empty
+T78 	| W025 (BUF) 		 	| Empty 			  | Empty
+T79 	| W025 (BUF→WTR1→LP) 	| Empty 			  | Empty

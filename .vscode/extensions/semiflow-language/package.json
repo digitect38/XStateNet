@@ -1,0 +1,17 @@
+﻿{
+  "name": "semiflow-language",
+  "version": "2.0.0",
+  "main": "./out/extension.js",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^4.9.0"
+  }
+}

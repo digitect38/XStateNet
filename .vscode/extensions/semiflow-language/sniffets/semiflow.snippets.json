@@ -1,0 +1,93 @@
+{
+  "Pipeline Schedule": {
+    "prefix": "schedule",
+    "body": [
+      "SCHEDULE ${1:CMP_LINE} {",
+      "\tIMPORT_RULES: [\"PSR_*\", \"WAR_*\", \"SSR_*\"]",
+      "\t",
+      "\tCONFIG {",
+      "\t\ttotal_wafers: ${2:25}",
+      "\t\tpipeline_depth: ${3:3}",
+      "\t\tnum_wsc: ${3:3}",
+      "\t}",
+      "\t",
+      "\tDISTRIBUTION {",
+      "\t\tmethod: \"CYCLIC_ZIP\"",
+      "\t\tapply_rule: \"WAR_001\"",
+      "\t}",
+      "\t",
+      "\tEXECUTION {",
+      "\t\tstartup_phase: [T1..T5]",
+      "\t\tsteady_state: APPLY_RULE(\"SSR_001\")",
+      "\t\tdrain_phase: [T74..T79]",
+      "\t}",
+      "\t",
+      "\tVERIFY {",
+      "\t\tassert: \"All wafers completed\"",
+      "\t\tassert: \"Throughput = 1/3 wafers/unit\"",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a complete pipeline schedule"
+  },
+  "Wafer Scheduler": {
+    "prefix": "wsc",
+    "body": [
+      "WAFER_SCHEDULER ${1:WSC_001} {",
+      "\tID: \"${2:wsc_001}\"",
+      "\tLAYER: L2",
+      "\tMASTER: \"MSC_001\"",
+      "\t",
+      "\tCONFIG {",
+      "\t\tdispatch_method: \"${3|CRITICAL_RATIO,FIFO,SPT,EDD|}\"",
+      "\t\tmax_wip: ${4:3}",
+      "\t}",
+      "\t",
+      "\tASSIGNED_WAFERS {",
+      "\t\tpattern: \"CYCLIC_ZIP\"",
+      "\t\twafers: FORMULA[(i % 3) == ${5:0}, i IN [1..25]]",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a wafer scheduler"
+  },
+  "Cyclic Zip Formula": {
+    "prefix": "cyclic",
+    "body": "FORMULA[(i % ${1:3}) == ${2:0}, i IN [${3:1}..${4:25}]]",
+    "description": "Cyclic zip distribution formula"
+  },
+  "Apply Rule": {
+    "prefix": "apply",
+    "body": "APPLY_RULE(\"${1|PSR_001,PSR_002,PSR_003,WAR_001,WAR_002,SSR_001,SSR_002|}\")",
+    "description": "Apply a scheduling rule"
+  },
+  "Station Definition": {
+    "prefix": "station",
+    "body": [
+      "STATION ${1:CMP_001} {",
+      "\tID: \"${1:cmp_001}\"",
+      "\tTYPE: \"${2|CMP_PLATEN,CLEANER,BUFFER,LOAD_PORT,WTR|}\"",
+      "\tLAYER: L4",
+      "\t",
+      "\tCAPABILITIES: [${3:\"POLISH\", \"CONDITION\"}]",
+      "\t",
+      "\tSTATUS_REPORT {",
+      "\t\treport_to: \"MSC_001\"",
+      "\t\tinterval: ${4:1}s",
+      "\t}",
+      "}"
+    ],
+    "description": "Define a station"
+  },
+  "Verification Block": {
+    "prefix": "verify",
+    "body": [
+      "VERIFY {",
+      "\tassert: \"${1:All wafers completed}\"",
+      "\tassert: \"${2:No WTR conflicts}\"",
+      "\tassert: \"${3:Pipeline efficiency > 80%}\"",
+      "}"
+    ],
+    "description": "Add verification assertions"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "id": "master_scheduler",
+  "initial": "idle",
+  "context": {
+    "carrier_unprocessed": 25,
+    "carrier_processed": 0,
+    "active_wafers": [],
+    "max_concurrent_wafers": 3,
+    "config": {
+      "polish_time": 200,
+      "clean_time": 150,
+      "buffer_time": 100,
+      "move_time": 50,
+      "pick_place_time": 30,
+      "timeout": 5000
+    }
+  },
+  "states": {
+    "idle": {
+      "entry": ["logMasterIdle"],
+      "on": {
+        "START_SYSTEM": "initializing"
+      }
+    },
+    "initializing": {
+      "entry": ["logMasterInitializing", "initializeResources"],
+      "on": {
+        "RESOURCES_READY": "running"
+      },
+      "after": {
+        "5000": "error"
+      }
+    },
+    "running": {
+      "entry": ["logMasterRunning"],
+      "type": "parallel",
+      "states": {
+        "equipment_state": {
+          "initial": "idle",
+          "states": {
+            "idle": {
+              "entry": ["logEquipmentIdle"],
+              "on": {
+                "WAFER_STARTED": "executing"
+              }
+            },
+            "executing": {
+              "entry": ["logEquipmentExecuting"],
+              "on": {
+                "ALL_WAFERS_COMPLETE": "idle",
+                "SYSTEM_ERROR": "alarm"
+              }
+            },
+            "alarm": {
+              "entry": ["logEquipmentAlarm"],
+              "on": {
+                "CLEAR_ALARM": "idle"
+              }
+            }
+          }
+        },
+        "wafer_spawner": {
+          "initial": "ready",
+          "states": {
+            "ready": {
+              "entry": ["checkAndSpawnWafer"],
+              "always": [
+                {
+                  "target": "all_complete",
+                  "guard": "allWafersProcessed"
+                },
+                {
+                  "target": "spawning",
+                  "guard": "canSpawnWafer"
+                }
+              ]
+            },
+            "spawning": {
+              "entry": ["spawnWaferScheduler"],
+              "on": {
+                "WAFER_SPAWNED": "ready"
+              },
+              "after": {
+                "100": "ready"
+              }
+            },
+            "all_complete": {
+              "entry": ["logAllWafersComplete"],
+              "type": "final"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "entry": ["logMasterError"],
+      "on": {
+        "RESET": "idle"
+      }
+    },
+    "completed": {
+      "type": "final",
+      "entry": ["logMasterCompleted", "generateFinalReport"]
+    }
+  }
+}

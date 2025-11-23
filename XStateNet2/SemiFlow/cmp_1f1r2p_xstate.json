@@ -1,0 +1,2479 @@
+{
+  "id": "CMP_1F1R2P_Scheduler",
+  "initial": "",
+  "type": "parallel",
+  "context": {
+    "processedWafers": 0,
+    "totalWafers": 25,
+    "activeWafers": [],
+    "completedWafers": [],
+    "errorCount": 0,
+    "cycleStartTime": 0,
+    "currentLot": "LOT001",
+    "MAX_WAFERS": 25,
+    "ROBOT_MOVE_TIME": 2000,
+    "PLATEN_PROCESS_TIME": 60000,
+    "WAFER_LOAD_TIME": 3000,
+    "WAFER_UNLOAD_TIME": 3000,
+    "BUFFER_SIZE": 1,
+    "stations": {
+      "available": [
+        "FOUP1",
+        "ROBOT1",
+        "PLATEN1",
+        "PLATEN2"
+      ],
+      "inUse": []
+    },
+    "resources": {
+      "reserved": []
+    }
+  },
+  "on": null,
+  "states": {
+    "wafer_scheduler": {
+      "on": null,
+      "entry": null,
+      "exit": null,
+      "states": {
+        "initialize": {
+          "on": {
+            "initializeSystem_DONE": "start_lot"
+          },
+          "entry": [
+            "initializeSystem"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "start_lot": {
+          "on": {
+            "startLotProcessing_DONE": "wafer_loop"
+          },
+          "entry": [
+            "startLotProcessing"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "wafer_loop": {
+          "on": null,
+          "entry": null,
+          "exit": null,
+          "states": {
+            "loop_body": {
+              "on": null,
+              "entry": null,
+              "exit": null,
+              "states": {
+                "get_next_wafer": {
+                  "on": {
+                    "getNextWaferFromFoup_DONE": "determine_process_type"
+                  },
+                  "entry": [
+                    "getNextWaferFromFoup"
+                  ],
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "determine_process_type": {
+                  "on": {
+                    "determineProcessType_DONE": "process_decision"
+                  },
+                  "entry": [
+                    "determineProcessType"
+                  ],
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "process_decision": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": {
+                    "case_0": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": {
+                        "two_step_process": {
+                          "on": null,
+                          "entry": null,
+                          "exit": null,
+                          "states": {
+                            "load_from_foup_2step": {
+                              "on": null,
+                              "entry": [
+                                "acquireStation_robot"
+                              ],
+                              "exit": null,
+                              "states": {
+                                "acquiring": {
+                                  "on": {
+                                    "STATION_ACQUIRED": "using",
+                                    "STATION_UNAVAILABLE": "waiting"
+                                  },
+                                  "entry": [
+                                    "requestStation_robot"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "waiting": {
+                                  "on": null,
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "1000": "acquiring"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "using": {
+                                  "on": {
+                                    "USAGE_COMPLETE": {
+                                      "target": "..first_platen_process",
+                                      "cond": null,
+                                      "guard": null,
+                                      "in": null,
+                                      "actions": [
+                                        "releaseStation_robot"
+                                      ],
+                                      "internal": false
+                                    }
+                                  },
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "acquiring",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "first_platen_process": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "select_platen_for_step1": {
+                                  "on": {
+                                    "selectAvailablePlaten_DONE": "move_to_platen1_step1"
+                                  },
+                                  "entry": [
+                                    "selectAvailablePlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "move_to_platen1_step1": {
+                                  "on": {
+                                    "moveRobotToPlaten_DONE": "place_on_platen_step1"
+                                  },
+                                  "entry": [
+                                    "moveRobotToPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "10000": "place_on_platen_step1"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "place_on_platen_step1": {
+                                  "on": {
+                                    "placeWaferOnPlaten_DONE": "release_robot_after_step1"
+                                  },
+                                  "entry": [
+                                    "placeWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "5000": "release_robot_after_step1"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "release_robot_after_step1": {
+                                  "on": {
+                                    "robotReturnHome_DONE": "process_step1"
+                                  },
+                                  "entry": [
+                                    "robotReturnHome"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "process_step1": {
+                                  "on": null,
+                                  "entry": [
+                                    "processWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "90000": "wait_for_step1_complete"
+                                  },
+                                  "always": "wait_for_step1_complete",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "wait_for_step1_complete": {
+                                  "on": null,
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": {
+                                    "target": "collect_step1_metric",
+                                    "cond": "platenProcessComplete",
+                                    "guard": "platenProcessComplete",
+                                    "in": null,
+                                    "actions": null,
+                                    "internal": false
+                                  },
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "collect_step1_metric": {
+                                  "on": null,
+                                  "entry": [
+                                    "collectMetric_cycle_time"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": "transfer_to_platen2",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "select_platen_for_step1",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "transfer_to_platen2": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "acquire_robot_for_transfer": {
+                                  "on": null,
+                                  "entry": [
+                                    "acquireStation_robot"
+                                  ],
+                                  "exit": null,
+                                  "states": {
+                                    "acquiring": {
+                                      "on": {
+                                        "STATION_ACQUIRED": "using",
+                                        "STATION_UNAVAILABLE": "waiting"
+                                      },
+                                      "entry": [
+                                        "requestStation_robot"
+                                      ],
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "waiting": {
+                                      "on": null,
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": {
+                                        "1000": "acquiring"
+                                      },
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "using": {
+                                      "on": {
+                                        "USAGE_COMPLETE": {
+                                          "target": "..pick_from_platen1",
+                                          "cond": null,
+                                          "guard": null,
+                                          "in": null,
+                                          "actions": [
+                                            "releaseStation_robot"
+                                          ],
+                                          "internal": false
+                                        }
+                                      },
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    }
+                                  },
+                                  "initial": "acquiring",
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "pick_from_platen1": {
+                                  "on": {
+                                    "pickWaferFromPlaten_DONE": "select_platen_for_step2"
+                                  },
+                                  "entry": [
+                                    "pickWaferFromPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "select_platen_for_step2": {
+                                  "on": {
+                                    "selectOtherPlaten_DONE": "move_to_platen2"
+                                  },
+                                  "entry": [
+                                    "selectOtherPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "move_to_platen2": {
+                                  "on": {
+                                    "moveRobotToPlaten_DONE": "place_on_platen2"
+                                  },
+                                  "entry": [
+                                    "moveRobotToPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "10000": "place_on_platen2"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "place_on_platen2": {
+                                  "on": {
+                                    "placeWaferOnPlaten_DONE": "release_robot_after_step2_load"
+                                  },
+                                  "entry": [
+                                    "placeWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "5000": "release_robot_after_step2_load"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "release_robot_after_step2_load": {
+                                  "on": {
+                                    "robotReturnHome_DONE": "second_platen_process"
+                                  },
+                                  "entry": [
+                                    "robotReturnHome"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "acquire_robot_for_transfer",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "second_platen_process": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "process_step2": {
+                                  "on": null,
+                                  "entry": [
+                                    "processWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "90000": "wait_for_step2_complete"
+                                  },
+                                  "always": "wait_for_step2_complete",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "wait_for_step2_complete": {
+                                  "on": null,
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": {
+                                    "target": "collect_step2_metric",
+                                    "cond": "platenProcessComplete",
+                                    "guard": "platenProcessComplete",
+                                    "in": null,
+                                    "actions": null,
+                                    "internal": false
+                                  },
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "collect_step2_metric": {
+                                  "on": null,
+                                  "entry": [
+                                    "collectMetric_cycle_time"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": "return_to_foup_2step",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "process_step2",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "return_to_foup_2step": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "acquire_robot_for_return_2step": {
+                                  "on": null,
+                                  "entry": [
+                                    "acquireStation_robot"
+                                  ],
+                                  "exit": null,
+                                  "states": {
+                                    "acquiring": {
+                                      "on": {
+                                        "STATION_ACQUIRED": "using",
+                                        "STATION_UNAVAILABLE": "waiting"
+                                      },
+                                      "entry": [
+                                        "requestStation_robot"
+                                      ],
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "waiting": {
+                                      "on": null,
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": {
+                                        "1000": "acquiring"
+                                      },
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "using": {
+                                      "on": {
+                                        "USAGE_COMPLETE": {
+                                          "target": "..pick_from_platen2",
+                                          "cond": null,
+                                          "guard": null,
+                                          "in": null,
+                                          "actions": [
+                                            "releaseStation_robot"
+                                          ],
+                                          "internal": false
+                                        }
+                                      },
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    }
+                                  },
+                                  "initial": "acquiring",
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "pick_from_platen2": {
+                                  "on": {
+                                    "pickWaferFromPlaten_DONE": "move_to_foup_2step"
+                                  },
+                                  "entry": [
+                                    "pickWaferFromPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "move_to_foup_2step": {
+                                  "on": {
+                                    "moveRobotToFoup_DONE": "place_in_foup_2step"
+                                  },
+                                  "entry": [
+                                    "moveRobotToFoup"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "10000": "place_in_foup_2step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "place_in_foup_2step": {
+                                  "on": {
+                                    "placeWaferInFoup_DONE": "release_robot_final_2step"
+                                  },
+                                  "entry": [
+                                    "placeWaferInFoup"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "5000": "release_robot_final_2step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "release_robot_final_2step": {
+                                  "on": {
+                                    "robotReturnHome_DONE": "complete_wafer_2step"
+                                  },
+                                  "entry": [
+                                    "robotReturnHome"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "acquire_robot_for_return_2step",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "complete_wafer_2step": {
+                              "on": {
+                                "markWaferComplete_DONE": "increment_count"
+                              },
+                              "entry": [
+                                "markWaferComplete"
+                              ],
+                              "exit": null,
+                              "states": null,
+                              "initial": null,
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            }
+                          },
+                          "initial": "load_from_foup_2step",
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": null,
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        }
+                      },
+                      "initial": "two_step_process",
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    },
+                    "otherwise_1": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": {
+                        "one_step_process": {
+                          "on": null,
+                          "entry": null,
+                          "exit": null,
+                          "states": {
+                            "load_from_foup_1step": {
+                              "on": null,
+                              "entry": [
+                                "acquireStation_robot"
+                              ],
+                              "exit": null,
+                              "states": {
+                                "acquiring": {
+                                  "on": {
+                                    "STATION_ACQUIRED": "using",
+                                    "STATION_UNAVAILABLE": "waiting"
+                                  },
+                                  "entry": [
+                                    "requestStation_robot"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "waiting": {
+                                  "on": null,
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "1000": "acquiring"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "using": {
+                                  "on": {
+                                    "USAGE_COMPLETE": {
+                                      "target": "..single_platen_process",
+                                      "cond": null,
+                                      "guard": null,
+                                      "in": null,
+                                      "actions": [
+                                        "releaseStation_robot"
+                                      ],
+                                      "internal": false
+                                    }
+                                  },
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "acquiring",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "single_platen_process": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "select_platen_1step": {
+                                  "on": {
+                                    "selectAvailablePlaten_DONE": "move_to_platen_1step"
+                                  },
+                                  "entry": [
+                                    "selectAvailablePlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "move_to_platen_1step": {
+                                  "on": {
+                                    "moveRobotToPlaten_DONE": "place_on_platen_1step"
+                                  },
+                                  "entry": [
+                                    "moveRobotToPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "10000": "place_on_platen_1step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "place_on_platen_1step": {
+                                  "on": {
+                                    "placeWaferOnPlaten_DONE": "release_robot_1step"
+                                  },
+                                  "entry": [
+                                    "placeWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "5000": "release_robot_1step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "release_robot_1step": {
+                                  "on": {
+                                    "robotReturnHome_DONE": "process_1step"
+                                  },
+                                  "entry": [
+                                    "robotReturnHome"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "process_1step": {
+                                  "on": null,
+                                  "entry": [
+                                    "processWaferOnPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "90000": "wait_for_complete_1step"
+                                  },
+                                  "always": "wait_for_complete_1step",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "wait_for_complete_1step": {
+                                  "on": null,
+                                  "entry": null,
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": {
+                                    "target": "collect_metric_1step",
+                                    "cond": "platenProcessComplete",
+                                    "guard": "platenProcessComplete",
+                                    "in": null,
+                                    "actions": null,
+                                    "internal": false
+                                  },
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "collect_metric_1step": {
+                                  "on": null,
+                                  "entry": [
+                                    "collectMetric_cycle_time"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": "return_to_foup_1step",
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "select_platen_1step",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "return_to_foup_1step": {
+                              "on": null,
+                              "entry": null,
+                              "exit": null,
+                              "states": {
+                                "acquire_robot_for_return_1step": {
+                                  "on": null,
+                                  "entry": [
+                                    "acquireStation_robot"
+                                  ],
+                                  "exit": null,
+                                  "states": {
+                                    "acquiring": {
+                                      "on": {
+                                        "STATION_ACQUIRED": "using",
+                                        "STATION_UNAVAILABLE": "waiting"
+                                      },
+                                      "entry": [
+                                        "requestStation_robot"
+                                      ],
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "waiting": {
+                                      "on": null,
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": {
+                                        "1000": "acquiring"
+                                      },
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    },
+                                    "using": {
+                                      "on": {
+                                        "USAGE_COMPLETE": {
+                                          "target": "..pick_from_platen_1step",
+                                          "cond": null,
+                                          "guard": null,
+                                          "in": null,
+                                          "actions": [
+                                            "releaseStation_robot"
+                                          ],
+                                          "internal": false
+                                        }
+                                      },
+                                      "entry": null,
+                                      "exit": null,
+                                      "states": null,
+                                      "initial": null,
+                                      "type": null,
+                                      "history": null,
+                                      "target": null,
+                                      "invoke": null,
+                                      "after": null,
+                                      "always": null,
+                                      "onDone": null,
+                                      "meta": null,
+                                      "description": null,
+                                      "tags": null,
+                                      "output": null
+                                    }
+                                  },
+                                  "initial": "acquiring",
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "pick_from_platen_1step": {
+                                  "on": {
+                                    "pickWaferFromPlaten_DONE": "move_to_foup_1step"
+                                  },
+                                  "entry": [
+                                    "pickWaferFromPlaten"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "move_to_foup_1step": {
+                                  "on": {
+                                    "moveRobotToFoup_DONE": "place_in_foup_1step"
+                                  },
+                                  "entry": [
+                                    "moveRobotToFoup"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "10000": "place_in_foup_1step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "place_in_foup_1step": {
+                                  "on": {
+                                    "placeWaferInFoup_DONE": "release_robot_final_1step"
+                                  },
+                                  "entry": [
+                                    "placeWaferInFoup"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": {
+                                    "5000": "release_robot_final_1step"
+                                  },
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                },
+                                "release_robot_final_1step": {
+                                  "on": {
+                                    "robotReturnHome_DONE": "complete_wafer_1step"
+                                  },
+                                  "entry": [
+                                    "robotReturnHome"
+                                  ],
+                                  "exit": null,
+                                  "states": null,
+                                  "initial": null,
+                                  "type": null,
+                                  "history": null,
+                                  "target": null,
+                                  "invoke": null,
+                                  "after": null,
+                                  "always": null,
+                                  "onDone": null,
+                                  "meta": null,
+                                  "description": null,
+                                  "tags": null,
+                                  "output": null
+                                }
+                              },
+                              "initial": "acquire_robot_for_return_1step",
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            },
+                            "complete_wafer_1step": {
+                              "on": {
+                                "markWaferComplete_DONE": "increment_count"
+                              },
+                              "entry": [
+                                "markWaferComplete"
+                              ],
+                              "exit": null,
+                              "states": null,
+                              "initial": null,
+                              "type": null,
+                              "history": null,
+                              "target": null,
+                              "invoke": null,
+                              "after": null,
+                              "always": null,
+                              "onDone": null,
+                              "meta": null,
+                              "description": null,
+                              "tags": null,
+                              "output": null
+                            }
+                          },
+                          "initial": "load_from_foup_1step",
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": null,
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        }
+                      },
+                      "initial": "one_step_process",
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    },
+                    "entry": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": null,
+                      "initial": null,
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": [
+                        {
+                          "target": "case_0",
+                          "cond": "isTwoStepProcess",
+                          "guard": "isTwoStepProcess",
+                          "in": null,
+                          "actions": null,
+                          "internal": false
+                        },
+                        {
+                          "target": "otherwise_1",
+                          "cond": null,
+                          "guard": null,
+                          "in": null,
+                          "actions": null,
+                          "internal": false
+                        }
+                      ],
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    }
+                  },
+                  "initial": "entry",
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "increment_count": {
+                  "on": {
+                    "incrementProcessedCount_DONE": "emit_wafer_done"
+                  },
+                  "entry": [
+                    "incrementProcessedCount"
+                  ],
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "emit_wafer_done": {
+                  "on": null,
+                  "entry": [
+                    "emitEvent_WAFER_PROCESSED"
+                  ],
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": "loop_check",
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "loop_check": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": [
+                    {
+                      "target": "get_next_wafer",
+                      "cond": "hasMoreWafers",
+                      "guard": "hasMoreWafers",
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    },
+                    {
+                      "target": "..finalize_lot",
+                      "cond": null,
+                      "guard": null,
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    }
+                  ],
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                }
+              },
+              "initial": "get_next_wafer",
+              "type": null,
+              "history": null,
+              "target": null,
+              "invoke": null,
+              "after": null,
+              "always": null,
+              "onDone": null,
+              "meta": null,
+              "description": null,
+              "tags": null,
+              "output": null
+            }
+          },
+          "initial": "loop_body",
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "finalize_lot": {
+          "on": {
+            "finalizeLotProcessing_DONE": "emit_lot_complete"
+          },
+          "entry": [
+            "finalizeLotProcessing"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "emit_lot_complete": {
+          "on": null,
+          "entry": [
+            "emitEvent_LOT_COMPLETE"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": "cleanup",
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "cleanup": {
+          "on": {
+            "cleanupSystem_DONE": "completed"
+          },
+          "entry": [
+            "cleanupSystem"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "completed": {
+          "on": null,
+          "entry": [
+            "logLanewafer_schedulerCompleted"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": "final",
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        }
+      },
+      "initial": "initialize",
+      "type": null,
+      "history": null,
+      "target": null,
+      "invoke": null,
+      "after": null,
+      "always": null,
+      "onDone": null,
+      "meta": null,
+      "description": null,
+      "tags": null,
+      "output": null
+    },
+    "platen1_manager": {
+      "on": null,
+      "entry": null,
+      "exit": null,
+      "states": {
+        "platen1_init": {
+          "on": {
+            "initializePlaten1_DONE": "platen1_monitor"
+          },
+          "entry": [
+            "initializePlaten1"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "platen1_monitor": {
+          "on": null,
+          "entry": null,
+          "exit": null,
+          "states": {
+            "loop_body": {
+              "on": null,
+              "entry": null,
+              "exit": null,
+              "states": {
+                "wait_for_wafer_p1": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": {
+                    "waiting": {
+                      "on": {
+                        "WAFER_ON_PLATEN1": "handling"
+                      },
+                      "entry": null,
+                      "exit": null,
+                      "states": null,
+                      "initial": null,
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    },
+                    "handling": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": {
+                        "update_platen1_state": {
+                          "on": {
+                            "updatePlatenState_DONE": "track_utilization_p1"
+                          },
+                          "entry": [
+                            "updatePlatenState"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": null,
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        },
+                        "track_utilization_p1": {
+                          "on": null,
+                          "entry": [
+                            "collectMetric_platen1_utilization"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": "waiting",
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        }
+                      },
+                      "initial": "update_platen1_state",
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    }
+                  },
+                  "initial": "waiting",
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "loop_check": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": [
+                    {
+                      "target": "wait_for_wafer_p1",
+                      "cond": "systemRunning",
+                      "guard": "systemRunning",
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    },
+                    {
+                      "target": "..completed",
+                      "cond": null,
+                      "guard": null,
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    }
+                  ],
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                }
+              },
+              "initial": "wait_for_wafer_p1",
+              "type": null,
+              "history": null,
+              "target": null,
+              "invoke": null,
+              "after": null,
+              "always": null,
+              "onDone": null,
+              "meta": null,
+              "description": null,
+              "tags": null,
+              "output": null
+            }
+          },
+          "initial": "loop_body",
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "completed": {
+          "on": null,
+          "entry": [
+            "logLaneplaten1_managerCompleted"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": "final",
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        }
+      },
+      "initial": "platen1_init",
+      "type": null,
+      "history": null,
+      "target": null,
+      "invoke": null,
+      "after": null,
+      "always": null,
+      "onDone": null,
+      "meta": null,
+      "description": null,
+      "tags": null,
+      "output": null
+    },
+    "platen2_manager": {
+      "on": null,
+      "entry": null,
+      "exit": null,
+      "states": {
+        "platen2_init": {
+          "on": {
+            "initializePlaten2_DONE": "platen2_monitor"
+          },
+          "entry": [
+            "initializePlaten2"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "platen2_monitor": {
+          "on": null,
+          "entry": null,
+          "exit": null,
+          "states": {
+            "loop_body": {
+              "on": null,
+              "entry": null,
+              "exit": null,
+              "states": {
+                "wait_for_wafer_p2": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": {
+                    "waiting": {
+                      "on": {
+                        "WAFER_ON_PLATEN2": "handling"
+                      },
+                      "entry": null,
+                      "exit": null,
+                      "states": null,
+                      "initial": null,
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    },
+                    "handling": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": {
+                        "update_platen2_state": {
+                          "on": {
+                            "updatePlatenState_DONE": "track_utilization_p2"
+                          },
+                          "entry": [
+                            "updatePlatenState"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": null,
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        },
+                        "track_utilization_p2": {
+                          "on": null,
+                          "entry": [
+                            "collectMetric_platen2_utilization"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": "waiting",
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        }
+                      },
+                      "initial": "update_platen2_state",
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    }
+                  },
+                  "initial": "waiting",
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "loop_check": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": [
+                    {
+                      "target": "wait_for_wafer_p2",
+                      "cond": "systemRunning",
+                      "guard": "systemRunning",
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    },
+                    {
+                      "target": "..completed",
+                      "cond": null,
+                      "guard": null,
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    }
+                  ],
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                }
+              },
+              "initial": "wait_for_wafer_p2",
+              "type": null,
+              "history": null,
+              "target": null,
+              "invoke": null,
+              "after": null,
+              "always": null,
+              "onDone": null,
+              "meta": null,
+              "description": null,
+              "tags": null,
+              "output": null
+            }
+          },
+          "initial": "loop_body",
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "completed": {
+          "on": null,
+          "entry": [
+            "logLaneplaten2_managerCompleted"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": "final",
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        }
+      },
+      "initial": "platen2_init",
+      "type": null,
+      "history": null,
+      "target": null,
+      "invoke": null,
+      "after": null,
+      "always": null,
+      "onDone": null,
+      "meta": null,
+      "description": null,
+      "tags": null,
+      "output": null
+    },
+    "robot_manager": {
+      "on": null,
+      "entry": null,
+      "exit": null,
+      "states": {
+        "robot_init": {
+          "on": {
+            "initializeRobot_DONE": "robot_monitor"
+          },
+          "entry": [
+            "initializeRobot"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "robot_monitor": {
+          "on": null,
+          "entry": null,
+          "exit": null,
+          "states": {
+            "loop_body": {
+              "on": null,
+              "entry": null,
+              "exit": null,
+              "states": {
+                "wait_for_robot_task": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": {
+                    "waiting": {
+                      "on": {
+                        "ROBOT_TASK": "handling"
+                      },
+                      "entry": null,
+                      "exit": null,
+                      "states": null,
+                      "initial": null,
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    },
+                    "handling": {
+                      "on": null,
+                      "entry": null,
+                      "exit": null,
+                      "states": {
+                        "execute_robot_task": {
+                          "on": {
+                            "executeRobotMovement_DONE": "track_robot_utilization"
+                          },
+                          "entry": [
+                            "executeRobotMovement"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": null,
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        },
+                        "track_robot_utilization": {
+                          "on": null,
+                          "entry": [
+                            "collectMetric_robot_utilization"
+                          ],
+                          "exit": null,
+                          "states": null,
+                          "initial": null,
+                          "type": null,
+                          "history": null,
+                          "target": null,
+                          "invoke": null,
+                          "after": null,
+                          "always": "waiting",
+                          "onDone": null,
+                          "meta": null,
+                          "description": null,
+                          "tags": null,
+                          "output": null
+                        }
+                      },
+                      "initial": "execute_robot_task",
+                      "type": null,
+                      "history": null,
+                      "target": null,
+                      "invoke": null,
+                      "after": null,
+                      "always": null,
+                      "onDone": null,
+                      "meta": null,
+                      "description": null,
+                      "tags": null,
+                      "output": null
+                    }
+                  },
+                  "initial": "waiting",
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": null,
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                },
+                "loop_check": {
+                  "on": null,
+                  "entry": null,
+                  "exit": null,
+                  "states": null,
+                  "initial": null,
+                  "type": null,
+                  "history": null,
+                  "target": null,
+                  "invoke": null,
+                  "after": null,
+                  "always": [
+                    {
+                      "target": "wait_for_robot_task",
+                      "cond": "systemRunning",
+                      "guard": "systemRunning",
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    },
+                    {
+                      "target": "..completed",
+                      "cond": null,
+                      "guard": null,
+                      "in": null,
+                      "actions": null,
+                      "internal": false
+                    }
+                  ],
+                  "onDone": null,
+                  "meta": null,
+                  "description": null,
+                  "tags": null,
+                  "output": null
+                }
+              },
+              "initial": "wait_for_robot_task",
+              "type": null,
+              "history": null,
+              "target": null,
+              "invoke": null,
+              "after": null,
+              "always": null,
+              "onDone": null,
+              "meta": null,
+              "description": null,
+              "tags": null,
+              "output": null
+            }
+          },
+          "initial": "loop_body",
+          "type": null,
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        },
+        "completed": {
+          "on": null,
+          "entry": [
+            "logLanerobot_managerCompleted"
+          ],
+          "exit": null,
+          "states": null,
+          "initial": null,
+          "type": "final",
+          "history": null,
+          "target": null,
+          "invoke": null,
+          "after": null,
+          "always": null,
+          "onDone": null,
+          "meta": null,
+          "description": null,
+          "tags": null,
+          "output": null
+        }
+      },
+      "initial": "robot_init",
+      "type": null,
+      "history": null,
+      "target": null,
+      "invoke": null,
+      "after": null,
+      "always": null,
+      "onDone": null,
+      "meta": null,
+      "description": null,
+      "tags": null,
+      "output": null
+    }
+  }
+}

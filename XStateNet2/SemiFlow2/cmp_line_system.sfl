@@ -1,0 +1,84 @@
+// File: cmp_line_system.sfl
+// Semi Flow Language Example - CMP Production Line
+
+import semiflow.algorithms.cyclic_zip
+import semiflow.semi.e90
+
+MASTER_SCHEDULER MSC_001 {
+  LAYER: L1
+  
+  CONFIG {
+    wafer_distribution: "CYCLIC_ZIP"
+    total_wafers: 25
+    active_wsc_count: 3
+    optimization_interval: 30s
+  }
+  
+  // Cyclic zip distribution for 25 wafers
+  SCHEDULE PRODUCTION_RUN_001 {
+    wafer_count: 25
+    scheduler_count: 3
+    
+    // Apply Semi Flow rules
+    APPLY_RULE("WAR_001")  // Cyclic Zip
+    APPLY_RULE("PSR_001")  // Pipeline Slots
+    APPLY_RULE("SSR_001")  // Steady State
+    
+    // Verification
+    VERIFY {
+      constraint: "all_wafers_assigned"
+      constraint: "no_conflicts"
+      constraint: "pipeline_depth <= 3"
+    }
+  }
+}
+
+WAFER_SCHEDULER WSC_001 {
+  LAYER: L2
+  
+  CONFIG {
+    assigned_wafers: FORMULA(CYCLIC_ZIP, 0, 3, 25)
+    // Results in: [W1, W4, W7, W10, W13, W16, W19, W22, W25]
+    max_concurrent: 3
+  }
+  
+  // Subscribe to commands
+  subscribe to "msc/+/command" as msc_commands @2;
+  
+  // Publish status
+  publish status to "wsc/001/status" @1;
+}
+
+ROBOT_SCHEDULER RSC_EFEM_001 {
+  LAYER: L3
+  
+  CONFIG {
+    robot_type: "EFEM"
+    max_velocity: 2.0  // m/s
+    position_update_rate: 10Hz
+  }
+  
+  // Real-time position updates
+  publish position to "rsc/efem/position" @0, volatile;
+  
+  // Transaction handling
+  transaction MOVE_WAFER {
+    parent: TXN_MSC_001
+    command: move(W001, STN_CMP01, STN_CLN01)
+    timeout: 30s
+    retry: exponential_backoff(3)
+  }
+}
+
+STATION STN_CMP01 {
+  LAYER: L4
+  
+  CONFIG {
+    type: "CMP_POLISHER"
+    process_time: 180s
+    capacity: 1
+  }
+  
+  // Direct status to MSC
+  publish state to "station/cmp01/state" @2, persistent;
+}

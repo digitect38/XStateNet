@@ -1,0 +1,23 @@
+﻿// test_cyclic_zip.sfl
+// Test file for cyclic zip validation
+
+MASTER_SCHEDULER TEST_MSC {
+    LAYER: L1
+    
+    CONFIG {
+        test_mode: true
+        wafer_distribution: "CYCLIC_ZIP"
+        total_wafers: 25
+    }
+    
+    SCHEDULE TEST_RUN {
+        APPLY_RULE("WAR_001")
+        
+        VERIFY {
+            wsc_001_count: 9
+            wsc_002_count: 8
+            wsc_003_count: 8
+            total_distributed: 25
+        }
+    }
+}

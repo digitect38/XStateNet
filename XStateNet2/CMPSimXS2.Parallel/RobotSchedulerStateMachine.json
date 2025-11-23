@@ -1,0 +1,242 @@
+{
+  "id": "robotScheduler",
+  "type": "parallel",
+  "entry": ["reportRobotsReady", "reportEquipmentReady"],
+  "states": {
+    "robot1": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "entry": ["reportRobot1Ready"],
+          "on": {
+            "REQUEST_ROBOT1": {
+              "target": "requestingPermission",
+              "actions": ["storePendingRequest"]
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "working",
+              "actions": ["notifyWaferScheduler", "executeTask"]
+            },
+            "PERMISSION_DENIED": {
+              "target": "waiting",
+              "actions": ["notifyWait", "scheduleRetry"]
+            }
+          }
+        },
+        "waiting": {
+          "on": {
+            "RETRY_PERMISSION": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "working": {
+          "on": {
+            "TASK_COMPLETE": {
+              "target": "releasing",
+              "actions": ["releaseResource"]
+            }
+          }
+        },
+        "releasing": {
+          "on": {
+            "RELEASE_COMPLETE": {
+              "target": "idle",
+              "actions": ["processQueue"]
+            }
+          }
+        }
+      }
+    },
+    "robot2": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "REQUEST_ROBOT2": {
+              "target": "requestingPermission",
+              "actions": ["storePendingRequest"]
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "working",
+              "actions": ["notifyWaferScheduler", "executeTask"]
+            },
+            "PERMISSION_DENIED": {
+              "target": "waiting",
+              "actions": ["notifyWait", "scheduleRetry"]
+            }
+          }
+        },
+        "waiting": {
+          "on": {
+            "RETRY_PERMISSION": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "working": {
+          "on": {
+            "TASK_COMPLETE": {
+              "target": "releasing",
+              "actions": ["releaseResource"]
+            }
+          }
+        },
+        "releasing": {
+          "on": {
+            "RELEASE_COMPLETE": {
+              "target": "idle",
+              "actions": ["processQueue"]
+            }
+          }
+        }
+      }
+    },
+    "robot3": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "REQUEST_ROBOT3": {
+              "target": "requestingPermission",
+              "actions": ["storePendingRequest"]
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "working",
+              "actions": ["notifyWaferScheduler", "executeTask"]
+            },
+            "PERMISSION_DENIED": {
+              "target": "waiting",
+              "actions": ["notifyWait", "scheduleRetry"]
+            }
+          }
+        },
+        "waiting": {
+          "on": {
+            "RETRY_PERMISSION": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "working": {
+          "on": {
+            "TASK_COMPLETE": {
+              "target": "releasing",
+              "actions": ["releaseResource"]
+            }
+          }
+        },
+        "releasing": {
+          "on": {
+            "RELEASE_COMPLETE": {
+              "target": "idle",
+              "actions": ["processQueue"]
+            }
+          }
+        }
+      }
+    },
+    "platen": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "REQUEST_POLISH": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "polishing",
+              "actions": ["notifyWaferScheduler"]
+            }
+          }
+        },
+        "polishing": {
+          "after": {
+            "POLISH_DURATION": {
+              "target": "idle",
+              "actions": ["notifyPolishComplete"]
+            }
+          }
+        }
+      }
+    },
+    "cleaner": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "REQUEST_CLEAN": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "cleaning",
+              "actions": ["notifyWaferScheduler"]
+            }
+          }
+        },
+        "cleaning": {
+          "after": {
+            "CLEAN_DURATION": {
+              "target": "idle",
+              "actions": ["notifyCleanComplete"]
+            }
+          }
+        }
+      }
+    },
+    "buffer": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "on": {
+            "REQUEST_BUFFER": {
+              "target": "requestingPermission"
+            }
+          }
+        },
+        "requestingPermission": {
+          "entry": ["requestCoordinatorPermission"],
+          "on": {
+            "PERMISSION_GRANTED": {
+              "target": "buffering",
+              "actions": ["notifyWaferScheduler"]
+            }
+          }
+        },
+        "buffering": {
+          "after": {
+            "BUFFER_DURATION": {
+              "target": "idle",
+              "actions": ["notifyBufferComplete"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="NewFolder\**" />
+    <EmbeddedResource Remove="NewFolder\**" />
+    <None Remove="NewFolder\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XStateNet2.Core\XStateNet2.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Akka" Version="1.5.54" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\master_scheduler.json" CopyToOutputDirectory="PreserveNewest" Link="master_scheduler.json" />
+    <None Include="..\wafer_scheduler.json" CopyToOutputDirectory="PreserveNewest" Link="wafer_scheduler.json" />
+    <None Include="..\robot_schedulers.json" CopyToOutputDirectory="PreserveNewest" Link="robot_schedulers.json" />
+  </ItemGroup>
+
+</Project>

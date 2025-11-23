@@ -34,5 +34,8 @@
     "editor.fontSize": 14,
     "editor.wordWrap": "off",
     "editor.renderWhitespace": "boundary"
+  },
+  "files.associations": {
+    "*.sfl": "semiflow"
   }
 }

@@ -1,0 +1,14 @@
+MESSAGE_BROKER STATUS_BROKER_01 {
+    TYPE: "PUB_SUB"
+    
+    TOPICS {
+        WTR_STATUS {
+            topic: "wtr/+/status"  // + is wildcard
+            publishers: ["WTR_001", "WTR_002"]
+            subscribers: [
+                { id: "MSC_001", qos: 2 },
+                { id: "RSC_001", qos: 1 }
+            ]
+        }
+    }
+}

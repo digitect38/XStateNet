@@ -1,0 +1,18 @@
+TRANSACTION_MANAGER TXN_MGR_001 {
+    TRANSACTION_SCHEMA {
+        transaction_id: {
+            format: "TXN_{timestamp}_{sequence}_{checksum}"
+            example: "TXN_20240101120000_00001_A3F2"
+            unique: true
+            ttl: 3600s
+        }
+        
+        structure: {
+            txn_id: STRING
+            parent_txn_id: STRING?
+            command_type: ENUM
+            chain: ARRAY<LAYER_INFO>
+            status: STATUS_OBJECT
+        }
+    }
+}

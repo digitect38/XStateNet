@@ -1,0 +1,62 @@
+﻿{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Semi Flow Language",
+  "patterns": [
+    {"include": "#keywords"},
+    {"include": "#strings"},
+    {"include": "#comments"},
+    {"include": "#numbers"},
+    {"include": "#identifiers"}
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [{
+        "name": "keyword.control.sfl",
+        "match": "\\b(MASTER_SCHEDULER|WAFER_SCHEDULER|ROBOT_SCHEDULER|STATION|SCHEDULE|APPLY_RULE|VERIFY|CONFIG|LAYER)\\b"
+      }]
+    },
+    "strings": {
+      "patterns": [{
+        "name": "string.quoted.double.sfl",
+        "begin": "\"",
+        "end": "\""
+      }]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.sfl",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.sfl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [{
+        "name": "constant.numeric.sfl",
+        "match": "\\b[0-9]+(\\.?[0-9]+)?\\b"
+      }]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "entity.name.class.scheduler.sfl",
+          "match": "\\b(MSC|WSC|RSC)_[0-9]+\\b"
+        },
+        {
+          "name": "variable.other.wafer.sfl",
+          "match": "\\bW[0-9]+\\b"
+        },
+        {
+          "name": "constant.language.layer.sfl",
+          "match": "\\bL[1-4]\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.sfl"
+}
