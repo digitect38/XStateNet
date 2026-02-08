@@ -1,0 +1,201 @@
+{
+  "Master Scheduler": {
+    "prefix": "msc",
+    "body": [
+      "MASTER_SCHEDULER ${1:MSC_001} {",
+      "\tLAYER: L1",
+      "\t",
+      "\tCONFIG {",
+      "\t\twafer_distribution: \"CYCLIC_ZIP\"",
+      "\t\ttotal_wafers: ${2:25}",
+      "\t\tactive_wsc_count: ${3:3}",
+      "\t\toptimization_interval: ${4:30s}",
+      "\t}",
+      "\t",
+      "\tSCHEDULE ${5:PRODUCTION_RUN} {",
+      "\t\tAPPLY_RULE(\"WAR_001\")",
+      "\t\tAPPLY_RULE(\"PSR_001\")",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a Master Scheduler (L1)"
+  },
+  "Wafer Scheduler": {
+    "prefix": "wsc",
+    "body": [
+      "WAFER_SCHEDULER ${1:WSC_001} {",
+      "\tLAYER: L2",
+      "\tMASTER: \"${2:MSC_001}\"",
+      "\t",
+      "\tCONFIG {",
+      "\t\tmax_concurrent: ${3:3}",
+      "\t}",
+      "\t",
+      "\tASSIGNED_WAFERS {",
+      "\t\tpattern: \"CYCLIC_ZIP\"",
+      "\t\toffset: ${4:0}",
+      "\t\tstride: ${5:3}",
+      "\t\twafer_list: [${6:W001, W004, W007}]",
+      "\t}",
+      "\t",
+      "\tsubscribe to \"msc/+/command\" as msc_commands @2;",
+      "\tpublish status to \"wsc/001/status\" @1;",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Wafer Scheduler (L2)"
+  },
+  "Robot Scheduler": {
+    "prefix": "rsc",
+    "body": [
+      "ROBOT_SCHEDULER ${1:RSC_001} {",
+      "\tLAYER: L3",
+      "\t",
+      "\tCONFIG {",
+      "\t\trobot_type: \"${2|EFEM,PROCESS_ROBOT|}\"",
+      "\t\tmax_velocity: ${3:2.0}",
+      "\t\tposition_update_rate: ${4:10Hz}",
+      "\t}",
+      "\t",
+      "\tCONTROLLED_ROBOTS: [\"${5:WTR_001}\"]",
+      "\t",
+      "\tpublish position to \"rsc/001/position\" @0, volatile;",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Robot Scheduler (L3)"
+  },
+  "Station": {
+    "prefix": "station",
+    "body": [
+      "STATION ${1:STN_001} {",
+      "\tTYPE: \"${2|CMP_PLATEN,CLEANER,BUFFER,LOADPORT,WAFER_TRANSFER_ROBOT|}\"",
+      "\tLAYER: L4",
+      "\t",
+      "\tCONFIG {",
+      "\t\tprocess_time: ${3:180s}",
+      "\t\tcapacity: ${4:1}",
+      "\t}",
+      "\t",
+      "\tpublish state to \"station/001/state\" @2, persistent;",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Station (L4)"
+  },
+  "Schedule Block": {
+    "prefix": "schedule",
+    "body": [
+      "SCHEDULE ${1:PRODUCTION_RUN} {",
+      "\twafer_count: ${2:25}",
+      "\tscheduler_count: ${3:3}",
+      "\t",
+      "\tAPPLY_RULE(\"WAR_001\")  // Cyclic Zip Distribution",
+      "\tAPPLY_RULE(\"PSR_001\")  // Pipeline Slot Assignment",
+      "\tAPPLY_RULE(\"SSR_001\")  // Steady State Detection",
+      "\t",
+      "\tVERIFY {",
+      "\t\tconstraint: \"all_wafers_assigned\"",
+      "\t\tconstraint: \"no_conflicts\"",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a Schedule block with rules"
+  },
+  "Apply Rule": {
+    "prefix": "rule",
+    "body": [
+      "APPLY_RULE(\"${1|WAR_001,PSR_001,PSR_002,SSR_001|}\")"
+    ],
+    "description": "Apply a scheduling rule"
+  },
+  "Config Block": {
+    "prefix": "config",
+    "body": [
+      "CONFIG {",
+      "\t${1:property}: ${2:value}",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a CONFIG block"
+  },
+  "Transaction": {
+    "prefix": "transaction",
+    "body": [
+      "transaction ${1:MOVE_WAFER} {",
+      "\tparent: ${2:TXN_MSC_001}",
+      "\tcommand: ${3:move}(${4:W001}, ${5:STN_CMP01}, ${6:STN_CLN01})",
+      "\ttimeout: ${7:30s}",
+      "\tretry: ${8|exponential_backoff(3),fixed(3\\, 5s),none|}",
+      "}"
+    ],
+    "description": "Create a transaction"
+  },
+  "Publish": {
+    "prefix": "publish",
+    "body": [
+      "publish ${1:status} to \"${2:topic/path}\" @${3|0,1,2|};"
+    ],
+    "description": "Publish to a topic"
+  },
+  "Subscribe": {
+    "prefix": "subscribe",
+    "body": [
+      "subscribe to \"${1:msc/+/command}\" as ${2:handler_name} @${3|0,1,2|};"
+    ],
+    "description": "Subscribe to a topic"
+  },
+  "Verify Block": {
+    "prefix": "verify",
+    "body": [
+      "VERIFY {",
+      "\tconstraint: \"${1:all_wafers_assigned}\"",
+      "\tconstraint: \"${2:no_conflicts}\"",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a VERIFY block"
+  },
+  "State Machine": {
+    "prefix": "statemachine",
+    "body": [
+      "STATE_MACHINE {",
+      "\tinitial: \"IDLE\"",
+      "\tstates: {",
+      "\t\tIDLE: {",
+      "\t\t\ton: { RECEIVE_TASK: \"EXECUTING\" }",
+      "\t\t}",
+      "\t\tEXECUTING: {",
+      "\t\t\ton: {",
+      "\t\t\t\tCOMPLETE: \"IDLE\",",
+      "\t\t\t\tERROR: \"ALARM\"",
+      "\t\t\t}",
+      "\t\t}",
+      "\t\tALARM: {",
+      "\t\t\ton: { RESET: \"IDLE\" }",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a state machine for a station"
+  },
+  "System Architecture": {
+    "prefix": "system",
+    "body": [
+      "SYSTEM_ARCHITECTURE {",
+      "\tNAME: \"${1:FAB_LINE_01}\"",
+      "\tVERSION: \"${2:1.0.0}\"",
+      "\t",
+      "\tLAYERS: {",
+      "\t\tL1: \"MASTER_SCHEDULER\"",
+      "\t\tL2: \"WAFER_SCHEDULER\"",
+      "\t\tL3: \"ROBOT_SCHEDULER\"",
+      "\t\tL4: \"STATION\"",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a system architecture definition"
+  }
+}

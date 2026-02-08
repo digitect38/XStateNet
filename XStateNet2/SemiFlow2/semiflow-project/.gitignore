@@ -1,0 +1,22 @@
+﻿# Dependencies
+node_modules/
+*.log
+
+# Build outputs
+out/
+dist/
+*.js
+*.js.map
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/
+.nyc_output/

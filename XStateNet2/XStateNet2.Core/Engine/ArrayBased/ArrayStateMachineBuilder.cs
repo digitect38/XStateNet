@@ -1,5 +1,6 @@
 using XStateNet2.Core.Runtime;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace XStateNet2.Core.Engine.ArrayBased;
 
@@ -14,6 +15,7 @@ public class ArrayStateMachineBuilder
     private readonly Dictionary<string, byte> _eventMapping = new();
     private readonly Dictionary<string, byte> _actionMapping = new();
     private readonly Dictionary<string, byte> _guardMapping = new();
+    private byte _uniqueStateCount; // Track actual unique states (not aliases)
 
     /// <summary>
     /// Parse XState JSON and prepare for array compilation
@@ -116,7 +118,22 @@ public class ArrayStateMachineBuilder
         // Add this state with its full path
         if (!_stateMapping.ContainsKey(statePath))
         {
-            _stateMapping[statePath] = index++;
+            var stateIndex = index++;
+            _stateMapping[statePath] = stateIndex;
+            _uniqueStateCount = index; // Track unique state count
+
+            // Also add short name as alias (last segment of path) for convenience
+            // This allows lookup by short name (e.g., "enteringPin" instead of "authenticating.enteringPin")
+            var lastDot = statePath.LastIndexOf('.');
+            if (lastDot >= 0)
+            {
+                var shortName = statePath.Substring(lastDot + 1);
+                // Only add alias if not already taken (avoid collisions)
+                if (!_stateMapping.ContainsKey(shortName))
+                {
+                    _stateMapping[shortName] = stateIndex;
+                }
+            }
         }
 
         // Recursively collect nested states
@@ -216,6 +233,22 @@ public class ArrayStateMachineBuilder
             {
                 actionName = str;
             }
+            else if (action is JsonElement jsonElement)
+            {
+                // Handle JsonElement from JSON deserialization
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                {
+                    actionName = jsonElement.GetString();
+                }
+                else if (jsonElement.ValueKind == JsonValueKind.Object)
+                {
+                    // Inline action definition - get type property
+                    if (jsonElement.TryGetProperty("type", out var typeProp))
+                    {
+                        actionName = typeProp.GetString();
+                    }
+                }
+            }
             else if (action is ActionDefinition actionDef && !string.IsNullOrEmpty(actionDef.Type))
             {
                 actionName = actionDef.Type;
@@ -234,7 +267,7 @@ public class ArrayStateMachineBuilder
 
     private ArrayStateNode[] BuildStateArray(XStateMachineScript script, StateMachineMap map)
     {
-        var stateCount = _stateMapping.Count;
+        var stateCount = _uniqueStateCount; // Use unique state count, not mapping count (which includes aliases)
         var states = new ArrayStateNode[stateCount];
 
         // Initialize all states
@@ -246,23 +279,26 @@ public class ArrayStateMachineBuilder
         // Build each state (including nested ones)
         if (script.States != null)
         {
-            BuildStatesRecursively(script.States, states, map);
+            BuildStatesRecursively(script.States, states, map, parentPath: null);
         }
 
         return states;
     }
 
-    private void BuildStatesRecursively(IReadOnlyDictionary<string, XStateNode> stateNodes, ArrayStateNode[] states, StateMachineMap map)
+    private void BuildStatesRecursively(IReadOnlyDictionary<string, XStateNode> stateNodes, ArrayStateNode[] states, StateMachineMap map, string? parentPath)
     {
         foreach (var (stateName, stateNode) in stateNodes)
         {
-            var stateId = map.States.GetIndex(stateName);
-            states[stateId] = BuildStateNode(stateNode, map, stateName);
+            // Build full path for nested states
+            var fullPath = parentPath != null ? $"{parentPath}.{stateName}" : stateName;
+
+            var stateId = map.States.GetIndex(fullPath);
+            states[stateId] = BuildStateNode(stateNode, map, fullPath);
 
             // Recursively process nested states
             if (stateNode.States != null && stateNode.States.Count > 0)
             {
-                BuildStatesRecursively(stateNode.States, states, map);
+                BuildStatesRecursively(stateNode.States, states, map, fullPath);
             }
         }
     }
@@ -281,10 +317,11 @@ public class ArrayStateMachineBuilder
             arrayNode.StateType = 2; // Parallel
         }
 
-        // Set initial state
+        // Set initial state (initial is always a child of the current state)
         if (!string.IsNullOrEmpty(node.Initial))
         {
-            arrayNode.InitialStateId = map.States.GetIndex(node.Initial);
+            var initialFullPath = $"{stateId}.{node.Initial}";
+            arrayNode.InitialStateId = map.States.GetIndex(initialFullPath);
         }
 
         // Convert entry/exit actions
@@ -329,6 +366,22 @@ public class ArrayStateMachineBuilder
             if (action is string str)
             {
                 actionName = str;
+            }
+            else if (action is JsonElement jsonElement)
+            {
+                // Handle JsonElement from JSON deserialization
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                {
+                    actionName = jsonElement.GetString();
+                }
+                else if (jsonElement.ValueKind == JsonValueKind.Object)
+                {
+                    // Inline action definition - get type property
+                    if (jsonElement.TryGetProperty("type", out var typeProp))
+                    {
+                        actionName = typeProp.GetString();
+                    }
+                }
             }
             else if (action is ActionDefinition actionDef && !string.IsNullOrEmpty(actionDef.Type))
             {
@@ -417,15 +470,16 @@ public class ArrayStateMachineBuilder
     /// Resolve target state names handling relative and absolute references
     /// Examples:
     ///   - "#atm.operational" -> "operational" (absolute reference)
-    ///   - ".error_timeout" -> "orchestrator.error_timeout" (relative to parent)
-    ///   - "idle" -> "idle" (absolute state name)
+    ///   - ".error_timeout" -> "orchestrator.error_timeout" (child of parent)
+    ///   - "verifyingPin" from "authenticating.enteringPin" -> "authenticating.verifyingPin" (sibling)
+    ///   - "idle" -> "idle" (top-level state)
     /// </summary>
     private string ResolveTargetStateName(string stateName, string parentStateId)
     {
         if (string.IsNullOrEmpty(stateName))
             return stateName;
 
-        // Handle relative references: .childState
+        // Handle child references: .childState
         if (stateName.StartsWith("."))
         {
             var childStateName = stateName.Substring(1);
@@ -444,6 +498,25 @@ public class ArrayStateMachineBuilder
             return stateName.Substring(1);
         }
 
+        // Check if it's a known top-level state
+        if (_stateMapping.ContainsKey(stateName))
+        {
+            return stateName;
+        }
+
+        // Try as sibling state (same parent)
+        var lastDotIndex = parentStateId.LastIndexOf('.');
+        if (lastDotIndex > 0)
+        {
+            var parentPath = parentStateId.Substring(0, lastDotIndex);
+            var siblingPath = $"{parentPath}.{stateName}";
+            if (_stateMapping.ContainsKey(siblingPath))
+            {
+                return siblingPath;
+            }
+        }
+
+        // Fallback: return as-is
         return stateName;
     }
 

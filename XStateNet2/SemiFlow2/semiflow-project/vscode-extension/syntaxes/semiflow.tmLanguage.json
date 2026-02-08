@@ -1,0 +1,195 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Semi Flow Language",
+  "scopeName": "source.sfl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#scheduler-types" },
+    { "include": "#keywords" },
+    { "include": "#layers" },
+    { "include": "#rules" },
+    { "include": "#scheduler-ids" },
+    { "include": "#wafer-ids" },
+    { "include": "#station-ids" },
+    { "include": "#transaction-ids" },
+    { "include": "#durations" },
+    { "include": "#frequencies" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#properties" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.sfl",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.sfl",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.sfl" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sfl",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.sfl" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.sfl" }
+          }
+        }
+      ]
+    },
+    "scheduler-types": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.scheduler.sfl",
+          "match": "\\b(MASTER_SCHEDULER|WAFER_SCHEDULER|ROBOT_SCHEDULER|STATION)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.sfl",
+          "match": "\\b(SCHEDULE|CONFIG|VERIFY|STATE_MACHINE|SYSTEM_ARCHITECTURE|TRANSACTION_FLOW|TRANSACTION_MANAGER|MESSAGE_BROKER|PIPELINE_SCHEDULING_RULES)\\b"
+        },
+        {
+          "name": "keyword.other.sfl",
+          "match": "\\b(LAYER|VERSION|NAME|TYPE|ID|MASTER|CAPABILITIES|CONTROLLED_ROBOTS|WAFER_SCHEDULERS|ASSIGNED_WAFERS|TOPICS|TRANSACTION_SCHEMA)\\b"
+        },
+        {
+          "name": "keyword.operator.sfl",
+          "match": "\\b(publish|subscribe|transaction|to|as|on|where|import|from)\\b"
+        },
+        {
+          "name": "keyword.control.flow.sfl",
+          "match": "\\b(parallel|sequential|retry|timeout|await)\\b"
+        },
+        {
+          "name": "storage.type.sfl",
+          "match": "\\b(wafer_id_t|station_id_t|scheduler_id_t|txn_id_t|timestamp_t|duration_t|frequency_t)\\b"
+        }
+      ]
+    },
+    "layers": {
+      "patterns": [
+        {
+          "name": "constant.language.layer.sfl",
+          "match": "\\bL[1-4]\\b"
+        }
+      ]
+    },
+    "rules": {
+      "patterns": [
+        {
+          "name": "entity.name.function.sfl",
+          "match": "\\b(APPLY_RULE|FORMULA|VERIFY)\\b"
+        },
+        {
+          "name": "constant.other.rule-id.sfl",
+          "match": "\\b(WAR|PSR|SSR|WTR)_[0-9]+\\b"
+        }
+      ]
+    },
+    "scheduler-ids": {
+      "patterns": [
+        {
+          "name": "entity.name.class.scheduler.sfl",
+          "match": "\\b(MSC|WSC|RSC)_[A-Za-z0-9_]+\\b"
+        }
+      ]
+    },
+    "wafer-ids": {
+      "patterns": [
+        {
+          "name": "variable.other.wafer.sfl",
+          "match": "\\bW[0-9]+\\b"
+        }
+      ]
+    },
+    "station-ids": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.station.sfl",
+          "match": "\\b(STN|WTR|CMP|CLN|BUF|LP)_[A-Za-z0-9_]+\\b"
+        }
+      ]
+    },
+    "transaction-ids": {
+      "patterns": [
+        {
+          "name": "constant.other.transaction.sfl",
+          "match": "\\bTXN_[A-Za-z0-9_]+\\b"
+        }
+      ]
+    },
+    "durations": {
+      "patterns": [
+        {
+          "name": "constant.numeric.duration.sfl",
+          "match": "\\b[0-9]+(ms|s|m|h)\\b"
+        }
+      ]
+    },
+    "frequencies": {
+      "patterns": [
+        {
+          "name": "constant.numeric.frequency.sfl",
+          "match": "\\b[0-9]+Hz\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.sfl",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.sfl",
+          "match": "(->|=>|\\|>|<\\|)"
+        },
+        {
+          "name": "keyword.operator.qos.sfl",
+          "match": "@[0-2]"
+        },
+        {
+          "name": "punctuation.separator.sfl",
+          "match": "(::|:)"
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "variable.other.property.sfl",
+          "match": "\\b(wafer_distribution|total_wafers|active_wsc_count|optimization_interval|scheduling_mode|max_concurrent|buffer_size|robot_type|max_velocity|position_update_rate|process_time|capacity|constraint|priority|pattern|offset|stride|wafer_list|wafer_count|scheduler_count|pipeline_depth|arm_count|persistent|volatile|qos)\\b"
+        },
+        {
+          "name": "constant.language.boolean.sfl",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.status.sfl",
+          "match": "\\b(CREATED|QUEUED|EXECUTING|COMPLETED|FAILED|IDLE|PROCESSING|ALARM|MAINTENANCE)\\b"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+﻿// hello_world.sfl
+// Semi Flow Language Basic Example
+
+MASTER_SCHEDULER MSC_HELLO {
+    LAYER: L1
+    CONFIG {
+        name: "Hello Semi Flow"
+        version: "2.0"
+    }
+}

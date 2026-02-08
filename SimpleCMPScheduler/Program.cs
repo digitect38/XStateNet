@@ -2,6 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+var cts = new CancellationTokenSource();
+var sequence = new CmpSequence();
+Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+await sequence.SequenceLoop(cts.Token);
+
 public class CmpSequence
 {
     private Carrier carrier = new();

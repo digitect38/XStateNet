@@ -1,0 +1,48 @@
+﻿// cyclic_zip_25wafers.sfl
+// Cyclic Zip Distribution for 25 Wafers
+
+MASTER_SCHEDULER MSC_001 {
+    LAYER: L1
+    
+    CONFIG {
+        wafer_distribution: "CYCLIC_ZIP"
+        total_wafers: 25
+        active_wsc_count: 3
+    }
+    
+    SCHEDULE PRODUCTION_LOT_001 {
+        wafer_count: 25
+        
+        // Apply cyclic zip distribution
+        APPLY_RULE("WAR_001")  // Distributes to 3 WSCs
+        
+        // Expected result:
+        // WSC_001: W1,W4,W7,W10,W13,W16,W19,W22,W25 (9 wafers)
+        // WSC_002: W2,W5,W8,W11,W14,W17,W20,W23     (8 wafers)  
+        // WSC_003: W3,W6,W9,W12,W15,W18,W21,W24     (8 wafers)
+    }
+}
+
+WAFER_SCHEDULER WSC_001 {
+    LAYER: L2
+    CONFIG {
+        assigned_wafers: [W1,W4,W7,W10,W13,W16,W19,W22,W25]
+        pipeline_depth: 3
+    }
+}
+
+WAFER_SCHEDULER WSC_002 {
+    LAYER: L2
+    CONFIG {
+        assigned_wafers: [W2,W5,W8,W11,W14,W17,W20,W23]
+        pipeline_depth: 3
+    }
+}
+
+WAFER_SCHEDULER WSC_003 {
+    LAYER: L2
+    CONFIG {
+        assigned_wafers: [W3,W6,W9,W12,W15,W18,W21,W24]
+        pipeline_depth: 3
+    }
+}

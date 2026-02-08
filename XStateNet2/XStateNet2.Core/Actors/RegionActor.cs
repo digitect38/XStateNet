@@ -161,13 +161,16 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         // For nested states like "red.bright", check "bright" first, then "red"
         var statePath = _currentState.Split('.');
         List<XStateTransition>? transitions = null;
+        int transitionDepth = -1;
 
-        // Start from the deepest nested state and walk up
-        for (int depth = statePath.Length; depth > 0; depth--)
+        // Start from the deepest nested state and walk up to the region node itself
+        // depth >= 0 ensures we also check the region node's own handlers (depth = 0)
+        for (int depth = statePath.Length; depth >= 0; depth--)
         {
             var stateNode = FindStateNode(statePath, depth);
             if (stateNode?.On != null && stateNode.On.TryGetValue(evt.Type, out transitions))
             {
+                transitionDepth = depth;
                 _log.Debug($"[Region:{_regionId}] Found transition at depth {depth}");
                 break;
             }
@@ -179,7 +182,7 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
             bool transitionTaken = false;
             foreach (var transition in transitions)
             {
-                if (TryProcessTransition(transition, evt, statePath))
+                if (TryProcessTransition(transition, evt, statePath, transitionDepth))
                 {
                     transitionTaken = true;
                     break; // Take only the first matching transition
@@ -245,7 +248,11 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     /// <summary>
     /// Try to process a transition. Returns true if the transition was taken, false if guard failed.
     /// </summary>
-    private bool TryProcessTransition(XStateTransition transition, SendEvent? evt, string[] currentStatePath)
+    /// <param name="transition">The transition to process</param>
+    /// <param name="evt">The triggering event (if any)</param>
+    /// <param name="currentStatePath">The current state path as array (e.g., ["red", "bright"])</param>
+    /// <param name="transitionDepth">The depth at which the transition was found (-1 if unknown)</param>
+    private bool TryProcessTransition(XStateTransition transition, SendEvent? evt, string[] currentStatePath, int transitionDepth = -1)
     {
         // Evaluate guard
         if (!string.IsNullOrEmpty(transition.Cond))
@@ -292,16 +299,33 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
         else
         {
             // External transition
-            // Resolve relative target states - if current state is nested and target doesn't contain '.',
-            // assume target is in the same parent region
             var resolvedTarget = transition.Target;
-            if (currentStatePath.Length > 1 && !transition.Target.Contains('.'))
+
+            // Strip region ID prefix if present (parser normalizes ".error" to "regionId.error")
+            // The region actor operates with paths relative to itself
+            if (resolvedTarget.StartsWith(_regionId + "."))
             {
-                // Current state is nested (e.g., "position.at_home") and target is simple (e.g., "moving_to_carrier")
-                // Resolve to same parent: "position.moving_to_carrier"
-                var parentPath = string.Join(".", currentStatePath.Take(currentStatePath.Length - 1));
-                resolvedTarget = $"{parentPath}.{transition.Target}";
-                _log.Debug($"[Region:{_regionId}] Resolved relative target '{transition.Target}' to '{resolvedTarget}'");
+                resolvedTarget = resolvedTarget.Substring(_regionId.Length + 1);
+                _log.Debug($"[Region:{_regionId}] Stripped region prefix: '{transition.Target}' -> '{resolvedTarget}'");
+            }
+
+            // Resolve relative target states
+            // When transition is found at depth D, sibling resolution uses path up to D-1
+            // Example: current="red.bright", depth=1 (found on "red"), target="green"
+            //   -> "green" is sibling of "red" at depth 0, no parent path needed
+            // Example: current="red.bright", depth=2 (found on "bright"), target="dark"
+            //   -> "dark" is sibling of "bright" at depth 1, parent path is "red"
+            if (!resolvedTarget.Contains('.') && transitionDepth > 0)
+            {
+                // Only add parent path if the transition was found below the top level
+                // transitionDepth - 1 gives us the number of parent levels to include
+                var siblingDepth = transitionDepth - 1;
+                if (siblingDepth > 0 && currentStatePath.Length >= siblingDepth)
+                {
+                    var parentPath = string.Join(".", currentStatePath.Take(siblingDepth));
+                    resolvedTarget = $"{parentPath}.{resolvedTarget}";
+                    _log.Debug($"[Region:{_regionId}] Resolved sibling target '{transition.Target}' at depth {transitionDepth} to '{resolvedTarget}'");
+                }
             }
 
             Transition(resolvedTarget, evt, transition.Actions);
@@ -313,7 +337,8 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
     private void ProcessTransition(XStateTransition transition, SendEvent? evt)
     {
         var currentStatePath = _currentState.Split('.');
-        TryProcessTransition(transition, evt, currentStatePath);
+        // Use full path length as depth for ProcessTransition (legacy call path)
+        TryProcessTransition(transition, evt, currentStatePath, currentStatePath.Length);
     }
 
     private void Transition(string targetState, SendEvent? evt, List<object>? transitionActions)
@@ -649,7 +674,14 @@ public class RegionActor : ReceiveActor, IWithUnboundedStash
                 }
                 else
                 {
-                    Transition(transition.Target, null, transition.Actions);
+                    // Strip region ID prefix if present (parser normalizes ".error" to "regionId.error")
+                    var resolvedTarget = transition.Target;
+                    if (resolvedTarget.StartsWith(_regionId + "."))
+                    {
+                        resolvedTarget = resolvedTarget.Substring(_regionId.Length + 1);
+                        _log.Debug($"[Region:{_regionId}] Always: Stripped region prefix: '{transition.Target}' -> '{resolvedTarget}'");
+                    }
+                    Transition(resolvedTarget, null, transition.Actions);
                 }
 
                 break;

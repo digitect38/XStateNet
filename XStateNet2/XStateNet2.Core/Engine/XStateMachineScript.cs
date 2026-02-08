@@ -26,6 +26,10 @@ public class XStateMachineScript
     [JsonConverter(typeof(TransitionDictionaryConverter))]
     public IReadOnlyDictionary<string, List<XStateTransition>>? On { get; set; }
 
+    [JsonPropertyName("meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, object>? Meta { get; set; }
+
     [JsonPropertyName("states")]
     public IReadOnlyDictionary<string, XStateNode> States { get; set; } = new Dictionary<string, XStateNode>();
 }

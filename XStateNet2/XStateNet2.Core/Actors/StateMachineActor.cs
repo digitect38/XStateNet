@@ -476,8 +476,16 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
                 var resolvedTarget = ResolveTargetPath(target);
 
                 // Parse the target to extract region ID and target state
-                // Format: "region1.state1" or ".region1.state1"
+                // Format: "region1.state1" or "currentState.region1.state1"
                 var targetPath = resolvedTarget.TrimStart('.');
+
+                // If the target starts with the current parallel state path, strip it
+                // e.g., "active.left.error" when current state is "active" -> "left.error"
+                if (!string.IsNullOrEmpty(_currentState) && targetPath.StartsWith(_currentState + "."))
+                {
+                    targetPath = targetPath.Substring(_currentState.Length + 1);
+                }
+
                 var pathParts = targetPath.Split('.', 2);
 
                 if (pathParts.Length >= 1)
@@ -1205,17 +1213,27 @@ public class StateMachineActor : ReceiveActor, IWithUnboundedStash
 
             var regionStatesArray = await Task.WhenAll(regionStateTasks);
 
-            // Update cached region states
-            foreach (var (regionId, state) in regionStatesArray)
+            // Re-check parallel state after await - a cross-region transition may have occurred
+            // while we were waiting for region responses, exiting the parallel state
+            if (!_isParallelState)
             {
-                _regionStates[regionId] = state;
+                // Parallel state was exited during the await - use the current non-parallel state
+                currentState = _currentState;
             }
+            else
+            {
+                // Update cached region states
+                foreach (var (regionId, state) in regionStatesArray)
+                {
+                    _regionStates[regionId] = state;
+                }
 
-            // Aggregate region states: e.g., "region1.R1_S2;region2.R2_S2"
-            var regionPaths = regionStatesArray
-                .OrderBy(tuple => tuple.Item1) // Consistent ordering
-                .Select(tuple => $"{tuple.Item1}.{tuple.Item2}");
-            currentState = string.Join(";", regionPaths);
+                // Aggregate region states: e.g., "region1.R1_S2;region2.R2_S2"
+                var regionPaths = regionStatesArray
+                    .OrderBy(tuple => tuple.Item1) // Consistent ordering
+                    .Select(tuple => $"{tuple.Item1}.{tuple.Item2}");
+                currentState = string.Join(";", regionPaths);
+            }
         }
         else
         {

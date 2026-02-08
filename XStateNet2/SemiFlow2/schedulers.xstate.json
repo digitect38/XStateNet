@@ -1,0 +1,98 @@
+{
+  "id": "sfl_system",
+  "initial": "",
+  "type": "parallel",
+  "states": {
+    "MSC_001": {
+      "states": {
+        "idle": {
+          "on": {
+            "START": "scheduling"
+          }
+        },
+        "scheduling": {
+          "on": {
+            "DONE": "monitoring"
+          }
+        },
+        "monitoring": {
+          "on": {
+            "WAFER_COMPLETE": "monitoring",
+            "ALL_DONE": "completed"
+          }
+        },
+        "completed": {
+          "type": "final"
+        }
+      },
+      "initial": "idle",
+      "meta": {
+        "schedulerType": "Master",
+        "layer": "L1",
+        "VERSION": "1.0.0",
+        "NAME": "Master_Orchestrator",
+        "config.scheduling_mode": "HIERARCHICAL_4L",
+        "config.optimization_interval": "30s",
+        "config.wafer_distribution": "CYCLIC_ZIP"
+      }
+    },
+    "WSC_001": {
+      "states": {
+        "idle": {
+          "on": {
+            "ASSIGN_WAFERS": "processing"
+          }
+        },
+        "processing": {
+          "on": {
+            "WAFER_DONE": "processing",
+            "ALL_WAFERS_DONE": "completed",
+            "ERROR": "error"
+          }
+        },
+        "error": {
+          "on": {
+            "RETRY": "processing",
+            "ABORT": "idle"
+          }
+        },
+        "completed": {
+          "type": "final"
+        }
+      },
+      "initial": "idle",
+      "meta": {
+        "schedulerType": "Wafer",
+        "layer": "L2",
+        "ID": "wsc_001",
+        "MASTER": "MSC_001"
+      }
+    },
+    "RSC_001": {
+      "states": {
+        "idle": {
+          "on": {
+            "MOVE_COMMAND": "moving"
+          }
+        },
+        "moving": {
+          "on": {
+            "ARRIVED": "idle",
+            "ERROR": "error"
+          }
+        },
+        "error": {
+          "on": {
+            "RESET": "idle"
+          }
+        }
+      },
+      "initial": "idle",
+      "meta": {
+        "schedulerType": "Robot",
+        "layer": "L3",
+        "ID": "rsc_001"
+      }
+    }
+  }
+}

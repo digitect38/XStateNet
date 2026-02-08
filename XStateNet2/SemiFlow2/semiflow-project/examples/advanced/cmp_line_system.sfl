@@ -1,0 +1,68 @@
+﻿// cmp_line_system.sfl
+// Complete CMP Production Line
+
+import semiflow.algorithms.cyclic_zip
+import semiflow.semi.e90
+
+MASTER_SCHEDULER MSC_CMP_LINE {
+    LAYER: L1
+    
+    CONFIG {
+        fab_name: "FAB_SEOUL_01"
+        line_type: "CMP_PRODUCTION"
+        wafer_distribution: "CYCLIC_ZIP"
+        total_wafers: 25
+        optimization_interval: 30s
+    }
+    
+    SCHEDULE DAILY_PRODUCTION {
+        wafer_count: 25
+        scheduler_count: 3
+        
+        APPLY_RULE("WAR_001")  // Cyclic Zip
+        APPLY_RULE("PSR_001")  // Pipeline Slots
+        APPLY_RULE("SSR_001")  // Steady State
+        
+        VERIFY {
+            all_wafers_assigned: true
+            no_conflicts: true
+            pipeline_depth: 3
+        }
+    }
+}
+
+ROBOT_SCHEDULER RSC_EFEM_001 {
+    LAYER: L3
+    
+    CONFIG {
+        robot_type: "EFEM"
+        max_velocity: 2.0
+        max_acceleration: 5.0
+        position_update_rate: 10Hz
+    }
+    
+    transaction MOVE_WAFER {
+        command: move(W001, STN_CMP01, STN_CLN01)
+        timeout: 30s
+    }
+}
+
+STATION STN_CMP01 {
+    LAYER: L4
+    
+    CONFIG {
+        type: "CMP_POLISHER"
+        process_time: 180s
+        capacity: 1
+    }
+}
+
+STATION STN_CLN01 {
+    LAYER: L4
+    
+    CONFIG {
+        type: "POST_CMP_CLEANER"
+        process_time: 120s
+        capacity: 1
+    }
+}

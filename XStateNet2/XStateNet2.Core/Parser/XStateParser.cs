@@ -63,9 +63,13 @@ public class XStateParser
             {
                 foreach (var transition in transitions)
                 {
-                    if (!string.IsNullOrEmpty(transition.Target))
+                    // Handle multiple targets (Targets list) instead of just Target (first element)
+                    if (transition.Targets != null && transition.Targets.Count > 0)
                     {
-                        transition.Target = ResolveTargetPath(transition.Target, currentStatePath);
+                        for (int i = 0; i < transition.Targets.Count; i++)
+                        {
+                            transition.Targets[i] = ResolveTargetPath(transition.Targets[i], currentStatePath);
+                        }
                     }
                 }
             }
@@ -76,9 +80,13 @@ public class XStateParser
         {
             foreach (var transition in state.Always)
             {
-                if (!string.IsNullOrEmpty(transition.Target))
+                // Handle multiple targets
+                if (transition.Targets != null && transition.Targets.Count > 0)
                 {
-                    transition.Target = ResolveTargetPath(transition.Target, currentStatePath);
+                    for (int i = 0; i < transition.Targets.Count; i++)
+                    {
+                        transition.Targets[i] = ResolveTargetPath(transition.Targets[i], currentStatePath);
+                    }
                 }
             }
         }
@@ -109,22 +117,18 @@ public class XStateParser
 
     private string ResolveSingleTargetPath(string target, string currentStatePath)
     {
-        // Relative path: .childState -> currentStatePath.childState
+        // Relative path: .childState -> currentStatePath.childState (child of the state defining this transition)
         if (target.StartsWith("."))
         {
             var childName = target.Substring(1);
             return $"{currentStatePath}.{childName}";
         }
 
-        // Absolute reference: #machineId.stateName -> stateName
+        // Absolute reference with # prefix: preserve as-is for cross-region transition detection
+        // The runtime (StateMachineActor/RegionActor) will handle resolving #machineId.stateName
         if (target.StartsWith("#"))
         {
-            var dotIndex = target.IndexOf('.');
-            if (dotIndex > 0 && dotIndex < target.Length - 1)
-            {
-                return target.Substring(dotIndex + 1);
-            }
-            return target.Substring(1);
+            return target;
         }
 
         // Already absolute or simple state name

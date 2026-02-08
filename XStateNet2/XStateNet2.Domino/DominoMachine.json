@@ -1,0 +1,21 @@
+{
+  "id": "domino",
+  "initial": "off",
+  "context": {
+    "index": 0
+  },
+  "states": {
+    "off": {
+      "entry": ["onOff"],
+      "on": {
+        "TRIGGER_ON": "on"
+      }
+    },
+    "on": {
+      "entry": ["onOn"],
+      "on": {
+        "TRIGGER_OFF": "off"
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ namespace XStateNet2.Tests.CMPSimXS2.Schedulers;
 /// Tests all critical features: robot registration, state updates, transfer lifecycle,
 /// robot selection strategies, immediate assignment, ActiveTransfers tracking, and queue processing.
 /// </summary>
+[Collection("Sequential")] // Disable parallel execution - Akka TestKit tests with timing dependencies
 public class RobotSchedulerXStateArrayTests : TestKit
 {
     private readonly RobotSchedulerXStateArray _scheduler;
@@ -524,9 +525,10 @@ public class RobotSchedulerXStateArrayTests : TestKit
         _scheduler.UpdateRobotState("Robot 1", "idle");
 
         // Assert - Pending request should be processed
+        // Note: ExpectMsg must be outside AwaitAssert because it consumes the message
+        _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
         AwaitAssert(() =>
         {
-            _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
             _scheduler.GetQueueSize().Should().Be(0);
         }, TimeSpan.FromSeconds(2));
     }
@@ -564,13 +566,12 @@ public class RobotSchedulerXStateArrayTests : TestKit
         // Act - Robot 1 becomes idle, should process first request
         _scheduler.UpdateRobotState("Robot 1", "idle");
 
-        // Assert - First request processed
+        // Assert - First request processed (ExpectMsg outside AwaitAssert)
+        var msg1 = _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
+        var data1 = msg1.Data as Dictionary<string, object>;
+        data1!["waferId"].Should().Be(1, "first request should be processed first (FIFO)");
         AwaitAssert(() =>
         {
-            var msg = _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
-            var data = msg.Data as Dictionary<string, object>;
-            data!["waferId"].Should().Be(1, "first request should be processed first (FIFO)");
-
             _scheduler.GetQueueSize().Should().Be(2);
         }, TimeSpan.FromSeconds(2));
 
@@ -578,12 +579,11 @@ public class RobotSchedulerXStateArrayTests : TestKit
         _scheduler.UpdateRobotState("Robot 1", "idle");
 
         // Assert - Second request processed
+        var msg2 = _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
+        var data2 = msg2.Data as Dictionary<string, object>;
+        data2!["waferId"].Should().Be(2, "second request should be processed second (FIFO)");
         AwaitAssert(() =>
         {
-            var msg = _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
-            var data = msg.Data as Dictionary<string, object>;
-            data!["waferId"].Should().Be(2, "second request should be processed second (FIFO)");
-
             _scheduler.GetQueueSize().Should().Be(1);
         }, TimeSpan.FromSeconds(2));
     }
@@ -621,15 +621,15 @@ public class RobotSchedulerXStateArrayTests : TestKit
         _scheduler.UpdateRobotState("Robot 2", "idle");
         _scheduler.UpdateRobotState("Robot 3", "idle");
 
-        // Assert - All requests should be processed
+        // Assert - All requests should be processed (ExpectMsg outside AwaitAssert)
+        _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
+        _robot2.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
+        _robot3.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(3));
+
         AwaitAssert(() =>
         {
-            _robot1.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
-            _robot2.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
-            _robot3.ExpectMsg<SendEvent>(TimeSpan.FromSeconds(1));
-
             _scheduler.GetQueueSize().Should().Be(0);
-        }, TimeSpan.FromSeconds(3));
+        }, TimeSpan.FromSeconds(2));
     }
 
     #endregion

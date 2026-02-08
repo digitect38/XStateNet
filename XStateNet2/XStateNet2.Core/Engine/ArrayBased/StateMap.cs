@@ -21,7 +21,12 @@ public class StateMap
 
         foreach (var (str, idx) in mapping)
         {
-            _indexToString[idx] = str;
+            // Prefer shorter names (display names) over full paths
+            // This ensures GetString returns "enteringPin" instead of "authenticating.enteringPin"
+            if (_indexToString[idx] == null || str.Length < _indexToString[idx].Length)
+            {
+                _indexToString[idx] = str;
+            }
         }
     }
 

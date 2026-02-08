@@ -37,5 +37,100 @@
   },
   "files.associations": {
     "*.sfl": "semiflow"
+  },
+  
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": "source.sfl",
+        "settings": {
+          "foreground": "#D4D4D4"
+        }
+      },
+      {
+        "name": "SFL Keywords",
+        "scope": "source.sfl keyword.control",
+        "settings": {
+          "foreground": "#569CD6",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "name": "SFL Schedulers", 
+        "scope": "source.sfl entity.name.class",
+        "settings": {
+          "foreground": "#4EC9B0"
+        }
+      },
+      {
+        "name": "SFL Layers",
+        "scope": "source.sfl constant.language",
+        "settings": {
+          "foreground": "#9CDCFE"
+        }
+      },
+      {
+        "name": "SFL Wafers",
+        "scope": "source.sfl variable.other",
+        "settings": {
+          "foreground": "#CE9178"
+        }
+      },
+      {
+        "name": "SFL Rules",
+        "scope": "source.sfl string.quoted",
+        "settings": {
+          "foreground": "#D7BA7D"
+        }
+      }
+    ]
+  },
+  
+  // 특정 패턴에 대한 하이라이팅
+  "highlight.regexes": {
+    "(MASTER_SCHEDULER|WAFER_SCHEDULER|ROBOT_SCHEDULER|STATION)": {
+      "decorations": [
+        {
+          "color": "#569CD6",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(MSC_|WSC_|RSC_)[0-9]+": {
+      "decorations": [
+        {
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "L[1-4]": {
+      "decorations": [
+        {
+          "color": "#9CDCFE"
+        }
+      ]
+    },
+    "W[0-9]+": {
+      "decorations": [
+        {
+          "color": "#CE9178"
+        }
+      ]
+    },
+    "(WAR_|PSR_|SSR_)[0-9]+": {
+      "decorations": [
+        {
+          "color": "#D7BA7D"
+        }
+      ]
+    },
+    "APPLY_RULE|VERIFY|CONFIG|SCHEDULE": {
+      "decorations": [
+        {
+          "color": "#C586C0"
+        }
+      ]
+    }
   }
+  
 }

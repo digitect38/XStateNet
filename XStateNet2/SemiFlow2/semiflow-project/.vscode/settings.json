@@ -1,0 +1,23 @@
+﻿{
+  "files.associations": {
+    "*.sfl": "semiflow",
+    "*.sfli": "semiflow",
+    "*.sflc": "semiflow"
+  },
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": "keyword.control.sfl",
+        "settings": {"foreground": "#569cd6"}
+      },
+      {
+        "scope": "entity.name.class.scheduler.sfl",
+        "settings": {"foreground": "#4ec9b0"}
+      },
+      {
+        "scope": "variable.other.wafer.sfl",
+        "settings": {"foreground": "#9cdcfe"}
+      }
+    ]
+  }
+}

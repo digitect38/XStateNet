@@ -212,6 +212,12 @@ public class RobotSchedulerXStateArray : IRobotScheduler
                 completedTransfer.OnCompleted?.Invoke(completedTransfer.WaferId);
                 Logger.Instance.Log($"[RobotSchedulerXStateArray] {msg.RobotId} completed transfer of wafer {completedTransfer.WaferId}");
             }
+
+            // Process pending transfers when a robot becomes idle
+            if (state == "idle" && !wasIdle)
+            {
+                ExecuteProcessTransfers();
+            }
         }
 
         private void ExecuteQueueOrAssignTransfer(object? data)

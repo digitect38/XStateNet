@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet:*)",
+      "Bash(python3 -c \" import clr, sys # Just try to find the class using powershell \")",
+      "Bash(powershell:*)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm install:*)",
+      "Bash(npm run compile:*)",
+      "Bash(copy:*)",
+      "Bash(code:*)",
+      "Bash(npx vsce package --allow-missing-repository)",
+      "Bash(start \"\" \"C:\\\\Develop25\\\\XStateNet\\\\XStateNet2\\\\SemiFlow2\\\\semiflow-project\\\\webapp\\\\cmp-scheduler\\\\index.html\")"
+    ]
+  }
+}
