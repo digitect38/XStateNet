@@ -1,5 +1,5 @@
 # Semi Flow Language (SFL) Grammar Specification
-## Language Designer's Reference Manual v2.0
+## Language Designer's Reference Manual v2.2
 
 ### 1. Language Overview
 
@@ -44,6 +44,7 @@ keyword ::= 'MASTER_SCHEDULER' | 'WAFER_SCHEDULER' | 'ROBOT_SCHEDULER'
           | 'STATION' | 'SCHEDULE' | 'PIPELINE_SCHEDULING_RULES'
           | 'APPLY_RULE' | 'VERIFY' | 'FORMULA' | 'CONFIG'
           | 'LAYER' | 'L1' | 'L2' | 'L3' | 'L4'
+          | 'FLOW' | 'CROSSOVER' | 'MUTEX' | 'CONSTRAINTS'
           | 'transaction' | 'subscribe' | 'publish' | 'await'
           | 'parallel' | 'sequential' | 'retry' | 'timeout'
 
@@ -62,7 +63,9 @@ frequency  ::= digit+ 'Hz'
 
 #### 3.1 Top-Level Structure
 ```ebnf
-sfl_program ::= import* declaration* scheduler_def+ schedule_def*
+sfl_program ::= import* declaration* topology_block* scheduler_def+ schedule_def*
+
+topology_block ::= flow_block | crossover_block | mutex_block | constraints_block
 
 import ::= 'import' module_path ('as' identifier)?
          | 'from' module_path 'import' import_list
@@ -155,6 +158,87 @@ command_spec ::= command_type '(' parameter_list ')'
 
 status_spec ::= 'CREATED' | 'QUEUED' | 'EXECUTING' | 'COMPLETED' | 'FAILED'
 ```
+
+#### 3.7 Pipeline Topology Blocks
+```ebnf
+(* Pipeline topology blocks define the physical flow path, cross-lane behavior,
+   mutual exclusion constraints, and scheduling constraints for the production line.
+   All four blocks are optional and compile to the "meta" object in XState JSON output. *)
+
+flow_block ::= 'FLOW' identifier '{' flow_sequence '}'
+
+flow_sequence ::= identifier ('->' identifier)+
+(* Minimum 3 elements. Convention: start with SRC, end with DST.
+   Elements represent stations and robots along the pipeline path.
+   Example: SRC -> R1 -> POL -> R2 -> CLN -> R3 -> RNS -> R4 -> BUF -> R5 -> DST *)
+
+crossover_block ::= 'CROSSOVER' '{' crossover_entry+ '}'
+
+crossover_entry ::= identifier ':' ('enabled' | 'disabled')
+(* Defines whether a process station allows cross-lane wafer movement.
+   Station names should reference stations in the FLOW sequence.
+   Robots are excluded — only process stations are configured. *)
+
+mutex_block ::= 'MUTEX' '{' mutex_group+ '}'
+
+mutex_group ::= 'group' ':' mutex_pattern (',' mutex_pattern)*
+
+mutex_pattern ::= lane_spec '.' resource_spec
+
+lane_spec ::= 'L' digit+ | 'L*' | '*'
+resource_spec ::= identifier | identifier '*' | '*'
+(* Patterns define mutual exclusion groups for robot resources.
+   L* and * are wildcards matching all lanes.
+   Examples: L1.R1, L*.R1 (all lanes share R1), *.* (global mutex) *)
+
+constraints_block ::= 'CONSTRAINTS' '{' config_items '}'
+(* Key-value properties defining scheduling constraints.
+   Common properties:
+     scheduling_mode: "TAKT_TIME"  — scheduling strategy: "TAKT_TIME" | "EVENT_DRIVEN" | "DEADLINE_DRIVEN"
+     takt_interval: 1s             — tick interval for TAKT_TIME mode (optional)
+     deadline_policy: "EDF"        — deadline strategy: "EDF" | "LLF" (only with DEADLINE_DRIVEN)
+     no_wait: [R1, R2]             — robots that cannot hold wafers (immediate handoff)
+     max_wip: 10                   — maximum work-in-progress wafer count
+     priority: "FIFO"              — scheduling priority strategy
+
+   Scheduling modes:
+     TAKT_TIME (default)  — fixed-interval tick, countdown by 1, backward flow priority
+     EVENT_DRIVEN         — jump to next event (min remainingTime), skip idle ticks
+     DEADLINE_DRIVEN      — fixed tick like takt, but closest-deadline-first priority
+*)
+```
+
+##### 3.7.1 Compilation to XState JSON
+
+Pipeline topology blocks compile to the top-level `meta` object in the XState JSON output:
+
+```json
+{
+  "id": "sfl_system",
+  "type": "parallel",
+  "meta": {
+    "flowName": "PRODUCTION_LINE",
+    "flow": ["SRC", "R1", "POL", "R2", "CLN", "R3", "DST"],
+    "crossover": { "POL": false, "CLN": true },
+    "mutex": [
+      { "patterns": ["L*.R1"], "isGlobal": true },
+      { "patterns": ["L1.R2", "L1.R3"], "isGlobal": false }
+    ],
+    "constraints": { "no_wait": ["R1", "R2"], "max_wip": 10, "priority": "FIFO" }
+  },
+  "states": { ... }
+}
+```
+
+##### 3.7.2 Semantic Validations
+
+| Code   | Rule                                                              | Severity |
+|--------|-------------------------------------------------------------------|----------|
+| SFL009 | Flow must have >= 3 elements; should start with SRC, end with DST | Error/Warning |
+| SFL010 | Crossover stations should exist in the flow sequence              | Warning  |
+| SFL011 | Mutex patterns must match `(L<n>|L*|*).(R<n>|R*|*)`              | Error    |
+| SFL012 | `max_wip` must be positive; `no_wait` entries should be in flow   | Error/Warning |
+| SFL013 | `scheduling_mode` must be valid; `deadline_policy` only with DEADLINE_DRIVEN | Error/Warning |
 
 #### 3.6 Pub/Sub Communication (Semi Flow Messaging)
 ```ebnf
@@ -306,6 +390,30 @@ PIPELINE_SCHEDULING_RULES {
 
 import semiflow.algorithms.cyclic_zip
 import semiflow.semi.e90
+
+// Pipeline topology
+FLOW PRODUCTION_LINE {
+  SRC -> R1 -> POL -> R2 -> CLN -> R3 -> RNS -> R4 -> BUF -> R5 -> DST
+}
+
+CROSSOVER {
+  POL: disabled
+  CLN: enabled
+  RNS: enabled
+  BUF: enabled
+}
+
+MUTEX {
+  group: L*.R1          // All lanes share R1
+  group: L1.R2, L1.R3   // Lane 1 robots are mutually exclusive
+}
+
+CONSTRAINTS {
+  scheduling_mode: "TAKT_TIME"
+  no_wait: [R1, R2]
+  max_wip: 10
+  priority: "FIFO"
+}
 
 MASTER_SCHEDULER MSC_001 {
   LAYER: L1
@@ -483,27 +591,25 @@ SFL005: Invalid QoS level (must be 0, 1, or 2)
 SFL006: Transaction timeout (exceeds maximum duration)
 SFL007: Formula syntax error (invalid FORMULA expression)
 SFL008: Pipeline depth exceeded (max 3 for standard FABs)
+SFL009: Invalid flow sequence (must have >= 3 elements, should start with SRC, end with DST)
+SFL010: Crossover station not found in flow sequence
+SFL011: Invalid mutex pattern (must match (L<n>|L*|*).(R<n>|R*|*))
+SFL012: Invalid constraint value (max_wip must be positive, no_wait entries should be in flow)
+SFL013: Invalid scheduling constraint (scheduling_mode must be TAKT_TIME|EVENT_DRIVEN|DEADLINE_DRIVEN, deadline_policy must be EDF|LLF)
 ```
 
 ### 12. Language Evolution
 
 #### Version History
-- **v1.0** (2024.01): Initial Semi Flow specification
-- **v1.5** (2024.06): Added transaction management
-- **v2.0** (2024.11): Full pub/sub, MQTT QoS, pipeline rules
-
-#### Future Extensions (v3.0)
-- AI-driven scheduling optimization
-- Real-time constraint solving
-- Multi-FAB federation support
-- Quantum computing integration for optimization
+- **v2.2** (2026.02.08): Added multi-mode scheduling (TAKT_TIME, EVENT_DRIVEN, DEADLINE_DRIVEN), SFL013
+- **v2.1** (2026.02.08): Added Pipeline Topology Blocks (FLOW, CROSSOVER, MUTEX, CONSTRAINTS), SFL009-SFL012
+- **Draft** (2025.11.23): Initial SFL draft
 
 ---
 
-## 📄 License & Standards
+## License & Standards
 
-Semi Flow Language Specification v2.0
-Copyright (c) 2024 Semiconductor Manufacturing Consortium
+Semi Flow Language Specification - Draft 2025.11.23
 Compliant with SEMI E87, E88, E90, E94 standards
 
 This specification is the official grammar reference for the Semi Flow Language (*.sfl) used in semiconductor manufacturing automation systems.

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMP Multi-Lane Scheduler</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; background: #111827; }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #374151; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useCallback, useEffect, useRef } = React;
+
+const DEFAULT_DSL = `@system CMP_Scheduler {
+lanes: 3
+wafers_per_lane: 25
+tick_unit: "seconds"
+}
+@layer Master {
+role: "orchestrator"
+tick_phases: ["countdown", "exit_moves", "collect_requests", "arbitrate_crossover", "execute_moves"]
+}
+@layer LaneScheduler {
+role: "request_generator"
+per_lane: true
+}
+@layer CrossoverArbiter {
+role: "conflict_resolver"
+policy: "round_robin"
+}
+@layer RobotController {
+role: "executor"
+per_lane: true
+}
+@stations {
+process: [POL, CLN, RNS, BUF]
+robot: [R1, R2, R3, R4, R5]
+endpoint: [SRC, DST]
+}
+@process_times {
+POL: 5
+CLN: 7
+RNS: 3
+BUF: 1
+robot_transfer: 1
+}
+@crossover {
+POL: disabled
+CLN: enabled
+RNS: enabled
+BUF: enabled
+}
+@flow {
+SRC -> R1 -> POL -> R2 -> CLN -> R3 -> RNS -> R4 -> BUF -> R5 -> DST
+}
+@constraints {
+scheduling_mode: TAKT_TIME
+no_wait: [R1, R2]
+}
+@mutex {
+group: L*.R1
+group: L1.R2, L1.R3
+}`;
+
+class DSLParser {
+  constructor() { this.reset(); }
+  reset() { this.ast = { system: {}, layers: [], stations: {}, processTimes: {}, crossover: {}, flow: [], constraints: {}, mutex: [] }; }
+  parse(dsl) {
+    this.reset();
+    if (!dsl) return { ast: this.ast, errors: ["Empty DSL"] };
+    const lines = dsl.split('\n');
+    let currentBlock = null, blockContent = [], braceDepth = 0;
+    for (let line of lines) {
+      line = line.split('#')[0].trim();
+      if (!line) continue;
+      const blockStart = line.match(/^@(\w+)\s*(\w*)\s*\{$/);
+      if (blockStart) { currentBlock = { type: blockStart[1], name: blockStart[2] || null }; blockContent = []; braceDepth = 1; continue; }
+      if (currentBlock) {
+        if (line === '}') { braceDepth--; if (braceDepth === 0) { this.processBlock(currentBlock, blockContent); currentBlock = null; } }
+        else { braceDepth += (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length; blockContent.push(line); }
+      }
+    }
+    return { ast: this.ast, errors: [] };
+  }
+  processBlock(block, content) {
+    const handlers = {
+      system: () => this.parseKeyValue(content, this.ast.system, block.name),
+      layer: () => { const layer = { name: block.name, properties: {} }; this.parseKeyValue(content, layer.properties); this.ast.layers.push(layer); },
+      stations: () => this.parseArrayValues(content, this.ast.stations),
+      process_times: () => this.parseKeyValue(content, this.ast.processTimes),
+      crossover: () => content.forEach(line => { const m = line.match(/(\w+):\s*(\w+)/); if (m) this.ast.crossover[m[1]] = m[2] === 'enabled'; }),
+      flow: () => content.forEach(line => { line.split('->').map(s => s.trim()).filter(Boolean).forEach(s => { if (!this.ast.flow.includes(s)) this.ast.flow.push(s); }); }),
+      constraints: () => this.parseConstraints(content),
+      mutex: () => this.parseMutex(content)
+    };
+    handlers[block.type]?.();
+  }
+  parseConstraints(content) {
+    content.forEach(line => {
+      const m = line.match(/(\w+):\s*(.+)/);
+      if (m) {
+        const key = m[1];
+        let value = m[2].trim();
+        if (value.startsWith('[')) value = value.slice(1, -1).split(',').map(s => s.trim());
+        this.ast.constraints[key] = value;
+      }
+    });
+  }
+  parseMutex(content) {
+    content.forEach(line => {
+      const groupMatch = line.match(/^group:\s*(.+)$/);
+      if (groupMatch) {
+        const parts = groupMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+        const group = { patterns: [], isGlobal: false };
+        parts.forEach(p => {
+          if (p === '*.*') group.isGlobal = true;
+          else {
+            const match = p.match(/^(L\*|L\d+)\.(R\*|R\d+|\*)$/);
+            if (match) group.patterns.push({ lane: match[1], robot: match[2] === '*' ? 'R*' : match[2] });
+          }
+        });
+        if (group.patterns.length > 0 || group.isGlobal) this.ast.mutex.push(group);
+      }
+    });
+  }
+  parseKeyValue(content, target, name) {
+    if (name) target.name = name;
+    content.forEach(line => {
+      const m = line.match(/(\w+):\s*(.+)/);
+      if (m) {
+        let v = m[2].trim();
+        if (v.startsWith('[')) v = v.slice(1, -1).split(',').map(s => s.trim().replace(/"/g, ''));
+        else if (v === 'true') v = true; else if (v === 'false') v = false;
+        else if (!isNaN(v)) v = parseInt(v); else v = v.replace(/"/g, '');
+        target[m[1]] = v;
+      }
+    });
+  }
+  parseArrayValues(content, target) { content.forEach(line => { const m = line.match(/(\w+):\s*\[(.+)\]/); if (m) target[m[1]] = m[2].split(',').map(s => s.trim()); }); }
+}
+
+class DSLCompiler {
+  compile(ast) {
+    const processStations = ast.stations.process || [];
+    const crossoverEnabled = {};
+    processStations.forEach(s => { crossoverEnabled[s] = ast.crossover[s] ?? false; });
+    let noWait = ast.constraints.no_wait || [];
+    if (typeof noWait === 'string') noWait = [noWait];
+    const schedulingMode = ast.constraints.scheduling_mode || 'TAKT_TIME';
+    return { laneCount: ast.system.lanes || 3, waferPerLane: ast.system.wafers_per_lane || 25, processTimes: ast.processTimes || {}, crossoverEnabled, flow: ast.flow, processStations, robotStations: ast.stations.robot || [], constraints: { ...ast.constraints, no_wait: noWait }, mutex: ast.mutex || [], schedulingMode };
+  }
+}
+
+class MasterScheduler {
+  constructor() { this.isolatedStations = new Set(); this.roundRobinIndex = 0; this.schedulingMode = 'TAKT_TIME'; this.config = { laneCount: 3, processTimes: {}, crossoverEnabled: {}, flow: [], constraints: { no_wait: [] }, mutex: [] }; }
+  applyConfig(config) { this.config = { ...this.config, ...config }; this.schedulingMode = config.schedulingMode || 'TAKT_TIME'; }
+  getStationId(base, lane) { if (base === 'SRC' || base === 'DST') return `${base}${lane}`; if (/^R\d+$/.test(base)) return `${base}_${lane}`; return `${base}${lane}`; }
+  expandMutexGroups() {
+    const { mutex, laneCount, flow } = this.config;
+    const robots = flow.filter(s => /^R\d+$/.test(s));
+    const expandedGroups = [];
+    mutex.forEach((group, groupIdx) => {
+      const members = new Set();
+      if (group.isGlobal) {
+        for (let lane = 1; lane <= laneCount; lane++) robots.forEach(robot => members.add(`${robot}_${lane}`));
+      } else {
+        group.patterns.forEach(pattern => {
+          const lanes = pattern.lane === 'L*' ? Array.from({length: laneCount}, (_, i) => i + 1) : [parseInt(pattern.lane.slice(1))];
+          const targetRobots = pattern.robot === 'R*' ? robots : [pattern.robot];
+          lanes.forEach(lane => { if (lane >= 1 && lane <= laneCount) targetRobots.forEach(robot => { if (robots.includes(robot)) members.add(`${robot}_${lane}`); }); });
+        });
+      }
+      if (members.size > 1) expandedGroups.push({ id: groupIdx, members: Array.from(members) });
+    });
+    return expandedGroups;
+  }
+  checkMutexConflict(robotId, lane, activeRobots) {
+    const fullId = `${robotId}_${lane}`;
+    const expandedGroups = this.expandMutexGroups();
+    for (const group of expandedGroups) {
+      if (group.members.includes(fullId)) {
+        for (const member of group.members) {
+          if (member !== fullId && activeRobots.has(member)) return { conflict: true, with: member, groupId: group.id };
+        }
+      }
+    }
+    return { conflict: false };
+  }
+  getMutexGroupsForRobot(robotId, lane) {
+    const fullId = `${robotId}_${lane}`;
+    return this.expandMutexGroups().filter(g => g.members.includes(fullId)).map(g => g.id);
+  }
+  _processMovements(newStates, newWafers, currentTime, moveSortFn) {
+    const movements = [], allBlocked = [];
+    let crossoverCount = 0;
+    const { laneCount, processTimes, crossoverEnabled, flow, constraints } = this.config;
+    const noWaitRobots = constraints.no_wait || [];
+    const isFree = (id) => newStates[id]?.state === 'empty' && !this.isolatedStations.has(id);
+    const isReady = (id) => newStates[id]?.waferId && newStates[id]?.remainingTime === 0;
+    const lastStation = flow[flow.length - 2];
+    for (let lane = 1; lane <= laneCount; lane++) {
+      const lastId = this.getStationId(lastStation, lane), dstId = this.getStationId('DST', lane);
+      if (isReady(lastId)) {
+        const waferId = newStates[lastId].waferId;
+        newStates[lastId] = { state: 'empty', waferId: null, remainingTime: 0 };
+        newWafers = newWafers.map(w => w.id === waferId ? { ...w, phase: 'done', station: dstId, remainingTime: 0, doneTime: currentTime } : w);
+        movements.push(`${waferId}:${lastId}→${dstId}`);
+      }
+    }
+    const localMoves = [], crossoverRequests = [];
+    const flowPairs = []; for (let i = 0; i < flow.length - 2; i++) flowPairs.push({ from: flow[i], to: flow[i + 1], index: i });
+    for (let pairIdx = flowPairs.length - 1; pairIdx >= 0; pairIdx--) {
+      const pair = flowPairs[pairIdx];
+      for (let lane = 1; lane <= laneCount; lane++) {
+        const fromId = this.getStationId(pair.from, lane), toId = this.getStationId(pair.to, lane);
+        const isToRobot = /^R\d+$/.test(pair.to), toBase = pair.to;
+        const isFromRobot = /^R\d+$/.test(pair.from);
+        if (pair.from === 'SRC') {
+          const nextWafer = newWafers.find(w => w.station === fromId && w.phase === 'queued');
+          if (!nextWafer) continue;
+          if (noWaitRobots.includes(pair.to)) {
+            const nextStepIdx = flow.indexOf(pair.to) + 1;
+            if (nextStepIdx < flow.length - 1 && !isFree(this.getStationId(flow[nextStepIdx], lane))) { allBlocked.push({ waferId: nextWafer.id, from: fromId, to: toId, reason: `${flow[nextStepIdx]} busy (no-wait)` }); continue; }
+          }
+          if (isFree(toId)) localMoves.push({ from: fromId, to: toId, waferId: nextWafer.id, processTime: processTimes.robot_transfer || 1, fromLane: lane, toLane: lane, isEntry: true, flowIndex: pairIdx, fromRobot: null, toRobot: isToRobot ? pair.to : null });
+          continue;
+        }
+        if (!isReady(fromId)) continue;
+        const waferId = newStates[fromId].waferId;
+        const wafer = newWafers.find(w => w.id === waferId);
+        const baseTime = isToRobot ? (processTimes.robot_transfer || 1) : (processTimes[toBase] || 1);
+        const processTime = (!isToRobot && wafer?.randomTimes?.[toBase]) ? wafer.randomTimes[toBase] : baseTime;
+        if (isFromRobot && noWaitRobots.includes(pair.from)) {
+          if (!isFree(toId)) { allBlocked.push({ waferId, from: fromId, to: toId, reason: `${toBase} busy (no-wait from ${pair.from})` }); continue; }
+        }
+        if (isFree(toId)) {
+          localMoves.push({ from: fromId, to: toId, waferId, processTime, fromLane: lane, toLane: lane, flowIndex: pairIdx, fromRobot: isFromRobot ? pair.from : null, toRobot: isToRobot ? pair.to : null });
+        } else if (!isToRobot && crossoverEnabled[toBase]) {
+          for (let j = 1; j <= laneCount; j++) {
+            if (j !== lane && isFree(this.getStationId(toBase, j))) crossoverRequests.push({ from: fromId, to: this.getStationId(toBase, j), waferId, processTime, fromLane: lane, toLane: j, isCrossover: true, flowIndex: pairIdx, fromRobot: isFromRobot ? pair.from : null, toRobot: null });
+          }
+          if (!crossoverRequests.some(r => r.waferId === waferId && r.flowIndex === pairIdx)) allBlocked.push({ waferId, from: fromId, to: toId, reason: `${toBase} busy` });
+        } else { allBlocked.push({ waferId, from: fromId, to: toId, reason: `${toBase} busy` }); }
+      }
+    }
+    const approvedCrossovers = [], byDest = {};
+    crossoverRequests.forEach(req => { (byDest[req.to] ??= []).push(req); });
+    Object.entries(byDest).forEach(([dest, requests]) => { if (!isFree(dest)) return; requests.sort((a, b) => ((a.fromLane - 1 + this.roundRobinIndex) % laneCount) - ((b.fromLane - 1 + this.roundRobinIndex) % laneCount)); approvedCrossovers.push(requests[0]); });
+    this.roundRobinIndex = (this.roundRobinIndex + 1) % laneCount;
+    const usedDest = new Set(), usedSrc = new Set(), usedWafers = new Set();
+    const activeRobots = new Set();
+    const executeMove = (move, isCrossover = false) => {
+      if (usedDest.has(move.to) || usedSrc.has(move.from) || !isFree(move.to) || usedWafers.has(move.waferId)) return false;
+      if (move.fromRobot) {
+        const mutexCheck = this.checkMutexConflict(move.fromRobot, move.fromLane, activeRobots);
+        if (mutexCheck.conflict) { allBlocked.push({ waferId: move.waferId, from: move.from, to: move.to, reason: `Mutex[${mutexCheck.groupId}]: ${move.from} ↔ ${mutexCheck.with}` }); return false; }
+      }
+      if (move.toRobot) {
+        const mutexCheck = this.checkMutexConflict(move.toRobot, move.toLane, activeRobots);
+        if (mutexCheck.conflict) { allBlocked.push({ waferId: move.waferId, from: move.from, to: move.to, reason: `Mutex[${mutexCheck.groupId}]: ${move.to} ↔ ${mutexCheck.with}` }); return false; }
+      }
+      if (!move.isEntry) { newStates[move.from] = { state: 'empty', waferId: null, remainingTime: 0 }; usedSrc.add(move.from); }
+      newStates[move.to] = { state: 'occupied', waferId: move.waferId, remainingTime: move.processTime }; usedDest.add(move.to); usedWafers.add(move.waferId);
+      if (move.fromRobot) activeRobots.add(`${move.fromRobot}_${move.fromLane}`);
+      if (move.toRobot) activeRobots.add(`${move.toRobot}_${move.toLane}`);
+      newWafers = newWafers.map(w => w.id === move.waferId ? { ...w, phase: 'processing', station: move.to, remainingTime: move.processTime, lane: move.toLane, crossoverCount: (w.crossoverCount || 0) + (isCrossover ? 1 : 0) } : w);
+      movements.push(`${move.waferId}:${move.from}→${move.to}${isCrossover ? ` [XOVER L${move.fromLane}→L${move.toLane}]` : ''}`);
+      if (isCrossover) crossoverCount++;
+      return true;
+    };
+    localMoves.sort(moveSortFn);
+    localMoves.forEach(m => executeMove(m));
+    approvedCrossovers.forEach(m => executeMove(m, true));
+    return { newStates, newWafers, movements, blocked: allBlocked, crossoverCount };
+  }
+  taktTimeTick(stationStates, wafers, currentTime) {
+    let newStates = JSON.parse(JSON.stringify(stationStates));
+    let newWafers = [...wafers];
+    Object.entries(newStates).forEach(([id, st]) => { if (st.waferId && st.remainingTime > 0) { st.remainingTime--; newWafers = newWafers.map(w => w.id === st.waferId ? { ...w, remainingTime: st.remainingTime } : w); } });
+    const result = this._processMovements(newStates, newWafers, currentTime, (a, b) => b.flowIndex - a.flowIndex);
+    return { ...result, timeAdvance: 1 };
+  }
+  eventDrivenTick(stationStates, wafers, currentTime) {
+    let newStates = JSON.parse(JSON.stringify(stationStates));
+    let newWafers = [...wafers];
+    let minRemaining = Infinity;
+    Object.entries(newStates).forEach(([id, st]) => { if (st.waferId && st.remainingTime > 0) minRemaining = Math.min(minRemaining, st.remainingTime); });
+    const timeAdvance = minRemaining === Infinity ? 1 : minRemaining;
+    Object.entries(newStates).forEach(([id, st]) => { if (st.waferId && st.remainingTime > 0) { st.remainingTime -= timeAdvance; newWafers = newWafers.map(w => w.id === st.waferId ? { ...w, remainingTime: st.remainingTime } : w); } });
+    const result = this._processMovements(newStates, newWafers, currentTime, (a, b) => b.flowIndex - a.flowIndex);
+    return { ...result, timeAdvance };
+  }
+  deadlineDrivenTick(stationStates, wafers, currentTime) {
+    let newStates = JSON.parse(JSON.stringify(stationStates));
+    let newWafers = [...wafers];
+    Object.entries(newStates).forEach(([id, st]) => { if (st.waferId && st.remainingTime > 0) { st.remainingTime--; newWafers = newWafers.map(w => w.id === st.waferId ? { ...w, remainingTime: st.remainingTime } : w); } });
+    const result = this._processMovements(newStates, newWafers, currentTime, (a, b) => {
+      const waferA = newWafers.find(w => w.id === a.waferId);
+      const waferB = newWafers.find(w => w.id === b.waferId);
+      const urgencyA = (waferA?.deadline || Infinity) - currentTime;
+      const urgencyB = (waferB?.deadline || Infinity) - currentTime;
+      return urgencyA !== urgencyB ? urgencyA - urgencyB : b.flowIndex - a.flowIndex;
+    });
+    return { ...result, timeAdvance: 1 };
+  }
+  tick(stationStates, wafers, currentTime) {
+    switch (this.schedulingMode) {
+      case 'EVENT_DRIVEN': return this.eventDrivenTick(stationStates, wafers, currentTime);
+      case 'DEADLINE_DRIVEN': return this.deadlineDrivenTick(stationStates, wafers, currentTime);
+      default: return this.taktTimeTick(stationStates, wafers, currentTime);
+    }
+  }
+  isolateStation(id) { this.isolatedStations.add(id); }
+  restoreStation(id) { this.isolatedStations.delete(id); }
+}
+
+const WSC_COLORS = ['#ef4444', '#22c55e', '#3b82f6'];
+const MUTEX_COLORS = ['#f472b6', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#fb923c', '#f87171'];
+
+const Station = ({ label, wafer, remainingTime, isRobot, isIsolated, isProcess, crossoverEnabled, onToggleCrossover, onToggleIsolate, showHeader, zoom, mutexColors, mutexGroupIds = [], laneNum }) => {
+  const size = (isRobot ? 24 : 28) * zoom, wSize = 16 * zoom;
+  const hasMutex = mutexColors && mutexColors.length > 0;
+  const mutexTooltip = hasMutex ? `Mutex group(s): ${mutexGroupIds.join(', ')}` : undefined;
+  return (
+    <div className="flex flex-col items-center" style={{ margin: `0 ${zoom}px` }}>
+      {showHeader && isProcess && <label className="flex items-center cursor-pointer" style={{ height: 16 * zoom }}><input type="checkbox" checked={crossoverEnabled} onChange={onToggleCrossover} style={{ width: 12 * zoom, height: 12 * zoom }} className="rounded"/></label>}
+      {showHeader && !isProcess && <div style={{ height: 16 * zoom }} />}
+      <div className="text-gray-400 mb-0.5 flex items-center gap-0.5" style={{ fontSize: 9 * zoom }}>
+        <span>{label}</span>
+        {isProcess && <button onClick={onToggleIsolate} className={`rounded-full ${isIsolated ? 'bg-red-500' : 'bg-green-500'} hover:opacity-70`} style={{ width: 6 * zoom, height: 6 * zoom }}/>}
+        {hasMutex && mutexColors.map((c, i) => <span key={i} className="rounded" style={{ width: 5 * zoom, height: 5 * zoom, backgroundColor: c }}/>)}
+      </div>
+      <div title={mutexTooltip} data-robot={isRobot ? `${label}-${laneNum}` : undefined}
+        className={`flex items-center justify-center border-2 ${isRobot ? 'rounded-full' : 'rounded'} ${isIsolated ? 'bg-red-900/50 border-red-500' : isRobot ? 'bg-yellow-900/30 border-yellow-500' : 'bg-gray-800 border-gray-500'}`}
+        style={{ width: size, height: size, borderColor: hasMutex ? mutexColors[0] : undefined }}>
+        {wafer && <div className="rounded-full flex items-center justify-center text-white font-bold" style={{ width: wSize, height: wSize, backgroundColor: wafer.color, border: `${Math.max(2, 2 * zoom)}px solid ${wafer.wscColor}`, fontSize: 7 * zoom }}>{wafer.num}</div>}
+        {isIsolated && !wafer && <span className="text-red-400" style={{ fontSize: 10 * zoom }}>&#x2715;</span>}
+      </div>
+      <div className="flex items-center" style={{ height: 12 * zoom }}>{remainingTime > 0 && <span className="bg-yellow-600/80 px-0.5 rounded text-white font-mono" style={{ fontSize: 8 * zoom }}>{remainingTime}</span>}</div>
+    </div>
+  );
+};
+
+const LaneView = ({ laneNum, flow, stationStates, wafers, scheduler, laneColor, crossoverEnabled, onToggleCrossover, onToggleIsolate, showHeader, zoom }) => {
+  const getStationId = (base) => scheduler.getStationId(base, laneNum);
+  const getWafer = (stationId) => { const state = stationStates[stationId]; if (!state?.waferId) return null; const w = wafers.find(x => x.id === state.waferId); return w ? { ...w, remainingTime: state.remainingTime } : null; };
+  const srcWafers = wafers.filter(w => w.station === `SRC${laneNum}` && w.phase === 'queued');
+  const dstWafers = wafers.filter(w => w.phase === 'done' && w.station === `DST${laneNum}`).sort((a, b) => (b.doneTime || 0) - (a.doneTime || 0));
+  const size = 24 * zoom, wSize = 16 * zoom;
+  return (
+    <div className="flex items-center rounded" style={{ padding: 4 * zoom, backgroundColor: `${laneColor}15`, borderLeft: `${3 * zoom}px solid ${laneColor}` }}>
+      <div className="font-bold" style={{ width: 28 * zoom, fontSize: 10 * zoom, color: laneColor }}>L{laneNum}</div>
+      {flow.map((station, idx) => {
+        if (station === 'SRC') return (
+          <div key={idx} className="flex flex-col items-center" style={{ margin: `0 ${zoom}px` }}>
+            {showHeader && <div style={{ height: 16 * zoom }} />}
+            <div className="text-gray-400 mb-0.5" style={{ fontSize: 9 * zoom }}>SRC</div>
+            <div className="bg-gray-700 rounded border border-gray-500 flex items-center justify-center" style={{ width: size, height: size }}>
+              {srcWafers[0] && <div className="rounded-full flex items-center justify-center text-white font-bold" style={{ width: wSize, height: wSize, backgroundColor: srcWafers[0].color, border: `${Math.max(2, 2 * zoom)}px solid ${srcWafers[0].wscColor}`, fontSize: 7 * zoom }}>{srcWafers[0].num}</div>}
+            </div>
+            <div className="text-gray-500" style={{ height: 12 * zoom, fontSize: 8 * zoom }}>{srcWafers.length > 1 ? `+${srcWafers.length - 1}` : '\u00A0'}</div>
+          </div>
+        );
+        if (station === 'DST') return (
+          <div key={idx} className="flex flex-col items-center" style={{ margin: `0 ${zoom}px` }}>
+            {showHeader && <div style={{ height: 16 * zoom }} />}
+            <div className="text-gray-400 mb-0.5" style={{ fontSize: 9 * zoom }}>DST</div>
+            <div className="bg-green-900/30 rounded border border-green-500 flex items-center justify-center" style={{ width: size, height: size }}>
+              {dstWafers[0] && <div className="rounded-full flex items-center justify-center text-white font-bold" style={{ width: wSize, height: wSize, backgroundColor: dstWafers[0].color, border: `${Math.max(2, 2 * zoom)}px solid ${dstWafers[0].wscColor}`, fontSize: 7 * zoom }}>{dstWafers[0].num}</div>}
+            </div>
+            <div className="text-green-400" style={{ height: 12 * zoom, fontSize: 8 * zoom }}>{dstWafers.length > 1 ? `+${dstWafers.length - 1}` : '\u00A0'}</div>
+          </div>
+        );
+        const stationId = getStationId(station), isRobot = /^R\d+$/.test(station);
+        const mutexGroupIds = isRobot ? scheduler.getMutexGroupsForRobot(station, laneNum) : [];
+        const mutexColors = mutexGroupIds.map(id => MUTEX_COLORS[id % MUTEX_COLORS.length]);
+        return <Station key={idx} label={station} wafer={getWafer(stationId)} remainingTime={stationStates[stationId]?.remainingTime || 0} isRobot={isRobot} isProcess={!isRobot} isIsolated={scheduler.isolatedStations.has(stationId)} crossoverEnabled={crossoverEnabled[station] ?? false} onToggleCrossover={() => onToggleCrossover(station)} onToggleIsolate={() => onToggleIsolate(stationId)} showHeader={showHeader} zoom={zoom} mutexColors={mutexColors} mutexGroupIds={mutexGroupIds} laneNum={laneNum} />;
+      })}
+    </div>
+  );
+};
+
+const MutexLines = ({ containerRef, scheduler, zoom, showMutexLines, stationStates }) => {
+  const [lines, setLines] = useState([]);
+  useEffect(() => {
+    if (!showMutexLines || !containerRef?.current) { setLines([]); return; }
+    const mutexGroups = scheduler.expandMutexGroups();
+    if (mutexGroups.length === 0) { setLines([]); return; }
+    const timer = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const robotRadius = 12 * zoom;
+      const newLines = [];
+      mutexGroups.forEach((group, gIdx) => {
+        const color = MUTEX_COLORS[gIdx % MUTEX_COLORS.length];
+        const byRobot = {};
+        group.members.forEach(m => { const [robot, lane] = m.split('_'); if (!byRobot[robot]) byRobot[robot] = []; byRobot[robot].push(parseInt(lane)); });
+        Object.entries(byRobot).forEach(([robot, lanes]) => {
+          if (lanes.length < 2) return;
+          lanes.sort((a, b) => a - b);
+          for (let i = 0; i < lanes.length - 1; i++) {
+            const el1 = container.querySelector(`[data-robot="${robot}-${lanes[i]}"]`);
+            const el2 = container.querySelector(`[data-robot="${robot}-${lanes[i+1]}"]`);
+            if (!el1 || !el2) continue;
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            const x = rect1.left + rect1.width / 2 - containerRect.left;
+            const y1 = rect1.top + rect1.height / 2 - containerRect.top + robotRadius;
+            const y2 = rect2.top + rect2.height / 2 - containerRect.top - robotRadius;
+            newLines.push({ x, y1, y2, color, groupId: gIdx });
+          }
+        });
+      });
+      setLines(newLines);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [containerRef, scheduler, zoom, showMutexLines, stationStates]);
+  if (!showMutexLines || lines.length === 0) return null;
+  return (
+    <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: '100%', height: '100%', zIndex: 5 }}>
+      {lines.map((line, idx) => (<line key={idx} x1={line.x} y1={line.y1} x2={line.x} y2={line.y2} stroke={line.color} strokeWidth={4 * zoom} strokeOpacity={0.5}/>))}
+    </svg>
+  );
+};
+
+function CMPSimulator() {
+  const [dsl, setDsl] = useState(DEFAULT_DSL);
+  const [dslCopied, setDslCopied] = useState(false);
+  const [showDSL, setShowDSL] = useState(false);
+  const [showMutexLines, setShowMutexLines] = useState(true);
+  const [config, setConfig] = useState({ laneCount: 3, waferPerLane: 25, processTimes: {}, crossoverEnabled: {}, flow: [], constraints: { no_wait: [] }, mutex: [], schedulingMode: 'TAKT_TIME' });
+  const [time, setTime] = useState(0);
+  const [wafers, setWafers] = useState([]);
+  const [stationStates, setStationStates] = useState({});
+  const [eventLog, setEventLog] = useState([]);
+  const [stats, setStats] = useState({ crossovers: 0, blocked: 0 });
+  const [isRunning, setIsRunning] = useState(false);
+  const [speed, setSpeed] = useState(400);
+  const [scheduleHistory, setScheduleHistory] = useState([]);
+  const [zoom, setZoom] = useState(1);
+  const [useRandom, setUseRandom] = useState(false);
+  const [randomRange, setRandomRange] = useState(2);
+  const schedulerRef = useRef(new MasterScheduler());
+  const parserRef = useRef(new DSLParser());
+  const compilerRef = useRef(new DSLCompiler());
+  const logRef = useRef(null);
+  const tableRef = useRef(null);
+  const laneContainerRef = useRef(null);
+  const LANE_COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6'];
+  const generateColor = (num, total) => `hsl(${(num - 1) * (360 / Math.max(total, 1))}, 65%, 55%)`;
+  const applyDSL = useCallback(() => { const { ast } = parserRef.current.parse(dsl); const compiled = compilerRef.current.compile(ast); setConfig(compiled); schedulerRef.current.applyConfig(compiled); }, [dsl]);
+  useEffect(() => { applyDSL(); }, []);
+  const initialize = useCallback(() => {
+    const { laneCount, waferPerLane, flow, processTimes, processStations } = config;
+    if (!flow || flow.length === 0) return;
+    schedulerRef.current.applyConfig(config);
+    schedulerRef.current.isolatedStations.clear();
+    const totalWafers = waferPerLane * laneCount;
+    const newWafers = [];
+    let globalNum = 1;
+    for (let lane = 1; lane <= laneCount; lane++) {
+      for (let i = 0; i < waferPerLane; i++) {
+        const wscIndex = i % 3;
+        const totalProcessTime = processStations.reduce((sum, s) => sum + (processTimes[s] || 1), 0) + (flow.filter(s => /^R\d+$/.test(s)).length * (processTimes.robot_transfer || 1));
+        const wafer = { id: `W${String(globalNum).padStart(3, '0')}`, num: globalNum, wscColor: WSC_COLORS[wscIndex], wscIndex, color: generateColor(globalNum, totalWafers), phase: 'queued', station: `SRC${lane}`, lane, remainingTime: 0, crossoverCount: 0, deadline: totalProcessTime * 2 };
+        if (useRandom && processStations) { wafer.randomTimes = {}; processStations.forEach(station => { const baseTime = processTimes[station] || 1; const variation = Math.floor(Math.random() * (randomRange * 2 + 1)) - randomRange; wafer.randomTimes[station] = Math.max(1, baseTime + variation); }); }
+        newWafers.push(wafer);
+        globalNum++;
+      }
+    }
+    const initialStates = {};
+    for (let lane = 1; lane <= laneCount; lane++) { flow.forEach(station => { const id = schedulerRef.current.getStationId(station, lane); initialStates[id] = { state: station === 'SRC' ? 'source' : station === 'DST' ? 'dest' : 'empty', waferId: null, remainingTime: 0 }; }); }
+    setWafers(newWafers); setStationStates(initialStates); setTime(0); setEventLog([]); setStats({ crossovers: 0, blocked: 0 }); setScheduleHistory([]); setIsRunning(false);
+  }, [config, useRandom, randomRange]);
+  useEffect(() => { if (config.flow.length > 0) initialize(); }, [config.flow, config.laneCount, config.waferPerLane]);
+  const fitWidth = useCallback(() => { if (!laneContainerRef.current) return; const container = laneContainerRef.current; const containerWidth = container.parentElement?.clientWidth || 600; const stationCount = config.flow.length; const baseWidth = stationCount * 32 + 40; const newZoom = Math.min(4, Math.max(0.5, (containerWidth - 32) / baseWidth)); setZoom(newZoom); }, [config.flow.length]);
+  const log = useCallback((type, detail, extra = {}) => { setEventLog(prev => [...prev.slice(-99), { time, type, detail, ...extra }]); }, [time]);
+  const tick = useCallback(() => {
+    const result = schedulerRef.current.tick(stationStates, wafers, time);
+    const newTime = time + (result.timeAdvance || 1); setTime(newTime);
+    if (result.movements.length > 0) log('MOVE', result.movements.join(', '));
+    result.blocked.forEach(b => log('BLOCKED', `${b.waferId}@${b.from}→${b.to} (${b.reason})`, { isBlocked: true }));
+    setWafers(result.newWafers); setStationStates(result.newStates);
+    setStats(prev => ({ crossovers: prev.crossovers + result.crossoverCount, blocked: prev.blocked + result.blocked.length }));
+    const { laneCount, flow } = config;
+    const snapshot = { time: newTime };
+    for (let lane = 1; lane <= laneCount; lane++) { flow.forEach(station => { if (station !== 'SRC' && station !== 'DST') { const id = schedulerRef.current.getStationId(station, lane); snapshot[`${station}_L${lane}`] = result.newStates[id]?.waferId || null; } }); const dstWafers = result.newWafers.filter(w => w.phase === 'done' && w.station === `DST${lane}`).sort((a, b) => (b.doneTime || 0) - (a.doneTime || 0)); snapshot[`DST_L${lane}`] = dstWafers[0]?.id || null; }
+    snapshot.done = result.newWafers.filter(w => w.phase === 'done').length;
+    setScheduleHistory(prev => [...prev.slice(-50), snapshot]);
+    const totalWafers = config.waferPerLane * config.laneCount;
+    const completedCount = result.newWafers.filter(w => w.phase === 'done').length;
+    if (completedCount === totalWafers) { setIsRunning(false); const doneTimes = result.newWafers.map(w => w.doneTime ?? newTime); const avgCycle = (doneTimes.reduce((a, b) => a + b, 0) / totalWafers).toFixed(1); const throughput = (totalWafers / newTime).toFixed(3); log('COMPLETE', `All ${totalWafers} wafers completed in ${newTime} ticks!`); log('STATS', `Makespan: ${newTime} | Avg cycle: ${avgCycle} | Throughput: ${throughput}`); }
+  }, [time, wafers, stationStates, config, log, stats]);
+  useEffect(() => { if (!isRunning) return; const interval = setInterval(tick, speed); return () => clearInterval(interval); }, [isRunning, tick, speed]);
+  useEffect(() => { logRef.current?.scrollTo(0, logRef.current.scrollHeight); }, [eventLog]);
+  useEffect(() => { tableRef.current?.scrollTo(0, tableRef.current.scrollHeight); }, [scheduleHistory]);
+  const toggleCrossover = (station) => { const newEnabled = { ...config.crossoverEnabled, [station]: !config.crossoverEnabled[station] }; setConfig(prev => ({ ...prev, crossoverEnabled: newEnabled })); schedulerRef.current.config.crossoverEnabled = newEnabled; };
+  const toggleIsolate = (stationId) => { const scheduler = schedulerRef.current; scheduler.isolatedStations.has(stationId) ? scheduler.restoreStation(stationId) : scheduler.isolateStation(stationId); setStationStates({ ...stationStates }); };
+  const updateConfig = (key, value) => setConfig(prev => ({ ...prev, [key]: value }));
+  const doneWafers = wafers.filter(w => w.phase === 'done');
+  const totalWafers = config.waferPerLane * config.laneCount;
+  const isComplete = doneWafers.length === totalWafers;
+  let avgCycle = '-', throughput = '-';
+  if (isComplete) { const doneTimes = doneWafers.map(w => w.doneTime || time); avgCycle = (doneTimes.reduce((a, b) => a + b, 0) / totalWafers).toFixed(1); throughput = (totalWafers / time).toFixed(3); }
+  const { flow, laneCount } = config;
+  const getExpandedMutexDisplay = () => schedulerRef.current.expandMutexGroups().map((g, i) => ({ id: i, members: g.members, color: MUTEX_COLORS[i % MUTEX_COLORS.length] }));
+  const formatCell = (waferId) => { if (!waferId) return <span className="text-gray-600">-</span>; const w = wafers.find(x => x.id === waferId); if (!w) return <span className="text-gray-600">-</span>; return <span className="flex items-center justify-center gap-0.5"><span className="rounded-full" style={{ width: 6, height: 6, backgroundColor: w.wscColor }}/><span style={{ color: w.wscColor, fontSize: 8 }}>{w.num}</span></span>; };
+  const mutexDisplay = getExpandedMutexDisplay();
+  const noWaitDisplay = config.constraints?.no_wait || [];
+  return (
+    <div className="p-2 bg-gray-900 text-white min-h-screen text-xs">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h1 className="text-sm font-bold">CMP Multi-Lane Scheduler</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-gray-400">Zoom:</span>
+          <input type="range" min="50" max="400" value={zoom * 100} onChange={(e) => setZoom(parseInt(e.target.value) / 100)} className="w-16"/>
+          <span className="text-cyan-400 w-12">{Math.round(zoom * 100)}%</span>
+          <button onClick={fitWidth} className="px-2 py-0.5 bg-indigo-600 rounded text-xs hover:bg-indigo-500">Fit</button>
+          <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={showMutexLines} onChange={(e) => setShowMutexLines(e.target.checked)} className="w-3 h-3 rounded"/><span className="text-pink-400">Mutex Lines</span></label>
+          <button onClick={() => setShowDSL(!showDSL)} className={`px-2 py-0.5 rounded text-xs ${showDSL ? 'bg-purple-600' : 'bg-gray-600'}`}>{showDSL ? 'Hide DSL' : 'Show DSL'}</button>
+        </div>
+      </div>
+      {showDSL && (
+        <div className="bg-gray-800 rounded-lg p-2 mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-xs font-semibold text-gray-400">DSL Configuration</h2>
+            <div className="flex gap-2">
+              <button onClick={() => { applyDSL(); initialize(); }} className="px-2 py-0.5 bg-green-600 rounded text-xs hover:bg-green-500">Apply & Reset</button>
+              <button onClick={() => { navigator.clipboard.writeText(dsl); setDslCopied(true); setTimeout(() => setDslCopied(false), 1500); }} className={`px-2 py-0.5 rounded text-xs ${dslCopied ? 'bg-green-600' : 'bg-gray-600'} hover:opacity-90`}>{dslCopied ? 'Copied ✓' : 'Copy DSL'}</button>
+            </div>
+          </div>
+          <textarea value={dsl} onChange={(e) => setDsl(e.target.value)} className="w-full h-44 bg-gray-900 text-green-400 font-mono text-xs p-2 rounded border border-gray-600 resize-none" spellCheck={false} />
+          <div className="mt-1 flex flex-wrap gap-1 text-xs">
+            <span className="text-gray-500">Flow:</span>
+            {config.flow.map((s, i) => <span key={i} className={`px-1 py-0.5 rounded ${/^R\d+$/.test(s) ? 'bg-yellow-900/50 text-yellow-400' : s === 'SRC' || s === 'DST' ? 'bg-gray-600 text-gray-300' : 'bg-blue-900/50 text-blue-400'}`}>{s}</span>)}
+          </div>
+          {noWaitDisplay.length > 0 && (<div className="mt-1 flex flex-wrap gap-1 text-xs items-center"><span className="text-gray-500">No-Wait:</span>{noWaitDisplay.map((r, i) => <span key={i} className="px-1 py-0.5 rounded bg-orange-900/50 text-orange-400">{r}</span>)}</div>)}
+          {mutexDisplay.length > 0 && (<div className="mt-1 flex flex-wrap gap-1 text-xs items-center"><span className="text-gray-500">Mutex:</span>{mutexDisplay.map((g, i) => (<span key={i} className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: g.color }}>[{g.id}] {g.members.length > 4 ? `${g.members.slice(0,3).join(', ')}...` : g.members.join(', ')}</span>))}</div>)}
+        </div>
+      )}
+      <div className="mb-2 p-2 bg-gray-800 rounded-lg">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1"><span className="text-gray-400">Lanes:</span><select value={config.laneCount} onChange={(e) => updateConfig('laneCount', Number(e.target.value))} disabled={isRunning} className="bg-gray-700 rounded px-1 py-0.5">{[2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+          <div className="flex items-center gap-1"><span className="text-gray-400">W/L:</span><button onClick={() => updateConfig('waferPerLane', Math.max(1, config.waferPerLane - 1))} disabled={isRunning} className="px-1 bg-gray-600 rounded-l">-</button><span className="w-6 text-center bg-gray-700">{config.waferPerLane}</span><button onClick={() => updateConfig('waferPerLane', config.waferPerLane + 1)} disabled={isRunning} className="px-1 bg-gray-600 rounded-r">+</button></div>
+          {Object.entries(config.processTimes).filter(([k]) => !k.includes('robot')).map(([station, t]) => (<div key={station} className="flex items-center gap-1"><span className="text-gray-400">{station}:</span><button onClick={() => updateConfig('processTimes', { ...config.processTimes, [station]: Math.max(1, t - 1) })} disabled={isRunning} className="px-1 bg-gray-600 rounded-l">-</button><span className="w-5 text-center bg-gray-700">{t}</span><button onClick={() => updateConfig('processTimes', { ...config.processTimes, [station]: t + 1 })} disabled={isRunning} className="px-1 bg-gray-600 rounded-r">+</button></div>))}
+          <div className="flex items-center gap-1 border-l border-gray-600 pl-2"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={useRandom} onChange={(e) => setUseRandom(e.target.checked)} disabled={isRunning} className="w-3 h-3 rounded"/><span className="text-yellow-400">Random</span></label>{useRandom && (<><span className="text-gray-400">&#xB1;</span><button onClick={() => setRandomRange(Math.max(1, randomRange - 1))} disabled={isRunning} className="px-1 bg-gray-600 rounded-l">-</button><span className="w-4 text-center bg-gray-700">{randomRange}</span><button onClick={() => setRandomRange(randomRange + 1)} disabled={isRunning} className="px-1 bg-gray-600 rounded-r">+</button></>)}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-gray-700">
+          <div className="flex items-center gap-1"><span className="text-gray-400">Mode:</span><select value={config.schedulingMode} onChange={(e) => { const mode = e.target.value; updateConfig('schedulingMode', mode); schedulerRef.current.schedulingMode = mode; }} className="bg-gray-700 rounded px-1 py-0.5"><option value="TAKT_TIME">Takt-Time</option><option value="EVENT_DRIVEN">Event-Driven</option><option value="DEADLINE_DRIVEN">Deadline-Driven</option></select></div>
+          <span className="text-gray-400">Crossover:</span>
+          {config.processStations?.map(station => (<label key={station} className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={config.crossoverEnabled[station] ?? false} onChange={() => toggleCrossover(station)} className="w-3 h-3 rounded"/><span className={config.crossoverEnabled[station] ? 'text-green-400' : 'text-gray-500'}>{station}</span></label>))}
+          <div className="flex-1"/>
+          <button onClick={initialize} className="px-2 py-0.5 bg-blue-600 rounded">Reset</button>
+          <button onClick={tick} disabled={isRunning} className="px-2 py-0.5 bg-cyan-600 disabled:bg-gray-600 rounded">Step</button>
+          <button onClick={() => setIsRunning(!isRunning)} className={`px-2 py-0.5 rounded ${isRunning ? 'bg-yellow-600' : 'bg-green-600'}`}>{isRunning ? 'Pause' : 'Run'}</button>
+          <input type="range" min="50" max="800" value={850 - speed} onChange={(e) => setSpeed(850 - parseInt(e.target.value))} className="w-12"/>
+        </div>
+      </div>
+      <div className="mb-2 p-2 bg-gray-800 rounded-lg overflow-x-auto">
+        <div className="relative" ref={laneContainerRef}>
+          <MutexLines containerRef={laneContainerRef} scheduler={schedulerRef.current} zoom={zoom} showMutexLines={showMutexLines} stationStates={stationStates} />
+          <div className="flex flex-col" style={{ gap: 4 * zoom }}>
+            {Array.from({ length: config.laneCount }, (_, i) => (<LaneView key={i + 1} laneNum={i + 1} flow={config.flow} stationStates={stationStates} wafers={wafers} scheduler={schedulerRef.current} laneColor={LANE_COLORS[i % LANE_COLORS.length]} crossoverEnabled={config.crossoverEnabled} onToggleCrossover={toggleCrossover} onToggleIsolate={toggleIsolate} showHeader={i === 0} zoom={zoom} />))}
+          </div>
+        </div>
+        <div className="pt-2 flex flex-wrap justify-center gap-3 text-xs border-t border-gray-700 mt-2">
+          <span>Time: <span className="text-cyan-400 font-mono">{time}</span></span>
+          <span>Done: <span className="text-green-400 font-mono">{doneWafers.length}/{totalWafers}</span></span>
+          <span className={stats.crossovers > 0 ? 'text-yellow-400' : 'text-gray-500'}>Xover: <span className="font-mono">{stats.crossovers}</span></span>
+          <span className={stats.blocked > 0 ? 'text-red-400' : 'text-gray-500'}>Blocked: <span className="font-mono">{stats.blocked}</span></span>
+          {isComplete && (<><span>Makespan: <span className="text-purple-400 font-mono">{time}</span></span><span>Avg Cycle: <span className="text-purple-400 font-mono">{avgCycle}</span></span><span>Throughput: <span className="text-purple-400 font-mono">{throughput}</span></span></>)}
+        </div>
+      </div>
+      <div className="mb-2 p-2 bg-gray-800 rounded-lg">
+        <h2 className="text-xs font-semibold mb-1 text-gray-400">Schedule History</h2>
+        <div className="max-h-32 overflow-auto scrollbar-thin" ref={tableRef}>
+          <table className="w-full text-xs border-collapse">
+            <thead className="sticky top-0 bg-gray-800"><tr className="border-b border-gray-600"><th className="px-1 text-gray-400 text-left">T</th>{Array.from({ length: laneCount }, (_, laneIdx) => { const lane = laneIdx + 1; return flow.filter(s => s !== 'SRC').map((station, sIdx) => (<th key={`${lane}-${sIdx}`} className={`px-0.5 ${/^R\d+$/.test(station) ? 'bg-yellow-900/20' : ''}`} style={{ color: LANE_COLORS[laneIdx % LANE_COLORS.length], fontSize: 8 }}>{station}</th>)); })}<th className="px-1 text-gray-400">Done</th></tr></thead>
+            <tbody>{scheduleHistory.slice(-15).map((row, idx) => (<tr key={idx} className="border-b border-gray-700/30"><td className="px-1 text-cyan-400">{row.time}</td>{Array.from({ length: laneCount }, (_, laneIdx) => { const lane = laneIdx + 1; return flow.filter(s => s !== 'SRC').map((station, sIdx) => { const key = station === 'DST' ? `DST_L${lane}` : `${station}_L${lane}`; return <td key={`${lane}-${sIdx}`} className={`px-0.5 text-center ${/^R\d+$/.test(station) ? 'bg-yellow-900/10' : ''}`}>{formatCell(row[key])}</td>; }); })}<td className="px-1 text-green-400 text-center">{row.done}</td></tr>))}</tbody>
+          </table>
+        </div>
+      </div>
+      <div className="p-2 bg-gray-800 rounded-lg">
+        <h2 className="text-xs font-semibold mb-1 text-gray-400">Event Log</h2>
+        <div className="max-h-16 overflow-y-auto font-mono scrollbar-thin" ref={logRef} style={{ fontSize: 9 }}>
+          {eventLog.length === 0 ? <div className="text-gray-500">Flow: {config.flow.join(' → ')}</div> : eventLog.slice(-12).map((e, i) => (<div key={i} className={e.isBlocked ? 'text-red-400' : e.detail.includes('XOVER') ? 'text-yellow-400' : ''}><span className="text-gray-500">T{e.time}</span><span className={`ml-1 ${e.type === 'BLOCKED' ? 'text-red-400' : e.type === 'COMPLETE' || e.type === 'STATS' ? 'text-green-400' : 'text-cyan-400'}`}>[{e.type}]</span><span className="ml-1 text-gray-300">{e.detail}</span></div>))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<CMPSimulator />);
+  </script>
+</body>
+</html>

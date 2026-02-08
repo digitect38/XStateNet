@@ -1,0 +1,315 @@
+// cmp_multilane_scheduler.sfl
+// CMP Multi-Lane Scheduler — SFL v2.1
+// Equivalent to the CMP Multi-Lane Scheduler WebApp DSL
+//
+// This SFL program defines a 3-lane CMP production line with:
+//   - 4 process stations (POL, CLN, RNS, BUF) + endpoints (SRC, DST)
+//   - 5 robots (R1-R5) for wafer transport
+//   - Crossover support for cross-lane wafer movement
+//   - Mutex groups for robot mutual exclusion
+//   - No-wait constraints on robots R1, R2
+
+import semiflow.algorithms.cyclic_zip
+import semiflow.semi.e90
+
+// ============================================================
+//  Pipeline Topology
+// ============================================================
+
+FLOW PRODUCTION_LINE {
+    SRC -> R1 -> POL -> R2 -> CLN -> R3 -> RNS -> R4 -> BUF -> R5 -> DST
+}
+
+CROSSOVER {
+    POL: disabled
+    CLN: enabled
+    RNS: enabled
+    BUF: enabled
+}
+
+MUTEX {
+    group: L*.R1
+    group: L1.R2, L1.R3
+}
+
+CONSTRAINTS {
+    scheduling_mode: "TAKT_TIME"
+    no_wait: [R1, R2]
+    max_wip: 10
+    priority: "FIFO"
+}
+
+// ============================================================
+//  L1 — Master Scheduler (Orchestrator)
+// ============================================================
+
+MASTER_SCHEDULER MSC_CMP_LINE {
+    LAYER: L1
+
+    CONFIG {
+        lane_count: 3
+        wafer_distribution: "CYCLIC_ZIP"
+        total_wafers: 75
+        wafers_per_lane: 25
+        optimization_interval: 30s
+    }
+
+    SCHEDULE PRODUCTION_RUN {
+        wafer_count: 75
+        scheduler_count: 3
+        pipeline_depth: 3
+
+        APPLY_RULE("WAR_001")
+        APPLY_RULE("PSR_001")
+        APPLY_RULE("SSR_001")
+
+        VERIFY {
+            all_wafers_assigned: "true"
+            no_conflicts: "true"
+            pipeline_depth: "3"
+        }
+    }
+}
+
+// ============================================================
+//  L2 — Wafer Schedulers (one per lane)
+// ============================================================
+
+WAFER_SCHEDULER WSC_LANE_001 {
+    LAYER: L2
+
+    CONFIG {
+        assigned_wafers: FORMULA(CYCLIC_ZIP, 0, 3, 25)
+        max_concurrent: 3
+        lane: 1
+    }
+
+    subscribe to "msc/+/command" as msc_commands @2;
+    publish status to "wsc/lane1/status" @1;
+}
+
+WAFER_SCHEDULER WSC_LANE_002 {
+    LAYER: L2
+
+    CONFIG {
+        assigned_wafers: FORMULA(CYCLIC_ZIP, 1, 3, 25)
+        max_concurrent: 3
+        lane: 2
+    }
+
+    subscribe to "msc/+/command" as msc_commands @2;
+    publish status to "wsc/lane2/status" @1;
+}
+
+WAFER_SCHEDULER WSC_LANE_003 {
+    LAYER: L2
+
+    CONFIG {
+        assigned_wafers: FORMULA(CYCLIC_ZIP, 2, 3, 25)
+        max_concurrent: 3
+        lane: 3
+    }
+
+    subscribe to "msc/+/command" as msc_commands @2;
+    publish status to "wsc/lane3/status" @1;
+}
+
+// ============================================================
+//  L3 — Robot Schedulers (transport between stations)
+// ============================================================
+
+ROBOT_SCHEDULER RSC_R1 {
+    LAYER: L3
+
+    CONFIG {
+        robot_type: "TRANSFER"
+        transfer_time: 1s
+        position_update_rate: 10Hz
+        no_wait: true
+    }
+
+    CONTROLLED_ROBOTS: ["R1_1", "R1_2", "R1_3"]
+
+    publish position to "rsc/r1/position" @0, volatile;
+
+    transaction PICK_PLACE {
+        timeout: 5s
+    }
+}
+
+ROBOT_SCHEDULER RSC_R2 {
+    LAYER: L3
+
+    CONFIG {
+        robot_type: "TRANSFER"
+        transfer_time: 1s
+        position_update_rate: 10Hz
+        no_wait: true
+    }
+
+    CONTROLLED_ROBOTS: ["R2_1", "R2_2", "R2_3"]
+
+    transaction PICK_PLACE {
+        timeout: 5s
+    }
+}
+
+ROBOT_SCHEDULER RSC_R3 {
+    LAYER: L3
+
+    CONFIG {
+        robot_type: "TRANSFER"
+        transfer_time: 1s
+        position_update_rate: 10Hz
+    }
+
+    CONTROLLED_ROBOTS: ["R3_1", "R3_2", "R3_3"]
+
+    transaction PICK_PLACE {
+        timeout: 5s
+    }
+}
+
+ROBOT_SCHEDULER RSC_R4 {
+    LAYER: L3
+
+    CONFIG {
+        robot_type: "TRANSFER"
+        transfer_time: 1s
+        position_update_rate: 10Hz
+    }
+
+    CONTROLLED_ROBOTS: ["R4_1", "R4_2", "R4_3"]
+
+    transaction PICK_PLACE {
+        timeout: 5s
+    }
+}
+
+ROBOT_SCHEDULER RSC_R5 {
+    LAYER: L3
+
+    CONFIG {
+        robot_type: "TRANSFER"
+        transfer_time: 1s
+        position_update_rate: 10Hz
+    }
+
+    CONTROLLED_ROBOTS: ["R5_1", "R5_2", "R5_3"]
+
+    transaction PICK_PLACE {
+        timeout: 5s
+    }
+}
+
+// ============================================================
+//  L4 — Process Stations
+// ============================================================
+
+STATION STN_POL {
+    LAYER: L4
+
+    CONFIG {
+        type: "CMP_POLISHER"
+        process_time: 5s
+        capacity: 1
+    }
+
+    STATE_MACHINE {
+        initial: "idle"
+        states: {
+            idle: {
+                on: { RECEIVE_WAFER: "processing" }
+            }
+            processing: {
+                on: { DONE: "idle" }
+            }
+            alarm: {
+                on: { RESET: "idle" }
+            }
+        }
+    }
+
+    publish state to "station/pol/state" @2, persistent;
+}
+
+STATION STN_CLN {
+    LAYER: L4
+
+    CONFIG {
+        type: "POST_CMP_CLEANER"
+        process_time: 7s
+        capacity: 1
+    }
+
+    STATE_MACHINE {
+        initial: "idle"
+        states: {
+            idle: {
+                on: { RECEIVE_WAFER: "processing" }
+            }
+            processing: {
+                on: { DONE: "idle" }
+            }
+            alarm: {
+                on: { RESET: "idle" }
+            }
+        }
+    }
+
+    publish state to "station/cln/state" @2, persistent;
+}
+
+STATION STN_RNS {
+    LAYER: L4
+
+    CONFIG {
+        type: "RINSE"
+        process_time: 3s
+        capacity: 1
+    }
+
+    STATE_MACHINE {
+        initial: "idle"
+        states: {
+            idle: {
+                on: { RECEIVE_WAFER: "processing" }
+            }
+            processing: {
+                on: { DONE: "idle" }
+            }
+            alarm: {
+                on: { RESET: "idle" }
+            }
+        }
+    }
+
+    publish state to "station/rns/state" @2, persistent;
+}
+
+STATION STN_BUF {
+    LAYER: L4
+
+    CONFIG {
+        type: "BUFFER"
+        process_time: 1s
+        capacity: 1
+    }
+
+    STATE_MACHINE {
+        initial: "idle"
+        states: {
+            idle: {
+                on: { RECEIVE_WAFER: "processing" }
+            }
+            processing: {
+                on: { DONE: "idle" }
+            }
+            alarm: {
+                on: { RESET: "idle" }
+            }
+        }
+    }
+
+    publish state to "station/buf/state" @2, persistent;
+}
