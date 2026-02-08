@@ -12,7 +12,8 @@
       "Bash(dotnet run:*)",
       "Bash(dotnet sln:*)",
       "Bash(nul)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add SemiFlow Pipeline Simulator with synchronized station flow\n\nImplement a 3-level hierarchical CMP wafer processing simulator:\n\n- Level 1: Coordinator Scheduler - orchestrates wafer dispatch\n- Level 2: Wafer Schedulers - manages individual wafer workflows  \n- Level 3: Resource Schedulers - controls Robot, Platen1, Platen2\n\nKey Features:\n- Pipelined mode: Multiple wafers process concurrently (with buffers)\n- Synchronized mode: One wafer at a time (station capacity: 1)\n- Live dashboard with Spectre.Console visualization\n- Wafer tracking with circled numbers (01), (02), (03)...\n- Real-time pipeline status and resource utilization metrics\n\nStation Capacity Constraints:\n- Robot, Platen1, Platen2: max 1 wafer each\n- Only FOUP and buffers can hold multiple wafers\n\nAlso includes:\n- SemiFlow DSL v1.0 with JSON schema\n- SemiFlow.Converter for XStateNet integration\n- 75+ unit tests with full coverage\n- VSCode extension for SemiFlow syntax highlighting\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

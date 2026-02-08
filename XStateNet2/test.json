@@ -1,0 +1,37 @@
+{
+  "id": "sfl_system",
+  "initial": "",
+  "type": "parallel",
+  "states": {
+    "TEST": {
+      "states": {
+        "idle": {
+          "on": {
+            "START": "scheduling"
+          }
+        },
+        "scheduling": {
+          "on": {
+            "DONE": "monitoring"
+          },
+          "entry": [
+            "applyRule_PSR_001"
+          ]
+        },
+        "monitoring": {
+          "on": {
+            "WAFER_COMPLETE": "monitoring",
+            "ALL_DONE": "completed"
+          }
+        },
+        "completed": {
+          "type": "final"
+        }
+      },
+      "initial": "idle",
+      "meta": {
+        "schedulerType": "Master"
+      }
+    }
+  }
+}

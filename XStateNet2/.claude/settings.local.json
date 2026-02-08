@@ -4,7 +4,11 @@
       "Bash(powershell -ExecutionPolicy Bypass -File replace.ps1:*)",
       "Bash(powershell -Command:*)",
       "Bash(pkill:*)",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet test:*)"
     ],
     "deny": [],
     "ask": []

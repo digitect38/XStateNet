@@ -18,7 +18,9 @@
       "Bash(copy:*)",
       "Bash(code:*)",
       "Bash(npx vsce package --allow-missing-repository)",
-      "Bash(start \"\" \"C:\\\\Develop25\\\\XStateNet\\\\XStateNet2\\\\SemiFlow2\\\\semiflow-project\\\\webapp\\\\cmp-scheduler\\\\index.html\")"
+      "Bash(start \"\" \"C:\\\\Develop25\\\\XStateNet\\\\XStateNet2\\\\SemiFlow2\\\\semiflow-project\\\\webapp\\\\cmp-scheduler\\\\index.html\")",
+      "Bash(git -C \"C:\\\\Develop25\\\\XStateNet\" add \"XStateNet2/cmp_machine.json\" \"XStateNet2/test.json\" \"XStateNet2/test.sfl\" \"XStateNet2/.claude/settings.local.json\" \"XStateNet2/SemiFlow/.claude/settings.local.json\" \"docs/.bkit-memory.json\" \"docs/.pdca-status.json\")",
+      "Bash(git -C \"C:\\\\Develop25\\\\XStateNet\" status --short)"
     ]
   }
 }
